@@ -90,6 +90,14 @@ class FirmwareJobTest {
     }
 
     @Test
+    fun `the check after the transfer does not need a prelude answer from the left arm`() {
+        val env = FakeFirmwareEnvironment(SimulatedGlasses(leftAnswersPrelude = false))
+        val result = run(env)
+        assertTrue(message(result), result is FirmwareInstall.Done)
+        assertTrue(env.glasses.writes.none { it.address == LEFT && it.sid == BleProtocol.PRELUDE_ACK_SID })
+    }
+
+    @Test
     fun `puts the original firmware back`() {
         val env = FakeFirmwareEnvironment(SimulatedGlasses(extension = "Faceclaw/35", firmwareAfterFlash = ""))
         val result = run(env, target = FirmwareTarget.ORIGINAL)
@@ -291,6 +299,8 @@ class FirmwareJobTest {
         val result = run(env)
         assertTrue(message(result), result is FirmwareInstall.Done)
         assertTrue(rightConnects >= 2)
+        // It recovered, so a later failure would not be blamed on the MTU.
+        assertTrue(env.links.none { it.mtuTooNarrow })
         val expected = TestFirmware.payloads(TestFirmware.custom)
         assertTrue(expected.zip(glasses.received[RIGHT]!!).all { (e, g) -> e.contentEquals(g) })
     }

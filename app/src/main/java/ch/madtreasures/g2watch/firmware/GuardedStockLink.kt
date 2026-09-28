@@ -39,6 +39,9 @@ class GuardedStockLink(
     private val mtuRefused = AtomicInteger()
     private val otaWrites = AtomicInteger()
 
+    /** Lenses whose latest MTU exchange ended too narrow; a later wide one clears the entry. */
+    private val narrow: MutableSet<String> = java.util.Collections.synchronizedSet(HashSet())
+
     /** Allows writes to the update characteristic from now on. */
     fun arm() {
         armed = true
@@ -59,6 +62,9 @@ class GuardedStockLink(
 
     /** Connections dropped and writes refused because the MTU was too small. */
     val mtuRefusalCount: Int get() = mtuRefused.get()
+
+    /** True while some lens's latest MTU exchange was too narrow, i.e. the MTU is why it stopped. */
+    val mtuTooNarrow: Boolean get() = narrow.isNotEmpty()
 
     fun mtu(address: String): Int = negotiatedMtu(address)
 
@@ -82,6 +88,7 @@ class GuardedStockLink(
             if (mtu < MIN_MTU || largest > mtu - ATT_HEADER) {
                 refused.incrementAndGet()
                 mtuRefused.incrementAndGet()
+                narrow += address
                 log("blocked: firmware write with MTU $mtu (needs $MIN_MTU, frame $largest bytes)")
                 return false
             }
@@ -98,8 +105,11 @@ class GuardedStockLink(
         delegate.prepareLink(address, desiredMtu, timeoutMs)
         if (!armed) return
         val mtu = negotiatedMtu(address)
-        if (mtu < MIN_MTU) {
+        if (mtu >= MIN_MTU) {
+            narrow -= address
+        } else {
             // Drop it: bring-up fails at the next step and the flasher reconnects within its window.
+            narrow += address
             mtuRefused.incrementAndGet()
             log("MTU $mtu after the exchange (needs $MIN_MTU): dropping the connection before any firmware write")
             delegate.disconnect(address)

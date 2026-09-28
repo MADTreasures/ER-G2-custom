@@ -406,7 +406,7 @@ class FirmwareJob(
                 done.isEmpty() -> FLASH_UNKNOWN
                 else -> "Das linke Glas hat die neue Firmware, das rechte nicht. $FLASH_UNKNOWN"
             }
-            val mtuHint = if (link.mtuRefusalCount > 0) " Die Bluetooth-Verbindung der Uhr war zu schmal (MTU unter ${GuardedStockLink.MIN_MTU})." else ""
+            val mtuHint = if (link.mtuTooNarrow) " Die Bluetooth-Verbindung der Uhr war zu schmal (MTU unter ${GuardedStockLink.MIN_MTU})." else ""
             throw Stop("Übertragung abgebrochen: ${FaceclawMessages.german(failure)}.$mtuHint $state")
         }
     }
@@ -429,7 +429,9 @@ class FirmwareJob(
             val session = StockLinkSession(link, log, env.timings, platform = env.platform)
             session.bringUp(address)
             if (session.authenticate(address, name) != StockLinkSession.AuthResult.SUCCESS) return null
-            session.sendPrelude(address, " ($name lens)")
+            // Like Faceclaw: the prelude goes to the right arm only (acks come from the right arm), and
+            // a missing ack is no reason to skip the read; the left arm's settings are read as they are.
+            if (name == "right") preludeQuietly(session, address)
             repeat(2) {
                 val pb = session.readSettings(address, env.timings.queryTimeoutMs) ?: session.unsolicitedSettingsPb
                 val info = pb?.let { BleProtocol.parseSettingsFirmwareInfo(it) }
@@ -530,7 +532,7 @@ class FirmwareJob(
     /** The prompt of a real transfer appears on the right lens; in silent mode it cannot. */
     private fun checkNotSilent(session: StockLinkSession, address: String) {
         val silent = try {
-            session.sendPrelude(address)
+            preludeQuietly(session, address)
             val pb = session.readSettings(address, env.timings.queryTimeoutMs) ?: session.unsolicitedSettingsPb
             pb?.let { BleProtocol.parseSettingsBattery(it) }?.silentMode ?: -1
         } catch (e: IllegalStateException) {
@@ -539,6 +541,14 @@ class FirmwareJob(
         }
         log("test run: silent mode ${if (silent < 0) "unknown" else if (silent > 0) "on" else "off"}")
         if (silent > 0) throw Stop(SILENT_TEXT)
+    }
+
+    private fun preludeQuietly(session: StockLinkSession, address: String) {
+        try {
+            session.sendPrelude(address)
+        } catch (e: IllegalStateException) {
+            log("prelude: ${e.message}")
+        }
     }
 
     // --- helpers -------------------------------------------------------------------------------

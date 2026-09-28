@@ -40,6 +40,11 @@ class SimulatedGlasses(
     /** Settings field 100: "" on stock, "Faceclaw/35" on the custom firmware. */
     var extension: String = "",
     val battery: MutableMap<String, Int> = mutableMapOf(RIGHT to 80, LEFT to 75),
+    /**
+     * Whether a lens answers the session prelude on its own link. Faceclaw only ever sends it to
+     * the right arm; the left arm alone is not known to answer, so tests can switch that off.
+     */
+    var leftAnswersPrelude: Boolean = true,
     /** Index the wearer taps on the prompt: 1 = "Yes, flash", 0 = "No, cancel", null = nothing. */
     var promptAnswer: Int? = 1,
     var silentMode: Boolean = false,
@@ -126,7 +131,7 @@ class SimulatedGlasses(
         val magic = BleProtocol.readVarintFieldValue(w.pb, 2, -1)
         when (w.sid) {
             BleProtocol.SID_SECURITY_AUTH -> notify(w.address, varintField(1, 4) + varintField(2, magic) + field(3, ByteArray(0)), w.sid)
-            BleProtocol.PRELUDE_ACK_SID -> notify(w.address, ack(BleProtocol.PRELUDE_ACK_MAGIC), w.sid)
+            BleProtocol.PRELUDE_ACK_SID -> if (w.address != LEFT || leftAnswersPrelude) notify(w.address, ack(BleProtocol.PRELUDE_ACK_MAGIC), w.sid)
             BleProtocol.SID_UI_SETTING -> notify(w.address, settingsAck(w.address, magic), w.sid)
             BleProtocol.SID_EVENHUB -> {
                 val cmd = BleProtocol.readVarintFieldValue(w.pb, 1, -1)
