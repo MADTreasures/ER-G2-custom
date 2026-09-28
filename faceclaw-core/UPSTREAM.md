@@ -1,6 +1,7 @@
 # faceclaw-core – Herkunft
 
-Gemeinsamer Kotlin-Kern von **Faceclaw** (Jim Babcock, GPL-3.0), **unverändert** übernommen.
+Gemeinsamer Kotlin-Kern von **Faceclaw** (Jim Babcock, GPL-3.0, Lizenztext in [`LICENSE`](LICENSE)),
+**unverändert** übernommen.
 
 | | |
 |---|---|

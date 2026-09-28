@@ -67,6 +67,9 @@ class SimulatedGlasses(
     val writes: MutableList<Written> = Collections.synchronizedList(ArrayList())
     var connectResult: (String) -> Boolean = { true }
 
+    /** Whether a lens loses its link during the MTU exchange, like one walking out of range. */
+    var dropDuringMtuExchange: (address: String) -> Boolean = { false }
+
     /** Called for every write before the lens answers; tests use it to inject faults. */
     var beforeAnswer: (Written) -> Boolean = { true }
 
@@ -87,7 +90,9 @@ class SimulatedGlasses(
 
     override fun connect(address: String, timeoutMs: Int): Boolean = connectResult(address).also { if (it) connected.add(address) }
 
-    override fun prepareLink(address: String, desiredMtu: Int, timeoutMs: Int) = Unit
+    override fun prepareLink(address: String, desiredMtu: Int, timeoutMs: Int) {
+        if (dropDuringMtuExchange(address)) drop(address)
+    }
 
     override fun discoverServices(address: String, timeoutMs: Int): Boolean = address in connected
 

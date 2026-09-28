@@ -66,8 +66,7 @@ import java.util.Locale
 /**
  * The settings, opened by holding the gear on the touchpad (or from the status page when the
  * firmware does not fit or the connection failed). First how fast frames go from the watch to the
- * glasses, then the firmware (original, custom, and a test run that writes nothing), then the
- * pointer and the connection.
+ * glasses, then the firmware (original or custom), then the pointer and the connection.
  */
 @Composable
 fun SettingsScreen(
@@ -81,7 +80,6 @@ fun SettingsScreen(
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onFirmware: (FirmwareTarget) -> Unit,
-    onTestRun: () -> Unit,
     onLog: () -> Unit,
     backLabel: String = "Touchpad",
     onRisks: () -> Unit = {},
@@ -108,14 +106,6 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     secondaryLabel = { Text(describeFirmware(target) ?: "nicht eingerichtet", fontSize = 11.sp) },
                     label = { Text(target.label) },
-                )
-            }
-            item {
-                OutlinedButton(
-                    onClick = onTestRun,
-                    modifier = Modifier.fillMaxWidth().testTag(TEST_RUN_TAG),
-                    secondaryLabel = { Text("Image, Kopplung, Akku, MTU – schreibt nichts", fontSize = 11.sp) },
-                    label = { Text("Testlauf") },
                 )
             }
             item {
@@ -209,7 +199,7 @@ private fun TransferChart(stats: TransferStats, modifier: Modifier) {
  * Asks before firmware goes to the glasses. The easy button at the bottom edge cancels; sending
  * needs the confirm button held for two seconds, so it never happens by accident. Without a way
  * to install the target ([description] null) or while something stands in the way ([blocker],
- * e.g. no test run yet) there is no confirm button at all. After the hold the glasses ask once
+ * e.g. no glasses chosen yet) there is no confirm button at all. After the hold the glasses ask once
  * more themselves, and only a "Yes" there starts the transfer.
  */
 @Composable
@@ -285,16 +275,12 @@ fun FirmwareProgressScreen(install: FirmwareInstall, onClose: () -> Unit) {
                     }
                     item { CenterText(install.step, size = 13) }
                     item {
-                        CenterText(
-                            if (install.testRun) "Die Uhr in der Nähe der Brille lassen." else "Nicht abbrechen, die Uhr in der Nähe der Brille lassen.",
-                            color = WarnOrange,
-                            size = 12,
-                        )
+                        CenterText("Nicht abbrechen, die Uhr in der Nähe der Brille lassen.", color = WarnOrange, size = 12)
                     }
                 }
                 is FirmwareInstall.Done -> {
                     item { ListHeader { Text(install.title) } }
-                    item { CenterText(if (install.testRun) "Bestanden" else "Fertig", color = OkGreen, size = 15) }
+                    item { CenterText("Fertig", color = OkGreen, size = 15) }
                     item { CenterText(install.message, size = 12) }
                 }
                 is FirmwareInstall.Failed -> {
@@ -377,8 +363,6 @@ private fun HoldToConfirm(label: String, onConfirm: () -> Unit) {
 internal const val HOLD_CONFIRM_MS = 2_000
 
 internal const val HOLD_TO_CONFIRM_TAG = "hold-to-confirm"
-internal const val TEST_RUN_TAG = "firmware-test-run"
-
 internal const val RISKS_TAG = "firmware-risks"
 
 /**
@@ -408,8 +392,8 @@ internal val RISKS = listOf(
         "(prüft die App vor jeder Übertragung) oder beim Kopieren des Bootloaders der Strom ausfällt. Dafür gibt es " +
         "keinen erprobten Rettungsweg ohne Debugger oder Service.",
     "Was die App absichert" to "Nur zwei Images sind erlaubt (SHA-256 fest eingetragen), die Custom-Firmware wird auf der " +
-        "Uhr aus Evens Original und dem Patch-Set von g2flash gebaut und vollständig geprüft. Vorher: Testlauf, Akku " +
-        "von Uhr und Brille, Frage auf der Brille selbst.",
+        "Uhr aus Evens Original und dem Patch-Set von g2flash gebaut und vollständig geprüft. Vorher: Akku von Uhr " +
+        "und Brille, Frage auf der Brille selbst; übertragen wird nur über eine ausreichend breite Bluetooth-Verbindung.",
     "Neustart der Brille" to "5× schnell auf beide Touchflächen tippen oder den Strom des Etuis 3× innerhalb von 7 s trennen.",
     "Garantie" to "Schäden durch nicht autorisierte Software sind von der Garantie ausgeschlossen.",
     "Empfehlung" to "Nach dem ersten Custom-Aufspielen einmal zurück auf Original und wieder auf Custom – dann ist der " +

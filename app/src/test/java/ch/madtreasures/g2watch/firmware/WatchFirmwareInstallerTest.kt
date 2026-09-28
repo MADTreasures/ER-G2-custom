@@ -12,29 +12,13 @@ class WatchFirmwareInstallerTest {
     private val env = FakeFirmwareEnvironment()
     private val log = ArrayList<String>()
     private var pair: LensPair? = LensPair(RIGHT, LEFT)
-    private val passed = HashSet<LensPair>()
-    private val record = object : TestRunRecord {
-        override fun passed(pair: LensPair) = pair in passed
-
-        override fun record(pair: LensPair) {
-            passed += pair
-        }
-    }
     private val installer = WatchFirmwareInstaller(
         env,
         { pair },
         worker,
         { log += it },
-        record,
         JobPolicy(settleMs = 0, verifyDelayMs = 0, verifyAttempts = 1, verifyIntervalMs = 0),
     )
-
-    /** What a first successful test run leaves behind. */
-    private fun testRunPassed() {
-        installer.testRun(FirmwareTarget.CUSTOM)
-        worker.runPending()
-        installer.dismiss()
-    }
 
     @Test
     fun `describes both targets from the catalog`() {
@@ -50,35 +34,13 @@ class WatchFirmwareInstallerTest {
     }
 
     @Test
-    fun `the first real transfer needs a passed test run for these glasses`() {
-        assertEquals(WatchFirmwareInstaller.NEEDS_TEST_RUN, installer.blocker(FirmwareTarget.CUSTOM))
-        installer.install(FirmwareTarget.CUSTOM)
-        val refused = installer.progress.value
-        assertTrue(refused is FirmwareInstall.Failed && refused.message == WatchFirmwareInstaller.NEEDS_TEST_RUN)
-        worker.runPending()
-        assertEquals(0, env.glasses.writes.size)
-
-        testRunPassed()
-        assertTrue(LensPair(RIGHT, LEFT) in passed)
+    fun `with chosen glasses nothing stands in the way of the confirm page`() {
         assertEquals(null, installer.blocker(FirmwareTarget.CUSTOM))
         assertEquals(null, installer.blocker(FirmwareTarget.ORIGINAL))
-        // Other glasses need their own.
-        pair = LensPair("BB:00:00:00:00:01", "BB:00:00:00:00:02")
-        assertEquals(WatchFirmwareInstaller.NEEDS_TEST_RUN, installer.blocker(FirmwareTarget.CUSTOM))
-    }
-
-    @Test
-    fun `a failed test run does not count`() {
-        env.glasses.mtu = 185
-        installer.testRun(FirmwareTarget.CUSTOM)
-        worker.runPending()
-        assertTrue(installer.progress.value is FirmwareInstall.Failed)
-        assertTrue(passed.isEmpty())
     }
 
     @Test
     fun `runs on the worker and ends with the job's result`() {
-        testRunPassed()
         val before = env.glasses.writes.size
         installer.install(FirmwareTarget.CUSTOM)
         assertTrue(installer.progress.value is FirmwareInstall.Running)
@@ -93,23 +55,20 @@ class WatchFirmwareInstallerTest {
 
     @Test
     fun `a second start while one runs is ignored, and dismiss does not stop it`() {
-        testRunPassed()
         installer.install(FirmwareTarget.CUSTOM)
         installer.install(FirmwareTarget.ORIGINAL)
-        installer.testRun(FirmwareTarget.CUSTOM)
         installer.dismiss()
         assertTrue(installer.progress.value is FirmwareInstall.Running)
         worker.runPending()
         val result = installer.progress.value as FirmwareInstall.Done
         assertEquals(FirmwareTarget.CUSTOM, result.target)
-        assertTrue(!result.testRun)
         assertTrue(log.any { it.contains("zweiter Start ignoriert") })
     }
 
     @Test
     fun `a transfer cut short by the death of the app is reported once`() {
         env.notice = FirmwareTarget.CUSTOM to FirmwareJob.INTERRUPTED
-        val restarted = WatchFirmwareInstaller(env, { pair }, worker, { log += it }, record)
+        val restarted = WatchFirmwareInstaller(env, { pair }, worker, { log += it })
         val shown = restarted.progress.value
         assertTrue(shown is FirmwareInstall.Failed && shown.message == FirmwareJob.INTERRUPTED)
         assertTrue(FirmwareJob.INTERRUPTED.contains("unklar"))
@@ -128,15 +87,5 @@ class WatchFirmwareInstallerTest {
         assertEquals(WatchFirmwareInstaller.NO_GLASSES, installer.blocker(FirmwareTarget.CUSTOM))
         worker.runPending()
         assertEquals(0, env.glasses.writes.size)
-    }
-
-    @Test
-    fun `a test run is marked as one`() {
-        installer.testRun(FirmwareTarget.CUSTOM)
-        assertTrue((installer.progress.value as FirmwareInstall.Running).testRun)
-        worker.runPending()
-        val result = installer.progress.value
-        assertTrue(result.toString(), result is FirmwareInstall.Done && result.testRun)
-        assertEquals(0, env.glasses.otaWrites.size)
     }
 }

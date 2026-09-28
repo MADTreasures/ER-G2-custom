@@ -1,7 +1,8 @@
 > **Hinweis (G2 Watch 0.2.0):** Dieses Übergabe-Paket wurde für **Faceclaw/34** geschrieben. Die Uhr-App
 > nutzt die inzwischen veröffentlichte **Faceclaw/35** (g2flash `9079f99`, SHA-256 `d7971b68…2817`,
 > 68.844 Bytes Reserve unter der Speichergrenze) passend zum Faceclaw-Kern 0.8.0; Aufbau, Werkzeuge und
-> Regeln sind gleich. Im Repo liegen der Designer unter [`/designer`](../../designer), das Patch-Set unter
+> Regeln sind gleich. Im Repo liegen der Designer (seit 0.3.0 der einfachere G2 Baukasten) unter
+> [`/designer`](../../designer), das Patch-Set unter
 > `firmware-image/src/main/resources/firmware/`, `cfw_bauen.py` unter [`/tools`](../../tools). Der
 > Referenz-Code ist nicht übernommen; seine Image-Prüfung steckt in `firmware-image`. Wie die Uhr
 > aufspielt: [`../FIRMWARE.md`](../FIRMWARE.md).

@@ -95,8 +95,8 @@ data class JobPolicy(
 )
 
 /**
- * One firmware transfer, or one test run, from start to end. [run] blocks and must run on a
- * worker thread; it reports every step through [report] and returns the final state.
+ * One firmware transfer from start to end. [run] blocks and must run on a worker thread; it
+ * reports every step through [report] and returns the final state.
  *
  * The order is chosen so that anything that can fail without the glasses fails first, and the
  * glasses see firmware only after two confirmations:
@@ -114,14 +114,9 @@ data class JobPolicy(
  *    [OtaFlashFlow] (a port of g2flash.py) writes left, then right. No retry of the whole
  *    transfer: a failure stops and says what state the lenses are in.
  * 7. After the reboot each lens is asked on its own link, and the result says what each one reports.
- *
- * A test run does 1–5 without the prompt (pairing and batteries only), then connects each lens on
- * the update channel, authenticates and checks the MTU, and disconnects. The link stays disarmed,
- * so it cannot write firmware; the result says so.
  */
 class FirmwareJob(
     private val target: FirmwareTarget,
-    private val testRun: Boolean,
     private val pair: LensPair,
     private val env: FirmwareEnvironment,
     private val report: (FirmwareInstall.Running) -> Unit,
@@ -162,7 +157,7 @@ class FirmwareJob(
     private fun runSteps(): FirmwareInstall {
         try {
             step("Prüfe Voraussetzungen …")
-            env.keepAwake(if (testRun) "Firmware-Testlauf" else "Firmware wird vorbereitet")
+            env.keepAwake("Firmware wird vorbereitet")
             checkWatch()
             val image = prepareImage()
             step("Trenne die Brillenverbindung …")
@@ -172,27 +167,23 @@ class FirmwareJob(
                 ?: throw Stop("Die Brille hat ihre Firmware nicht gemeldet. Brille aus dem Etui nehmen, am Handy Bluetooth ausschalten und erneut versuchen. $UNTOUCHED")
             checkCurrentFirmware(before)
             env.sleep(policy.settleMs)
-            val battery = confirmOnGlasses()
+            confirmOnGlasses()
             env.sleep(policy.settleMs)
-            return if (testRun) {
-                checkUpdateChannel(image, before, battery)
-            } else {
-                transfer(image)
-                verify()
-            }
+            transfer(image)
+            return verify()
         } catch (s: Stop) {
             log("stopped: ${s.message}")
-            return FirmwareInstall.Failed(target, s.message.orEmpty(), testRun)
+            return FirmwareInstall.Failed(target, s.message.orEmpty())
         } catch (e: FirmwareBuildException) {
             log("image: ${e.message}")
-            return FirmwareInstall.Failed(target, imageMessage(e), testRun)
+            return FirmwareInstall.Failed(target, imageMessage(e))
         } catch (e: InvalidFirmwareException) {
             log("image: ${e.message}")
-            return FirmwareInstall.Failed(target, "Das Firmware-Image ist fehlerhaft (${e.message}). $UNTOUCHED", testRun)
+            return FirmwareInstall.Failed(target, "Das Firmware-Image ist fehlerhaft (${e.message}). $UNTOUCHED")
         } catch (e: Exception) {
             log("unexpected: $e")
             val what = if (touched) FLASH_UNKNOWN else UNTOUCHED
-            return FirmwareInstall.Failed(target, "Unerwarteter Fehler: ${e.message ?: e.javaClass.simpleName}. $what", testRun)
+            return FirmwareInstall.Failed(target, "Unerwarteter Fehler: ${e.message ?: e.javaClass.simpleName}. $what")
         }
     }
 
@@ -289,8 +280,8 @@ class FirmwareJob(
         private fun pct(v: Int) = if (v in 0..100) "$v %" else "?"
     }
 
-    private fun confirmOnGlasses(): Battery {
-        step(if (testRun) "Kopple beide Bügel und lese den Akku …" else "Verbinde mit der Brille …")
+    private fun confirmOnGlasses() {
+        step("Verbinde mit der Brille …")
         val link = env.openLink(log)
         var battery: Battery? = null
         var answer: Boolean? = null
@@ -321,7 +312,7 @@ class FirmwareJob(
             }
         }
         try {
-            FlashPromptFlow(link, pair.right, pair.left, glassesText(), testRun, listener, env.timings, env.platform).run()
+            FlashPromptFlow(link, pair.right, pair.left, glassesText(), false, listener, env.timings, env.platform).run()
         } finally {
             link.close()
         }
@@ -339,7 +330,6 @@ class FirmwareJob(
                     "${policy.minGlassesBattery} % laden und erneut versuchen. $UNTOUCHED",
             )
         }
-        return b
     }
 
     private fun glassesText(): String = when (kind) {
@@ -436,7 +426,9 @@ class FirmwareJob(
                 done.isEmpty() -> FLASH_UNKNOWN
                 else -> "Das linke Glas hat die neue Firmware, das rechte nicht. $FLASH_UNKNOWN"
             }
-            val mtuHint = if (link.mtuTooNarrow) " Die Bluetooth-Verbindung der Uhr war zu schmal (MTU unter ${GuardedStockLink.MIN_MTU})." else ""
+            val mtuHint = link.narrowMtu
+                ?.let { " Die Bluetooth-Verbindung der Uhr war zu schmal (MTU $it, nötig ${GuardedStockLink.MIN_MTU})." }
+                .orEmpty()
             val cause = if ("failed after" in failure && lastCause.isNotBlank()) lastCause else failure
             throw Stop("Übertragung abgebrochen: ${FaceclawMessages.german(cause)}.$mtuHint $state")
         }
@@ -519,69 +511,6 @@ class FirmwareJob(
         FirmwareKind.Stock -> "Beide Gläser melden wieder die Original-Firmware ${FirmwareCatalog.STOCK_VERSION}."
     }
 
-    // --- test run ------------------------------------------------------------------------------
-
-    private fun checkUpdateChannel(image: EvenOtaImage, before: FirmwareVerdict, battery: Battery): FirmwareInstall {
-        val link = env.openLink(log)
-        val mtus = linkedMapOf<String, Int>()
-        try {
-            val session = StockLinkSession(link, log, env.timings, magicStart = 0x60, magicEnd = 0x7f, seqStart = 1, platform = env.platform)
-            for ((name, address) in listOf("left" to pair.left, "right" to pair.right)) {
-                step("${lensName(name)}: prüfe den Update-Kanal …")
-                try {
-                    session.bringUp(address, otaChannel = true)
-                } catch (e: IllegalStateException) {
-                    log("test run $name: ${e.message}")
-                    throw Stop("${lensName(name)}: Update-Kanal nicht erreichbar – ${FaceclawMessages.german(e.message)}. $UNTOUCHED")
-                }
-                if (session.authenticate(address, "ota") != StockLinkSession.AuthResult.SUCCESS) {
-                    throw Stop("${lensName(name)}: Kopplung auf dem Update-Kanal nicht bestätigt – falls die Uhr eine Kopplungsanfrage zeigt: bestätigen. $UNTOUCHED")
-                }
-                if (name == "right") checkNotSilent(session, address)
-                // The MTU at bring-up, the moment the armed guard judges it in a real transfer.
-                val mtu = link.preparedMtu(address)
-                val stillConnected = link.isConnected(address)
-                if (mtu != null) mtus[name] = mtu
-                session.disconnectQuietly(address)
-                if (mtu == null || !stillConnected) {
-                    throw Stop("${lensName(name)}: Verbindung während der Prüfung verloren – Testlauf wiederholen. $UNTOUCHED")
-                }
-                if (mtu < GuardedStockLink.MIN_MTU) {
-                    throw Stop(
-                        "${lensName(name)}: Die MTU-Aushandlung ergab nur $mtu, für die Übertragung sind " +
-                            "${GuardedStockLink.MIN_MTU} nötig. Testlauf wiederholen; bleibt es dabei, kann diese Uhr " +
-                            "nicht aufspielen. $UNTOUCHED",
-                    )
-                }
-                env.sleep(policy.settleMs)
-            }
-        } finally {
-            link.close()
-        }
-        check(link.otaWriteCount == 0) { "test run wrote to the update channel" }
-        return FirmwareInstall.Done(
-            target,
-            "Image ${env.images.describe(kind)} geprüft (SHA-256 ${image.sha256.take(8)}…). " +
-                "Brille: ${before.summary}. Akku $battery. MTU L ${mtus["left"]}, R ${mtus["right"]}. " +
-                "Es wurde nichts auf die Brille geschrieben.",
-            testRun = true,
-        )
-    }
-
-    /** The prompt of a real transfer appears on the right lens; in silent mode it cannot. */
-    private fun checkNotSilent(session: StockLinkSession, address: String) {
-        val silent = try {
-            preludeQuietly(session, address)
-            val pb = session.readSettings(address, env.timings.queryTimeoutMs) ?: session.unsolicitedSettingsPb
-            pb?.let { BleProtocol.parseSettingsBattery(it) }?.silentMode ?: -1
-        } catch (e: IllegalStateException) {
-            log("test run silent check: ${e.message}")
-            -1
-        }
-        log("test run: silent mode ${if (silent < 0) "unknown" else if (silent > 0) "on" else "off"}")
-        if (silent > 0) throw Stop(SILENT_TEXT)
-    }
-
     private fun preludeQuietly(session: StockLinkSession, address: String) {
         try {
             session.sendPrelude(address)
@@ -592,7 +521,7 @@ class FirmwareJob(
 
     // --- helpers -------------------------------------------------------------------------------
 
-    private fun step(text: String, percent: Int? = null) = report(FirmwareInstall.Running(target, text, percent, testRun))
+    private fun step(text: String, percent: Int? = null) = report(FirmwareInstall.Running(target, text, percent))
 
     /** Left lens 0–50 %, right lens 50–100 %, by bytes. */
     private fun progressFor(lens: String, fraction: Double): Int {

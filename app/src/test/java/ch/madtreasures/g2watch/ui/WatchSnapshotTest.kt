@@ -146,7 +146,7 @@ class WatchSnapshotTest {
     }
 
     @Composable
-    private fun Settings() = SettingsScreen(connected, 1.2f, ::example, {}, {}, {}, {}, {}, {}, {}, {}, {})
+    private fun Settings() = SettingsScreen(connected, 1.2f, ::example, {}, {}, {}, {}, {}, {}, {}, {})
 
     @Composable
     private fun Touchpad(glasses: GlassesState = connected) =
@@ -229,44 +229,6 @@ class WatchSnapshotTest {
                 FirmwareTarget.CUSTOM,
                 "Akku der Brille zu schwach oder nicht lesbar (R 80 %, L 22 %). Beide Gläser auf mindestens 50 % laden " +
                     "und erneut versuchen. Nichts wurde an der Brille verändert.",
-            ),
-        ) {}
-    }
-
-    @Test
-    fun firmwareNeedsTestRun() {
-        show {
-            FirmwareConfirmScreen(
-                FirmwareTarget.CUSTOM,
-                "Faceclaw/35 · Basis 2.3.0.24",
-                "Original 2.3.0.24",
-                {},
-                {},
-                blocker = "Zuerst einmal den Testlauf machen (Einstellungen → Testlauf). Er prüft alles und schreibt nichts auf die Brille.",
-            )
-        }
-        compose.waitForIdle()
-        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Zuerst einmal den Testlauf machen", substring = true))
-        compose.waitForIdle()
-        save("uhr-firmware-testlauf-noetig")
-    }
-
-    @Test
-    fun settingsTestRun() = settingsSnapshot("uhr-einstellungen-testlauf", "Testlauf")
-
-    @Test
-    fun testRunRunning() = snapshot("uhr-testlauf-laeuft") {
-        FirmwareProgressScreen(FirmwareInstall.Running(FirmwareTarget.CUSTOM, "Linkes Glas: prüfe den Update-Kanal …", null, testRun = true)) {}
-    }
-
-    @Test
-    fun testRunPassed() = snapshot("uhr-testlauf-bestanden") {
-        FirmwareProgressScreen(
-            FirmwareInstall.Done(
-                FirmwareTarget.CUSTOM,
-                "Image Faceclaw/35 · Basis 2.3.0.24 geprüft (SHA-256 d7971b68…). Brille: Original 2.3.0.24. " +
-                    "Akku R 80 %, L 76 %. MTU L 247, R 247. Es wurde nichts auf die Brille geschrieben.",
-                testRun = true,
             ),
         ) {}
     }

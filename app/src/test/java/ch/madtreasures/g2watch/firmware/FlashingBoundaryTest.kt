@@ -12,8 +12,7 @@ import java.io.File
  * - Faceclaw's flashing flows are used only by [FirmwareJob].
  * - The firmware link is armed only in [FirmwareJob]'s transfer step (after the prompt on the
  *   glasses and the allow-list check), once.
- * - The installer is started only from the confirm page's two-second hold (install) and the
- *   test-run button (testRun) in MainActivity.
+ * - The installer is started only from the confirm page's two-second hold in MainActivity.
  */
 class FlashingBoundaryTest {
     // Unit tests run in the module directory.
@@ -78,16 +77,14 @@ class FlashingBoundaryTest {
     }
 
     @Test
-    fun `the installer starts only from the confirm page and the test-run button`() {
+    fun `the installer starts only from the confirm page`() {
         for (file in sources) {
             if (file.name == "MainActivity.kt") continue
             val text = file.readText()
             assertTrue("${file.path} starts an install", !Regex("""firmware\.install\(""").containsMatchIn(text))
-            assertTrue("${file.path} starts a test run", !Regex("""firmware\.testRun\(""").containsMatchIn(text))
         }
         val main = textOf("MainActivity.kt")
         assertEquals(1, Regex("""firmware\.install\(""").findAll(main).count())
-        assertEquals(1, Regex("""firmware\.testRun\(""").findAll(main).count())
         val confirm = main.substring(main.indexOf("onConfirm = {"))
         assertTrue(confirm.substring(0, confirm.indexOf("},")).contains("firmware.install(firmwareTarget)"))
     }

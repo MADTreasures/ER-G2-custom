@@ -30,11 +30,10 @@ class FirmwareJobTest {
     private fun run(
         env: FakeFirmwareEnvironment,
         target: FirmwareTarget = FirmwareTarget.CUSTOM,
-        testRun: Boolean = false,
         pair: LensPair = LensPair(RIGHT, LEFT),
         steps: MutableList<FirmwareInstall.Running> = ArrayList(),
     ): FirmwareInstall =
-        FirmwareJob(target, testRun, pair, env, { steps += it }, { env.log += it }, fast).run()
+        FirmwareJob(target, pair, env, { steps += it }, { env.log += it }, fast).run()
 
     private fun FakeFirmwareEnvironment.promptPages() =
         glasses.writes.count { it.sid == BleProtocol.SID_EVENHUB && BleProtocol.readVarintFieldValue(it.pb, 1, -1) == 0 }
@@ -133,21 +132,6 @@ class FirmwareJobTest {
         // Not a green "done": the transfer ended, but the glasses do not show the new firmware.
         assertTrue(result is FirmwareInstall.Failed)
         assertTrue(message(result), message(result).contains("Beide Gläser sind übertragen"))
-    }
-
-    @Test
-    fun `a test run pairs, reads the batteries and checks the update channel, but writes nothing`() {
-        val env = FakeFirmwareEnvironment()
-        val result = run(env, testRun = true)
-        assertTrue(message(result), result is FirmwareInstall.Done)
-        result as FirmwareInstall.Done
-        assertTrue(result.testRun)
-        assertTrue(result.message.contains("nichts auf die Brille geschrieben"))
-        assertTrue(result.message.contains("MTU L 247, R 247"))
-        assertNothingFlashed(env)
-        // No question on the glasses either: nothing is going to be written.
-        assertEquals(0, env.promptPages())
-        assertTrue(env.noticeHistory.isEmpty())
     }
 
     // --- stops before the glasses are touched ----------------------------------------------------
@@ -274,15 +258,6 @@ class FirmwareJobTest {
     }
 
     @Test
-    fun `the test run finds silent mode too, so the real prompt will not fail on it`() {
-        val env = FakeFirmwareEnvironment(SimulatedGlasses(silentMode = true))
-        val result = run(env, testRun = true)
-        assertTrue(result is FirmwareInstall.Failed)
-        assertTrue(message(result), message(result).contains("Lautlos-Modus"))
-        assertNothingFlashed(env)
-    }
-
-    @Test
     fun `failures from Faceclaw's flows reach the wearer in German`() {
         // The right lens does not come back after the left one's reboot: Faceclaw says
         // "could not reach right lens: …".
@@ -320,7 +295,7 @@ class FirmwareJobTest {
         val env = FakeFirmwareEnvironment(SimulatedGlasses(mtu = 185))
         val result = run(env)
         assertTrue(result is FirmwareInstall.Failed)
-        assertTrue(message(result), message(result).contains("MTU"))
+        assertTrue(message(result), message(result).contains("MTU 185, nötig 243"))
         // The guard dropped the narrow connections before BEGIN: no firmware frame went out.
         assertEquals(0, env.glasses.otaWrites.size)
         assertTrue(env.links.any { it.mtuRefusalCount > 0 })
@@ -350,12 +325,25 @@ class FirmwareJobTest {
     }
 
     @Test
-    fun `the test run finds a narrow link too`() {
-        val env = FakeFirmwareEnvironment(SimulatedGlasses(mtu = 185))
-        val result = run(env, testRun = true)
+    fun `a watch that gets no MTU beyond the default is told so and writes nothing`() {
+        val env = FakeFirmwareEnvironment(SimulatedGlasses(mtu = 23))
+        val result = run(env)
         assertTrue(result is FirmwareInstall.Failed)
-        assertTrue(message(result), message(result).contains("MTU-Aushandlung ergab nur 185"))
-        assertNothingFlashed(env)
+        assertTrue(message(result), message(result).contains("MTU 23, nötig 243"))
+        assertEquals(0, env.glasses.otaWrites.size)
+        assertTrue(message(result).contains("Nichts wurde an der Brille verändert"))
+    }
+
+    @Test
+    fun `a link lost during the MTU exchange is not blamed on the MTU`() {
+        val glasses = SimulatedGlasses(mtu = 185)
+        val env = FakeFirmwareEnvironment(glasses)
+        // The transfer's links vanish during the exchange; the probe and the prompt come up normally.
+        glasses.dropDuringMtuExchange = { env.links.any { it.isArmed } }
+        val result = run(env)
+        assertTrue(result is FirmwareInstall.Failed)
+        assertTrue(message(result), !message(result).contains("MTU"))
+        assertEquals(0, env.glasses.otaWrites.size)
     }
 
     // --- failures during the transfer -----------------------------------------------------------

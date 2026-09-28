@@ -28,13 +28,10 @@ class FirmwareInstallerTest {
         assertEquals(FirmwareTarget.CUSTOM, (result as FirmwareInstall.Unavailable).target)
         installer.dismiss()
         assertEquals(FirmwareInstall.Idle, installer.progress.value)
-        installer.testRun(FirmwareTarget.ORIGINAL)
-        assertTrue(installer.progress.value is FirmwareInstall.Unavailable)
     }
 
     @Test
-    fun `a test run has its own title`() {
-        assertEquals("Testlauf", FirmwareInstall.Running(FirmwareTarget.CUSTOM, "x", null, testRun = true).title)
+    fun `the progress page is titled by the target`() {
         assertEquals("Custom-Firmware", FirmwareInstall.Running(FirmwareTarget.CUSTOM, "x", null).title)
         assertEquals("Original-Firmware", FirmwareInstall.Failed(FirmwareTarget.ORIGINAL, "x").title)
     }

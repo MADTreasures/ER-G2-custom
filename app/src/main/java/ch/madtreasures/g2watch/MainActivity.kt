@@ -206,13 +206,6 @@ class MainActivity : ComponentActivity() {
                     onConnect = { screen = Screen.DEVICES },
                     onDisconnect = { glasses.disconnect() },
                     onFirmware = { firmwareTarget = it; screen = Screen.FIRMWARE_CONFIRM },
-                    onTestRun = {
-                        // Writes nothing, so a tap is enough; it still needs the glasses for a while.
-                        firmwareTarget = FirmwareTarget.CUSTOM
-                        glasses.note("Firmware: Testlauf gestartet")
-                        firmware.testRun(FirmwareTarget.CUSTOM)
-                        screen = Screen.FIRMWARE_PROGRESS
-                    },
                     onLog = { logReturn = Screen.SETTINGS; screen = Screen.LOG },
                     backLabel = if (settingsReturn == Screen.TOUCHPAD) "Touchpad" else "Zurück",
                     onRisks = { risksReturn = Screen.SETTINGS; screen = Screen.RISKS },
@@ -241,17 +234,11 @@ class MainActivity : ComponentActivity() {
 
             Screen.FIRMWARE_PROGRESS -> {
                 fun close() {
-                    val wasTestRun = when (val result = install) {
-                        is FirmwareInstall.Done -> result.testRun
-                        is FirmwareInstall.Failed -> result.testRun
-                        else -> false
-                    }
                     firmware.dismiss()
                     // After a transfer the glasses were let go: check them again, which also shows
-                    // the new firmware (and starts the desktop if it is the custom one). After a
-                    // test run the next step is in the settings, and the job connects on its own.
+                    // the new firmware (and starts the desktop if it is the custom one).
                     val last = app.lastPair()
-                    if (!wasTestRun && last != null && state.stage == Stage.IDLE) connect(last.title, last.right, last.left)
+                    if (last != null && state.stage == Stage.IDLE) connect(last.title, last.right, last.left)
                     else screen = Screen.SETTINGS
                 }
                 // No way back while firmware is on its way.

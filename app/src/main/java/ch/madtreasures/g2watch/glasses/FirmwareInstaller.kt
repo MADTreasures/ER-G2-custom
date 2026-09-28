@@ -10,34 +10,26 @@ enum class FirmwareTarget(val label: String) {
     CUSTOM("Custom-Firmware"),
 }
 
-/**
- * Where a firmware transfer stands, for the watch UI. [testRun] marks a test run: it prepares the
- * image and connects to both lenses the way a transfer does, but writes no firmware.
- */
+/** Where a firmware transfer stands, for the watch UI. */
 sealed interface FirmwareInstall {
     data object Idle : FirmwareInstall
 
-    data class Running(
-        val target: FirmwareTarget,
-        val step: String,
-        val percent: Int?,
-        val testRun: Boolean = false,
-    ) : FirmwareInstall
+    data class Running(val target: FirmwareTarget, val step: String, val percent: Int?) : FirmwareInstall
 
-    data class Done(val target: FirmwareTarget, val message: String, val testRun: Boolean = false) : FirmwareInstall
+    data class Done(val target: FirmwareTarget, val message: String) : FirmwareInstall
 
-    data class Failed(val target: FirmwareTarget, val message: String, val testRun: Boolean = false) : FirmwareInstall
+    data class Failed(val target: FirmwareTarget, val message: String) : FirmwareInstall
 
     /** Nothing on this watch is set up to install the target. */
     data class Unavailable(val target: FirmwareTarget, val message: String) : FirmwareInstall
 }
 
-/** The heading of the progress page: the target, or the test run of it. */
+/** The heading of the progress page: the target. */
 val FirmwareInstall.title: String
     get() = when (this) {
-        is FirmwareInstall.Running -> if (testRun) "Testlauf" else target.label
-        is FirmwareInstall.Done -> if (testRun) "Testlauf" else target.label
-        is FirmwareInstall.Failed -> if (testRun) "Testlauf" else target.label
+        is FirmwareInstall.Running -> target.label
+        is FirmwareInstall.Done -> target.label
+        is FirmwareInstall.Failed -> target.label
         is FirmwareInstall.Unavailable -> target.label
         FirmwareInstall.Idle -> "Firmware"
     }
@@ -54,19 +46,12 @@ interface FirmwareInstaller {
     val progress: StateFlow<FirmwareInstall>
 
     /**
-     * Why [install] would refuse [target] right now (e.g. no test run yet), in German; null when
+     * Why [install] would refuse [target] right now (e.g. no glasses chosen yet), in German; null when
      * nothing stands in the way. The confirm page offers the hold button only for null.
      */
     fun blocker(target: FirmwareTarget): String?
 
     fun install(target: FirmwareTarget)
-
-    /**
-     * Everything [install] does up to the first firmware byte, then stops: prepares and checks the
-     * image for [target], connects and pairs both lenses over the update channel and checks that
-     * the watch's Bluetooth link can carry the transfer. Writes nothing to the glasses.
-     */
-    fun testRun(target: FirmwareTarget)
 
     /** Back to [FirmwareInstall.Idle] once a transfer is over; a running one goes on. */
     fun dismiss()
@@ -87,8 +72,6 @@ class NotSetUpInstaller : FirmwareInstaller {
             "In dieser App ist kein Weg zum Aufspielen eingerichtet.",
         )
     }
-
-    override fun testRun(target: FirmwareTarget) = install(target)
 
     override fun dismiss() {
         if (_progress.value !is FirmwareInstall.Running) _progress.value = FirmwareInstall.Idle

@@ -1,6 +1,6 @@
 # faceclaw-android – Herkunft
 
-Faceclaws Android-Anbindung an Bluetooth LE (GPL-3.0), **unverändert** übernommen. Die Klassen sind
+Faceclaws Android-Anbindung an Bluetooth LE (GPL-3.0, Lizenztext in [`LICENSE`](LICENSE)), **unverändert** übernommen. Die Klassen sind
 reines Android ohne NativeScript und laufen deshalb auch auf Wear OS.
 
 | | |

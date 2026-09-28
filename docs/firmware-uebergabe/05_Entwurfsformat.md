@@ -1,3 +1,7 @@
+> **Hinweis (G2 Watch 0.3.0):** Dieser Designer ist durch den einfacheren **G2 Baukasten** ersetzt
+> (Seiten aus Bausteinen, Format `g2-baukasten@1`): [`/designer`](../../designer/README.md). Diese Seite
+> beschreibt den alten Designer und bleibt nur als Teil des Übergabe-Pakets.
+
 # Entwurfsformat des Designers (`faceclaw-edit/design@1`)
 
 Der [Designer](designer/README.md) speichert Entwürfe als JSON. Dieses Dokument beschreibt das

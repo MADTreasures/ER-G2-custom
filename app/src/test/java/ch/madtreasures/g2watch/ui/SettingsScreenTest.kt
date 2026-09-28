@@ -55,8 +55,7 @@ class SettingsScreenTest {
         state: GlassesState = connected,
         describe: (FirmwareTarget) -> String? = { null },
         onFirmware: (FirmwareTarget) -> Unit = {},
-        onTestRun: () -> Unit = {},
-    ) = show { SettingsScreen(state, 1f, describe, {}, {}, {}, {}, {}, {}, onFirmware, onTestRun, {}) }
+    ) = show { SettingsScreen(state, 1f, describe, {}, {}, {}, {}, {}, {}, onFirmware, {}) }
 
     @Test
     fun `shows how long frames take from the watch to the glasses`() {
@@ -90,13 +89,11 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun `offers a test run that writes nothing`() {
-        var tests = 0
-        settings(onTestRun = { tests++ })
-        scrollTo(hasTestTag(TEST_RUN_TAG))
-        compose.onNodeWithText("Image, Kopplung, Akku, MTU – schreibt nichts").assertExists()
-        compose.onNodeWithTag(TEST_RUN_TAG).performClick()
-        assertEquals(1, tests)
+    fun `offers no test run, only the two firmwares and the risks`() {
+        settings()
+        scrollTo(hasTestTag(RISKS_TAG))
+        compose.onNodeWithText("Original-Firmware").assertExists()
+        compose.onNodeWithText("Testlauf").assertDoesNotExist()
     }
 
     @Test
@@ -116,10 +113,10 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun `until the test run passed the page explains instead of offering the hold`() {
-        show { FirmwareConfirmScreen(FirmwareTarget.CUSTOM, "Faceclaw/35 · Basis 2.3.0.24", "Original 2.3.0.24", {}, { confirmed++ }, blocker = "Zuerst einmal den Testlauf machen.") }
-        scrollTo(hasText("Zuerst einmal den Testlauf machen."))
-        compose.onNodeWithText("Zuerst einmal den Testlauf machen.").assertExists()
+    fun `while something stands in the way the page explains instead of offering the hold`() {
+        show { FirmwareConfirmScreen(FirmwareTarget.CUSTOM, "Faceclaw/35 · Basis 2.3.0.24", "Original 2.3.0.24", {}, { confirmed++ }, blocker = "Noch keine Brille gewählt.") }
+        scrollTo(hasText("Noch keine Brille gewählt."))
+        compose.onNodeWithText("Noch keine Brille gewählt.").assertExists()
         compose.onNodeWithTag(HOLD_TO_CONFIRM_TAG).assertDoesNotExist()
     }
 
@@ -145,10 +142,10 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun `a test run is titled as such`() {
-        show { FirmwareProgressScreen(FirmwareInstall.Done(FirmwareTarget.CUSTOM, "Es wurde nichts geschrieben.", testRun = true)) {} }
-        compose.onNodeWithText("Testlauf").assertExists()
-        compose.onNodeWithText("Bestanden").assertExists()
+    fun `a finished transfer is titled by its target`() {
+        show { FirmwareProgressScreen(FirmwareInstall.Done(FirmwareTarget.CUSTOM, "Beide Gläser melden Faceclaw/35.")) {} }
+        compose.onNodeWithText("Custom-Firmware").assertExists()
+        compose.onNodeWithText("Fertig").assertExists()
         compose.onNodeWithText("OK").assertExists()
     }
 

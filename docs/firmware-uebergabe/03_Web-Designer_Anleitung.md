@@ -1,3 +1,7 @@
+> **Hinweis (G2 Watch 0.3.0):** Dieser Designer ist durch den einfacheren **G2 Baukasten** ersetzt
+> (Seiten aus Bausteinen, Format `g2-baukasten@1`): [`/designer`](../../designer/README.md). Diese Seite
+> beschreibt den alten Designer und bleibt nur als Teil des Übergabe-Pakets.
+
 # Web-Designer: Menüs entwerfen und an den Chat zurückgeben
 
 Mit dem **Faceclaw Designer** entwirfst du am PC, was auf der Brille erscheinen soll – Menütexte,

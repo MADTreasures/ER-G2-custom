@@ -13,7 +13,6 @@ import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.firmware.AndroidFirmwareEnvironment
 import ch.madtreasures.g2watch.firmware.LensPair
-import ch.madtreasures.g2watch.firmware.TestRunRecord
 import ch.madtreasures.g2watch.firmware.WatchFirmwareInstaller
 import ch.madtreasures.g2watch.glasses.FirmwareInstaller
 import ch.madtreasures.g2watch.glasses.GlassesConnection
@@ -29,7 +28,7 @@ class G2WatchApp : Application() {
 
     /**
      * Puts the original or the custom firmware on the last chosen glasses. Only the confirm page
-     * (two-second hold) and the test-run button start it; see [WatchFirmwareInstaller].
+     * (two-second hold) starts it; see [WatchFirmwareInstaller].
      */
     val firmware: FirmwareInstaller by lazy {
         val main = MainScheduler()
@@ -39,13 +38,6 @@ class G2WatchApp : Application() {
             pair = { lastPair()?.let { LensPair(it.right, it.left.orEmpty()) } },
             worker = ThreadScheduler("G2Watch-firmware"),
             log = note,
-            testRuns = object : TestRunRecord {
-                private fun key(pair: LensPair) = "testRunPassed:${pair.right}|${pair.left}"
-
-                override fun passed(pair: LensPair) = prefs.getBoolean(key(pair), false)
-
-                override fun record(pair: LensPair) = prefs.edit { putBoolean(key(pair), true) }
-            },
         )
     }
 

@@ -29,7 +29,6 @@ class RealImageTransferTest {
         }
         val result = FirmwareJob(
             FirmwareTarget.CUSTOM,
-            testRun = false,
             pair = LensPair(RIGHT, LEFT),
             env = env,
             report = {},

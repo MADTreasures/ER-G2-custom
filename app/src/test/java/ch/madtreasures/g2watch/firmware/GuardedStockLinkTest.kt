@@ -95,24 +95,35 @@ class GuardedStockLinkTest {
     }
 
     @Test
-    fun `the MTU at bring-up is kept, and a lost link or a default 23 is not called narrow`() {
-        val link = connected(247)
-        link.prepareLink(RIGHT, 512, 100)
-        assertEquals(247, link.preparedMtu(RIGHT))
+    fun `a narrow live link is named with its MTU, a lost one is not`() {
+        val wide = connected(247)
+        wide.arm()
+        wide.prepareLink(RIGHT, 512, 100)
+        assertTrue(wide.isConnected(RIGHT))
+        assertEquals(null, wide.narrowMtu)
 
+        // The ATT default on a live link: the watch got no more, so that is why it stopped.
         val default = connected(23)
         default.arm()
         default.prepareLink(RIGHT, 512, 100)
         assertFalse(default.isConnected(RIGHT))
-        assertFalse(default.mtuTooNarrow)
+        assertEquals(23, default.narrowMtu)
 
         val narrow = connected(185)
         narrow.arm()
         narrow.prepareLink(RIGHT, 512, 100)
         assertTrue(narrow.mtuTooNarrow)
+        assertEquals(185, narrow.narrowMtu)
         // A new connection starts the verdict afresh.
         narrow.connect(RIGHT, 100)
         assertFalse(narrow.mtuTooNarrow)
+
+        // A link lost during the exchange says nothing about the MTU.
+        glasses.dropDuringMtuExchange = { true }
+        val lost = connected(185)
+        lost.arm()
+        lost.prepareLink(RIGHT, 512, 100)
+        assertFalse(lost.mtuTooNarrow)
     }
 
     @Test
