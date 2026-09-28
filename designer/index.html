@@ -1390,7 +1390,7 @@ const errText = (e) => (ERR[e && e.code] || 'Speichern fehlgeschlagen') + ' – 
 function chip() {
   let kind = 'idle', msg;
   if (store.error) { kind = 'err'; msg = store.error; }
-  else if (store.dirty || store.writing) { kind = 'busy'; msg = 'Speichert…'; }
+  else if ((store.dirty || store.writing) && (store.db || store.connecting)) { kind = 'busy'; msg = 'Speichert…'; }
   else if (isExample) msg = 'Beispiel';
   else if (!store.db) {
     if (store.connecting) { kind = 'busy'; msg = 'Verbinde…'; }
