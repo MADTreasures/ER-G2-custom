@@ -167,7 +167,8 @@ class GlassesConnection internal constructor(
             override fun onError(message: String?) {
                 if (gen != generation) return
                 releaseProbe()
-                fail("Firmware-Prüfung fehlgeschlagen: ${message.orEmpty()}")
+                log("Firmware-Prüfung: ${message.orEmpty()}")
+                fail("Firmware-Prüfung fehlgeschlagen: ${FaceclawMessages.german(message)}")
             }
         })
     }
@@ -226,9 +227,18 @@ class GlassesConnection internal constructor(
     private inner class SessionListener(private val gen: Int) : FaceclawBleCommunicatorListener {
         private val current: Boolean get() = gen == generation && active != null
 
+        /**
+         * Faceclaw's core reports its current phase as soon as the listener is set, and that is
+         * "disconnected" before it even started connecting. Only a "disconnected" after the session
+         * got under way is its own teardown.
+         */
+        private var underWay = false
+
         override fun onStateChange(phase: String?, status: String?) {
             if (!current) return
             log("Sitzung: $phase – $status")
+            if (phase == "disconnected" && !underWay) return
+            underWay = true
             val stage = when (phase) {
                 "connected" -> Stage.CONNECTED
                 "charging" -> Stage.CHARGING
@@ -256,7 +266,15 @@ class GlassesConnection internal constructor(
                 Stage.CHARGING, Stage.RECONNECTING -> active?.session?.setScreenOn(false)
                 else -> Unit
             }
-            setState(_state.value.copy(stage = stage, detail = status.orEmpty()))
+            // Faceclaw's status text is English and already in the protocol; the page gets German.
+            val detail = when (stage) {
+                Stage.CONNECTED -> ""
+                Stage.CHARGING -> "Die Brille lädt im Etui."
+                Stage.RECONNECTING -> "Verbindung verloren, verbinde neu …"
+                Stage.DISCONNECTING -> "Trenne …"
+                else -> "Verbinde mit der Brille …"
+            }
+            setState(_state.value.copy(stage = stage, detail = detail))
             desktop.updateStatus { it.copy(connection = stage.label) }
             parts.updateForeground(stage.label)
         }

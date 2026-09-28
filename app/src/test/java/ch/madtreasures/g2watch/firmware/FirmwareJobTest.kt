@@ -222,6 +222,31 @@ class FirmwareJobTest {
     }
 
     @Test
+    fun `the test run finds silent mode too, so the real prompt will not fail on it`() {
+        val env = FakeFirmwareEnvironment(SimulatedGlasses(silentMode = true))
+        val result = run(env, testRun = true)
+        assertTrue(result is FirmwareInstall.Failed)
+        assertTrue(message(result), message(result).contains("Lautlos-Modus"))
+        assertNothingFlashed(env)
+    }
+
+    @Test
+    fun `failures from Faceclaw's flows reach the wearer in German`() {
+        // The right lens does not come back after the left one's reboot: Faceclaw says
+        // "could not reach right lens: …".
+        val glasses = SimulatedGlasses()
+        glasses.connectResult = { address -> !(address == RIGHT && glasses.otaWrites.any { it.address == LEFT }) }
+        val env = FakeFirmwareEnvironment(glasses)
+        val result = run(env)
+        assertTrue(result is FirmwareInstall.Failed)
+        val text = message(result)
+        assertTrue(text, !text.contains("could not") && !text.contains("phone"))
+        assertTrue(text, text.contains("Die Brille war nicht erreichbar"))
+        assertTrue(text, text.contains("Details im Protokoll"))
+        assertTrue(env.log.any { it.contains("could not reach right lens") })
+    }
+
+    @Test
     fun `a weak or unreadable lens battery writes nothing`() {
         val low = FakeFirmwareEnvironment(SimulatedGlasses(battery = mutableMapOf(RIGHT to 80, LEFT to 49)))
         val lowResult = run(low)

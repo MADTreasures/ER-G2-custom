@@ -56,6 +56,9 @@ class GlassesConnectionTest {
         override fun start(listener: FaceclawBleCommunicatorListener) {
             this.listener = listener
             listening = true
+            // Like Faceclaw's GlassesSessionCore: setListener() reports the initial phase at once
+            // (posted to the main thread), before the session has even started connecting.
+            main.post { if (listening) listener.onStateChange("disconnected", "Disconnected.") }
         }
 
         override fun stopListening() {
@@ -154,6 +157,26 @@ class GlassesConnectionTest {
     }
 
     @Test
+    fun `the session's initial disconnected report does not end it`() {
+        checkWith(CURRENT)
+        advance(2_000)
+        val session = parts.sessions.single()
+        settle()
+        assertTrue(session.listening)
+        assertFalse(session.closed)
+        assertEquals(Stage.CONNECTING, state.stage)
+        session.listener!!.onStateChange("connecting", "Connecting…")
+        session.listener!!.onStateChange("connected", "Connected.")
+        settle()
+        assertEquals(Stage.CONNECTED, state.stage)
+        // Once it was under way, "disconnected" is Faceclaw's own teardown and ends it as before.
+        session.listener!!.onStateChange("disconnected", "Disconnected.")
+        settle()
+        assertEquals(Stage.IDLE, state.stage)
+        assertTrue(session.closed)
+    }
+
+    @Test
     fun `the check runs first and alone`() {
         connection.connect("G2 Test", RIGHT, LEFT)
         settle()
@@ -194,7 +217,9 @@ class GlassesConnectionTest {
         parts.probes.single().listener!!.onError("no response")
         advance(10_000)
         assertEquals(Stage.FAILED, state.stage)
-        assertTrue(state.detail.contains("no response"))
+        // German on the page, Faceclaw's own words in the protocol.
+        assertTrue(state.detail, state.detail.contains("nicht rechtzeitig geantwortet"))
+        assertTrue(connection.log.value.any { it.contains("no response") })
         assertTrue(parts.sessions.isEmpty())
     }
 

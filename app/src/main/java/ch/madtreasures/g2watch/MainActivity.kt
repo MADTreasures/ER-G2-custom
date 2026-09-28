@@ -27,6 +27,7 @@ import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.TimeText
 import ch.madtreasures.g2watch.glasses.FirmwareInstall
+import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.Stage
 import ch.madtreasures.g2watch.ui.DevicesScreen
@@ -225,7 +226,10 @@ class MainActivity : ComponentActivity() {
                     description = firmware.describe(firmwareTarget),
                     onGlasses = state.firmware?.summary,
                     onCancel = { screen = Screen.SETTINGS },
-                    blocker = firmware.blocker(firmwareTarget),
+                    blocker = state.firmware
+                        ?.takeIf { FirmwareRequirement.isNewerThanBase(it.leftVersion) || FirmwareRequirement.isNewerThanBase(it.rightVersion) }
+                        ?.let { "Die Brille meldet eine neuere Firmware als ${FirmwareRequirement.BASE_STOCK_VERSION}. Darauf spielt die App nichts auf." }
+                        ?: firmware.blocker(firmwareTarget),
                     onRisks = { risksReturn = Screen.FIRMWARE_CONFIRM; screen = Screen.RISKS },
                     onConfirm = {
                         glasses.note("Firmware: ${firmwareTarget.label} bestätigt")

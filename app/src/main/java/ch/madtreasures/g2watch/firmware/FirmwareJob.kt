@@ -1,5 +1,6 @@
 package ch.madtreasures.g2watch.firmware
 
+import ch.madtreasures.g2watch.glasses.FaceclawMessages
 import ch.madtreasures.g2watch.glasses.FirmwareInstall
 import ch.madtreasures.g2watch.glasses.FirmwareKind as GlassesFirmwareKind
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
@@ -327,11 +328,10 @@ class FirmwareJob(
     }
 
     private fun promptFailure(state: String, detail: String): String = when {
-        detail == FlashPromptFlow.SILENT_MODE_MESSAGE ->
-            "Die Brille ist im Lautlos-Modus und kann die Frage nicht zeigen. Beide Touchpads der Brille lange drücken, um ihn zu verlassen, dann erneut versuchen. $UNTOUCHED"
+        detail == FlashPromptFlow.SILENT_MODE_MESSAGE -> SILENT_TEXT
         state == "timeout" -> "Auf der Brille wurde nichts gewählt. $UNTOUCHED"
         state == "disconnected" -> "Die Verbindung zur Brille ist abgerissen. $UNTOUCHED"
-        else -> "Die Brille ließ sich nicht verbinden (${detail.ifBlank { state }}). Brille aus dem Etui nehmen, am Handy Bluetooth ausschalten oder die Even-App beenden. $UNTOUCHED"
+        else -> "${FaceclawMessages.german(detail.ifBlank { state })}. Brille aus dem Etui nehmen, am Handy Bluetooth ausschalten oder die Even-App beenden. $UNTOUCHED"
     }
 
     // --- 6. transfer ---------------------------------------------------------------------------
@@ -407,7 +407,7 @@ class FirmwareJob(
                 else -> "Das linke Glas hat die neue Firmware, das rechte nicht. $FLASH_UNKNOWN"
             }
             val mtuHint = if (link.mtuRefusalCount > 0) " Die Bluetooth-Verbindung der Uhr war zu schmal (MTU unter ${GuardedStockLink.MIN_MTU})." else ""
-            throw Stop("Übertragung abgebrochen: ${failure.ifBlank { "unbekannter Fehler" }}.$mtuHint $state")
+            throw Stop("Übertragung abgebrochen: ${FaceclawMessages.german(failure)}.$mtuHint $state")
         }
     }
 
@@ -496,11 +496,13 @@ class FirmwareJob(
                 try {
                     session.bringUp(address, otaChannel = true)
                 } catch (e: IllegalStateException) {
-                    throw Stop("${lensName(name)}: Update-Kanal nicht erreichbar (${e.message}). $UNTOUCHED")
+                    log("test run $name: ${e.message}")
+                    throw Stop("${lensName(name)}: Update-Kanal nicht erreichbar – ${FaceclawMessages.german(e.message)}. $UNTOUCHED")
                 }
                 if (session.authenticate(address, "ota") != StockLinkSession.AuthResult.SUCCESS) {
-                    throw Stop("${lensName(name)}: Kopplung auf dem Update-Kanal nicht bestätigt. $UNTOUCHED")
+                    throw Stop("${lensName(name)}: Kopplung auf dem Update-Kanal nicht bestätigt – falls die Uhr eine Kopplungsanfrage zeigt: bestätigen. $UNTOUCHED")
                 }
+                if (name == "right") checkNotSilent(session, address)
                 val mtu = link.mtu(address)
                 mtus[name] = mtu
                 session.disconnectQuietly(address)
@@ -523,6 +525,20 @@ class FirmwareJob(
                 "Es wurde nichts auf die Brille geschrieben.",
             testRun = true,
         )
+    }
+
+    /** The prompt of a real transfer appears on the right lens; in silent mode it cannot. */
+    private fun checkNotSilent(session: StockLinkSession, address: String) {
+        val silent = try {
+            session.sendPrelude(address)
+            val pb = session.readSettings(address, env.timings.queryTimeoutMs) ?: session.unsolicitedSettingsPb
+            pb?.let { BleProtocol.parseSettingsBattery(it) }?.silentMode ?: -1
+        } catch (e: IllegalStateException) {
+            log("test run silent check: ${e.message}")
+            -1
+        }
+        log("test run: silent mode ${if (silent < 0) "unknown" else if (silent > 0) "on" else "off"}")
+        if (silent > 0) throw Stop(SILENT_TEXT)
     }
 
     // --- helpers -------------------------------------------------------------------------------
@@ -565,6 +581,9 @@ class FirmwareJob(
 
     companion object {
         const val UNTOUCHED = "Nichts wurde an der Brille verändert."
+        const val SILENT_TEXT =
+            "Die Brille ist im Lautlos-Modus und kann die Frage nicht zeigen. Beide Touchpads der Brille lange drücken, " +
+                "um ihn zu verlassen, dann erneut versuchen. $UNTOUCHED"
         const val FLASH_UNKNOWN =
             "Welche Firmware die Brille jetzt startet, ist unklar. Brille laden und neu starten (5× schnell auf beide " +
                 "Touchflächen tippen); startet sie, die Übertragung erneut starten oder die Original-Firmware aufspielen. " +

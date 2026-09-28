@@ -37,17 +37,19 @@ die Brille auch mit der Faceclaw-Handy-App verwendbar, ohne hin und her zu flash
    dem Handy beenden oder am Handy Bluetooth ausschalten – die Brille nimmt nur eine Verbindung an.
 2. **Prüfung.** Die Uhr liest nur die Firmware-Version. Mit Original-Firmware erscheint
    „Firmware passt nicht“ und darunter **Einstellungen**. (Mit Custom-Firmware geht es direkt zum
-   Touchpad; die Einstellungen öffnen sich dort, wenn man das Zahnrad 0,9 s hält.)
+   Touchpad; die Einstellungen öffnen sich dort, wenn man das Zahnrad 0,9 s hält. Die Statusseite bietet
+   die Einstellungen an, sobald keine Verbindung läuft.)
 3. **Testlauf** (Einstellungen → Firmware → *Testlauf*): lädt und baut das Image, koppelt beide Bügel,
-   liest den Akku beider Gläser, verbindet jedes Glas über den Update-Kanal und prüft die
-   Bluetooth-MTU. Er **schreibt nichts** auf die Brille. Erst wenn er für diese Brille bestanden ist,
+   liest den Akku beider Gläser, erkennt den Lautlos-Modus, verbindet jedes Glas über den Update-Kanal
+   und prüft die Bluetooth-MTU. Er **schreibt nichts** auf die Brille – die Frage auf der Brille und die
+   Übertragung selbst prüft er nicht. Erst wenn er für diese Brille bestanden ist,
    bietet die App das echte Aufspielen an.
 4. **Custom-Firmware** (oder **Original-Firmware**) antippen → Bestätigungsseite lesen →
    **„Zum Aufspielen 2 s halten“**.
 5. **Auf der Brille bestätigen:** Die Brille zeigt selbst eine Frage – mit Bügel oder Ring zu
    **„Yes, flash“** wischen und tippen. „No, cancel“ bricht ab, ohne etwas zu verändern.
-6. **Übertragung:** erst das linke Glas, dann startet die Brille kurz neu, dann das rechte. Etwa
-   10–20 Minuten. Die Uhr bleibt an, die Seite hat keinen Zurück-Knopf. Uhr bei der Brille lassen,
+6. **Übertragung:** erst das linke Glas, dann startet die Brille kurz neu, dann das rechte. Bis etwa
+   35 Minuten (etwa 17 pro Glas). Die Uhr bleibt an, die Seite hat keinen Zurück-Knopf. Uhr bei der Brille lassen,
    Brille nicht ins Etui legen.
 7. **Kontrolle:** Nach dem Neustart fragt die Uhr jedes Glas einzeln und meldet z. B.
    „Beide Gläser melden Faceclaw/35“. Mit **OK** verbindet sie sich neu – mit Custom-Firmware startet

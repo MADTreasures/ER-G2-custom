@@ -118,7 +118,8 @@ class WatchFirmwareInstaller(
         const val NO_GLASSES = "Noch keine Brille gewählt. Zuerst die Brille suchen und verbinden."
         const val INTERRUPTED = "Die App wurde während der Übertragung beendet. " + FirmwareJob.FLASH_UNKNOWN
         const val NEEDS_TEST_RUN =
-            "Zuerst einmal den Testlauf machen (Einstellungen → Testlauf). Er prüft alles und schreibt nichts auf die Brille."
+            "Zuerst einmal den Testlauf machen (Einstellungen → Testlauf). Er prüft Image, Kopplung, Akku und Verbindung " +
+                "und schreibt nichts auf die Brille."
     }
 
     private fun kindOf(target: FirmwareTarget) = when (target) {

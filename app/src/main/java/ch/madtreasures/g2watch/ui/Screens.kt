@@ -66,7 +66,7 @@ fun PermissionScreen(onRequest: () -> Unit, onOpenSettings: () -> Unit) {
             item {
                 CenterText(
                     "Für die Verbindung zur Brille braucht die App „Geräte in der Nähe“ (Bluetooth). " +
-                        "Mitteilungen zeigen, solange die Brille verbunden ist.",
+                        "Eine Mitteilung zeigt an, solange die Brille verbunden ist oder Firmware aufgespielt wird.",
                     size = 14,
                 )
             }
@@ -237,15 +237,24 @@ fun StatusScreen(
             if (state.detail.isNotEmpty()) item { CenterText(state.detail, size = 13) }
             state.firmware?.let { item { CenterText("Firmware: ${it.summary}", color = MaterialTheme.colorScheme.onSurfaceVariant, size = 12) } }
             if (state.stage == Stage.INCOMPATIBLE) {
+                val newer = state.firmware?.let { v -> FirmwareRequirement.isNewerThanBase(v.leftVersion) || FirmwareRequirement.isNewerThanBase(v.rightVersion) } == true
                 item {
                     CenterText(
-                        "Die App verändert keine Firmware von sich aus. In den Einstellungen lässt sich die " +
-                            "passende Custom-Firmware aufspielen – oder die Original-Firmware zurück.",
+                        if (newer) {
+                            "Diese Brille hat eine neuere Firmware als ${FirmwareRequirement.BASE_STOCK_VERSION}. " +
+                                "Darauf spielt die App nichts auf; die Custom-Firmware gibt es nur für ${FirmwareRequirement.BASE_STOCK_VERSION}."
+                        } else {
+                            "Die App verändert keine Firmware von sich aus. In den Einstellungen lässt sich die " +
+                                "passende Custom-Firmware aufspielen oder die Original-Firmware zurückspielen."
+                        },
                         color = WarnOrange,
                         size = 12,
                     )
                 }
                 item { FilledTonalButton(onClick = onSettings, modifier = Modifier.fillMaxWidth()) { Text("Einstellungen") } }
+            } else if (!state.stage.busy) {
+                // Firmware (e.g. back to the original) stays reachable whatever the connection does.
+                item { OutlinedButton(onClick = onSettings, modifier = Modifier.fillMaxWidth()) { Text("Einstellungen") } }
             }
             if (state.stage == Stage.FAILED) {
                 item {
@@ -259,8 +268,6 @@ fun StatusScreen(
                 item {
                     OutlinedButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) { Text("Andere Brille") }
                 }
-                // Firmware (e.g. back to the original) stays reachable when the check itself fails.
-                item { OutlinedButton(onClick = onSettings, modifier = Modifier.fillMaxWidth()) { Text("Einstellungen") } }
             }
             item { OutlinedButton(onClick = onLog, modifier = Modifier.fillMaxWidth()) { Text("Protokoll") } }
         }

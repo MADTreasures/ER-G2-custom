@@ -114,7 +114,7 @@ fun SettingsScreen(
                 OutlinedButton(
                     onClick = onTestRun,
                     modifier = Modifier.fillMaxWidth().testTag(TEST_RUN_TAG),
-                    secondaryLabel = { Text("prüft alles, schreibt nichts", fontSize = 11.sp) },
+                    secondaryLabel = { Text("Image, Kopplung, Akku, MTU – schreibt nichts", fontSize = 11.sp) },
                     label = { Text("Testlauf") },
                 )
             }
@@ -387,19 +387,19 @@ internal const val RISKS_TAG = "firmware-risks"
  */
 internal fun firmwareWarning(target: FirmwareTarget): String = when (target) {
     FirmwareTarget.CUSTOM ->
-        "Mit einer Custom-Firmware erlischt die Garantie. Das Aufspielen dauert etwa 10–20 Minuten; die Brille " +
-            "startet zwischen den Gläsern neu. Beide Gläser und die Uhr brauchen mindestens 50 % Akku, und die Brille " +
+        "Mit einer Custom-Firmware erlischt die Garantie. Das Aufspielen dauert bis etwa 35 Minuten (etwa 17 pro " +
+            "Glas); die Brille startet zwischen den Gläsern neu. Beide Gläser und die Uhr brauchen mindestens 50 % Akku, und die Brille " +
             "bleibt bis zum Ende bei der Uhr und nicht im Etui. Ein Abbruch ist meist harmlos; selten kann ein Fehler " +
             "einen Bügel dauerhaft lahmlegen, und dafür gibt es keinen erprobten Rettungsweg."
     FirmwareTarget.ORIGINAL ->
         "Evens Firmware ${FirmwareRequirement.BASE_STOCK_VERSION} ersetzt die Custom-Firmware; die Anzeige der Uhr auf " +
-            "der Brille geht dann nicht mehr. Das Aufspielen dauert etwa 10–20 Minuten. Beide Gläser und die Uhr " +
+            "der Brille geht dann nicht mehr. Das Aufspielen dauert bis etwa 35 Minuten. Beide Gläser und die Uhr " +
             "brauchen mindestens 50 % Akku, und die Brille bleibt bis zum Ende bei der Uhr und nicht im Etui."
 }
 
 /** Title and text of each point on [RisksScreen]. */
 internal val RISKS = listOf(
-    "Rückweg" to "Solange die Brille startet und sich verbinden lässt, spielt „Original-Firmware“ hier Evens Firmware " +
+    "Rückweg" to "Solange die Brille startet, sich verbinden lässt und höchstens ${FirmwareRequirement.BASE_STOCK_VERSION} meldet, spielt „Original-Firmware“ hier Evens Firmware " +
         "${FirmwareRequirement.BASE_STOCK_VERSION} zurück. Auch ein Update der Even-App entfernt die Custom-Firmware, " +
         "sobald Even eine neuere Version anbietet.",
     "Abbruch" to "Bricht die Übertragung ab, startet die Brille meist mit der bisherigen Firmware. Dann einfach neu " +

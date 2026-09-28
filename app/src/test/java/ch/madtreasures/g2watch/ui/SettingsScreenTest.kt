@@ -94,7 +94,7 @@ class SettingsScreenTest {
         var tests = 0
         settings(onTestRun = { tests++ })
         scrollTo(hasTestTag(TEST_RUN_TAG))
-        compose.onNodeWithText("prüft alles, schreibt nichts").assertExists()
+        compose.onNodeWithText("Image, Kopplung, Akku, MTU – schreibt nichts").assertExists()
         compose.onNodeWithTag(TEST_RUN_TAG).performClick()
         assertEquals(1, tests)
     }
