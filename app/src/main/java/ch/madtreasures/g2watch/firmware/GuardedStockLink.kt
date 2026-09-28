@@ -16,12 +16,14 @@ import java.util.concurrent.atomic.AtomicInteger
  *   checked against the allow-list a moment before. The probe, the on-glasses prompt and the test
  *   run all run disarmed, so they cannot write firmware even by mistake.
  * - **MTU:** Faceclaw's flasher writes 240-byte frames and requests a large MTU, but never checks
- *   what it got. A write is refused unless the link negotiated an ATT MTU of at least [MIN_MTU]
- *   and every frame fits. On such a watch the transfer therefore stops at its very first write
- *   (BEGIN), before the glasses were told anything, instead of halfway through a component.
+ *   what it got. While armed, a connection whose MTU exchange ended below [MIN_MTU] is dropped
+ *   right in [prepareLink], so the flasher's own reconnect loop (built for lenses that are still
+ *   rebooting) tries again, and BEGIN only ever goes out on a wide enough link. As a backstop a
+ *   write is refused unless the link has at least [MIN_MTU] and every frame fits.
  *
  * A refused write returns false, exactly like a failed GATT write, so Faceclaw's flows handle it
- * with their normal failure paths (the flasher reports an ack timeout and gives up the lens).
+ * with their normal failure paths. A write on a link that is gone is passed on unchanged, so a
+ * lost connection is reported as such and not as a narrow MTU.
  */
 class GuardedStockLink(
     private val delegate: StockLink,
@@ -34,6 +36,7 @@ class GuardedStockLink(
     private var armed = false
 
     private val refused = AtomicInteger()
+    private val mtuRefused = AtomicInteger()
     private val otaWrites = AtomicInteger()
 
     /** Allows writes to the update characteristic from now on. */
@@ -54,6 +57,9 @@ class GuardedStockLink(
     /** Writes to the update characteristic that the guards refused. */
     val refusedWriteCount: Int get() = refused.get()
 
+    /** Connections dropped and writes refused because the MTU was too small. */
+    val mtuRefusalCount: Int get() = mtuRefused.get()
+
     fun mtu(address: String): Int = negotiatedMtu(address)
 
     override fun writeFrames(
@@ -69,10 +75,13 @@ class GuardedStockLink(
                 log("blocked: firmware write while the link is not armed")
                 return false
             }
+            // A link that is gone fails in the delegate as usual; its MTU entry is gone with it.
+            if (!delegate.isConnected(address)) return delegate.writeFrames(address, characteristicUuid, frames, mode, timeoutMs)
             val mtu = negotiatedMtu(address)
             val largest = frames.maxOfOrNull { it.size } ?: 0
             if (mtu < MIN_MTU || largest > mtu - ATT_HEADER) {
                 refused.incrementAndGet()
+                mtuRefused.incrementAndGet()
                 log("blocked: firmware write with MTU $mtu (needs $MIN_MTU, frame $largest bytes)")
                 return false
             }
@@ -85,7 +94,17 @@ class GuardedStockLink(
 
     override fun connect(address: String, timeoutMs: Int): Boolean = delegate.connect(address, timeoutMs)
 
-    override fun prepareLink(address: String, desiredMtu: Int, timeoutMs: Int) = delegate.prepareLink(address, desiredMtu, timeoutMs)
+    override fun prepareLink(address: String, desiredMtu: Int, timeoutMs: Int) {
+        delegate.prepareLink(address, desiredMtu, timeoutMs)
+        if (!armed) return
+        val mtu = negotiatedMtu(address)
+        if (mtu < MIN_MTU) {
+            // Drop it: bring-up fails at the next step and the flasher reconnects within its window.
+            mtuRefused.incrementAndGet()
+            log("MTU $mtu after the exchange (needs $MIN_MTU): dropping the connection before any firmware write")
+            delegate.disconnect(address)
+        }
+    }
 
     override fun discoverServices(address: String, timeoutMs: Int): Boolean = delegate.discoverServices(address, timeoutMs)
 

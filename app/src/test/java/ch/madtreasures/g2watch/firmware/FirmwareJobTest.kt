@@ -59,7 +59,7 @@ class FirmwareJobTest {
         val result = run(env, steps = steps)
 
         assertTrue(message(result), result is FirmwareInstall.Done)
-        assertTrue(message(result).contains("Faceclaw/35"))
+        assertTrue(message(result), message(result).contains("Beide Gläser melden Faceclaw/35"))
         // Each lens received exactly the custom image's components, in order.
         val expected = TestFirmware.payloads(TestFirmware.custom)
         for (lens in listOf(LEFT, RIGHT)) {
@@ -101,11 +101,26 @@ class FirmwareJobTest {
     }
 
     @Test
+    fun `a lens that still runs the old firmware is not reported as done`() {
+        // Right switched, left still reports the custom firmware after going back to the original.
+        val glasses = SimulatedGlasses(extension = "Faceclaw/35", firmwareAfterFlash = "")
+        glasses.armExtension[LEFT] = "Faceclaw/35"
+        val env = FakeFirmwareEnvironment(glasses)
+        val result = run(env, target = FirmwareTarget.ORIGINAL)
+        assertTrue(result is FirmwareInstall.Failed)
+        val text = message(result)
+        assertTrue(text, text.contains("nicht auf beiden"))
+        assertTrue(text, text.contains("links: Faceclaw/35"))
+        assertTrue(text, text.contains("rechts: Original 2.3.0.24"))
+    }
+
+    @Test
     fun `a transfer the lenses do not confirm is reported as such`() {
         val env = FakeFirmwareEnvironment(SimulatedGlasses(firmwareAfterFlash = ""))
         val result = run(env)
-        assertTrue(result is FirmwareInstall.Done)
-        assertTrue(message(result), message(result).contains("noch nicht"))
+        // Not a green "done": the transfer ended, but the glasses do not show the new firmware.
+        assertTrue(result is FirmwareInstall.Failed)
+        assertTrue(message(result), message(result).contains("Beide Gläser sind übertragen"))
     }
 
     @Test
@@ -138,7 +153,7 @@ class FirmwareJobTest {
     @Test
     fun `a weak watch battery stops before anything happens, unless it charges`() {
         val env = FakeFirmwareEnvironment()
-        env.power = WatchPower(20, charging = false)
+        env.power = WatchPower(49, charging = false)
         val result = run(env)
         assertTrue(message(result).contains("Akku der Uhr"))
         assertEquals(0, env.glasses.writes.size)
@@ -208,10 +223,11 @@ class FirmwareJobTest {
 
     @Test
     fun `a weak or unreadable lens battery writes nothing`() {
-        val low = FakeFirmwareEnvironment(SimulatedGlasses(battery = mutableMapOf(RIGHT to 80, LEFT to 29)))
+        val low = FakeFirmwareEnvironment(SimulatedGlasses(battery = mutableMapOf(RIGHT to 80, LEFT to 49)))
         val lowResult = run(low)
         assertTrue(message(lowResult), message(lowResult).contains("Akku der Brille zu schwach"))
-        assertTrue(message(lowResult).contains("L 29 %"))
+        assertTrue(message(lowResult).contains("L 49 %"))
+        assertTrue(message(lowResult).contains("mindestens 50 %"))
         assertNothingFlashed(low)
 
         val unknown = FakeFirmwareEnvironment(SimulatedGlasses(battery = mutableMapOf(RIGHT to 80)))
@@ -228,10 +244,30 @@ class FirmwareJobTest {
         val result = run(env)
         assertTrue(result is FirmwareInstall.Failed)
         assertTrue(message(result), message(result).contains("MTU"))
-        // The guard refused BEGIN itself: the lenses never saw a firmware frame.
+        // The guard dropped the narrow connections before BEGIN: no firmware frame went out.
         assertEquals(0, env.glasses.otaWrites.size)
-        assertTrue(env.links.any { it.refusedWriteCount > 0 })
+        assertTrue(env.links.any { it.mtuRefusalCount > 0 })
         assertTrue(message(result).contains("Nichts wurde an der Brille verändert"))
+    }
+
+    @Test
+    fun `a lens that comes back narrow after the reboot is reconnected, not given up`() {
+        // The right lens negotiates a small MTU on its first connection after the left one's reboot.
+        val glasses = SimulatedGlasses()
+        var rightConnects = 0
+        glasses.connectResult = { address ->
+            if (address == RIGHT && glasses.otaWrites.any { it.address == LEFT }) {
+                rightConnects++
+                glasses.mtu = if (rightConnects == 1) 23 else 247
+            }
+            true
+        }
+        val env = FakeFirmwareEnvironment(glasses)
+        val result = run(env)
+        assertTrue(message(result), result is FirmwareInstall.Done)
+        assertTrue(rightConnects >= 2)
+        val expected = TestFirmware.payloads(TestFirmware.custom)
+        assertTrue(expected.zip(glasses.received[RIGHT]!!).all { (e, g) -> e.contentEquals(g) })
     }
 
     @Test

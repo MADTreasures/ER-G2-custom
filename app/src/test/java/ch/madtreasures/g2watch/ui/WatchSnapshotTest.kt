@@ -227,7 +227,7 @@ class WatchSnapshotTest {
         FirmwareProgressScreen(
             FirmwareInstall.Failed(
                 FirmwareTarget.CUSTOM,
-                "Akku der Brille zu schwach oder nicht lesbar (R 80 %, L 22 %). Beide Gläser auf mindestens 30 % laden " +
+                "Akku der Brille zu schwach oder nicht lesbar (R 80 %, L 22 %). Beide Gläser auf mindestens 50 % laden " +
                     "und erneut versuchen. Nichts wurde an der Brille verändert.",
             ),
         ) {}

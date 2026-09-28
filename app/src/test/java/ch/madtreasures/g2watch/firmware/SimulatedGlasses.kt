@@ -47,6 +47,8 @@ class SimulatedGlasses(
     var mtu: Int = 247,
     /** The extension the lenses report once both accepted a complete image. */
     var firmwareAfterFlash: String = "Faceclaw/35",
+    /** Per-lens field 100 that wins over [extension], e.g. for a lens that did not switch. */
+    val armExtension: MutableMap<String, String> = mutableMapOf(),
     /** How many components make a complete image (the synthetic images have 5). */
     var componentCount: Int = 5,
 ) : StockLink {
@@ -169,7 +171,8 @@ class SimulatedGlasses(
         battery[address]?.let { request += varintField(12, it) }
         request += varintField(14, if (silentMode) 1 else 0)
         var pb = varintField(1, 2) + varintField(2, magic) + field(4, request)
-        if (extension.isNotEmpty()) pb += field(100, extension)
+        val ext = armExtension[address] ?: extension
+        if (ext.isNotEmpty()) pb += field(100, ext)
         return pb
     }
 

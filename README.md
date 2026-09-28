@@ -49,9 +49,10 @@ die Brille auch mit der Faceclaw-Handy-App verwendbar, ohne hin und her zu flash
 6. **Übertragung:** erst das linke Glas, dann startet die Brille kurz neu, dann das rechte. Etwa
    10–20 Minuten. Die Uhr bleibt an, die Seite hat keinen Zurück-Knopf. Uhr bei der Brille lassen,
    Brille nicht ins Etui legen.
-7. **Kontrolle:** Nach dem Neustart liest die Uhr die Firmware erneut und meldet z. B.
-   „Die Brille meldet Faceclaw/35“. Mit **OK** verbindet sie sich neu – mit Custom-Firmware startet
-   dann das Touchpad mit dem Maus-Zeiger auf der Brille.
+7. **Kontrolle:** Nach dem Neustart fragt die Uhr jedes Glas einzeln und meldet z. B.
+   „Beide Gläser melden Faceclaw/35“. Mit **OK** verbindet sie sich neu – mit Custom-Firmware startet
+   dann das Touchpad mit dem Maus-Zeiger auf der Brille. Die Even-App auf dem Handy muss danach
+   eventuell neu mit der Brille gekoppelt werden.
 
 **Zurück zur Original-Firmware** geht auf demselben Weg (Einstellungen → *Original-Firmware*),
 solange die Brille startet und sich verbinden lässt. Die Seite **Risiken & Rückweg** in den
@@ -66,25 +67,29 @@ legt die Reihenfolge und die Schranken drumherum:
 
 | Schritt | Was passiert | Bricht ab, wenn … | Brille berührt? |
 |---|---|---|---|
-| 1 | Beide Bügel bekannt, Akku der Uhr | Bügel fehlt; Uhr < 30 % und nicht am Laden | nein |
+| 1 | Beide Bügel bekannt, Akku der Uhr | Bügel fehlt; Uhr < 50 % und nicht am Laden | nein |
 | 2 | Original laden (Cache → `adb`-Import → Evens Server), Custom bauen, **SHA-256 beider Enden**, vollständige Image-Prüfung inkl. Speichergrenze | Download scheitert, Hash falsch, Image fehlerhaft | nein |
 | 3 | Die Brillenverbindung der App wird sauber getrennt | – | nein |
 | 4 | Versionen lesen (nur lesend) | Brille meldet nichts; **neuere** Original-Firmware als 2.3.0.24 (ungetesteter Downgrade) | nur lesen |
-| 5 | Beide Bügel koppeln, **Frage auf der Brille**, Lautlos-Modus erkennen, Akku beider Gläser | „No“, keine Antwort, Lautlos-Modus, Glas < 30 % **oder unlesbar** | Frage |
+| 5 | Beide Bügel koppeln, **Frage auf der Brille**, Lautlos-Modus erkennen, Akku beider Gläser | „No“, keine Antwort, Lautlos-Modus, Glas < 50 % **oder unlesbar** | Frage |
 | 6 | Allow-List **direkt vor dem ersten Byte** erneut prüfen, Verbindung „scharf“ schalten, links → rechts übertragen | Fehler eines Glases → Stopp, **nie** automatisch von vorn | ja |
-| 7 | Nach dem Neustart Version erneut lesen | – (meldet „noch nicht bestätigt“) | nur lesen |
+| 7 | Nach dem Neustart **jedes Glas einzeln** fragen | meldet rot, wenn nicht beide die neue Firmware zeigen | nur lesen |
 
 Zusätzlich sitzt vor dem Update-Kanal ein Wächter
 ([`GuardedStockLink.kt`](app/src/main/java/ch/madtreasures/g2watch/firmware/GuardedStockLink.kt)): Er lässt
 Firmware-Bytes nur durch, wenn Schritt 6 ihn scharf geschaltet hat, **und** nur bei einer
-Bluetooth-MTU ≥ 243 (sonst passen die 240-Byte-Rahmen nicht; Faceclaw prüft das selbst nicht). Ein
+Bluetooth-MTU ≥ 243 (sonst passen die 240-Byte-Rahmen nicht; Faceclaw prüft das selbst nicht) – eine
+zu schmale Verbindung wird schon beim Aufbau getrennt, sodass Faceclaws Wiederverbindung greift. Die
+2 s zum Bestätigen misst die Uhr mit der Uhrzeit, nicht mit der Animation (sonst würde „Animationen
+aus“ in den Entwickleroptionen aus dem Halten ein Tippen machen). Ein
 Test ([`FlashingBoundaryTest`](app/src/test/java/ch/madtreasures/g2watch/firmware/FlashingBoundaryTest.kt))
 schlägt fehl, sobald Code einen zweiten Weg zum Aufspielen öffnet. Während der Übertragung hält ein
 Vordergrund-Dienst mit Wake-Lock die Uhr wach.
 
 Jede Fehlermeldung sagt, in welchem Zustand die Brille ist: „Nichts wurde an der Brille verändert“,
 „Das linke Glas hat die neue Firmware, das rechte nicht“ oder „Welche Firmware die Brille jetzt
-startet, ist unklar …“ mit dem Weg zurück. Details: [`docs/FIRMWARE.md`](docs/FIRMWARE.md).
+startet, ist unklar …“ mit dem Weg zurück – auch wenn Android die App mitten in der Übertragung
+beendet hat. Details: [`docs/FIRMWARE.md`](docs/FIRMWARE.md).
 
 ## App auf die Uhr bringen
 

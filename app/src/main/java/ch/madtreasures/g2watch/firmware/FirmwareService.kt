@@ -75,8 +75,8 @@ class FirmwareService : Service() {
         private const val NOTIFICATION_ID = 2
         private const val WAKE_LOCK_TAG = "G2Watch:firmware"
 
-        /** Two lenses at several minutes each, plus downloads and waits, with a wide margin. */
-        private const val WAKE_LOCK_TIMEOUT_MS = 60 * 60 * 1000L
+        /** Two lenses at up to ~17 minutes each, plus download, prompt, waits and checks, with a wide margin. */
+        private const val WAKE_LOCK_TIMEOUT_MS = 2 * 60 * 60 * 1000L
 
         // Main thread only.
         private var starting = false

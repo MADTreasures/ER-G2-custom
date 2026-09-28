@@ -322,7 +322,12 @@ fun FirmwareProgressScreen(install: FirmwareInstall, onClose: () -> Unit) {
     }
 }
 
-/** A button that fills while pressed and only fires once it is full; letting go early resets it. */
+/**
+ * A button that fills while pressed and only fires once it was held for [HOLD_CONFIRM_MS]; letting
+ * go early resets it. The hold is timed by the clock, not by the fill animation: with animations
+ * turned off in the developer options (needed to sideload the app) an animation finishes at once,
+ * which would turn the hold into a tap.
+ */
 @Composable
 private fun HoldToConfirm(label: String, onConfirm: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -345,13 +350,20 @@ private fun HoldToConfirm(label: String, onConfirm: () -> Unit) {
                     val filling = scope.launch {
                         progress.snapTo(0f)
                         progress.animateTo(1f, tween(HOLD_CONFIRM_MS, easing = LinearEasing))
-                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                        confirm()
                     }
-                    waitForUpOrCancellation()
-                    if (filling.isActive) {
+                    var letGo = false
+                    withTimeoutOrNull(HOLD_CONFIRM_MS.toLong()) {
+                        waitForUpOrCancellation()
+                        letGo = true
+                    }
+                    if (letGo) {
                         filling.cancel()
                         scope.launch { progress.animateTo(0f, tween(150)) }
+                    } else {
+                        scope.launch { progress.snapTo(1f) }
+                        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                        confirm()
+                        waitForUpOrCancellation()
                     }
                 }
             },
@@ -376,13 +388,13 @@ internal const val RISKS_TAG = "firmware-risks"
 internal fun firmwareWarning(target: FirmwareTarget): String = when (target) {
     FirmwareTarget.CUSTOM ->
         "Mit einer Custom-Firmware erlischt die Garantie. Das Aufspielen dauert etwa 10–20 Minuten; die Brille " +
-            "startet zwischen den Gläsern neu. Beide Gläser und die Uhr brauchen mindestens 30 % Akku, und die Brille " +
+            "startet zwischen den Gläsern neu. Beide Gläser und die Uhr brauchen mindestens 50 % Akku, und die Brille " +
             "bleibt bis zum Ende bei der Uhr und nicht im Etui. Ein Abbruch ist meist harmlos; selten kann ein Fehler " +
             "einen Bügel dauerhaft lahmlegen, und dafür gibt es keinen erprobten Rettungsweg."
     FirmwareTarget.ORIGINAL ->
         "Evens Firmware ${FirmwareRequirement.BASE_STOCK_VERSION} ersetzt die Custom-Firmware; die Anzeige der Uhr auf " +
             "der Brille geht dann nicht mehr. Das Aufspielen dauert etwa 10–20 Minuten. Beide Gläser und die Uhr " +
-            "brauchen mindestens 30 % Akku, und die Brille bleibt bis zum Ende bei der Uhr und nicht im Etui."
+            "brauchen mindestens 50 % Akku, und die Brille bleibt bis zum Ende bei der Uhr und nicht im Etui."
 }
 
 /** Title and text of each point on [RisksScreen]. */

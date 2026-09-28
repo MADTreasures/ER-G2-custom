@@ -5,6 +5,7 @@ import ch.madtreasures.g2watch.glasses.FirmwareKind as GlassesFirmwareKind
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.FirmwareVerdict
+import com.faceclaw.app.BleProtocol
 import com.faceclaw.app.DeviceInfoProbeFlow
 import com.faceclaw.app.FaceclawDeviceInfoProbeListener
 import com.faceclaw.app.FaceclawFirmwareFlasherListener
@@ -75,10 +76,13 @@ data class LensPair(val right: String, val left: String)
 
 /** Limits and waits of a job; tests shrink the waits. */
 data class JobPolicy(
-    /** Per lens, like Faceclaw; an unreadable level counts as too low. */
-    val minGlassesBattery: Int = 30,
+    /**
+     * Per lens; an unreadable level counts as too low. Faceclaw asks 30 %, Even's own updates more
+     * than 50 %: the watch path is untested, so the stricter one.
+     */
+    val minGlassesBattery: Int = 50,
     /** Below this the watch must be on its charger. */
-    val minWatchBattery: Int = 30,
+    val minWatchBattery: Int = 50,
     /** Between the flows, so the previous links are really closed. */
     val settleMs: Long = 2_000,
     /** After the transfer, before the first check: both lenses reboot. */
@@ -106,7 +110,7 @@ data class JobPolicy(
  * 6. The image is checked against the allow-list once more, the link is armed, and Faceclaw's
  *    [OtaFlashFlow] (a port of g2flash.py) writes left, then right. No retry of the whole
  *    transfer: a failure stops and says what state the lenses are in.
- * 7. After the reboot the probe reads the firmware again and the result says what it found.
+ * 7. After the reboot each lens is asked on its own link, and the result says what each one reports.
  *
  * A test run does 1–5 without the prompt (pairing and batteries only), then connects each lens on
  * the update channel, authenticates and checks the MTU, and disconnects. The link stays disarmed,
@@ -394,7 +398,7 @@ class FirmwareJob(
         } finally {
             link.disarm()
             link.close()
-            log("ota writes: ${link.otaWriteCount}, refused: ${link.refusedWriteCount}")
+            log("ota writes: ${link.otaWriteCount}, refused: ${link.refusedWriteCount}, MTU refusals: ${link.mtuRefusalCount}")
         }
         if (!ok) {
             val state = when {
@@ -402,50 +406,82 @@ class FirmwareJob(
                 done.isEmpty() -> FLASH_UNKNOWN
                 else -> "Das linke Glas hat die neue Firmware, das rechte nicht. $FLASH_UNKNOWN"
             }
-            val mtuHint = if (link.refusedWriteCount > 0) " Die Bluetooth-Verbindung der Uhr ist zu schmal (MTU unter ${GuardedStockLink.MIN_MTU})." else ""
+            val mtuHint = if (link.mtuRefusalCount > 0) " Die Bluetooth-Verbindung der Uhr war zu schmal (MTU unter ${GuardedStockLink.MIN_MTU})." else ""
             throw Stop("Übertragung abgebrochen: ${failure.ifBlank { "unbekannter Fehler" }}.$mtuHint $state")
         }
     }
 
     // --- 7. after the reboot -------------------------------------------------------------------
 
+    /** What one lens says about itself on its own link: its field 100 and the reported versions. */
+    private data class ArmReport(val extension: String, val leftVersion: String, val rightVersion: String) {
+        fun describe(): String = extension.ifEmpty { "Original ${listOf(leftVersion, rightVersion).firstOrNull { it.isNotEmpty() } ?: "?"}" }
+    }
+
+    /**
+     * Asks each lens on its own link. Faceclaw's probe reports only one lens (the right one, the
+     * left one only when the right stays silent), which could hide a mixed pair; the custom
+     * firmware adds field 100 to every settings reply of the lens it runs on.
+     */
+    private fun readArm(address: String, name: String): ArmReport? {
+        val link = env.openLink(log)
+        try {
+            val session = StockLinkSession(link, log, env.timings, platform = env.platform)
+            session.bringUp(address)
+            if (session.authenticate(address, name) != StockLinkSession.AuthResult.SUCCESS) return null
+            session.sendPrelude(address, " ($name lens)")
+            repeat(2) {
+                val pb = session.readSettings(address, env.timings.queryTimeoutMs) ?: session.unsolicitedSettingsPb
+                val info = pb?.let { BleProtocol.parseSettingsFirmwareInfo(it) }
+                if (info != null) return ArmReport(info.extension.trim(), info.leftVersion.trim(), info.rightVersion.trim())
+            }
+            return null
+        } catch (e: IllegalStateException) {
+            log("verify $name: ${e.message}")
+            return null
+        } finally {
+            link.close()
+        }
+    }
+
     private fun verify(): FirmwareInstall {
         step("Die Brille startet neu …", 100)
         env.keepAwake("Firmware übertragen – Brille startet neu")
         env.sleep(policy.verifyDelayMs)
-        var last: FirmwareVerdict? = null
+        var left: ArmReport? = null
+        var right: ArmReport? = null
         for (attempt in 1..policy.verifyAttempts) {
-            last = try {
-                readFirmware("Prüfe die neue Firmware (Versuch $attempt von ${policy.verifyAttempts}) …")
-            } catch (e: Exception) {
-                log("verify: ${e.message}")
-                null
-            }
-            val v = last
-            if (v != null && matchesTarget(v)) {
-                return FirmwareInstall.Done(target, doneMessage(v))
+            step("Prüfe die neue Firmware (Versuch $attempt von ${policy.verifyAttempts}) …", 100)
+            if (right == null || !matchesTarget(right)) right = readArm(pair.right, "right") ?: right
+            env.sleep(policy.settleMs)
+            if (left == null || !matchesTarget(left)) left = readArm(pair.left, "left") ?: left
+            log("verify: L ${left?.describe() ?: "keine Antwort"}, R ${right?.describe() ?: "keine Antwort"}")
+            if (left != null && right != null && matchesTarget(left) && matchesTarget(right)) {
+                return FirmwareInstall.Done(target, doneMessage(left, right))
             }
             if (attempt < policy.verifyAttempts) env.sleep(policy.verifyIntervalMs)
         }
-        val seen = last?.summary ?: "keine Antwort"
-        return FirmwareInstall.Done(
+        // Not green: the transfer ended, but the glasses do not (yet) show the chosen firmware.
+        return FirmwareInstall.Failed(
             target,
-            "Beide Gläser sind übertragen, aber die Brille hat ${env.images.describe(kind)} noch nicht " +
-                "bestätigt (meldet: $seen). Brille einschalten, kurz warten und neu verbinden.",
+            "Beide Gläser sind übertragen, aber die Kontrolle danach fand ${env.images.describe(kind)} nicht auf " +
+                "beiden (links: ${left?.describe() ?: "keine Antwort"}, rechts: ${right?.describe() ?: "keine Antwort"}). " +
+                "Brille einschalten, kurz warten und neu verbinden; bleibt ein Glas anders, erneut aufspielen.",
         )
     }
 
-    private fun matchesTarget(v: FirmwareVerdict): Boolean {
-        val bothBase = v.leftVersion == FirmwareCatalog.STOCK_VERSION && v.rightVersion == FirmwareCatalog.STOCK_VERSION
+    private fun matchesTarget(a: ArmReport): Boolean {
+        val versions = listOf(a.leftVersion, a.rightVersion).filter { it.isNotEmpty() }
+        val onBase = versions.isNotEmpty() && versions.all { it == FirmwareCatalog.STOCK_VERSION }
         return when (kind) {
-            FirmwareKind.Custom -> v.kind == GlassesFirmwareKind.COMPATIBLE
-            FirmwareKind.Stock -> v.kind == GlassesFirmwareKind.STOCK && bothBase
+            FirmwareKind.Custom -> a.extension == FirmwareCatalog.CUSTOM_EXTENSION
+            FirmwareKind.Stock -> a.extension.isEmpty() && onBase
         }
     }
 
-    private fun doneMessage(v: FirmwareVerdict): String = when (kind) {
-        FirmwareKind.Custom -> "Die Brille meldet ${FirmwareCatalog.CUSTOM_EXTENSION} (L ${v.leftVersion}, R ${v.rightVersion})."
-        FirmwareKind.Stock -> "Die Brille meldet wieder die Original-Firmware ${FirmwareCatalog.STOCK_VERSION}."
+    private fun doneMessage(left: ArmReport, right: ArmReport): String = when (kind) {
+        FirmwareKind.Custom -> "Beide Gläser melden ${FirmwareCatalog.CUSTOM_EXTENSION} (Basis ${right.rightVersion.ifEmpty { left.leftVersion }})."
+        FirmwareKind.Stock -> "Beide Gläser melden wieder die Original-Firmware ${FirmwareCatalog.STOCK_VERSION}."
     }
 
     // --- test run ------------------------------------------------------------------------------

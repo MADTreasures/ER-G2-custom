@@ -69,6 +69,32 @@ class GuardedStockLinkTest {
     }
 
     @Test
+    fun `an armed link drops a narrow connection right after the MTU exchange`() {
+        val link = connected(185)
+        link.arm()
+        link.prepareLink(RIGHT, 512, 100)
+        assertFalse(link.isConnected(RIGHT))
+        assertEquals(1, link.mtuRefusalCount)
+
+        val unarmed = connected(185)
+        unarmed.prepareLink(RIGHT, 512, 100)
+        assertTrue(unarmed.isConnected(RIGHT))
+    }
+
+    @Test
+    fun `a write on a lost link is not blamed on the MTU`() {
+        val link = connected(247)
+        link.arm()
+        link.disconnect(RIGHT)
+        try {
+            link.ota()
+        } catch (e: IllegalStateException) {
+            // the link says "not connected", as without the guard
+        }
+        assertEquals(0, link.mtuRefusalCount)
+    }
+
+    @Test
     fun `the UUID check ignores case`() {
         val link = connected(247)
         assertFalse(link.writeFrames(RIGHT, BleProtocol.OTA_DATA_WRITE_UUID.uppercase(), frames(20), GattWriteMode.WITHOUT_RESPONSE, 100))

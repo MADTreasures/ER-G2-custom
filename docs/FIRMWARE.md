@@ -31,14 +31,14 @@ von `g2flash.py`.
 ```
 install(target) ── nur aus dem 2-s-Halten ─┐        testRun(target) ── Knopf „Testlauf“ ─┐
                                            ▼                                              ▼
- 1  Uhr:   beide Bügel? Akku Uhr ≥ 30 % oder Laden?
+ 1  Uhr:   beide Bügel? Akku Uhr ≥ 50 % oder Laden?
  2  Image: Original (Cache/Import/CDN, SHA-256) → Custom bauen (Patch-Set, SHA-256) → prüfen → Allow-List
  3  App-Verbindung zur Brille trennen (releaseForFirmware), 2 s warten
  4  DeviceInfoProbeFlow: Versionen + Feld 100 lesen; neuere Original-Firmware als 2.3.0.24 → Stopp
- 5  FlashPromptFlow: beide Bügel koppeln, Lautlos-Modus?, Frage auf der Brille, Akku L/R ≥ 30 %
+ 5  FlashPromptFlow: beide Bügel koppeln, Lautlos-Modus?, Frage auf der Brille, Akku L/R ≥ 50 %
         │ Testlauf: ohne Frage ───────────────────────────────────────────────────────────┐
  6  Allow-List erneut, Link scharf, OtaFlashFlow: links (30 s Fenster) → Neustart → rechts (120 s)  │
- 7  15 s warten, bis zu 6× Versionen lesen: Faceclaw/35 bzw. Original 2.3.0.24?                    │
+ 7  15 s warten, bis zu 6× jedes Glas einzeln fragen: Faceclaw/35 bzw. Original 2.3.0.24?          │
                                                                                                    ▼
                                     Testlauf: je Glas Update-Kanal verbinden, koppeln, MTU ≥ 243, trennen
 ```
@@ -56,11 +56,13 @@ wiederholt (max. 3), eine Komponente nach fehlgeschlagenem `END` oder Zeitübers
 | Reihenfolge | Frage → Image bauen → flashen | – | **Image zuerst**, dann Brille (ein Download-Fehler stört die Brille nicht) |
 | Allow-List | nur beim Bauen | keine | beim Bauen **und** direkt vor dem ersten Byte |
 | MTU | angefragt, nie geprüft | – | **≥ 243 Pflicht**, sonst wird schon `BEGIN` verweigert |
-| Akku Brille | < 30 % verweigert, unbekannt erlaubt | keine | < 30 % **oder unbekannt** verweigert |
-| Akku Uhr | – | – | ≥ 30 % oder am Laden |
+| Akku Brille | < 30 % verweigert, unbekannt erlaubt | keine | < 50 % **oder unbekannt** verweigert (Evens eigene Vorgabe: > 50 %) |
+| Akku Uhr | – | – | ≥ 50 % oder am Laden |
 | Neuere Original-Firmware | „Trotzdem“-Knopf | – | Stopp (ungetesteter Downgrade) |
 | Testlauf | – | `--stop-before flash` (sendet schon `BEGIN`+`FILE_CHECK`) | schreibt **nichts** in den Update-Kanal; Pflicht vor dem ersten echten Aufspielen je Brille |
-| Nach dem Flashen | keine Kontrolle | keine | Versionen erneut lesen |
+| Nach dem Flashen | keine Kontrolle | keine | **jedes Glas einzeln** fragen (Faceclaws Probe meldet nur ein Glas); nicht bestätigt = rot |
+| 2 s Halten | – | – | mit der Uhrzeit gemessen, unabhängig von „Animationen aus“ |
+| App wird beendet | – | – | Markierung vor dem ersten Byte; beim nächsten Start Warnung „Zustand unklar“ |
 | Wach bleiben | – | – | Vordergrund-Dienst + Wake-Lock + Bildschirm an |
 | Revision | exakt 35 | – | exakt 35 (`FirmwareRequirement`) |
 
@@ -76,7 +78,8 @@ Image-Prüfung und das Patch-Set (`firmware-image`), die hier bitgenau gegen das
 | „Nichts wurde an der Brille verändert.“ | Kein Byte ist in den Update-Kanal gegangen (der Wächter zählt mit) |
 | „Das linke Glas hat die neue Firmware, das rechte nicht. …“ | Links fertig, rechts abgebrochen: gemischter Stand, erneut aufspielen |
 | „Welche Firmware die Brille jetzt startet, ist unklar. …“ | Abbruch während der Übertragung; laut Recherche startet die Brille meist mit der bisherigen Firmware |
-| „… noch nicht bestätigt (meldet: …)“ | Beide Gläser übertragen, aber die Kontrolle nach dem Neustart fand die neue Firmware (noch) nicht |
+| „Beide Gläser sind übertragen, aber die Kontrolle danach fand … nicht auf beiden (links: …, rechts: …)“ | Übertragung beendet, aber nicht beide Gläser zeigen die neue Firmware; neu verbinden, sonst erneut aufspielen |
+| „Die App wurde während der Übertragung beendet. …“ | Android hat die App mitten in der Übertragung beendet; Zustand wie oben „unklar“ |
 
 Die App wiederholt nie selbst. Jeder Schritt steht mit Uhrzeit im **Protokoll** (Einstellungen →
 Protokoll), Zeilen mit „Firmware:“ stammen vom Auftrag.
@@ -101,6 +104,11 @@ die Regeln aus [`firmware-uebergabe/01_Custom-Firmware_erstellen.md`](firmware-u
 - Bluetooth der Pixel Watch: welche MTU sie aushandelt und wie schnell sie überträgt, ist unbekannt –
   der Testlauf zeigt die MTU beider Gläser.
 - Ob Wear OS beim Koppeln einen Dialog zeigt, ist ungeprüft; die App wartet bis zu 90 s.
+- Ob die Kopplung mit der Uhr die Kopplung der Even-App auf dem Handy verdrängt, ist unbekannt – die
+  Even-App muss danach eventuell neu koppeln.
+- Ob die Custom-Firmware die Anmeldung auf dem Update-Kanal genauso bestätigt wie die Original-Firmware,
+  ist nur aus dem Quelltext abgeleitet: Vor dem ersten Zurück auf Original den Testlauf auch einmal mit
+  Custom-Firmware auf der Brille machen.
 - Faceclaws Flasher verbindet nach einer Zeitüberschreitung nicht neu, sondern wiederholt die
   Komponente auf derselben Verbindung. Bricht die Verbindung wirklich ab, scheitert das Glas nach drei
   Versuchen – dann einfach neu starten.
