@@ -1,0 +1,141 @@
+{
+  "format": "g2-baukasten@1",
+  "name": "Mein Brillen-UI",
+  "start": "p_start",
+  "updatedAt": "2026-09-28T10:00:00.000Z",
+  "pages": [
+    {
+      "id": "p_start",
+      "name": "Start",
+      "statusBar": true,
+      "notes": "Erste Seite nach dem Aufwachen der Brille. Zeigt Begrüßung, nächsten Termin und Akku.",
+      "blocks": [
+        {
+          "id": "b_gruss",
+          "type": "heading",
+          "text": "Guten Morgen",
+          "align": "left",
+          "size": "normal"
+        },
+        {
+          "id": "b_termin",
+          "type": "text",
+          "text": "Nächster Termin: 10:30 Teamrunde",
+          "align": "left"
+        },
+        {
+          "id": "b_akku",
+          "type": "value",
+          "text": "Akku Brille",
+          "value": "80 %"
+        },
+        {
+          "id": "b_einkauf",
+          "type": "button",
+          "text": "Einkaufsliste",
+          "target": "p_einkauf",
+          "action": ""
+        },
+        {
+          "id": "b_einst",
+          "type": "button",
+          "text": "Einstellungen",
+          "target": "p_einst",
+          "action": ""
+        },
+        {
+          "id": "b_musik",
+          "type": "button",
+          "text": "Musik",
+          "target": null,
+          "action": "spielt die letzte Playlist auf dem Handy weiter"
+        }
+      ]
+    },
+    {
+      "id": "p_einkauf",
+      "name": "Einkaufsliste",
+      "statusBar": true,
+      "notes": "Liste kommt vom Handy. Tippen hakt einen Eintrag ab.",
+      "blocks": [
+        {
+          "id": "b_ek_titel",
+          "type": "heading",
+          "text": "Einkaufsliste",
+          "align": "left",
+          "size": "normal"
+        },
+        {
+          "id": "b_ek_liste",
+          "type": "list",
+          "style": "checks",
+          "items": [
+            {
+              "text": "Milch",
+              "done": true
+            },
+            {
+              "text": "Brot",
+              "done": false
+            },
+            {
+              "text": "Äpfel",
+              "done": false
+            },
+            {
+              "text": "Kaffee",
+              "done": false
+            },
+            {
+              "text": "Haferflocken",
+              "done": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p_einst",
+      "name": "Einstellungen",
+      "statusBar": true,
+      "notes": "Schalter wirken sofort auf Uhr und Brille.",
+      "blocks": [
+        {
+          "id": "b_es_titel",
+          "type": "heading",
+          "text": "Einstellungen",
+          "align": "left",
+          "size": "normal"
+        },
+        {
+          "id": "b_ruhe",
+          "type": "toggle",
+          "text": "Nicht stören",
+          "on": false
+        },
+        {
+          "id": "b_toene",
+          "type": "toggle",
+          "text": "Töne",
+          "on": true
+        },
+        {
+          "id": "b_linie",
+          "type": "divider"
+        },
+        {
+          "id": "b_fw",
+          "type": "value",
+          "text": "Firmware",
+          "value": "Faceclaw/35"
+        },
+        {
+          "id": "b_hell",
+          "type": "progress",
+          "text": "Helligkeit",
+          "value": 60
+        }
+      ]
+    }
+  ]
+}

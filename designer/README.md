@@ -1,39 +1,54 @@
-# Faceclaw Designer
+# G2 Baukasten
 
-Ein Werkzeug für den Browser am PC: Menüs und Bildschirme für die G2-Brille gestalten, in einer
-pixelgenauen Vorschau ausprobieren und als Entwurf an Claude übergeben, der daraus App-Code macht.
+Eine einfache Notiz-App, um Bildschirme für die G2-Brille zu skizzieren. Eine Seite ist ein Stapel
+aus Bausteinen, die sich von oben nach unten von selbst anordnen – ohne Pixel, Ebenen oder Schriften.
+Die Vorschau zeigt die Seite so, wie die Brille sie zeigt: 640 × 480 Pixel, 16 Graustufen, grün.
 
-- **In claude.ai:** als Artifact „Faceclaw Designer“ in deinem Konto. Entwürfe werden dort in der
-  Datenbank der Seite gespeichert – Claude kann sie direkt lesen („Schau dir meinen Entwurf … an“).
-- **Lokal:** `index.html` im Browser öffnen. Dann wird nur im Browser gespeichert; übergeben per
-  Export → „JSON kopieren“ (im Chat einfügen) oder als Datei nach `designs/` im Repo.
+## Bedienung (fürs Handy gemacht)
 
-## Bedienung
+- **Seiten:** Die Übersicht zeigt alle Seiten als Karten. Tippen öffnet eine Seite, „Neue Seite“
+  legt eine an. Der Stern markiert die Startseite.
+- **Bausteine:** Im Editor mit „+ Baustein“ hinzufügen und direkt in der Karte bearbeiten. Pfeile
+  verschieben, daneben Duplizieren und Löschen (mit „Rückgängig“). Tippen in die Vorschau springt
+  zum passenden Baustein. Unten stehen Notiz, Statuszeile, Startseite und „Seite löschen“.
+- **Testen:** Zeigt die Seite bildschirmfüllend. Knöpfe öffnen ihre Zielseite, Schalter und
+  Häkchen reagieren, „Zurück“ geht zur vorherigen Seite, Wischen scrollt. Nichts davon wird gespeichert.
+- **Für den Chat kopieren:** Übersicht → `⋯` → „Für den Chat kopieren“, dann im Chat einfügen.
+  „Importieren“ im selben Menü übernimmt ein JSON aus dem Chat (ersetzt das Projekt nach Rückfrage).
 
-**Bildschirme** (links): „Menü“ ist eine Liste wie in der App, „Freie Fläche“ ein leerer Bildschirm für
-eigene Anordnungen. Ein Bildschirm ist der Start.
+In der Notiz jeder Seite steht, was sie tun soll. Daraus macht Claude später die Logik.
 
-**Vorschau** (Mitte): 640 × 480 Pixel, 16 Helligkeitsstufen, grün – so, wie es die Brille zeigt.
+## Wo gespeichert wird
 
-- *Bedienen*: wie mit dem Ring – `↑`/`↓` oder Mausrad scrollen, `Enter` oder Klick tippt, `Esc` oder
-  Doppelklick geht zurück. Untermenüs öffnen sich, Schalter und Auswahlen reagieren (nur zur Probe,
-  der Entwurf bleibt unverändert).
-- *Bearbeiten*: Einträge oder Elemente anklicken; Elemente ziehen, am Quadrat unten rechts die Größe
-  ändern, Pfeiltasten verschieben (mit `Shift` um 8 px), `Entf` löscht. Gestrichelt: Anzeigebereich
-  und Statuszeile.
+- **Als claude.ai-Artifact:** in der Datenbank der Seite (Dokument `projekte/haupt`), zusätzlich im
+  Browser. Claude kann den Entwurf dort direkt lesen – sag im Chat: „Schau dir meinen Baukasten an“.
+- **Lokal** (`index.html` im Browser geöffnet): nur im Browser auf diesem Gerät. Zum Übergeben
+  „Für den Chat kopieren“ benutzen oder das JSON als Datei nach [`../designs/`](../designs/) legen.
 
-**Eigenschaften** (rechts): Name, Statuszeile, Notizen; bei Menüs die Einträge (Untermenü, Aktion,
-Schalter, Auswahl, Zahl, Überschrift, Info) mit Text, Icon, Wert und Ziel; bei freien Flächen die
-Elemente (Text, Rechteck, Kreis, Linie, Icon, Fortschritt) mit Position, Schrift und Helligkeit.
+## Format `g2-baukasten@1`
 
-**Notizen** sind der wichtigste Teil der Übergabe: Schreib zu Bildschirmen und Einträgen, was passieren
-soll („zeigt die nächsten drei Termine“, „startet die Sprachaufnahme“). Daraus wird die Logik.
+```json
+{ "format": "g2-baukasten@1", "name": "Mein Brillen-UI", "start": "p_start", "updatedAt": "…",
+  "pages": [ { "id": "p_start", "name": "Start", "statusBar": true, "notes": "…", "blocks": [ … ] } ] }
+```
 
-Das JSON-Format ist in [docs/design-format.md](../05_Entwurfsformat.md) beschrieben.
+Jeder Baustein hat eine `id` und einen `type`:
+
+| `type` | Baustein | Felder |
+|---|---|---|
+| `heading` | Überschrift | `text`, `align` (`left`/`center`), `size` (`normal`/`gross`) |
+| `text` | Text | `text` (mehrzeilig), `align` (`left`/`center`) |
+| `button` | Knopf | `text`, `target` (Seiten-`id` oder `null`), `action` (freier Text: „macht …“) |
+| `list` | Liste | `style` (`bullets`/`checks`/`numbers`), `items`: Liste von `{ "text", "done" }` |
+| `toggle` | Schalter | `text`, `on` |
+| `value` | Wert | `text` (Bezeichnung), `value` (z. B. `"80 %"`) |
+| `progress` | Fortschritt | `text` (Bezeichnung), `value` (0–100) |
+| `divider` | Trennlinie | – |
+
+Beim Import werden fehlende Felder ergänzt, unbekannte Bausteine weggelassen und Verweise auf
+fehlende Seiten entfernt. Ein Beispiel liegt in [`../designs/beispiel.json`](../designs/beispiel.json).
 
 ## Entwicklung
 
-`designer.html` ist die Quelle (so wird sie als Artifact veröffentlicht, ohne `<html>`-Gerüst).
-Im Repo erzeugt `web/designer/build.sh` daraus `index.html` für den direkten Aufruf im Browser. Keine Abhängigkeiten
-außer den Web-Schriften (Inter, JetBrains Mono, IBM Plex, Material Icons von Google Fonts); ohne
-Internet fällt die Vorschau auf Systemschriften zurück.
+`baukasten.html` ist die Quelle (so wird sie als Artifact veröffentlicht, ohne `<html>`-Gerüst);
+`./build.sh` erzeugt daraus `index.html` zum direkten Öffnen im Browser.
