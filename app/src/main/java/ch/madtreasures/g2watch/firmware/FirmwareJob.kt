@@ -470,7 +470,7 @@ class FirmwareJob(
         check(link.otaWriteCount == 0) { "test run wrote to the update channel" }
         return FirmwareInstall.Done(
             target,
-            "Bestanden. Image ${env.images.describe(kind)} geprüft (SHA-256 ${image.sha256.take(8)}…). " +
+            "Image ${env.images.describe(kind)} geprüft (SHA-256 ${image.sha256.take(8)}…). " +
                 "Brille: ${before.summary}. Akku $battery. MTU L ${mtus["left"]}, R ${mtus["right"]}. " +
                 "Es wurde nichts auf die Brille geschrieben.",
             testRun = true,

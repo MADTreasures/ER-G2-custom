@@ -214,7 +214,7 @@ class WatchSnapshotTest {
 
     @Test
     fun firmwareRunning() = snapshot("uhr-firmware-laeuft") {
-        FirmwareProgressScreen(FirmwareInstall.Running(FirmwareTarget.CUSTOM, "Übertrage Firmware …", 42)) {}
+        FirmwareProgressScreen(FirmwareInstall.Running(FirmwareTarget.CUSTOM, "Linkes Glas: Teil 6 von 6 (Hauptprogramm) …", 42)) {}
     }
 
     @Test
@@ -223,14 +223,56 @@ class WatchSnapshotTest {
     }
 
     @Test
-    fun firmwareNotSetUp() = snapshot("uhr-firmware-nicht-eingerichtet") {
+    fun firmwareFailed() = snapshot("uhr-firmware-fehlgeschlagen") {
         FirmwareProgressScreen(
-            FirmwareInstall.Unavailable(
+            FirmwareInstall.Failed(
                 FirmwareTarget.CUSTOM,
-                "In dieser App ist kein Weg zum Aufspielen eingerichtet. Er wird im Firmware-Projekt angeschlossen.",
+                "Akku der Brille zu schwach oder nicht lesbar (R 80 %, L 22 %). Beide Gläser auf mindestens 30 % laden " +
+                    "und erneut versuchen. Nichts wurde an der Brille verändert.",
             ),
         ) {}
     }
+
+    @Test
+    fun firmwareNeedsTestRun() {
+        show {
+            FirmwareConfirmScreen(
+                FirmwareTarget.CUSTOM,
+                "Faceclaw/35 · Basis 2.3.0.24",
+                "Original 2.3.0.24",
+                {},
+                {},
+                blocker = "Zuerst einmal den Testlauf machen (Einstellungen → Testlauf). Er prüft alles und schreibt nichts auf die Brille.",
+            )
+        }
+        compose.waitForIdle()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Zuerst einmal den Testlauf machen", substring = true))
+        compose.waitForIdle()
+        save("uhr-firmware-testlauf-noetig")
+    }
+
+    @Test
+    fun settingsTestRun() = settingsSnapshot("uhr-einstellungen-testlauf", "Testlauf")
+
+    @Test
+    fun testRunRunning() = snapshot("uhr-testlauf-laeuft") {
+        FirmwareProgressScreen(FirmwareInstall.Running(FirmwareTarget.CUSTOM, "Linkes Glas: prüfe den Update-Kanal …", null, testRun = true)) {}
+    }
+
+    @Test
+    fun testRunPassed() = snapshot("uhr-testlauf-bestanden") {
+        FirmwareProgressScreen(
+            FirmwareInstall.Done(
+                FirmwareTarget.CUSTOM,
+                "Image Faceclaw/35 · Basis 2.3.0.24 geprüft (SHA-256 d7971b68…). Brille: Original 2.3.0.24. " +
+                    "Akku R 80 %, L 76 %. MTU L 247, R 247. Es wurde nichts auf die Brille geschrieben.",
+                testRun = true,
+            ),
+        ) {}
+    }
+
+    @Test
+    fun risks() = snapshot("uhr-risiken") { RisksScreen {} }
 
     @Test
     fun incompatible() = snapshot("uhr-firmware-passt-nicht") {
@@ -269,7 +311,10 @@ class WatchSnapshotTest {
                 "14:05:03 security auth: right lens, bond state BONDED",
                 "14:05:04 device-info: L=2.3.0.24 R=2.3.0.24 ext=[]",
                 "14:05:04 Firmware: Original 2.3.0.24 – Die Brille hat die Original-Firmware " +
-                    "(L=2.3.0.24 R=2.3.0.24). Diese App braucht Faceclaw-Firmware Revision 34.",
+                    "(L=2.3.0.24 R=2.3.0.24). Diese App braucht Faceclaw-Firmware Revision 35.",
+                "14:06:10 Firmware: Aufspielen Custom-Firmware (Faceclaw/35 · Basis 2.3.0.24) gestartet",
+                "14:06:14 Firmware: image ready: Faceclaw/35 · Basis 2.3.0.24, 4609823 bytes, sha256 d7971b68…",
+                "14:06:41 Firmware: glasses battery: R 80 %, L 76 %",
             ),
             {},
         )

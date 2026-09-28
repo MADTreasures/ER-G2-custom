@@ -36,7 +36,7 @@ data class FirmwareVerdict(
     val extension: FirmwareExtension,
     val leftVersion: String,
     val rightVersion: String,
-    /** A few words for the desktop's info window, e.g. "Faceclaw/34 · Basis 2.3.0.24". */
+    /** A few words for the desktop's info window, e.g. "Faceclaw/35 · Basis 2.3.0.24". */
     val summary: String,
     /** Why the app will not start a session, in German; null when it will. */
     val message: String?,

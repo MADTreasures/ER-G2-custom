@@ -1,0 +1,167 @@
+# G2 Watch – Firmware für die Even Realities G2 direkt von der Uhr
+
+Eine eigenständige Wear-OS-App: Die Uhr lädt die Firmware, prüft sie und spielt sie über Bluetooth auf
+die **Even Realities G2** – wahlweise die **Original-Firmware** von Even oder die **Custom-Firmware**
+von Faceclaw. Ein Handy braucht es dafür nicht. Die Uhr-Oberfläche mit Touchpad, Maus-Zeiger und
+Einstellungen stammt aus dem Uhr-Paket (`G2Watch_Uhr-UI_und_Maus`) und läuft auf der Brille, sobald
+die Custom-Firmware drauf ist.
+
+![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
+
+> **Ehrlicher Stand (v0.2.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
+> gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Vor dem
+> ersten echten Aufspielen verlangt die App deshalb einen **Testlauf**, der nichts schreibt.
+
+## Was aufgespielt werden kann
+
+| Knopf auf der Uhr | Image | Größe | SHA-256 |
+|---|---|---|---|
+| **Original-Firmware** | Evens Firmware 2.3.0.24, von Evens Server | 4.537.963 B | `187ccf2b…0979` |
+| **Custom-Firmware** | **Faceclaw/35** = 2.3.0.24 + Patch-Set von g2flash, auf der Uhr gebaut | 4.609.823 B | `d7971b68…2817` |
+
+Nur diese beiden Images sind erlaubt; die Werte stehen fest in
+[`FirmwareCatalog.kt`](firmware-image/src/main/kotlin/ch/madtreasures/g2watch/firmware/FirmwareCatalog.kt).
+Evens Firmware liegt **nie** im Repo und nie in der App: Die Uhr lädt sie von Evens Server (oder du
+legst sie per `adb` ab) und prüft sie per SHA-256.
+
+**Warum Revision 35 und nicht 34?** Die Übergabe-Pakete beschreiben Faceclaw/34. Revision 34 war aber
+nur ein Zwischenstand von Faceclaw (wenige Stunden); das veröffentlichte **Faceclaw 0.8.0 verlangt
+genau 35**, und g2flash baut heute 35. Revision 35 hat außerdem das Format der Zeichenbefehle geändert:
+Ein Kern für 34 kann auf einer 35er-Brille nicht zeichnen und umgekehrt. Deshalb gehören Firmware und
+der mitgelieferte Faceclaw-Kern (0.8.0) zusammen, und die App prüft die Revision **exakt**. So bleibt
+die Brille auch mit der Faceclaw-Handy-App verwendbar, ohne hin und her zu flashen.
+
+## Bedienung auf der Uhr
+
+1. **Brille wählen.** App starten, Bluetooth erlauben, Brille aus dem Etui nehmen. Die Even-App auf
+   dem Handy beenden oder am Handy Bluetooth ausschalten – die Brille nimmt nur eine Verbindung an.
+2. **Prüfung.** Die Uhr liest nur die Firmware-Version. Mit Original-Firmware erscheint
+   „Firmware passt nicht“ und darunter **Einstellungen**. (Mit Custom-Firmware geht es direkt zum
+   Touchpad; die Einstellungen öffnen sich dort, wenn man das Zahnrad 0,9 s hält.)
+3. **Testlauf** (Einstellungen → Firmware → *Testlauf*): lädt und baut das Image, koppelt beide Bügel,
+   liest den Akku beider Gläser, verbindet jedes Glas über den Update-Kanal und prüft die
+   Bluetooth-MTU. Er **schreibt nichts** auf die Brille. Erst wenn er für diese Brille bestanden ist,
+   bietet die App das echte Aufspielen an.
+4. **Custom-Firmware** (oder **Original-Firmware**) antippen → Bestätigungsseite lesen →
+   **„Zum Aufspielen 2 s halten“**.
+5. **Auf der Brille bestätigen:** Die Brille zeigt selbst eine Frage – mit Bügel oder Ring zu
+   **„Yes, flash“** wischen und tippen. „No, cancel“ bricht ab, ohne etwas zu verändern.
+6. **Übertragung:** erst das linke Glas, dann startet die Brille kurz neu, dann das rechte. Etwa
+   10–20 Minuten. Die Uhr bleibt an, die Seite hat keinen Zurück-Knopf. Uhr bei der Brille lassen,
+   Brille nicht ins Etui legen.
+7. **Kontrolle:** Nach dem Neustart liest die Uhr die Firmware erneut und meldet z. B.
+   „Die Brille meldet Faceclaw/35“. Mit **OK** verbindet sie sich neu – mit Custom-Firmware startet
+   dann das Touchpad mit dem Maus-Zeiger auf der Brille.
+
+**Zurück zur Original-Firmware** geht auf demselben Weg (Einstellungen → *Original-Firmware*),
+solange die Brille startet und sich verbinden lässt. Die Seite **Risiken & Rückweg** in den
+Einstellungen fasst zusammen, was schiefgehen kann ([Recherche](docs/RECHERCHE_FIRMWARE.md)).
+
+## Wie die Uhr aufspielt – und was sie absichert
+
+Der eigentliche Flasher ist **Faceclaws** `OtaFlashFlow` (ein Port von `g2flash.py`) samt Vorprüfung
+`FlashPromptFlow` – dieselben Abläufe, mit denen Faceclaws Handy-App die Firmware aufspielt, hier
+unverändert mitgeliefert. Die Uhr-App ([`FirmwareJob.kt`](app/src/main/java/ch/madtreasures/g2watch/firmware/FirmwareJob.kt))
+legt die Reihenfolge und die Schranken drumherum:
+
+| Schritt | Was passiert | Bricht ab, wenn … | Brille berührt? |
+|---|---|---|---|
+| 1 | Beide Bügel bekannt, Akku der Uhr | Bügel fehlt; Uhr < 30 % und nicht am Laden | nein |
+| 2 | Original laden (Cache → `adb`-Import → Evens Server), Custom bauen, **SHA-256 beider Enden**, vollständige Image-Prüfung inkl. Speichergrenze | Download scheitert, Hash falsch, Image fehlerhaft | nein |
+| 3 | Die Brillenverbindung der App wird sauber getrennt | – | nein |
+| 4 | Versionen lesen (nur lesend) | Brille meldet nichts; **neuere** Original-Firmware als 2.3.0.24 (ungetesteter Downgrade) | nur lesen |
+| 5 | Beide Bügel koppeln, **Frage auf der Brille**, Lautlos-Modus erkennen, Akku beider Gläser | „No“, keine Antwort, Lautlos-Modus, Glas < 30 % **oder unlesbar** | Frage |
+| 6 | Allow-List **direkt vor dem ersten Byte** erneut prüfen, Verbindung „scharf“ schalten, links → rechts übertragen | Fehler eines Glases → Stopp, **nie** automatisch von vorn | ja |
+| 7 | Nach dem Neustart Version erneut lesen | – (meldet „noch nicht bestätigt“) | nur lesen |
+
+Zusätzlich sitzt vor dem Update-Kanal ein Wächter
+([`GuardedStockLink.kt`](app/src/main/java/ch/madtreasures/g2watch/firmware/GuardedStockLink.kt)): Er lässt
+Firmware-Bytes nur durch, wenn Schritt 6 ihn scharf geschaltet hat, **und** nur bei einer
+Bluetooth-MTU ≥ 243 (sonst passen die 240-Byte-Rahmen nicht; Faceclaw prüft das selbst nicht). Ein
+Test ([`FlashingBoundaryTest`](app/src/test/java/ch/madtreasures/g2watch/firmware/FlashingBoundaryTest.kt))
+schlägt fehl, sobald Code einen zweiten Weg zum Aufspielen öffnet. Während der Übertragung hält ein
+Vordergrund-Dienst mit Wake-Lock die Uhr wach.
+
+Jede Fehlermeldung sagt, in welchem Zustand die Brille ist: „Nichts wurde an der Brille verändert“,
+„Das linke Glas hat die neue Firmware, das rechte nicht“ oder „Welche Firmware die Brille jetzt
+startet, ist unklar …“ mit dem Weg zurück. Details: [`docs/FIRMWARE.md`](docs/FIRMWARE.md).
+
+## App auf die Uhr bringen
+
+**Ohne eigene Entwicklungsumgebung:** Jeder Push baut die App auf GitHub (Actions → *Build* →
+Artefakt `g2watch-debug-apk`). Auf der Uhr *Entwickleroptionen → ADB-Debugging* und *Debugging über
+WLAN* einschalten, dann am Rechner:
+
+```sh
+adb pair <ip>:<pairing-port>        # Code steht auf der Uhr
+adb connect <ip>:<port>
+adb install -r app-debug.apk
+```
+
+**Selbst bauen** (JDK 17 oder neuer, Android SDK mit Plattform 37):
+
+```sh
+./gradlew :app:assembleDebug        # → app/build/outputs/apk/debug/app-debug.apk
+```
+
+**Uhr ohne Internet:** Evens Image selbst laden und auf die Uhr legen; die App nimmt jede `.bin`-Datei
+mit dem richtigen SHA-256 aus diesem Ordner:
+
+```sh
+curl -o g2_2.3.0.24.bin https://cdn.evenreal.co/firmware/1dbdf37b03a1169c384945e94d671371.bin
+adb push g2_2.3.0.24.bin /sdcard/Android/data/ch.madtreasures.g2watch/files/firmware/
+```
+
+Vorausgesetzt ist Wear OS 4 (API 33) oder neuer, z. B. eine Pixel Watch.
+
+## Projektaufbau
+
+| Modul | Inhalt |
+|---|---|
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket) und das Firmware-Paket `ch.madtreasures.g2watch.firmware` |
+| [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
+| [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
+| [`tools/cfw_bauen.py`](tools/cfw_bauen.py) | Baut und prüft Faceclaw/35 auf dem PC (Python, ohne Flashen) |
+| [`designer/`](designer), [`designs/`](designs) | Der Web-Designer für Brillen-Menüs und ein Beispiel-Entwurf |
+| [`docs/`](docs) | [Firmware-Ablauf](docs/FIRMWARE.md), [Recherche mit Risiken](docs/RECHERCHE_FIRMWARE.md), [Übergabe-Paket Custom-Firmware](docs/firmware-uebergabe/00_LIES_MICH.md), [Uhr-Paket](docs/uhr-paket/LIESMICH.md), [Bilder](docs/bilder) |
+
+## Testen
+
+```sh
+./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
+```
+
+Stand dieses Commits: 15 + 184 + 175 Tests grün (20 Bild-Tests werden ohne `-PsnapshotDir`
+übersprungen), Lint ohne Fehler. Die wichtigsten:
+
+- **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:
+  Aufspielen beider Ziele, jedes Abbruchkriterium (Ablehnen, Lautlos, Akku, MTU, neuere Firmware,
+  fremdes Image, Download-Fehler) schreibt **kein** Byte in den Update-Kanal, Fehler während der
+  Übertragung melden den richtigen Zustand.
+- **Mit Evens echtem Image** (nicht im Repo, einmal laden):
+  ```sh
+  G2_STOCK_IMAGE=/pfad/zu/g2_2.3.0.24.bin ./gradlew :firmware-image:test :app:testDebugUnitTest
+  ```
+  `RealImageTest` baut Faceclaw/35 bitgenau nach; `RealImageTransferTest` schickt das komplette echte
+  Image (≈ 1.130 Blöcke pro Glas) durch Faceclaws Flasher an die simulierte Brille und vergleicht, was
+  ankommt.
+- Bilder der Uhr neu erzeugen: `./gradlew :app:testDebugUnitTest --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
+
+## Und die eigene Custom-Firmware, der Designer?
+
+Diese erste Version spielt die **unveränderte** Faceclaw-Firmware auf – sie ist die Grundlage, damit
+die Uhr beliebige 640×480-Inhalte auf der Brille zeigen kann. Entwürfe aus dem Web-Designer
+(`faceclaw-edit/design@1`, siehe [`designer/README.md`](designer/README.md)) werden normalerweise
+**in der Uhr-App** gezeichnet und als Bild an die Brille geschickt, nicht in die Firmware eingebaut –
+das ist ohne Flash-Risiko jederzeit änderbar. Eine eigene Firmware mit eigenen Patches (eigene Kennung,
+eigenes Patch-Set, neuer SHA-256) ist ein eigener Schritt nach den Regeln in
+[`docs/firmware-uebergabe/01_Custom-Firmware_erstellen.md`](docs/firmware-uebergabe/01_Custom-Firmware_erstellen.md);
+die App ist dafür vorbereitet (Katalog, Patch-Set-Ressource, exakte Kennung).
+
+## Herkunft und Lizenz
+
+GPL-3.0 ([LICENSE](LICENSE)), weil die App Faceclaws Code (Jim Babcock, GPL-3.0) und das Patch-Set von
+[g2flash](https://github.com/jimrandomh/g2flash) (GPL-3.0) enthält. Die Uhr-Oberfläche stammt aus dem
+Uhr-Paket (`MADTreasures/ER-G2_own_firmware`), die Image-Prüfung aus dem Übergabe-Paket
+(`MADTreasures/Faceclaw_edit`). Evens Firmware ist Eigentum von Even Realities und wird nicht
+weitergegeben. **Mit einer Custom-Firmware erlischt die Garantie.**

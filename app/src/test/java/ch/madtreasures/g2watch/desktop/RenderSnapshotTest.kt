@@ -41,7 +41,7 @@ class RenderSnapshotTest {
         )
         controller.startClock()
         controller.updateStatus {
-            it.copy(watchBattery = 76, glassesBattery = 81, connection = "Verbunden", firmware = "Faceclaw/34 · Basis 2.3.0.24")
+            it.copy(watchBattery = 76, glassesBattery = 81, connection = "Verbunden", firmware = "Faceclaw/35 · Basis 2.3.0.24")
         }
         controller.attach(display)
         scheduler.runPending()

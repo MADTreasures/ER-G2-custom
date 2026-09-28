@@ -226,11 +226,18 @@ class MainActivity : ComponentActivity() {
 
             Screen.FIRMWARE_PROGRESS -> {
                 fun close() {
+                    val wasTestRun = when (val result = install) {
+                        is FirmwareInstall.Done -> result.testRun
+                        is FirmwareInstall.Failed -> result.testRun
+                        else -> false
+                    }
                     firmware.dismiss()
-                    // The transfer let go of the glasses: check them again, which also shows the
-                    // new firmware (and starts the desktop if it is the custom one).
+                    // After a transfer the glasses were let go: check them again, which also shows
+                    // the new firmware (and starts the desktop if it is the custom one). After a
+                    // test run the next step is in the settings, and the job connects on its own.
                     val last = app.lastPair()
-                    if (last != null && state.stage == Stage.IDLE) connect(last.title, last.right, last.left) else screen = Screen.SETTINGS
+                    if (!wasTestRun && last != null && state.stage == Stage.IDLE) connect(last.title, last.right, last.left)
+                    else screen = Screen.SETTINGS
                 }
                 // No way back while firmware is on its way.
                 BackHandler { if (install !is FirmwareInstall.Running) close() }
