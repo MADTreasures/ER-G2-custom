@@ -105,7 +105,19 @@ adb connect <ip>:<port>
 adb install -r app-debug.apk
 ```
 
-**Selbst bauen** (JDK 17 oder neuer, Android SDK mit Plattform 37):
+**Mit Android Studio** (Quail 4 | 2026.1.4 oder neuer; ältere Versionen kennen das Android-Gradle-Plugin 9.4
+dieses Projekts noch nicht):
+
+1. Projektordner öffnen (*File → Open*). Beim ersten Öffnen lädt Gradle alle Abhängigkeiten; fehlt die
+   Android-Plattform API 37, bietet Android Studio die Installation an (sonst *Tools → SDK Manager*).
+2. Uhr koppeln: Auf der Uhr die Entwickleroptionen freischalten (*Einstellungen → System → Info →
+   Versionen*, 7× auf *Build-Nummer* tippen), dort *ADB-Debugging* und *Debugging über WLAN* einschalten.
+   Uhr und Rechner im selben WLAN. In Android Studio in der Geräteauswahl *Pair Devices Using Wi-Fi →
+   Pair using pairing code*; den Code zeigt die Uhr unter *Debugging über WLAN → Neues Gerät koppeln*.
+3. Oben die Konfiguration **app** und die Uhr als Gerät wählen, **▶ Run**: Android Studio baut die App,
+   installiert sie auf der Uhr und startet sie.
+
+**Selbst bauen auf der Kommandozeile** (JDK 17 oder neuer, Android SDK mit Plattform 37):
 
 ```sh
 ./gradlew :app:assembleDebug        # → app/build/outputs/apk/debug/app-debug.apk
