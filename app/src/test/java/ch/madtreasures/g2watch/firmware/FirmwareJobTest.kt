@@ -80,6 +80,9 @@ class FirmwareJobTest {
         assertTrue(env.awake.isNotEmpty())
         assertEquals(1, env.asleep)
         assertTrue(env.links.none { it.isArmed })
+        // The transfer was marked for the case the app dies, and the mark is gone at the end.
+        assertTrue(FirmwareTarget.CUSTOM in env.markerHistory)
+        assertEquals(null, env.marker)
         // Progress went up to 100 % and says which lens.
         assertTrue(steps.any { it.step.startsWith("Linkes Glas") })
         assertTrue(steps.any { it.step.startsWith("Rechtes Glas") })
@@ -117,6 +120,7 @@ class FirmwareJobTest {
         assertNothingFlashed(env)
         // No question on the glasses either: nothing is going to be written.
         assertEquals(0, env.promptPages())
+        assertTrue(env.markerHistory.none { it != null })
     }
 
     // --- stops before the glasses are touched ----------------------------------------------------

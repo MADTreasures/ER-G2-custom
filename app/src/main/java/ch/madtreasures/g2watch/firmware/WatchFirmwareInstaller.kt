@@ -7,7 +7,6 @@ import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
 /** Remembers for which glasses a test run passed. */
 interface TestRunRecord {
@@ -43,6 +42,13 @@ class WatchFirmwareInstaller(
 
     private val lock = Any()
 
+    init {
+        // The app was killed while firmware was on its way: say so instead of "nothing happened".
+        env.interruptedTransfer()?.let { target ->
+            _progress.value = FirmwareInstall.Failed(target, INTERRUPTED)
+        }
+    }
+
     override fun describe(target: FirmwareTarget): String = env.images.describe(kindOf(target))
 
     override fun blocker(target: FirmwareTarget): String? {
@@ -56,7 +62,12 @@ class WatchFirmwareInstaller(
     override fun testRun(target: FirmwareTarget) = start(target, testRun = true)
 
     override fun dismiss() {
-        _progress.update { if (it is FirmwareInstall.Running) it else FirmwareInstall.Idle }
+        synchronized(lock) {
+            if (_progress.value is FirmwareInstall.Running) return
+            _progress.value = FirmwareInstall.Idle
+            // Seen: an interrupted transfer from before is reported once, not on every start.
+            env.markTransfer(null)
+        }
     }
 
     private fun start(target: FirmwareTarget, testRun: Boolean) {
@@ -105,6 +116,7 @@ class WatchFirmwareInstaller(
 
     companion object {
         const val NO_GLASSES = "Noch keine Brille gewählt. Zuerst die Brille suchen und verbinden."
+        const val INTERRUPTED = "Die App wurde während der Übertragung beendet. " + FirmwareJob.FLASH_UNKNOWN
         const val NEEDS_TEST_RUN =
             "Zuerst einmal den Testlauf machen (Einstellungen → Testlauf). Er prüft alles und schreibt nichts auf die Brille."
     }

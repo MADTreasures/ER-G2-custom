@@ -3,6 +3,7 @@ package ch.madtreasures.g2watch.firmware
 import android.content.Context
 import android.os.BatteryManager
 import ch.madtreasures.g2watch.Scheduler
+import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.GlassesConnection
 import com.faceclaw.app.AndroidProtocolPlatform
 import com.faceclaw.app.ProtocolPlatform
@@ -59,6 +60,16 @@ class AndroidFirmwareEnvironment(
         main.post { FirmwareService.stop(context) }
     }
 
+    private val prefs = this.context.getSharedPreferences("g2watch-firmware", Context.MODE_PRIVATE)
+
+    override fun markTransfer(target: FirmwareTarget?) {
+        // commit(): the marker must be on disk before the first firmware byte goes out.
+        if (target == null) prefs.edit().remove(TRANSFER_KEY).commit() else prefs.edit().putString(TRANSFER_KEY, target.name).commit()
+    }
+
+    override fun interruptedTransfer(): FirmwareTarget? =
+        prefs.getString(TRANSFER_KEY, null)?.let { name -> FirmwareTarget.entries.firstOrNull { it.name == name } }
+
     override fun sleep(ms: Long) {
         if (ms > 0) Thread.sleep(ms)
     }
@@ -66,5 +77,6 @@ class AndroidFirmwareEnvironment(
     private companion object {
         /** Closing a session waits for its cleanup message and worker; closing a probe up to 5 s. */
         const val RELEASE_TIMEOUT_S = 45L
+        const val TRANSFER_KEY = "transferRunning"
     }
 }

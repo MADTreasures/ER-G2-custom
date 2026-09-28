@@ -119,4 +119,15 @@ class FakeFirmwareEnvironment(val glasses: SimulatedGlasses = SimulatedGlasses()
     }
 
     override fun sleep(ms: Long) = Unit
+
+    /** The persisted transfer marker; tests read and preset it. */
+    var marker: ch.madtreasures.g2watch.glasses.FirmwareTarget? = null
+    val markerHistory = ArrayList<ch.madtreasures.g2watch.glasses.FirmwareTarget?>()
+
+    override fun markTransfer(target: ch.madtreasures.g2watch.glasses.FirmwareTarget?) {
+        marker = target
+        markerHistory += target
+    }
+
+    override fun interruptedTransfer() = marker
 }

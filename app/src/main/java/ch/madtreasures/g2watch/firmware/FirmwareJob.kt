@@ -56,6 +56,15 @@ interface FirmwareEnvironment {
     /** Undoes [keepAwake]. */
     fun allowSleep()
 
+    /**
+     * Remembers, across the death of the app's process, that firmware bytes may be on their way to
+     * the glasses for [target]; null clears it. See [interruptedTransfer].
+     */
+    fun markTransfer(target: FirmwareTarget?)
+
+    /** A transfer that was marked but never ended, e.g. because Android killed the app mid-way. */
+    fun interruptedTransfer(): FirmwareTarget?
+
     fun sleep(ms: Long)
 }
 
@@ -155,6 +164,8 @@ class FirmwareJob(
             val what = if (touched) FLASH_UNKNOWN else UNTOUCHED
             return FirmwareInstall.Failed(target, "Unerwarteter Fehler: ${e.message ?: e.javaClass.simpleName}. $what", testRun)
         } finally {
+            // The job ends here, with a result the wearer sees: no longer an interrupted transfer.
+            env.markTransfer(null)
             env.allowSleep()
         }
     }
@@ -376,6 +387,7 @@ class FirmwareJob(
                 failure = detail.orEmpty()
             }
         }
+        env.markTransfer(target)
         link.arm()
         try {
             OtaFlashFlow(link, pair.right, pair.left, FirmwareCatalog.fileName(kind), listener, env.timings, env.platform) { bytes }.run()

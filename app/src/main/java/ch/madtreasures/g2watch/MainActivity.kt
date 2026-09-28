@@ -105,9 +105,18 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // A transfer, or its result, always has the screen: also after the activity was recreated
+        // (e.g. closed from the recents list while the foreground service kept the transfer going).
+        LaunchedEffect(install) {
+            if (install !is FirmwareInstall.Idle && screen != Screen.FIRMWARE_PROGRESS) screen = Screen.FIRMWARE_PROGRESS
+        }
+
         fun connect(title: String, right: String, left: String?) {
             // The transfer owns the glasses until it is over.
-            if (firmware.progress.value is FirmwareInstall.Running) return
+            if (firmware.progress.value is FirmwareInstall.Running) {
+                screen = Screen.FIRMWARE_PROGRESS
+                return
+            }
             if (missingPermissions().isNotEmpty()) {
                 // Revoked since the list was shown: ask again first.
                 permissionTick++
@@ -137,6 +146,8 @@ class MainActivity : ComponentActivity() {
                 val scanning by scanner.scanning.collectAsStateWithLifecycle()
                 val scanError by scanner.error.collectAsStateWithLifecycle()
                 LaunchedEffect(Unit) {
+                    // No scan next to a transfer: it would share the radio with the firmware link.
+                    if (firmware.progress.value is FirmwareInstall.Running) return@LaunchedEffect
                     if (scanner.bluetoothEnabled()) scanner.start() else scanner.refreshKnownDevices()
                 }
                 DevicesScreen(
