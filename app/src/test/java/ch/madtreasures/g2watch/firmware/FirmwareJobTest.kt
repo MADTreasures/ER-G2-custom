@@ -41,7 +41,8 @@ class FirmwareJobTest {
 
     private fun assertNothingFlashed(env: FakeFirmwareEnvironment) {
         assertEquals("OTA writes: " + env.glasses.otaWrites.map { it.sid }, 0, env.glasses.otaWrites.size)
-        assertTrue(env.links.none { it.isArmed })
+        // Not even armed for a moment.
+        assertTrue(env.links.all { it.armCount == 0 })
     }
 
     private fun message(result: FirmwareInstall) = when (result) {
@@ -80,6 +81,8 @@ class FirmwareJobTest {
         assertTrue(env.awake.isNotEmpty())
         assertEquals(1, env.asleep)
         assertTrue(env.links.none { it.isArmed })
+        // Exactly one link was armed, once: the transfer's.
+        assertEquals(listOf(1), env.links.map { it.armCount }.filter { it > 0 })
         // The transfer was marked for the case the app dies, and the mark is gone at the end.
         assertTrue(FirmwareTarget.CUSTOM in env.markerHistory)
         assertEquals(null, env.marker)
@@ -189,6 +192,23 @@ class FirmwareJobTest {
         val result = run(env)
         assertTrue(result is FirmwareInstall.Failed)
         assertTrue(message(result).contains("nicht auf der Liste"))
+        assertNothingFlashed(env)
+    }
+
+    @Test
+    fun `the allow-list is checked again right before the first byte`() {
+        // Accepted while the image is prepared, refused on the second look before the transfer.
+        var looks = 0
+        TestImages.allowList = { sha ->
+            looks++
+            if (looks == 1 && sha == TestFirmware.customSha) FirmwareKind.Custom else null
+        }
+        val env = FakeFirmwareEnvironment()
+        val result = run(env)
+        assertTrue(result is FirmwareInstall.Failed)
+        assertTrue(message(result), message(result).contains("nicht auf der Liste"))
+        assertTrue(message(result).contains("Nichts wurde an der Brille verändert"))
+        assertEquals(2, looks)
         assertNothingFlashed(env)
     }
 

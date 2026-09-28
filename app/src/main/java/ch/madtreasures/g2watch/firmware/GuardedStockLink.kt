@@ -35,6 +35,8 @@ class GuardedStockLink(
     @Volatile
     private var armed = false
 
+    private val arms = AtomicInteger()
+
     private val refused = AtomicInteger()
     private val mtuRefused = AtomicInteger()
     private val otaWrites = AtomicInteger()
@@ -44,8 +46,12 @@ class GuardedStockLink(
 
     /** Allows writes to the update characteristic from now on. */
     fun arm() {
+        arms.incrementAndGet()
         armed = true
     }
+
+    /** How often [arm] was called on this link. */
+    val armCount: Int get() = arms.get()
 
     /** Refuses writes to the update characteristic from now on. */
     fun disarm() {

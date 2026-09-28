@@ -20,3 +20,5 @@ __MACOSX/
 
 # Firmware images: Even's firmware is never committed (it is downloaded from Even's CDN).
 *.bin
+*.bin.part
+*.part

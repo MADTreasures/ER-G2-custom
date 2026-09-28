@@ -41,18 +41,40 @@ class FlashingBoundaryTest {
     @Test
     fun `the firmware link is armed in one place, right before the transfer`() {
         for (file in sources) {
-            val calls = Regex("""\.arm\(\)""").findAll(file.readText()).count()
+            var text = file.readText()
+            if (file.name == "GuardedStockLink.kt") text = text.replace("fun arm()", "")
+            // Also catches with(link) { arm() } and link.apply { arm() }.
+            val calls = Regex("""\barm\(\)""").findAll(text).count()
             if (file.name == "FirmwareJob.kt") assertEquals("${file.path} arms the link", 1, calls)
             else assertEquals("${file.path} arms the link", 0, calls)
         }
+    }
+
+    @Test
+    fun `only the guard talks to the update characteristic, on links it wraps`() {
+        for (file in sources) {
+            if (file.name == "GuardedStockLink.kt") continue
+            assertTrue("${file.path} names the update characteristic", !file.readText().contains("OTA_DATA_WRITE_UUID"))
+        }
+        // A WatchStockLink is only ever made inside WatchStockLink.guarded().
+        for (file in sources) {
+            val made = Regex("""WatchStockLink\(""").findAll(file.readText()).count()
+            if (file.name == "WatchStockLink.kt") assertEquals(1, Regex("""val link = WatchStockLink\(context\)""").findAll(file.readText()).count())
+            else assertEquals("${file.path} makes an unguarded link", 0, made)
+        }
+        // And nothing else builds Faceclaw's own unguarded stock link.
+        for (file in sources) assertTrue("${file.path} uses AndroidStockLink", !file.readText().contains("AndroidStockLink("))
         val job = textOf("FirmwareJob.kt")
         val transfer = job.substring(job.indexOf("private fun transfer("), job.indexOf("// --- 7."))
-        assertTrue(transfer.contains("link.arm()"))
-        // The allow-list check comes first in the same step.
-        assertTrue(transfer.indexOf("images.kindOf(hash)") < transfer.indexOf("link.arm()"))
+        // The allow-list check comes first in the same step (both must be there).
+        val check = transfer.indexOf("if (env.images.kindOf(hash) != kind) throw Stop(")
+        val arm = transfer.indexOf("link.arm()")
+        assertTrue("allow-list check $check, arm $arm", check >= 0 && arm > check)
         // Arming happens after the confirmation on the glasses in the flow of run().
         val run = job.substring(job.indexOf("fun run(): FirmwareInstall"), job.indexOf("// --- 1. watch"))
-        assertTrue(run.indexOf("confirmOnGlasses()") < run.indexOf("transfer(image)"))
+        val confirm = run.indexOf("confirmOnGlasses()")
+        val flash = run.indexOf("transfer(image)")
+        assertTrue("confirm $confirm, transfer $flash", confirm >= 0 && flash > confirm)
     }
 
     @Test

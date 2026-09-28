@@ -1,7 +1,9 @@
 package ch.madtreasures.g2watch.firmware
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.BatteryManager
+import androidx.core.content.edit
 import ch.madtreasures.g2watch.Scheduler
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.GlassesConnection
@@ -62,9 +64,12 @@ class AndroidFirmwareEnvironment(
 
     private val prefs = this.context.getSharedPreferences("g2watch-firmware", Context.MODE_PRIVATE)
 
+    // commit, not apply: the marker must be on disk before the first firmware byte goes out.
+    @SuppressLint("ApplySharedPref")
     override fun markTransfer(target: FirmwareTarget?) {
-        // commit(): the marker must be on disk before the first firmware byte goes out.
-        if (target == null) prefs.edit().remove(TRANSFER_KEY).commit() else prefs.edit().putString(TRANSFER_KEY, target.name).commit()
+        prefs.edit(commit = true) {
+            if (target == null) remove(TRANSFER_KEY) else putString(TRANSFER_KEY, target.name)
+        }
     }
 
     override fun interruptedTransfer(): FirmwareTarget? =

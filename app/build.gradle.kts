@@ -72,5 +72,11 @@ tasks.withType<Test>().configureEach {
     // Where RenderSnapshotTest writes its pictures of the glasses display; it is skipped without.
     providers.gradleProperty("snapshotDir").orNull?.let { systemProperty("snapshotDir", it) }
     // RealImageTransferTest streams Even's real image when it is given here (never part of the repo).
-    System.getenv("G2_STOCK_IMAGE")?.let { environment("G2_STOCK_IMAGE", it) }
+    // Declared as an input, so setting it reruns the tests instead of reporting "UP-TO-DATE".
+    val stockImage = System.getenv("G2_STOCK_IMAGE")
+    inputs.property("g2StockImage", stockImage ?: "")
+    if (stockImage != null && file(stockImage).isFile) {
+        inputs.file(stockImage).withPropertyName("g2StockImageFile").withPathSensitivity(PathSensitivity.NONE)
+        environment("G2_STOCK_IMAGE", stockImage)
+    }
 }

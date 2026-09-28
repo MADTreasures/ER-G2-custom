@@ -38,5 +38,15 @@ for f in FaceclawBleManager.kt AndroidSessionLink.kt AndroidStockLink.kt Facecla
 done
 
 required=$(git -C "$src" show "$commit:app/g2/firmware-compat.ts" | sed -n 's/.*REQUIRED_FACECLAW_FIRMWARE_VERSION = \([0-9]*\).*/\1/p')
+catalog=$(sed -n 's/.*const val CUSTOM_REVISION = \([0-9]*\).*/\1/p' "$root/firmware-image/src/main/kotlin/ch/madtreasures/g2watch/firmware/FirmwareCatalog.kt")
 echo "Vendored Faceclaw $rev ($commit)."
+if [ -z "$required" ]; then
+    echo "ERROR: could not read REQUIRED_FACECLAW_FIRMWARE_VERSION from app/g2/firmware-compat.ts" >&2
+    exit 1
+fi
 echo "This core requires custom firmware revision $required."
+if [ "$required" != "$catalog" ]; then
+    echo "ERROR: FirmwareCatalog.CUSTOM_REVISION is $catalog. Update the patch set and FirmwareCatalog to revision $required" >&2
+    echo "       (see faceclaw-core/UPSTREAM.md) before building: core and firmware must match exactly." >&2
+    exit 1
+fi
