@@ -83,9 +83,10 @@ class FirmwareJobTest {
         assertTrue(env.links.none { it.isArmed })
         // Exactly one link was armed, once: the transfer's.
         assertEquals(listOf(1), env.links.map { it.armCount }.filter { it > 0 })
-        // The transfer was marked for the case the app dies, and the mark is gone at the end.
-        assertTrue(FirmwareTarget.CUSTOM in env.markerHistory)
-        assertEquals(null, env.marker)
+        // For the case the app dies: "interrupted" before the first byte, "check interrupted" once
+        // both lenses accepted everything, nothing left once the check confirmed it.
+        assertEquals(listOf(FirmwareJob.INTERRUPTED, FirmwareJob.VERIFY_INTERRUPTED, null), env.noticeHistory)
+        assertEquals(null, env.notice)
         // Progress went up to 100 % and says which lens.
         assertTrue(steps.any { it.step.startsWith("Linkes Glas") })
         assertTrue(steps.any { it.step.startsWith("Rechtes Glas") })
@@ -146,7 +147,7 @@ class FirmwareJobTest {
         assertNothingFlashed(env)
         // No question on the glasses either: nothing is going to be written.
         assertEquals(0, env.promptPages())
-        assertTrue(env.markerHistory.none { it != null })
+        assertTrue(env.noticeHistory.isEmpty())
     }
 
     // --- stops before the glasses are touched ----------------------------------------------------
@@ -230,6 +231,29 @@ class FirmwareJobTest {
         val result = run(env)
         assertTrue(message(result).contains("Auf der Brille abgelehnt"))
         assertNothingFlashed(env)
+        // Nothing sent, nothing to remember across a restart.
+        assertTrue(env.noticeHistory.isEmpty())
+    }
+
+    @Test
+    fun `a link lost mid-component is reported as such`() {
+        val glasses = SimulatedGlasses()
+        var dropped = false
+        glasses.beforeAnswer = { w ->
+            if (!dropped && w.sid == SimulatedGlasses.SID_DATA && w.address == LEFT) {
+                dropped = true
+                glasses.drop(LEFT)
+                false
+            } else {
+                true
+            }
+        }
+        val env = FakeFirmwareEnvironment(glasses)
+        val result = run(env)
+        assertTrue(result is FirmwareInstall.Failed)
+        val text = message(result)
+        assertTrue(text, !text.contains("nicht angenommen"))
+        assertTrue(text, !text.contains("MTU"))
     }
 
     @Test
@@ -330,7 +354,7 @@ class FirmwareJobTest {
         val env = FakeFirmwareEnvironment(SimulatedGlasses(mtu = 185))
         val result = run(env, testRun = true)
         assertTrue(result is FirmwareInstall.Failed)
-        assertTrue(message(result), message(result).contains("MTU 185"))
+        assertTrue(message(result), message(result).contains("MTU-Aushandlung ergab nur 185"))
         assertNothingFlashed(env)
     }
 
@@ -374,6 +398,10 @@ class FirmwareJobTest {
         assertTrue(result is FirmwareInstall.Failed)
         assertTrue(glasses.otaWrites.none { it.address == RIGHT })
         assertTrue(message(result), message(result).contains("unklar"))
+        // The real cause, not Faceclaw's generic "failed after 3 attempts".
+        assertTrue(message(result), message(result).contains("nicht angenommen"))
+        // Saved until the wearer confirms it, in case Android ends the app first.
+        assertEquals(message(result), env.notice?.second)
     }
 
     @Test

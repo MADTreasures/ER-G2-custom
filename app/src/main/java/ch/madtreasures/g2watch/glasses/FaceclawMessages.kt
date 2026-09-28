@@ -17,10 +17,11 @@ object FaceclawMessages {
                 "Die Verbindung zur Brille ist abgerissen"
             "could not reach" in text || "connect" in text || "discover" in text || "subscribe" in text ->
                 "Die Brille war nicht erreichbar (eingeschaltet, nah an der Uhr, nicht mit dem Handy verbunden?)"
-            "nak" in text || "rejected" in text || "file_check" in text || "failed after" in text || "verify" in text ->
+            "nak" in text || "rejected" in text || "file_check" in text || "verify failed" in text ->
                 "Die Brille hat einen Teil der Firmware nicht angenommen"
             "no ack" in text || "timeout" in text || "timed out" in text || "no response" in text || "unanswered" in text ->
                 "Die Brille hat nicht rechtzeitig geantwortet"
+            "failed after" in text -> "Ein Teil der Firmware ließ sich nicht übertragen"
             "prompt" in text || "page" in text || "prelude" in text -> "Die Brille hat die Anfrage nicht angenommen"
             "silent" in text -> "Die Brille ist im Lautlos-Modus"
             "bluetooth" in text && ("off" in text || "unavailable" in text || "adapter" in text) -> "Bluetooth der Uhr ist aus"

@@ -41,8 +41,11 @@ class GuardedStockLink(
     private val mtuRefused = AtomicInteger()
     private val otaWrites = AtomicInteger()
 
-    /** Lenses whose latest MTU exchange ended too narrow; a later wide one clears the entry. */
+    /** Lenses whose latest MTU exchange completed too narrow; a new connection clears the entry. */
     private val narrow: MutableSet<String> = java.util.Collections.synchronizedSet(HashSet())
+
+    /** The MTU right after the last [prepareLink] per lens, the value the armed guard judges. */
+    private val prepared = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     /** Allows writes to the update characteristic from now on. */
     fun arm() {
@@ -74,6 +77,9 @@ class GuardedStockLink(
 
     fun mtu(address: String): Int = negotiatedMtu(address)
 
+    /** The MTU right after the last bring-up of [address], or null if the link was already gone then. */
+    fun preparedMtu(address: String): Int? = prepared[address]
+
     override fun writeFrames(
         address: String,
         characteristicUuid: String,
@@ -92,6 +98,8 @@ class GuardedStockLink(
             val mtu = negotiatedMtu(address)
             val largest = frames.maxOfOrNull { it.size } ?: 0
             if (mtu < MIN_MTU || largest > mtu - ATT_HEADER) {
+                // The link can vanish between the two reads above: only a live link has a narrow MTU.
+                if (!delegate.isConnected(address)) return delegate.writeFrames(address, characteristicUuid, frames, mode, timeoutMs)
                 refused.incrementAndGet()
                 mtuRefused.incrementAndGet()
                 narrow += address
@@ -105,17 +113,25 @@ class GuardedStockLink(
 
     override fun setListener(listener: StockLinkListener?) = delegate.setListener(listener)
 
-    override fun connect(address: String, timeoutMs: Int): Boolean = delegate.connect(address, timeoutMs)
+    override fun connect(address: String, timeoutMs: Int): Boolean {
+        // The MTU hint follows the latest attempt per lens.
+        narrow -= address
+        prepared.remove(address)
+        return delegate.connect(address, timeoutMs)
+    }
 
     override fun prepareLink(address: String, desiredMtu: Int, timeoutMs: Int) {
         delegate.prepareLink(address, desiredMtu, timeoutMs)
-        if (!armed) return
         val mtu = negotiatedMtu(address)
+        if (delegate.isConnected(address)) prepared[address] = mtu else prepared.remove(address)
+        if (!armed) return
         if (mtu >= MIN_MTU) {
             narrow -= address
         } else {
             // Drop it: bring-up fails at the next step and the flasher reconnects within its window.
-            narrow += address
+            // 23 is the ATT default: no exchange completed (often a link lost during it), so that is
+            // not held against the watch; the test run has already refused a watch that stays at 23.
+            if (mtu > ATT_DEFAULT_MTU) narrow += address
             mtuRefused.incrementAndGet()
             log("MTU $mtu after the exchange (needs $MIN_MTU): dropping the connection before any firmware write")
             delegate.disconnect(address)
@@ -142,5 +158,6 @@ class GuardedStockLink(
         /** A 240-byte frame plus the 3-byte ATT write header. */
         const val MIN_MTU = 243
         private const val ATT_HEADER = 3
+        private const val ATT_DEFAULT_MTU = 23
     }
 }

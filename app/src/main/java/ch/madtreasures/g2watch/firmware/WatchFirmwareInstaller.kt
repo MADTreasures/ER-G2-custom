@@ -44,8 +44,8 @@ class WatchFirmwareInstaller(
 
     init {
         // The app was killed while firmware was on its way: say so instead of "nothing happened".
-        env.interruptedTransfer()?.let { target ->
-            _progress.value = FirmwareInstall.Failed(target, INTERRUPTED)
+        env.savedNotice()?.let { (target, message) ->
+            _progress.value = FirmwareInstall.Failed(target, message)
         }
     }
 
@@ -66,7 +66,7 @@ class WatchFirmwareInstaller(
             if (_progress.value is FirmwareInstall.Running) return
             _progress.value = FirmwareInstall.Idle
             // Seen: an interrupted transfer from before is reported once, not on every start.
-            env.markTransfer(null)
+            env.clearNotice()
         }
     }
 
@@ -116,7 +116,6 @@ class WatchFirmwareInstaller(
 
     companion object {
         const val NO_GLASSES = "Noch keine Brille gewählt. Zuerst die Brille suchen und verbinden."
-        const val INTERRUPTED = "Die App wurde während der Übertragung beendet. " + FirmwareJob.FLASH_UNKNOWN
         const val NEEDS_TEST_RUN =
             "Zuerst einmal den Testlauf machen (Einstellungen → Testlauf). Er prüft Image, Kopplung, Akku und Verbindung " +
                 "und schreibt nichts auf die Brille."

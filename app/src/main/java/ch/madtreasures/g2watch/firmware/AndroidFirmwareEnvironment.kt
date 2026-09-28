@@ -64,16 +64,27 @@ class AndroidFirmwareEnvironment(
 
     private val prefs = this.context.getSharedPreferences("g2watch-firmware", Context.MODE_PRIVATE)
 
-    // commit, not apply: the marker must be on disk before the first firmware byte goes out.
+    // commit, not apply: the notice must be on disk before the first firmware byte goes out.
     @SuppressLint("ApplySharedPref")
-    override fun markTransfer(target: FirmwareTarget?) {
+    override fun saveNotice(target: FirmwareTarget, message: String) {
         prefs.edit(commit = true) {
-            if (target == null) remove(TRANSFER_KEY) else putString(TRANSFER_KEY, target.name)
+            putString(NOTICE_TARGET, target.name)
+            putString(NOTICE_TEXT, message)
         }
     }
 
-    override fun interruptedTransfer(): FirmwareTarget? =
-        prefs.getString(TRANSFER_KEY, null)?.let { name -> FirmwareTarget.entries.firstOrNull { it.name == name } }
+    @SuppressLint("ApplySharedPref")
+    override fun clearNotice() {
+        prefs.edit(commit = true) {
+            remove(NOTICE_TARGET)
+            remove(NOTICE_TEXT)
+        }
+    }
+
+    override fun savedNotice(): Pair<FirmwareTarget, String>? {
+        val target = prefs.getString(NOTICE_TARGET, null)?.let { name -> FirmwareTarget.entries.firstOrNull { it.name == name } } ?: return null
+        return target to (prefs.getString(NOTICE_TEXT, null) ?: FirmwareJob.INTERRUPTED)
+    }
 
     override fun sleep(ms: Long) {
         if (ms > 0) Thread.sleep(ms)
@@ -82,6 +93,7 @@ class AndroidFirmwareEnvironment(
     private companion object {
         /** Closing a session waits for its cleanup message and worker; closing a probe up to 5 s. */
         const val RELEASE_TIMEOUT_S = 45L
-        const val TRANSFER_KEY = "transferRunning"
+        const val NOTICE_TARGET = "noticeTarget"
+        const val NOTICE_TEXT = "noticeText"
     }
 }

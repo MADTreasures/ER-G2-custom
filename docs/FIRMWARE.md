@@ -62,7 +62,7 @@ wiederholt (max. 3), eine Komponente nach fehlgeschlagenem `END` oder Zeitübers
 | Testlauf | – | `--stop-before flash` (sendet schon `BEGIN`+`FILE_CHECK`) | schreibt **nichts** in den Update-Kanal; Pflicht vor dem ersten echten Aufspielen je Brille |
 | Nach dem Flashen | keine Kontrolle | keine | **jedes Glas einzeln** fragen (Faceclaws Probe meldet nur ein Glas); nicht bestätigt = rot |
 | 2 s Halten | – | – | mit der Uhrzeit gemessen, unabhängig von „Animationen aus“ |
-| App wird beendet | – | – | Markierung vor dem ersten Byte; beim nächsten Start Warnung „Zustand unklar“ |
+| App wird beendet | – | – | Hinweis auf dem Speicher: vor dem ersten Byte „unterbrochen“, nach der Übertragung „Kontrolle unterbrochen“, bei einem Fehler dessen Meldung – bis zum Tippen auf OK |
 | Wach bleiben | – | – | Vordergrund-Dienst + Wake-Lock + Bildschirm an |
 | Revision | exakt 35 | – | exakt 35 (`FirmwareRequirement`) |
 
@@ -80,6 +80,7 @@ Image-Prüfung und das Patch-Set (`firmware-image`), die hier bitgenau gegen das
 | „Welche Firmware die Brille jetzt startet, ist unklar. …“ | Abbruch während der Übertragung; laut Recherche startet die Brille meist mit der bisherigen Firmware |
 | „Beide Gläser sind übertragen, aber die Kontrolle danach fand … nicht auf beiden (links: …, rechts: …)“ | Übertragung beendet, aber nicht beide Gläser zeigen die neue Firmware; neu verbinden, sonst erneut aufspielen |
 | „Die App wurde während der Übertragung beendet. …“ | Android hat die App mitten in der Übertragung beendet; Zustand wie oben „unklar“ |
+| „Die Übertragung war abgeschlossen; die Kontrolle danach wurde unterbrochen. …“ | Beide Gläser haben alles angenommen, nur die Kontrolle fehlt: neu verbinden |
 
 Die App wiederholt nie selbst. Jeder Schritt steht mit Uhrzeit im **Protokoll** (Einstellungen →
 Protokoll), Zeilen mit „Firmware:“ stammen vom Auftrag.

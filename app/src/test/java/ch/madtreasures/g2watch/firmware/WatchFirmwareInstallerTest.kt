@@ -108,14 +108,14 @@ class WatchFirmwareInstallerTest {
 
     @Test
     fun `a transfer cut short by the death of the app is reported once`() {
-        env.marker = FirmwareTarget.CUSTOM
+        env.notice = FirmwareTarget.CUSTOM to FirmwareJob.INTERRUPTED
         val restarted = WatchFirmwareInstaller(env, { pair }, worker, { log += it }, record)
         val shown = restarted.progress.value
-        assertTrue(shown is FirmwareInstall.Failed && shown.message == WatchFirmwareInstaller.INTERRUPTED)
-        assertTrue(WatchFirmwareInstaller.INTERRUPTED.contains("unklar"))
+        assertTrue(shown is FirmwareInstall.Failed && shown.message == FirmwareJob.INTERRUPTED)
+        assertTrue(FirmwareJob.INTERRUPTED.contains("unklar"))
         restarted.dismiss()
         assertEquals(FirmwareInstall.Idle, restarted.progress.value)
-        assertEquals(null, env.marker)
+        assertEquals(null, env.notice)
     }
 
     @Test

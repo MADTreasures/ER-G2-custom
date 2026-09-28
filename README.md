@@ -138,7 +138,7 @@ Vorausgesetzt ist Wear OS 4 (API 33) oder neuer, z. B. eine Pixel Watch.
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 192 Tests grün (25 Bild-Tests werden ohne `-PsnapshotDir`
+Stand dieses Commits: 15 + 184 + 194 Tests grün (25 Bild-Tests werden ohne `-PsnapshotDir`
 übersprungen), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:

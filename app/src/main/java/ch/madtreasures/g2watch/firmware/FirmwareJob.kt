@@ -59,13 +59,15 @@ interface FirmwareEnvironment {
     fun allowSleep()
 
     /**
-     * Remembers, across the death of the app's process, that firmware bytes may be on their way to
-     * the glasses for [target]; null clears it. See [interruptedTransfer].
+     * A message about the glasses that must survive the death of the app's process, e.g. "the
+     * transfer was interrupted", until the wearer has seen it. Written to disk at once.
      */
-    fun markTransfer(target: FirmwareTarget?)
+    fun saveNotice(target: FirmwareTarget, message: String)
 
-    /** A transfer that was marked but never ended, e.g. because Android killed the app mid-way. */
-    fun interruptedTransfer(): FirmwareTarget?
+    fun clearNotice()
+
+    /** The saved message, if the wearer has not confirmed it yet. */
+    fun savedNotice(): Pair<FirmwareTarget, String>?
 
     fun sleep(ms: Long)
 }
@@ -134,7 +136,30 @@ class FirmwareJob(
     /** Ends the job with a message for the wearer (it already says what state the glasses are in). */
     private class Stop(message: String) : Exception(message)
 
+    /** Set once firmware bytes may be on their way: from then on the outcome is saved for the wearer. */
+    private var noticeSaved = false
+
     fun run(): FirmwareInstall {
+        var result: FirmwareInstall = FirmwareInstall.Idle
+        try {
+            result = runSteps()
+            return result
+        } finally {
+            if (noticeSaved) {
+                // A failure after the first byte stays saved until the wearer taps OK, even if Android
+                // ends the app first; a confirmed transfer needs no notice. Anything thrown past the
+                // job keeps the notice saved so far ("interrupted").
+                when (val r = result) {
+                    is FirmwareInstall.Done -> env.clearNotice()
+                    is FirmwareInstall.Failed -> env.saveNotice(target, r.message)
+                    else -> Unit
+                }
+            }
+            env.allowSleep()
+        }
+    }
+
+    private fun runSteps(): FirmwareInstall {
         try {
             step("Prüfe Voraussetzungen …")
             env.keepAwake(if (testRun) "Firmware-Testlauf" else "Firmware wird vorbereitet")
@@ -168,10 +193,6 @@ class FirmwareJob(
             log("unexpected: $e")
             val what = if (touched) FLASH_UNKNOWN else UNTOUCHED
             return FirmwareInstall.Failed(target, "Unerwarteter Fehler: ${e.message ?: e.javaClass.simpleName}. $what", testRun)
-        } finally {
-            // The job ends here, with a result the wearer sees: no longer an interrupted transfer.
-            env.markTransfer(null)
-            env.allowSleep()
         }
     }
 
@@ -358,9 +379,17 @@ class FirmwareJob(
         val done = mutableListOf<String>()
         var ok = false
         var failure = ""
+        // Faceclaw ends every failed component with "failed after 3 attempts"; the cause it logged
+        // before (lost link, ack timeout, rejection) is what the wearer needs to hear.
+        var lastCause = ""
         val listener = object : FaceclawFirmwareFlasherListener {
             override fun onLog(line: String?) {
-                line?.let { log("ota: $it") }
+                val text = line ?: return
+                log("ota: $text")
+                val marker = ": block phase failed: "
+                val at = text.indexOf(marker)
+                if (at >= 0) lastCause = text.substring(at + marker.length)
+                else if ("END verify FAILED" in text) lastCause = text
             }
 
             override fun onState(state: String?, detail: String?) {
@@ -391,7 +420,8 @@ class FirmwareJob(
                 failure = detail.orEmpty()
             }
         }
-        env.markTransfer(target)
+        env.saveNotice(target, INTERRUPTED)
+        noticeSaved = true
         link.arm()
         try {
             OtaFlashFlow(link, pair.right, pair.left, FirmwareCatalog.fileName(kind), listener, env.timings, env.platform) { bytes }.run()
@@ -407,8 +437,11 @@ class FirmwareJob(
                 else -> "Das linke Glas hat die neue Firmware, das rechte nicht. $FLASH_UNKNOWN"
             }
             val mtuHint = if (link.mtuTooNarrow) " Die Bluetooth-Verbindung der Uhr war zu schmal (MTU unter ${GuardedStockLink.MIN_MTU})." else ""
-            throw Stop("Übertragung abgebrochen: ${FaceclawMessages.german(failure)}.$mtuHint $state")
+            val cause = if ("failed after" in failure && lastCause.isNotBlank()) lastCause else failure
+            throw Stop("Übertragung abgebrochen: ${FaceclawMessages.german(cause)}.$mtuHint $state")
         }
+        // Both lenses accepted every component; if the app dies now, only the check is missing.
+        env.saveNotice(target, VERIFY_INTERRUPTED)
     }
 
     // --- 7. after the reboot -------------------------------------------------------------------
@@ -505,13 +538,19 @@ class FirmwareJob(
                     throw Stop("${lensName(name)}: Kopplung auf dem Update-Kanal nicht bestätigt – falls die Uhr eine Kopplungsanfrage zeigt: bestätigen. $UNTOUCHED")
                 }
                 if (name == "right") checkNotSilent(session, address)
-                val mtu = link.mtu(address)
-                mtus[name] = mtu
+                // The MTU at bring-up, the moment the armed guard judges it in a real transfer.
+                val mtu = link.preparedMtu(address)
+                val stillConnected = link.isConnected(address)
+                if (mtu != null) mtus[name] = mtu
                 session.disconnectQuietly(address)
+                if (mtu == null || !stillConnected) {
+                    throw Stop("${lensName(name)}: Verbindung während der Prüfung verloren – Testlauf wiederholen. $UNTOUCHED")
+                }
                 if (mtu < GuardedStockLink.MIN_MTU) {
                     throw Stop(
-                        "${lensName(name)}: Die Uhr hat nur MTU $mtu ausgehandelt, für die Übertragung sind " +
-                            "${GuardedStockLink.MIN_MTU} nötig. Mit dieser Uhr kann nicht aufgespielt werden. $UNTOUCHED",
+                        "${lensName(name)}: Die MTU-Aushandlung ergab nur $mtu, für die Übertragung sind " +
+                            "${GuardedStockLink.MIN_MTU} nötig. Testlauf wiederholen; bleibt es dabei, kann diese Uhr " +
+                            "nicht aufspielen. $UNTOUCHED",
                     )
                 }
                 env.sleep(policy.settleMs)
@@ -594,6 +633,11 @@ class FirmwareJob(
         const val SILENT_TEXT =
             "Die Brille ist im Lautlos-Modus und kann die Frage nicht zeigen. Beide Touchpads der Brille lange drücken, " +
                 "um ihn zu verlassen, dann erneut versuchen. $UNTOUCHED"
+        const val INTERRUPTED_PREFIX = "Die App wurde während der Übertragung beendet. "
+        val INTERRUPTED: String get() = INTERRUPTED_PREFIX + FLASH_UNKNOWN
+        const val VERIFY_INTERRUPTED =
+            "Die Übertragung war abgeschlossen; die Kontrolle danach wurde unterbrochen. Brille einschalten, kurz " +
+                "warten und neu verbinden; bleibt ein Glas anders, erneut aufspielen."
         const val FLASH_UNKNOWN =
             "Welche Firmware die Brille jetzt startet, ist unklar. Brille laden und neu starten (5× schnell auf beide " +
                 "Touchflächen tippen); startet sie, die Übertragung erneut starten oder die Original-Firmware aufspielen. " +

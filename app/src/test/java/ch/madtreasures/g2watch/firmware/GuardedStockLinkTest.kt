@@ -95,6 +95,27 @@ class GuardedStockLinkTest {
     }
 
     @Test
+    fun `the MTU at bring-up is kept, and a lost link or a default 23 is not called narrow`() {
+        val link = connected(247)
+        link.prepareLink(RIGHT, 512, 100)
+        assertEquals(247, link.preparedMtu(RIGHT))
+
+        val default = connected(23)
+        default.arm()
+        default.prepareLink(RIGHT, 512, 100)
+        assertFalse(default.isConnected(RIGHT))
+        assertFalse(default.mtuTooNarrow)
+
+        val narrow = connected(185)
+        narrow.arm()
+        narrow.prepareLink(RIGHT, 512, 100)
+        assertTrue(narrow.mtuTooNarrow)
+        // A new connection starts the verdict afresh.
+        narrow.connect(RIGHT, 100)
+        assertFalse(narrow.mtuTooNarrow)
+    }
+
+    @Test
     fun `the UUID check ignores case`() {
         val link = connected(247)
         assertFalse(link.writeFrames(RIGHT, BleProtocol.OTA_DATA_WRITE_UUID.uppercase(), frames(20), GattWriteMode.WITHOUT_RESPONSE, 100))
