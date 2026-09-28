@@ -4,6 +4,9 @@ Eine einfache Notiz-App, um Bildschirme für die G2-Brille zu skizzieren. Eine S
 aus Bausteinen, die sich von oben nach unten von selbst anordnen – ohne Pixel, Ebenen oder Schriften.
 Die Vorschau zeigt die Seite so, wie die Brille sie zeigt: 640 × 480 Pixel, 16 Graustufen, grün.
 
+**Öffnen:** https://claude.ai/artifact/LgD1AXL2asy1hKJJiAmtHw (privat, im eigenen claude.ai-Konto;
+am Handy im Browser oder in der Claude-App) – oder lokal `index.html`.
+
 ## Bedienung (fürs Handy gemacht)
 
 - **Seiten:** Die Übersicht zeigt alle Seiten als Karten. Tippen öffnet eine Seite, „Neue Seite“
