@@ -38,7 +38,7 @@ import kotlin.math.roundToInt
 /** The touchpad with real touch input on a rendered round watch face (Robolectric, native graphics). */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "de-rDE-w227dp-h227dp-round-watch-xhdpi", application = android.app.Application::class)
+@Config(sdk = [35], qualifiers = "de-rDE-w228dp-h228dp-round-watch-xhdpi", application = android.app.Application::class)
 class TouchpadScreenTest {
     @get:Rule
     val compose = createComposeRule()

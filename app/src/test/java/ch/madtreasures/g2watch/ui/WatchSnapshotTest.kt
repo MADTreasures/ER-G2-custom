@@ -43,7 +43,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * Pictures of the watch screens on a round 454 px face (Pixel Watch size class), for checking
+ * Pictures of the watch screens on the round 456 px face of the Pixel Watch 5 (45 mm), for checking
  * the layout without a watch:
  *
  *     ./gradlew :app:testDebugUnitTest --tests '*WatchSnapshotTest*' -PsnapshotDir=$PWD/docs/bilder
@@ -53,7 +53,7 @@ import org.robolectric.annotation.GraphicsMode
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "de-rDE-w227dp-h227dp-round-watch-xhdpi", application = android.app.Application::class)
+@Config(sdk = [35], qualifiers = "de-rDE-w228dp-h228dp-round-watch-xhdpi", application = android.app.Application::class)
 class WatchSnapshotTest {
     @get:Rule
     val compose = createComposeRule()

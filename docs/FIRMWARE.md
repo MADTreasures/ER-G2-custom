@@ -98,7 +98,7 @@ die Regeln aus [`firmware-uebergabe/01_Custom-Firmware_erstellen.md`](firmware-u
 
 ## 6. Offene Punkte für den ersten Hardware-Versuch
 
-- Bluetooth der Pixel Watch: welche MTU sie aushandelt und wie schnell sie überträgt, ist unbekannt.
+- Bluetooth der Pixel Watch 5: welche MTU sie aushandelt und wie schnell sie überträgt, ist unbekannt.
   Ist die MTU zu klein, bricht die App vor dem ersten Byte ab und nennt sie (Protokoll: „MTU … after
   the exchange“).
 - Ob Wear OS beim Koppeln einen Dialog zeigt, ist ungeprüft; die App wartet bis zu 90 s.
