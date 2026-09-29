@@ -39,7 +39,8 @@ Kennungen doppelt → Hinweis statt Absturz.
 
 - Alles aus [03 §5](03_Uhr-Apps.md#5-plattform-der-app-host-zu-bauen-in-m1): Modell + JSON, `AppHost`,
   `PageRenderer`, Starter (`launcher/Launcher.kt`), App-Menü, `InputRouter` nach 03 §5.1, `AppRegistry`,
-  Gesten-Modus im `TouchpadScreen`, Weiterleitung aller Bügel-/Ring-Gesten.
+  Gesten-Modus im `TouchpadScreen`, Weiterleitung aller Bügel-/Ring-Gesten, und schon die Anschlüsse für
+  EvenHub-Sitzungen nach 03 §5.2 (noch ohne Inhalt).
 - kotlinx.serialization im Modul `app` (Plugin und Bibliothek stehen schon im Versionskatalog).
 - Beispiel-Apps `StopwatchApp` und `ShoppingListApp` (Seiten als Asset aus dem Baukasten).
 - Berechtigungsabfrage auf der Brille (Seite mit „Erlauben“/„Ablehnen“).
@@ -54,7 +55,8 @@ Zeiger, randloses Bild), Tests der Beispiel-Apps mit `FakeAppContext`; neue Bild
 Uhr; der Chat baut die Test-APK, **du** installierst sie und liest die Werte ab.
 
 - Eigene kleine Test-App (`tools/gecko-probe/` oder ein Build-Flavor), damit die normale Uhr-App nicht um
-  ≈ 65–130 MB wächst, solange nichts entschieden ist.
+  ≈ 85–90 MB (Download) bzw. 150–190 MB (installiert) wächst, solange nichts entschieden ist. Nur die
+  Architektur der Uhr einbauen (`geckoview-armeabi-v7a` bzw. `-arm64-v8a`, [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview)).
 - Umfang und Grenzwerte aus [05 §5.1](05_EvenHub-Apps.md#51-machbarkeitstest-m2-auf-der-echten-uhr):
   Architektur (`abilist`), Kaltstart, Speicher, Timer bei Bildschirm an/aus, Akku, drei Test-Apps über die
   Brücke. Die Werte erscheinen auf der Uhr und im Protokoll, zum Abschreiben oder als Datei.
@@ -69,22 +71,30 @@ Entscheidung dokumentiert. Ohne echte Messwerte ist M2 nicht fertig.
 und erscheint auf der Brille. (Bei „GeckoView nein“ aus M2: M3 baut nur Modul und Zeichner, die Engine kommt
 mit M4 vom Handy.)
 
-- Modul `evenhub-runtime` nach [05 §4](05_EvenHub-Apps.md#4-aufbau): Paket, `AssetServer`, `WebEngine`,
-  `EvenHubSession`, `ContainerRenderer`, `EvenHubApp`; `GeckoEngine` nach [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview).
+- Module `evenhub-runtime` und `evenhub-gecko` nach [05 §4](05_EvenHub-Apps.md#4-aufbau): Paket, `AssetServer`,
+  `WebEngine`, `EvenHubSession`, `ContainerRenderer`; `GeckoEngine` nach [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview)
+  (Repository `maven.mozilla.org`, `abiFilters`, Hauptprozess-Prüfung in `G2WatchApp`); Einbau als interne
+  Sitzung nach [03 §5.2](03_Uhr-Apps.md#52-evenhub-sitzungen-im-app-host); Lebenszyklus, Rechte und Netz-Freigabe
+  nach [05 §4.4](05_EvenHub-Apps.md#44-lebenszyklus-rechte-netz).
 - Installieren direkt auf der Uhr über eine Adresse ([06 §2](06_App-Verwaltung.md#2-direkt-auf-der-uhr)).
 - Lizenzseite in den Einstellungen (MPL, LGPL-Bibliotheken, GPL-Teile).
 
-**Abnahme:** Test-App deckt alle Methoden außer Mikrofon/IMU/Standort (die liefern bis M6 `false`/`null`) und
-alle Ereignisarten außer `audioEvent` und IMU ab; Bildvergleich des Zeichners mit Referenzbildern;
-Menüeinträge über das App-Menü und `menuItemClickEvent`; ein Durchlauf auf der echten Uhr (von dir) mit
-Bildschirmfoto der Brille oder Beschreibung.
+**Abnahme:** Test-App deckt alle Methoden ab; Mikrofon, IMU und Standort liefern bis M6 `false`/`null`. Ereignisse:
+`sysEvent` (Klick, Doppelklick, Scroll, Langdruck, Vordergrund an/aus, System-Ende), `listEvent`, `textEvent`
+(Scroll auf einem Text-Container), `menuItemClickEvent`, `evenAppLaunchSource`, `deviceStatusChanged`; nicht
+`audioEvent`, IMU und `appLocationChanged` (M6). Bildvergleich des Zeichners mit Referenzbildern; Netz-Freigabe
+geprüft; ein Durchlauf auf der echten Uhr (von dir) mit Beschreibung oder Foto der Brille.
+Im Zweig „GeckoView nein“: dieselben Tests ohne Engine (SDK-Aufrufe als JSON), der echte Durchlauf folgt mit M4.
 
 ## M4 – Handy-App „G2 Handy“
 
 **Ziel:** Even-Hub-Apps vom Handy installieren; Apps, die auf der Uhr nicht laufen, laufen auf dem Handy.
 
-- Modul `phone/` (Android-App, gleiche `applicationId` und Signatur wie die Uhr-App), `SystemWebViewEngine`,
+- Modul `phone/` (Android-App, gleiche `applicationId`), Modul `evenhub-webview` mit `SystemWebViewEngine`,
   `RemoteEngine` auf der Uhr, Nachrichten über die Datenschicht nach [05 §6](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy).
+- Gemeinsame Signatur-Konfiguration für Uhr- und Handy-App (Debug-Schlüssel im Repo, auch für CI-Builds),
+  `play-services-wearable` im Versionskatalog, Fähigkeiten in `wear.xml`, `WearableListenerService` und
+  Vordergrund-Dienst auf dem Handy; ein Test klärt, wie das WebView ohne sichtbare Activity weiterläuft.
 - App-Verwaltung nach [06 §1](06_App-Verwaltung.md#1-g2-handy-android-handy).
 - CI baut beide APKs.
 

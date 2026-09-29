@@ -35,7 +35,10 @@ Vor der Installation zeigt die App die Berechtigungen und fragt „Installieren?
   erneut und meldet „installiert“. Bis dahin zeigt die Karte „wird übertragen …“.
 - **Ort Handy:** Die Dateien bleiben auf dem Handy; die Uhr bekommt nur den Eintrag für ihren Starter.
 - Eine neue Version ersetzt die alte, ihr Speicher bleibt erhalten. Ort wechseln = Dateien übertragen
-  bzw. löschen, Speicher der App wandert mit (er liegt auf der Uhr, [05 §4.1](05_EvenHub-Apps.md#41-methoden)).
+  bzw. löschen. Der Speicher aus `setLocalStorage` liegt immer auf der Uhr und bleibt; der Web-Speicher
+  der Engine geht beim Ortswechsel nicht mit ([05 §4.1](05_EvenHub-Apps.md#41-methoden)).
+- Große Pakete über Bluetooth dauern: 50 MB grob 4–17 Minuten. Besser im WLAN oder direkt auf der Uhr per
+  Adresse installieren (§2).
 
 **Kein Store:** „G2 Handy“ lädt keine Apps aus Evens Store ([05 §7](05_EvenHub-Apps.md#7-apps-installieren-und-woher-sie-kommen-dürfen)).
 Eine eigene Sammlung (z. B. eine `katalog.json` in einem Git-Repo mit Adressen zu Release-Paketen) ist möglich

@@ -52,22 +52,29 @@ er nur teilweise nutzbar. Die App läuft dort in einem Android-WebView; Faceclaw
 in ein 576×288-Bild und schickt es an die Brille.
 
 Die Brille nimmt nur **eine** Bluetooth-Verbindung an: Entweder Faceclaw auf dem Handy oder G2 Watch ist
-verbunden. G2 Watch baut deshalb eine eigene Laufzeit (§3), statt Faceclaw daneben laufen zu lassen.
+verbunden. G2 Watch baut deshalb eine eigene Laufzeit (§4), statt Faceclaw daneben laufen zu lassen.
 
 ## 3. Wo die Apps bei uns laufen
 
 | Ort | Engine | Wann |
 |---|---|---|
 | **1. Uhr** | **GeckoView** (Mozillas Browser-Engine, in die Uhr-App eingebaut) | Standard, sobald der Test auf der echten Uhr bestanden ist (M2) |
-| **2. Handy** | System-WebView des Handys, in der Begleit-App **„G2 Handy“** | wenn eine App auf der Uhr nicht läuft (WebAssembly, WebGL, viel Canvas, zu viel Speicher) oder GeckoView den Test nicht besteht |
-| (später) Uhr, „Lite“ | QuickJS + nachgebautes DOM (linkedom) | für sehr einfache Apps, schneller Start, wenig Speicher; nur wenn sich GeckoView als zu schwer erweist |
+| **2. Handy** | System-WebView des Handys, in der Begleit-App **„G2 Handy“** | wenn GeckoView den Test nicht besteht, oder wenn eine einzelne App auf der Uhr abstürzt, vom System beendet wird oder zu langsam ist |
+| (später) Uhr, „Lite“ | QuickJS + nachgebautes DOM (linkedom) | für sehr einfache Apps (kein WebAssembly, kein Canvas); nur wenn sich GeckoView als zu schwer erweist |
+
+GeckoView kann, was ein Firefox kann: DOM, Canvas, WebAssembly, WebSocket, Web-Speicher. Der Weg aufs Handy
+ist deshalb die Ausnahme, nicht die Regel.
+
+**Wer entscheidet:** Jede App hat einen **Ort** (Uhr/Handy), gewählt bei der Installation (Standard aus den
+Einstellungen, [06 §1](06_App-Verwaltung.md#1-g2-handy-android-handy)) und jederzeit umschaltbar. Stürzt eine
+App auf der Uhr zweimal ab oder wird sie vom System beendet (GeckoView meldet `onKill`/`onCrash`), fragt die Uhr
+auf der Brille: „Diese App auf dem Handy ausführen?“.
 
 **Warum eine eigene Engine:** Wear OS hat **kein WebView** und man kann es nicht nachinstallieren.
 Android sagt: „the android.webkit APIs aren't supported“ (Wear OS), und `WebViewFactory` wirft ohne die
 Systemfunktion `android.software.webview` eine Ausnahme. Alle Browser für Wear-OS-Uhren bringen deshalb
 ihre eigene Engine mit (Samsung Internet: Chromium; JusBrowse-Wrist, Mini Web Browser: Gecko). Eine
-Chromium-Engine zum Einbauen gibt es nicht mehr (Crosswalk ist tot); GeckoView ist die gepflegte
-Möglichkeit.
+Chromium-Engine zum Einbauen gibt es nicht mehr (Crosswalk ist tot); GeckoView ist die gepflegte Möglichkeit.
 
 **Wer zeichnet:** In beiden Fällen die **Uhr**. Die Engine (auf der Uhr oder auf dem Handy) führt nur den
 JavaScript-Code der App aus und reicht die SDK-Aufrufe an die EvenHub-Laufzeit der Uhr weiter. Die Uhr hält
@@ -86,19 +93,30 @@ beiden Fällen gleich, und vom Handy kommen nur kleine Nachrichten statt Bilder.
  └──────────────────────────────┘
 ```
 
-Neues Android-Library-Modul **`evenhub-runtime`** (Kotlin), benutzt von der Uhr-App und von „G2 Handy“:
+Drei Android-Library-Module, damit jede APK nur ihre Engine enthält:
+
+| Modul | Enthält | Benutzt von |
+|---|---|---|
+| `evenhub-runtime` | `EvenHubPackage` (`.ehpk`/ZIP entpacken und prüfen), `EvenHubSession`, `ContainerRenderer`, `WebEngine`-Schnittstelle, Brücken-Skript, Nachrichten zum Handy (§6) | Uhr, Handy |
+| `evenhub-gecko` | `GeckoEngine`, `AssetServer` (§5) | nur Uhr |
+| `evenhub-webview` | `SystemWebViewEngine` (§6) | nur Handy |
 
 | Teil | Aufgabe |
 |---|---|
-| `EvenHubPackage` | `.ehpk` und ZIP entpacken und prüfen (Pfade ohne `..`, SHA-512 am Ende, `app.json` gültig); Dateien unter `evenhub/<package_id>/` |
-| `AssetServer` | kleiner HTTP-Server auf `127.0.0.1`, **ein Port je App** (eigener Ursprung → eigener Browser-Speicher); liefert `dist/` aus und fügt nichts ein |
-| `WebEngine` | Schnittstelle: `load(url)`, `push(json)` (Ereignis an die App), `onCall(handler)`, `close()`; Umsetzungen `GeckoEngine` (Uhr), `SystemWebViewEngine` (Handy), `RemoteEngine` (Uhr: spricht mit dem Handy, §6) |
-| `EvenHubSession` | nimmt SDK-Aufrufe entgegen, verwaltet Container und Rechte, schickt Ereignisse; Methoden §4.1 |
-| `ContainerRenderer` | zeichnet die Container in 576 × 288 Graustufen (Regeln §4.2) |
-| `EvenHubApp` | macht aus einer Sitzung eine App für den App-Host ([03](03_Uhr-Apps.md)): Vollbild-Seite mit einem randlosen `image`-Baustein, Eingabeart `gestures`, App-Menü mit den Menüeinträgen der App |
+| `EvenHubPackage` | entpacken und prüfen (Pfade ohne `..`, SHA-512 am Ende, `app.json` gültig); Dateien unter `evenhub/<package_id>/<version>/` |
+| `AssetServer` (Uhr) | kleiner HTTP-Server auf `127.0.0.1`, **ein fester Port je App** (bei der Installation vergeben und gespeichert); liefert `dist/` aus. Bei Entwicklungs-Apps leitet er an die Entwicklungs-Adresse weiter (über das gebundene WLAN, [01 §4](01_Plattform_und_Grenzen.md#4-netz-zwischen-uhr-und-rechner)), damit die Brücke auch dort greift. |
+| `WebEngine` | `load(app)`, `push(json)` (Ereignis an die App), `onCall(handler)`, `onGone(reason)`, `close()`; Umsetzungen `GeckoEngine` (Uhr), `SystemWebViewEngine` (Handy), `RemoteEngine` (Uhr: spricht mit dem Handy, §6) |
+| `EvenHubSession` | nimmt SDK-Aufrufe entgegen, verwaltet Container, Rechte und Lebenszyklus, schickt Ereignisse; §4.1–§4.4 |
+| `ContainerRenderer` | zeichnet die Container in 576 × 288 Graustufen (§4.2) |
 
 Faceclaws TypeScript-Umsetzung (`app/apps/evenhub/session.ts`, `containers.ts`, `compositor.ts`) ist die
 Vorlage. Sie steht unter GPL-3.0; die Übertragung nach Kotlin steht dann ebenfalls unter GPL-3.0 (§8).
+
+**Einbau in den App-Host der Uhr:** Eine EvenHub-Sitzung ist wie der Starter eine **host-interne** Sitzungsart,
+keine `G2App` ([03 §5.2](03_Uhr-Apps.md#52-evenhub-sitzungen-im-app-host)): Sie erscheint im Starter aus dem
+`EvenHubRegistry`, zeigt eine Vollbild-Seite mit einem randlosen Bild-Baustein, in den sie ihr Raster direkt
+schreibt, läuft mit `input: "gestures"`, bekommt die Menüeinträge der App ins App-Menü und darf bis 20 s
+starten (Seite „Startet …“).
 
 ### 4.1 Methoden
 
@@ -109,13 +127,18 @@ Vorlage. Sie steht unter GPL-3.0; die Übertragung nach Kotlin steht dann ebenfa
 | `textContainerUpgrade` | Text eines Containers ändern (nach `containerID`), Original-Verhalten „ab Position schreiben und abschneiden“ |
 | `updateImageRawData` | PNG, BMP (1/4/8/24/32 Bit) oder rohe 4/8-Bit-Pixel in Containergröße; Ergebnis als Zahl wie beim Original (0 = `success`, 1 = `imageException`, 2 = `imageSizeInvalid`, 3 = `sendFailed`) |
 | `shutDownPageContainer` | `exitMode 1` → Rückfrage auf der Brille „Beenden?“, sonst Ende nach 200 ms |
-| `setLocalStorage` / `getLocalStorage` | Speicher der App auf der Uhr (auch wenn die Engine auf dem Handy läuft) |
+| `setLocalStorage` / `getLocalStorage` | Speicher der App **auf der Uhr** (auch wenn die Engine auf dem Handy läuft; er wandert beim Ortswechsel also nicht) |
 | `getUserInfo` | feste Werte (`name: "G2 Watch"`) |
-| `getGlassesInfo`, Ereignis `deviceStatusChanged` | Modell `g2`, **echter** Akkustand und „getragen“ von der Brille |
+| `getGlassesInfo`, Ereignis `deviceStatusChanged` | Modell `g2`, **echter** Akkustand, Laden und „getragen“ der Brille aus dem Brillen-Status des App-Hosts |
 | `audioControl` | ab M6 (Mikrofon, LC3 → PCM auf der Uhr); bis dahin `false` |
 | `imuControl` | ab M6; Werte als `sysEvent` Typ 8 mit `imuData`; bis dahin `false` |
-| `getAppLocation`, `start/stopAppLocationUpdates` | ab M6 vom GPS der Uhr (Berechtigung `location`); bis dahin `null` |
-| `pickImageFromAlbum`, `captureImageFromCamera` | auf der Uhr nicht möglich, `null`; mit Engine auf dem Handy später denkbar |
+| `getAppLocation`, `start/stopAppLocationUpdates` | ab M6 vom GPS der Uhr; bis dahin `null` |
+| `pickImageFromAlbum`, `captureImageFromCamera` | auf der Uhr nicht möglich, `null` |
+
+**Web-Speicher** (`localStorage`, IndexedDB im Browser) ist etwas anderes als `setLocalStorage`: Er gehört
+der Engine. Auf der Uhr trennt der feste Port je App und ein eigener GeckoView-`contextId` je App die Apps
+voneinander; beim Entfernen löscht die Uhr ihn (`StorageController.clearDataForSessionContext`). Beim
+Ortswechsel Uhr ↔ Handy geht er **nicht** mit.
 
 ### 4.2 Zeichnen
 
@@ -125,35 +148,59 @@ Vorlage. Sie steht unter GPL-3.0; die Übertragung nach Kotlin steht dann ebenfa
 - Schrift: Das Original nutzt eine feste 20-px-Schrift aus Evens Firmware. Die darf nicht mitgeliefert
   werden; die Uhr zeichnet mit einer freien Schrift mit ähnlichen Maßen (z. B. Noto Sans 20 px).
   Zeilenumbrüche können deshalb leicht abweichen.
-- Das Ergebnis geht als Pixel an den randlosen `image`-Baustein der Seite; die Uhr schickt wie immer nur
+- Das Ergebnis geht direkt als Raster in den randlosen Bild-Baustein; die Uhr schickt wie immer nur
   geänderte Streifen an die Brille ([01 §1](01_Plattform_und_Grenzen.md#übertragung-uhr--brille-bluetooth-le)).
 
 ### 4.3 Eingaben
 
-Die Sitzung läuft mit `input: "gestures"` ([02 §7](02_App-Modell.md#7-eingabe-und-fokus)).
+Die Sitzung läuft mit `input: "gestures"` ([02 §7](02_App-Modell.md#7-eingabe-und-fokus)). Die Zuordnung folgt
+der Original-Hardware (wissen/03 §2.3): Tippen kommt als `sysEvent`, Wischen auf einem Text-Container als `textEvent`.
 
 | Geste von Uhr/Bügel/Ring | an die App |
 |---|---|
-| `click` | Ist der Eingabe-Container eine Liste: `listEvent` Klick mit gewähltem Eintrag, sonst `sysEvent` Klick |
+| `click` | Eingabe-Container ist eine Liste: `listEvent` Klick mit gewähltem Eintrag; sonst `sysEvent` Klick |
 | `doubleClick` | `sysEvent` Doppelklick (die App entscheidet, meist „Beenden?“) |
-| `scrollUp` / `scrollDown` | In einer Liste bewegt die Uhr die Auswahl selbst und zeichnet neu; am Rand bzw. ohne Liste `sysEvent` Scroll oben/unten |
+| `scrollUp` / `scrollDown` | Liste: die Uhr bewegt die Auswahl selbst und zeichnet neu, am Rand `listEvent` Scroll oben/unten; Text-Container: `textEvent` Scroll oben/unten; sonst `sysEvent` Scroll oben/unten |
 | `longPress` / `longPressRelease` | Codes 9 / 10 |
 | `shortThenLongPress` (Tippen-dann-Halten) | öffnet das App-Menü ([02 §5](02_App-Modell.md#5-navigation-und-app-menü)) mit den `menuObject`-Einträgen der App; ein gewählter Eintrag geht als `menuItemClickEvent` an die App |
 | Zurück (Uhr: Wischen nach rechts, oder „Zurück“/„Schließen“ im App-Menü) | Die App hat für die Uhr nur eine Seite, Zurück schließt sie also: `sysEvent` System-Ende 7, 200 ms später Ende |
 
 Quelle: `right` → 1, `ring` und `watch` → 2, `left` → 3.
 
+### 4.4 Lebenszyklus, Rechte, Netz
+
+| Ereignis im App-Host | an die App / Wirkung |
+|---|---|
+| Start | Seite „Startet …“; Engine lädt; `evenAppLaunchSource` (`glassesMenu`), dann `deviceStatusChanged`; Zeitlimit 20 s bis zur ersten Seite |
+| `visible` / `hidden` | `sysEvent` Vordergrund an (4) / aus (5) |
+| Engine beendet oder abgestürzt | Hinweis „App abgestürzt“ auf der Brille, Sitzung endet; beim zweiten Mal Frage nach Ortswechsel (§3) |
+| Schließen | `sysEvent` System-Ende (7), nach 200 ms Engine schließen |
+
+- **Gleichzeitig:** höchstens **2** EvenHub-Apps auf der Uhr (eine sichtbar, eine verdeckt, beide aktiv). Beim
+  Start einer dritten schließt die Uhr die am längsten verdeckte (mit System-Ende 7). Die Grenze wird nach den
+  Messwerten aus M2 festgelegt.
+- **Rechte:** `g2-microphone` und `phone-microphone` → `mic` (das Mikrofon der Brille), `location` →
+  `location`, `network` → `network` mit Host-Liste, `album`/`camera` → nicht unterstützt (die App wird trotzdem
+  installiert). Die Bestätigung bei der Installation (Handy oder Uhr) **ist** die Antwort nach
+  [02 §8](02_App-Modell.md#8-berechtigungen); beim Start wird nicht noch einmal gefragt.
+- **Netz-Freigabe:** wie bei Evens App durchgesetzt: Auf der Uhr blockiert die eingebaute Erweiterung per
+  `webRequest` alle Anfragen (auch WebSocket) an Hosts außerhalb der Liste. Auf dem Handy blockiert
+  `shouldInterceptRequest` HTTP(S); WebSocket-Verbindungen lassen sich dort nicht abfangen (bekannte Lücke).
+
 ## 5. Engine auf der Uhr: GeckoView
 
 | Punkt | Festlegung |
 |---|---|
-| Bibliothek | `org.mozilla.geckoview:geckoview:<Version>` von `maven.mozilla.org` (Stand 156.0, MPL-2.0, minSdk 26) |
-| Prozessorarchitektur | Die Pixel Watch 3 und 4 laufen mit **32-Bit-Apps** (`armeabi-v7a`); für die Watch 5 vorher mit `adb shell getprop ro.product.cpu.abilist` prüfen. Die APK braucht die passende Architektur (je ≈ 62–65 MB komprimiert). Ein Universal-APK mit beiden ist ≈ 130 MB größer. |
-| Speicher | Uhr: 3 GB RAM (Snapdragon W5 Gen 2). GeckoView braucht geschätzt 150–300 MB; **messen**. |
-| Laufzeit | ein `GeckoRuntime` mit `fissionEnabled(false)`, `extensionsProcessEnabled(false)`; eine `GeckoSession` je App, **ohne sichtbare Ansicht** (headless) |
-| Wachhalten | Sitzung `setActive(true)` und `setPriorityHint(PRIORITY_HIGH)`, im Vordergrund-Dienst mit laufender Benachrichtigung; sonst bremst Gecko Timer inaktiver Seiten bis auf 15 Minuten. Zusätzlich wie bei Faceclaw ein Timer-Ersatz im Brücken-Skript, den die Uhr antreibt (`__g2Tick`). |
-| Brücke | eingebaute WebExtension (`ensureBuiltIn("resource://android/assets/evenbridge/", …)`) mit Content-Script `run_at: document_start` für `http://127.0.0.1/*`. Das Skript definiert `window.flutter_inappwebview.callHandler` (über `wrappedJSObject`/`cloneInto`) und spricht über `browser.runtime.connectNative("evenhost")` mit Kotlin (`MessageDelegate`, `Port`). Skizze: `quellen/D` §2.7. |
+| Bibliothek | pro Architektur `org.mozilla.geckoview:geckoview-armeabi-v7a` bzw. `-arm64-v8a` (für den Emulator `-x86_64`), Version 156 oder neuer, von `maven.mozilla.org` (MPL-2.0, minSdk 26). Nicht `geckoview` (alle Architekturen, 242 MB). |
+| Repository | `settings.gradle.kts` erlaubt heute nur Google und Maven Central (`FAIL_ON_PROJECT_REPOS`); dort `maven("https://maven.mozilla.org/maven2/")` mit Inhaltsfilter `includeGroup("org.mozilla.geckoview")` ergänzen |
+| Architektur | Pixel Watch 3 und 4 laufen mit 32-Bit-Apps (`armeabi-v7a`); für die Watch 5 vorher mit `adb shell getprop ro.product.cpu.abilist` prüfen und die APK mit `abiFilters` darauf beschränken |
+| Größe | Download ≈ 85–90 MB je Architektur; installiert ≈ 150 MB (32 Bit) bis 190 MB (64 Bit), weil `.so`-Dateien unkomprimiert liegen; ob `useLegacyPackaging` das verbessert, entscheidet M3 nach Messung |
+| Speicher | Uhr: 3 GB RAM. GeckoView braucht geschätzt 150–300 MB; **messen** (M2) |
+| Prozesse | GeckoView startet eigene Dienst-Prozesse (`:socket`, `:gpu`, `:media`, Inhalts-Prozesse). `G2WatchApp.onCreate` darf seine Arbeit (Desktop, Verbindung) nur im Hauptprozess tun (Prozessname prüfen). Laufzeit mit `fissionEnabled(false)`, `extensionsProcessEnabled(false)`. |
+| Sitzung | eine `GeckoSession` je App, **ohne sichtbare Ansicht**, `contextId` = `package_id`; `setActive(true)` und `setPriorityHint(PRIORITY_HIGH)`, im Vordergrund-Dienst mit laufender Benachrichtigung; sonst bremst Gecko Timer inaktiver Seiten bis auf 15 Minuten. Zusätzlich wie bei Faceclaw ein Timer-Ersatz im Brücken-Skript, den die Uhr antreibt (`__g2Tick`). |
+| Brücke | eingebaute WebExtension (`ensureBuiltIn("resource://android/assets/evenbridge/", …)`) mit Content-Script `run_at: document_start` für `http://127.0.0.1/*`. Das Skript definiert `window.flutter_inappwebview.callHandler` (über `wrappedJSObject`/`cloneInto`) und spricht über `browser.runtime.connectNative("evenhost")` mit Kotlin (`MessageDelegate`, `Port`); `webRequest` für die Netz-Freigabe. Skizze: `quellen/D` §2.7. |
 | Laden | `http://127.0.0.1:<Port der App>/<entrypoint>` vom `AssetServer` |
+| Einstellungsseite der App | Auf der Uhr kann GeckoView die Seite sichtbar auf dem Uhr-Bildschirm zeigen (Knopf „Einstellungen der App“ in den Uhr-Einstellungen), klein, aber für einfache Formulare brauchbar |
 
 ### 5.1 Machbarkeitstest (M2, auf der echten Uhr)
 
@@ -161,58 +208,81 @@ Bevor die ganze Laufzeit gebaut wird, prüft eine Test-APK auf der Pixel Watch 5
 
 1. Architektur und Speicher der Uhr (`abilist`, freier Speicher) werden angezeigt.
 2. GeckoView startet ohne sichtbare Ansicht und lädt drei Test-Apps: nur Text, mit Canvas-Bild, mit
-   React/Vue. Jede ruft über die Brücke eine Methode auf und bekommt ein Ereignis zurück.
+   React/Vue und WebAssembly. Jede ruft über die Brücke eine Methode auf und bekommt ein Ereignis zurück.
 3. Gemessen und auf der Uhr angezeigt: Kaltstart bis zum ersten Aufruf, Speicher (PSS aller Prozesse),
    Timer-Genauigkeit bei an/aus geschaltetem Bildschirm, Akku pro 10 Minuten.
 
 **Weiter mit GeckoView**, wenn: Kaltstart ≲ 5 s, Speicher ≲ 300 MB, kein Abbruch durch das System in
 30 Minuten, Timer weichen < 20 % ab, Akku vertretbar (Richtwert: < 8 % pro Stunde bei laufender App).
-Sonst: Handy als Standard (§6), GeckoView nur für ausgewählte Apps oder gar nicht.
+Sonst: Handy als Standard-Ort (§6), GeckoView nur für ausgewählte Apps oder gar nicht.
 
 ## 6. Engine auf dem Handy: „G2 Handy“
 
+**Die App:**
 - Eine kleine **Android-App fürs Handy** im selben Repo (Modul `phone/`). Sie muss **dieselbe
-  `applicationId`** (`ch.madtreasures.g2watch`) und denselben Signaturschlüssel haben wie die Uhr-App,
-  sonst gibt Google Play Services die Nachrichten nicht weiter.
-- Sie führt Apps im System-WebView aus, wie Faceclaws Android-Gastgeber: eigener Ursprung je App über
-  `shouldInterceptRequest`, Brücke über `addJavascriptInterface`, Brücken-Skript vor jedem anderen Skript
-  (`WebViewCompat.addDocumentStartJavaScript`), WebView bleibt „sichtbar“ gemeldet, damit Chromium die
-  Timer nicht einfriert.
-- Die Uhr bleibt die Stelle, die zeichnet und die Brille bedient. Die SDK-Aufrufe gehen über die
-  **Wear-OS-Datenschicht** (Google Play Services) zur Uhr: `MessageClient` für Nachrichten bis 100 KB
-  (JSON, auch Bilder eines Containers), `ChannelClient` für Größeres. Die Datenschicht wählt selbst
-  Bluetooth oder WLAN. Richtwerte: 50–200 KB/s über Bluetooth, einige MB/s über WLAN.
-- Nachrichten (Pfad `/g2/evenhub`, JSON):
+  `applicationId`** (`ch.madtreasures.g2watch`) und **denselben Signaturschlüssel** haben wie die Uhr-App,
+  sonst gibt Google Play Services die Nachrichten nicht weiter. Dafür bekommen beide Module eine gemeinsame
+  Signatur-Konfiguration (ein Debug-Schlüssel im Repo für Debug-Builds; für CI-Builds derselbe Schlüssel).
+- Abhängigkeit `com.google.android.gms:play-services-wearable` (neu im Versionskatalog). Beide Seiten melden
+  eine Fähigkeit an (`res/values/wear.xml`: `g2_watch` bzw. `g2_handy`), gefunden wird über `CapabilityClient`.
+- Geweckt wird „G2 Handy“ durch einen `WearableListenerService`, wenn die Uhr eine App starten will. Solange
+  eine App läuft, hält ein Vordergrund-Dienst (`connectedDevice`) die App am Leben.
+- Apps laufen im System-WebView, wie Faceclaws Android-Gastgeber: Ursprung je App
+  `https://<package_id>.evenhub.invalid/` über `shouldInterceptRequest` (kein `AssetServer` auf dem Handy),
+  Brücke über `addJavascriptInterface`, Brücken-Skript vor jedem anderen Skript
+  (`WebViewCompat.addDocumentStartJavaScript`), das WebView meldet sich immer „sichtbar“ und bleibt an einem
+  Fenster hängen, damit Chromium die Timer nicht einfriert. Wie es ohne sichtbare Activity sicher weiterläuft
+  (Overlay-Fenster oder unsichtbare Ansicht im Dienst), klärt M4 mit einem Test auf dem Handy.
+- Die Einstellungsseite einer App, die auf dem Handy läuft, zeigt „G2 Handy“ auf Knopfdruck an.
 
-  | Richtung | `t` | Felder |
-  |---|---|---|
-  | Uhr → Handy | `start` | `app` (package_id), `version` |
-  | Handy → Uhr | `ready` / `failed` | `app`, `message?` |
-  | Handy → Uhr | `call` | `id`, `method`, `data` (SDK-Aufruf der App) |
-  | Uhr → Handy | `result` | `id`, `ok`, `value` |
-  | Uhr → Handy | `push` | `method`, `data` (Ereignis an die App) |
-  | Uhr → Handy | `stop` | `app` |
-  | Handy → Uhr | `log` | `level`, `text` (Konsole der App, fürs Protokoll) |
+**Datenweg:** Die Uhr bleibt die Stelle, die zeichnet und die Brille bedient. Nachrichten gehen über die
+**Wear-OS-Datenschicht** (Google Play Services): `MessageClient` für Nachrichten bis 100 KB (JSON, auch Bilder
+eines Containers), `ChannelClient` für Größeres (App-Pakete), `DataClient` für die App-Liste. Die Datenschicht
+wählt selbst Bluetooth, WLAN oder den Umweg über Googles Server. Richtwerte: 50–200 KB/s über Bluetooth, beim
+Übertragen großer Dateien grob 0,7 MB/s; Wechsel zwischen Bluetooth und WLAN kann eine Minute dauern.
 
-- Die App-Dateien liegen dort, wo die Engine läuft. Wer eine App installiert (§7), wählt „Uhr“ oder
-  „Handy“; die Dateien werden dorthin übertragen. Für „Handy“ erscheint die App trotzdem im Starter der
-  Uhr; beim Start fragt die Uhr das Handy.
-- Ist das Handy nicht erreichbar, zeigt die Uhr „Handy nicht verbunden“ statt einer leeren Seite.
+**Nachrichten** (Pfad `/g2/evenhub`, JSON; jede Nachricht einer laufenden App trägt `session`):
+
+| Richtung | `t` | Felder | Bedeutung |
+|---|---|---|---|
+| beide | `hello` | `proto: "g2-phone@1"`, `app` (Version der APK) | beim Verbinden; unbekannte Version → Hinweis „Uhr- und Handy-App aktualisieren“ |
+| Uhr → Handy | `start` | `session`, `app`, `version` | App auf dem Handy starten; hat das Handy eine andere Version: `failed` mit `code: "version"` |
+| Handy → Uhr | `ready` / `failed` | `session`, `code?`, `message?` | gestartet bzw. nicht |
+| Handy → Uhr | `call` | `session`, `id`, `method`, `data` | SDK-Aufruf der App |
+| Uhr → Handy | `result` | `session`, `id`, `ok`, `value` | Antwort |
+| Uhr → Handy | `push` | `session`, `method`, `data` | Ereignis an die App |
+| Uhr → Handy | `stop` | `session` | App beenden |
+| Handy → Uhr | `log` | `session`, `level`, `text` | Konsole der App, fürs Protokoll |
+| Handy → Uhr | `launch` | `app` | Knopf „Auf der Brille starten“ in „G2 Handy“ |
+| Handy → Uhr | `install` | `app`, `version`, `size`, `sha256` | kündigt ein Paket an; danach `ChannelClient`-Strom auf `/g2/evenhub/install/<package_id>` |
+| Uhr → Handy | `install.done` | `app`, `ok`, `message?` | Paket geprüft und installiert (oder nicht) |
+| Handy → Uhr | `remove` / `move` | `app` / `app`, `to` (`watch`/`phone`) | entfernen / Ort wechseln |
+| Uhr → Handy | `status` | `glasses: {battery, charging, wearing}`, `watch: {battery}` | für die Übersicht in „G2 Handy“, bei Änderung |
+
+Die **App-Liste** (alle Even-Hub-Apps mit Version und Ort, auch die direkt auf der Uhr installierten) führt die
+Uhr als `DataClient`-Eintrag `/g2/evenhub/apps` (dringend markiert); „G2 Handy“ liest ihn.
+
+**Verbindung weg:** Jede `call`/`result`-Runde hat 10 s Zeitlimit (die App bekommt dann `null`). Die Uhr prüft
+die Verbindung alle 10 s (`MessageClient.sendRequest`). Ist sie weg, zeigt die Kopfzeile „Handy getrennt“,
+Eingaben werden verworfen (nicht gepuffert); nach 60 s ohne Verbindung endet die App mit Hinweis. Ist das
+Handy beim Start nicht erreichbar, zeigt die Uhr „Handy nicht verbunden“ statt einer leeren Seite.
 
 ## 7. Apps installieren und woher sie kommen dürfen
 
-Installiert wird in **„G2 Handy“** (Seite „Apps“) und von dort auf die Uhr übertragen
-(`ChannelClient`), oder direkt auf der Uhr über eine Adresse (Download über WLAN/LTE):
+Installiert wird in **„G2 Handy“** (Seite „Apps“, [06 §1](06_App-Verwaltung.md#1-g2-handy-android-handy)) oder
+direkt auf der Uhr über eine Adresse ([06 §2](06_App-Verwaltung.md#2-direkt-auf-der-uhr)); der Weg über die Uhr
+kommt schon mit M3, „G2 Handy“ mit M4.
 
 | Quelle | Weg |
 |---|---|
 | **Eigene Apps** mit dem offiziellen SDK und der CLI (`evenhub init`, `vite build`, `evenhub pack`) | `.ehpk` oder ZIP mit `app.json` + `dist/` wählen |
 | **Quelloffene Even-Hub-Apps** (z. B. auf GitHub, Lizenz beachten) | fertiges Release-Paket (`.ehpk`/ZIP) herunterladen; aus Quelltext bauen geht nur am PC mit Node |
 | **`.ehpk`-Dateien, die du rechtmäßig hast** | Datei wählen |
-| **Entwicklungs-Server** (`vite dev` im Heim-WLAN) | Adresse angeben; die App läuft direkt von dort (nur Handy-Engine oder Uhr im WLAN) |
+| **Entwicklungs-Server** (`vite dev` im Heim-WLAN) | Adresse angeben; auf dem Handy lädt das WebView sie direkt, auf der Uhr leitet der `AssetServer` sie weiter |
 
-Vor der Installation zeigt „G2 Handy“ die Berechtigungen und die Datenschutz-Adresse, falls `app.json`
-eine nennt.
+Vor der Installation werden die Berechtigungen und die Datenschutz-Adresse angezeigt, falls `app.json` eine
+nennt. Große Pakete besser über WLAN oder direkt auf der Uhr per Adresse installieren: 50 MB über Bluetooth
+dauern 4–17 Minuten.
 
 **Nicht vorgesehen: Herunterladen aus Evens Store.** Evens Store-Server ist nicht öffentlich. Faceclaws
 Store-Client meldet sich mit dem Even-Konto an, unterschreibt jede Anfrage mit einem Schlüssel aus Evens
@@ -236,10 +306,11 @@ möchte, kann das mit Faceclaw auf dem Handy tun, auf eigene Verantwortung.
 - Test-App im Repo (`evenhub-runtime/src/test/fixtures/`, mit dem offiziellen SDK gebaut), die jede Methode
   aufruft und jedes Ereignis anzeigt.
 - `EvenHubSession` und `ContainerRenderer` ohne Engine testen: SDK-Aufrufe als JSON hineingeben, Antworten und
-  gezeichnete Bilder (Referenzbilder) prüfen.
-- `GeckoEngine` und `SystemWebViewEngine`: Instrumentierungstests auf Gerät/Emulator (Handy-Emulator geht in CI,
-  die Uhr-Messung nur auf der echten Uhr, §5.1).
-- `RemoteEngine`: Datenschicht mit einem Fake, Reihenfolge und Zeitüberschreitung der Aufrufe.
+  gezeichnete Bilder (Referenzbilder) prüfen. Das geht in CI wie heute.
+- `GeckoEngine` und `SystemWebViewEngine`: Instrumentierungstests auf dem Android-Emulator (x86_64-Variante von
+  GeckoView); dafür braucht die CI einen neuen Job mit Emulator. Die Uhr-Messung geht nur auf der echten Uhr (§5.1).
+- `RemoteEngine` und die Nachrichten aus §6: mit einem Fake der Datenschicht, Reihenfolge, Zeitlimits,
+  Verbindungsabbruch.
 
 ## 10. Und ein richtiger Browser auf der Brille?
 

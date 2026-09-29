@@ -64,7 +64,8 @@ als Datei im App-Ordner.
 - **start**: Der Träger wählt die App im Starter (oder in der App-Verwaltung). Die App bekommt `start`,
   gleich danach `visible`. Sie muss **innerhalb von 2 s** eine Seite zeigen. Hat das Manifest `ui` und
   zeigt die App nichts, zeigt der Host die Startseite des Baukasten-Projekts (`start`). Ohne `ui` und
-  ohne Seite zeigt der Host „App antwortet nicht“ und beendet sie nach 10 s.
+  ohne Seite zeigt der Host „App antwortet nicht“ und beendet sie nach 10 s. Ausnahme: Even-Hub-Apps
+  bekommen eine Seite „Startet …“ und 20 s ([05 §4.4](05_EvenHub-Apps.md#44-lebenszyklus-rechte-netz)).
 - **visible / hidden**: Nur eine App ist auf der Brille sichtbar. Über das App-Menü → „Apps“ kommt der
   Träger zum Starter; die bisherige App bekommt `hidden` und läuft weiter. Im Starter sind laufende Apps
   markiert; wählt der Träger eine davon, bekommt sie `visible` und erscheint mit ihrer aktuellen Seite.
@@ -129,8 +130,8 @@ umzustellen ist Meilenstein M0 ([07](07_Umsetzungsplan.md)).
   oder `null` (schwarz, wird per `frame` gefüllt).
 - PNG in Graustufen (8 oder 4 Bit) oder mit Farbe (wird in Helligkeit umgerechnet).
 - Größe: normal `w` ≤ 544, `h` ≤ 260 (innerhalb der Seitenränder). Mit `bleed: true` auf einer
-  Vollbild-Seite (`statusBar: false`) bis 576 × 288 ohne Ränder – so zeigen Karten, Diagramme und der
-  die EvenHub-Laufzeit ganze Bilder.
+  Vollbild-Seite (`statusBar: false`) bis 576 × 288 ohne Ränder – so zeigen Karten, Diagramme und die
+  EvenHub-Laufzeit ganze Bilder.
 - Große Bilder kosten Übertragungszeit ([01 §1](01_Plattform_und_Grenzen.md#übertragung-uhr--brille-bluetooth-le));
   wo es geht, Bausteine bevorzugen.
 

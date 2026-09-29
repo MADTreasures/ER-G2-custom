@@ -18,7 +18,8 @@ Code, Bezeichner und Commit-Texte sind englisch, Erklärungen deutsch.
 4. Apps aus Evens **Even Hub** (Web-Apps mit Evens SDK) laufen **auf der Uhr** in einer eingebauten
    Browser-Engine (GeckoView, weil Wear OS keinen Browser-Kern hat). Geht eine App dort nicht, läuft sie
    **auf dem Handy** in der Begleit-App „G2 Handy“; gezeichnet wird trotzdem auf der Uhr.
-5. Installiert werden Even-Hub-Apps über „G2 Handy“; Rechner-Apps über eine Web-Seite des Rechners.
+5. Installiert werden Even-Hub-Apps über „G2 Handy“ oder direkt auf der Uhr über eine Adresse;
+   Rechner-Apps über eine Web-Seite des Rechners.
 
 ```
             Brille (Faceclaw/35)

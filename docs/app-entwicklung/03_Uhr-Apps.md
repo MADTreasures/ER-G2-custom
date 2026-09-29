@@ -160,6 +160,9 @@ nicht aus und schreibt sie ins Protokoll; `FakeAppContext` wirft in Tests eine `
 
 ## 3. Regeln für Uhr-Apps
 
+Diese Regeln gelten für Apps, nicht für Plattform-Teile wie die EvenHub-Laufzeit (die hat eigene Dienste,
+Threads und GeckoView-Prozesse, [05](05_EvenHub-Apps.md)).
+
 - **50 ms** pro `onEvent`: Der Host misst mit. Über 50 ms gibt es einen Eintrag im Protokoll, über
   500 ms wird die App mit „reagiert zu langsam“ beendet. Längere Arbeit gehört auf den Rechner.
 - Keine eigenen Threads, keine Android-Dienste, kein direkter Zugriff auf `GlassesConnection`,
@@ -237,6 +240,18 @@ wissen/03 §2.11.2, der Übersetzung in Faceclaw):
 Ring-Ereignisse kommen doppelt vor (über die Brille und direkt). Faceclaw entfernt Doppelte in einem
 Fenster von 100 Ticks (wissen/03 §2.11.3); der `InputRouter` macht es ebenso. Kopf-Heben meldet die
 Firmware nur, solange eine Faceclaw-Seite angezeigt wird.
+
+### 5.2 EvenHub-Sitzungen im App-Host
+
+Even-Hub-Apps sind keine `G2App`. Der App-Host bekommt dafür in M1 schon die Anschlüsse, die M3 benutzt:
+
+| Anschluss | Zweck |
+|---|---|
+| `EvenHubRegistry` | Liste der installierten Even-Hub-Apps (Name, Version, Ort Uhr/Handy, Rechte) für den Starter; in M1 leer |
+| Sitzungsart „intern“ | wie der Starter: vom Host verwaltet, eigener Lebenszyklus, Start-Zeitlimit einstellbar (EvenHub: 20 s mit Seite „Startet …“) |
+| `setRaster(blockId, raster)` | intern: schreibt ein fertiges Graustufen-Raster in einen randlosen Bild-Baustein, ohne PNG und ohne 48-KiB-Grenze |
+| Brillen-Status | Akku, Laden, „getragen“ der Brille als beobachtbarer Wert. Akku und Laden stehen heute schon in `GlassesState`; „getragen“ braucht `enableWearDetectionAndRequestState()`, das die Uhr-App bisher nicht aufruft. |
+| App-Menü-Einträge | eine interne Sitzung kann eigene Einträge setzen und bekommt die Auswahl zurück |
 
 ## 6. Sensoren, Mikrofon, Summer (M6)
 

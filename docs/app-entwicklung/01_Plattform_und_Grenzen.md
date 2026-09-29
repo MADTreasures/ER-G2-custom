@@ -61,7 +61,7 @@ sind im Faceclaw-Kern vorhanden (`GlassesSessionCore`), aber noch nicht zu den A
 |---|---|
 | System | Wear OS 7 = Android 17, API 37; die App hat `minSdk 33`, `targetSdk 37` |
 | Chip, Speicher | Snapdragon W5 Gen 2 (4 × Cortex-A53, 1,7 GHz), **3 GB RAM**, 64 GB |
-| Apps | Pixel Watch 3 und 4 laufen mit **32-Bit-Apps** (`armeabi-v7a`); für die Watch 5 mit `adb shell getprop ro.product.cpu.abilist` prüfen. Wichtig nur für Apps mit nativen Bibliotheken (GeckoView, liblc3); G2 Watch hat heute keine. |
+| Apps | Pixel Watch 3 und 4 laufen mit **32-Bit-Apps** (`armeabi-v7a`); für die Watch 5 mit `adb shell getprop ro.product.cpu.abilist` prüfen. Wichtig für native Bibliotheken: heute nur `libandroidx.graphics.path.so` aus AndroidX (für alle Architekturen dabei), später GeckoView und liblc3. |
 | Bildschirm | rund, 456 × 456 px, 320 ppi |
 | Netz | WLAN, LTE, Bluetooth (zur Brille; zum Handy nur, wenn gekoppelt) |
 | Eingabe für die Brille | Touchpad als Maus (Finger ziehen = Zeiger, Doppeltippen = Klick), Krone = Zeigertempo, Zahnrad halten = Einstellungen |
@@ -74,7 +74,7 @@ sind im Faceclaw-Kern vorhanden (`GlassesSessionCore`), aber noch nicht zu den A
 **Handy (Android):** Die Begleit-App „G2 Handy“ führt Even-Hub-Apps im System-WebView aus, wenn sie auf der
 Uhr nicht laufen, und installiert Apps ([05 §6](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy)). Sie
 spricht mit der Uhr über die Wear-OS-Datenschicht (Google Play Services, Bluetooth oder WLAN): Nachrichten
-bis 100 KB, Datenströme für Größeres; grob 50–200 KB/s über Bluetooth, einige MB/s über WLAN.
+bis 100 KB, Datenströme für Größeres; grob 50–200 KB/s über Bluetooth, große Dateien grob 0,7 MB/s; notfalls über Googles Server.
 
 **Rechner für Rechner-Apps:** Jedes Gerät, auf dem **Node.js ≥ 22** läuft: Windows, macOS, Linux, ein
 Raspberry Pi, ein Server. Ein Android-Handy geht über Termux (Node aus dem Termux-Paket); das ist ungetestet,
