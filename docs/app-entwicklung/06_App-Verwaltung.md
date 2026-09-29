@@ -13,17 +13,17 @@ Uhr-Apps stehen nicht darin: Sie sind Teil der APK und kommen mit einem App-Upda
 - Beim ersten Start schreibt `g2-host` in die Konsole einen **Einrichtungs-Link** mit einmaligem Code. Dort
   legt man ein Passwort für die Verwaltung fest.
 - Danach: Anmeldung mit Passwort. Das Sitzungs-Cookie ist `HttpOnly` und `SameSite=Strict` und läuft
-  nach 30 Tagen ab. Jede Änderung ist ein POST mit CSRF-Token.
+  nach 30 Tagen ab. Jede Änderung (POST, DELETE) trägt ein CSRF-Token.
 
 ## 2. Seiten
 
 | Seite | Inhalt |
 |---|---|
-| **Übersicht** | Verbundene Uhr (Name, seit wann, Akku der Brille), laufende Apps mit „Beenden“, zuletzt aufgetretene Fehler |
+| **Übersicht** | Verbundene Uhr (Name, seit wann, Akku von Uhr und Brille aus der Nachricht `status`), laufende Apps mit „Beenden“, zuletzt aufgetretene Fehler |
 | **Apps** | Alle installierten Rechner- und EvenHub-Apps als Karten: Name, Version, Laufzeit, Berechtigungen. Knöpfe „Auf der Brille starten“, „Protokoll“, „Entfernen“ |
 | **Installieren** | Vier Wege, siehe §3 |
-| **App-Details** | Manifest, Berechtigungen im Klartext („darf das Mikrofon der Brille benutzen“), Speicherplatz, Protokoll der letzten 500 Zeilen, bei EvenHub-Apps die Datenschutz-Adresse aus `app.json` |
-| **Uhr koppeln** | 6-stelliger Code mit Ablaufzeit (5 Minuten), Liste der gekoppelten Uhren mit „Widerrufen“ |
+| **App-Details** | Manifest, Berechtigungen im Klartext („darf das Mikrofon der Brille benutzen“), Speicherplatz, Protokoll der letzten 500 Zeilen, bei EvenHub-Apps eine Datenschutz-Adresse, falls `app.json` eine nennt (das offizielle Format hat kein festes Feld; Faceclaw liest mehrere Schreibweisen) |
+| **Uhr koppeln** | 6-stelliger Code mit Ablaufzeit (5 Minuten), Liste der gekoppelten Uhren (Token-Anfang, 12 Zeichen) mit „Widerrufen“ |
 | **Einstellungen** | Name des Rechners (für mDNS und die Uhr), Port, TLS-Zertifikat, erlaubte Netze, Passwort ändern |
 
 ## 3. Installieren

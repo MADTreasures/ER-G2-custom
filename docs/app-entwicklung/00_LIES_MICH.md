@@ -64,7 +64,7 @@ Rechenknecht (Akku).
 | Protokoll `g2-remote@1`, Rechner-Host `g2-host`, Rechner-Apps | **zu bauen** (M2) | [04](04_Rechner-Apps_und_Protokoll.md) |
 | App-Verwaltung (Web) | **zu bauen** (M3) | [06](06_App-Verwaltung.md) |
 | EvenHub-Adapter | **zu bauen** (M4) | [05](05_EvenHub-Apps.md) |
-| Mikrofon, IMU, Kompass zu den Apps | **zu bauen** (M5) | [07](07_Umsetzungsplan.md) |
+| Mikrofon, IMU, Kompass, Standort zu den Apps | **zu bauen** (M5) | [07](07_Umsetzungsplan.md) |
 
 Die Reihenfolge und die Abnahmekriterien stehen im [Umsetzungsplan](07_Umsetzungsplan.md), fertige
 Aufträge für neue Chats in [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md).

@@ -13,7 +13,7 @@ package ch.madtreasures.g2watch.apps.builtin.stopwatch
 
 import ch.madtreasures.g2watch.apps.*
 
-/** Start/stop stopwatch; shows tenths only while visible to keep the link quiet. */
+/** Start/stop stopwatch; ticks only while visible to keep the link quiet. */
 class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : G2App {
 
     override val manifest = AppManifest(
@@ -80,14 +80,18 @@ Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`):
 val builtInApps: List<() -> G2App> = listOf(::StopwatchApp, ::ShoppingListApp)
 ```
 
-Seiten aus dem Baukasten statt aus Code: `ui.json` nach `app/src/main/assets/apps/<app-id>/ui.json`
-legen und mit `ui.definePages(BaukastenProject.fromAsset(context, "apps/<app-id>/ui.json"))` laden.
+Seiten aus dem Baukasten statt aus Code: den Export nach `app/src/main/assets/apps/<app-id>/ui.json`
+legen und im Manifest `ui = "apps/<app-id>/ui.json"` setzen. Der Host lädt die Datei vor `Start`; die App
+ruft dann nur noch `show(...)` oder `patch(...)` auf.
 
 ## 2. Die Schnittstelle
 
-Paket `ch.madtreasures.g2watch.apps`. Die Typen entsprechen 1 : 1 den JSON-Formen in
-[02 §4 und §6](02_App-Modell.md#4-oberfläche-seiten-und-bausteine) (kotlinx.serialization,
-`@SerialName` = JSON-Namen).
+Alle Typen, die eine App braucht, liegen direkt im Paket `ch.madtreasures.g2watch.apps`
+(`G2App`, `AppContext`, `AppManifest`, `AppEvent`, `Page`, `Block`, `PatchBuilder`, …). Die
+Unterpakete `host/`, `render/`, `launcher/` sind intern. Die Typen entsprechen den JSON-Formen in
+[02 §4 und §6](02_App-Modell.md#4-oberfläche-seiten-und-bausteine). Für JSON gibt es eigene Serializer
+(kotlinx.serialization, `JsonContentPolymorphicSerializer`, der nach `kind` und bei Sensoren nach `sensor`
+unterscheidet), weil mehrere Kotlin-Klassen auf `kind: "sensor"` abgebildet werden.
 
 ```kotlin
 interface G2App {
@@ -102,6 +106,7 @@ data class AppManifest(
     val version: String,
     val input: InputMode = InputMode.POINTER,
     val permissions: Set<Permission> = emptySet(),
+    val ui: String? = null,                                // asset path of a Baukasten export
     val description: String = "",
 )
 
@@ -114,14 +119,15 @@ interface AppContext {
     fun setBlocks(pageId: String, blocks: List<Block>)
     fun toast(text: String, ms: Int = 2000)
     fun vibrate(pattern: Vibration = Vibration.TICK)
-    fun buzz(notes: List<Pair<Int, Int>>)                  // needs Permission.BUZZER
+    fun menu(items: List<MenuItem>)                        // MenuItem(id, text); own entries in the app menu, ≤ 10
+    fun buzz(notes: List<BuzzNote>)                        // BuzzNote(freqHz, dutyPercent, ms), ≤ 48; Permission.BUZZER
     fun timer(tag: String, ms: Long, repeat: Boolean = false)
     fun cancelTimer(tag: String)
-    fun subscribe(sensor: Sensor, hz: Int = 10)            // needs the sensor's permission
+    fun subscribe(sensor: Sensor, rate: Int = 0)           // needs the sensor's permission; 0 = default rate
     fun unsubscribe(sensor: Sensor)
     fun audio(on: Boolean)                                 // needs Permission.MIC
     fun fetch(request: HttpRequest, onResult: (HttpResult) -> Unit)  // needs Permission.NETWORK
-    val storage: AppStorage                                // JSON values, ≤ 256 KiB per app
+    val storage: AppStorage                                // get(key): JsonElement?, set(key, JsonElement); ≤ 256 KiB per app
     fun log(message: String)                               // goes to Settings → Protokoll
     fun close()
 }
@@ -136,14 +142,18 @@ sealed interface AppEvent {
     data class Check(val page: String, val block: String, val index: Int, val done: Boolean) : AppEvent
     data class Navigate(val from: String, val to: String, val block: String) : AppEvent
     data class Back(val page: String) : AppEvent
+    data class Menu(val item: String) : AppEvent
     data class Gesture(val gesture: GestureKind, val source: InputSource) : AppEvent
     data class Timer(val tag: String) : AppEvent
-    data class Imu(val x: Float, val y: Float, val z: Float, val t: Long) : AppEvent
-    data class Compass(val heading: Float, val t: Long) : AppEvent
-    data class Light(val lux: Int, val t: Long) : AppEvent
-    class Audio(val pcm: ShortArray, val seq: Int) : AppEvent   // 16 kHz mono
+    data class Imu(val x: Float, val y: Float, val z: Float, val t: Long) : AppEvent        // kind "sensor", sensor "imu"
+    data class Compass(val heading: Float, val t: Long) : AppEvent                         // kind "sensor", sensor "compass"
+    data class Location(val lat: Double, val lon: Double, val acc: Float, val t: Long) : AppEvent
+    class Audio(val pcm: ShortArray, val seq: Int) : AppEvent                              // 16 kHz mono, 50 ms
 }
 ```
+
+Ungültige Befehle (unbekannte Seite oder Kennung, fehlende Berechtigung, falsche Werte) führt der Host
+nicht aus und schreibt sie ins Protokoll; `FakeAppContext` wirft in Tests eine `IllegalArgumentException`.
 
 `fetch`: läuft auf einem Hintergrund-Thread, Ergebnis kommt auf dem App-Thread zurück. Grenzen:
 10 s Zeitlimit, 1 MB Antwort, nur `https://`. Über LTE geht das auch ohne Handy.
@@ -156,7 +166,7 @@ sealed interface AppEvent {
   Bluetooth oder den Firmware-Pfad. Alles geht über `AppContext`.
 - Speicher: keine großen Bitmaps halten; Bilder als `image`-Baustein (PNG) übergeben.
 - Verdeckt (`Hidden`) laufen nur Timer weiter, und nur mit `Permission.BACKGROUND`; ohne sie hält
-  der Host die Timer an.
+  der Host die Timer an und setzt sie bei `Visible` fort.
 - Jede App hat Unit-Tests mit `FakeAppContext` (§7).
 
 ## 4. Was eine Uhr-App nicht kann
@@ -171,7 +181,8 @@ sealed interface AppEvent {
 
 ```
 Touchpad / Bügel / Ring ──▶ InputRouter ──▶ AppHost (Thread „G2Watch-apps“) ──▶ G2App.onEvent
-                                              │  Sitzungen, Verlauf, Fokus, Timer, Berechtigungen
+                                              │  Sitzungen, Verlauf, Fokus, Timer, Berechtigungen,
+                                              │  Starter, App-Menü
                                               ▼  (neuester Stand)
                                          PageRenderer ──▶ GrayRaster (App-Fläche)
                                               ▼
@@ -182,14 +193,15 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 
 | Datei | Aufgabe |
 |---|---|
-| `model/Page.kt`, `model/Block.kt`, `model/BaukastenProject.kt` | Seitenmodell, JSON (kotlinx.serialization), `normalize` wie im Baukasten |
-| `model/AppEvent.kt`, `model/AppCommand.kt` | Ereignisse und Befehle, JSON-Codec (auch für das Protokoll in M2) |
+| `Page.kt`, `Block.kt`, `BaukastenProject.kt` | Seitenmodell, JSON, `normalize` wie im Baukasten (Stand nach M0: projektweit eindeutige Kennungen, `@back` bleibt erhalten) |
+| `AppEvent.kt`, `AppCommand.kt`, `AppJson.kt` | Ereignisse und Befehle, JSON-Codec (auch für das Protokoll in M2) |
 | `G2App.kt`, `AppContext.kt`, `AppManifest.kt` | die Schnittstelle aus §2 |
-| `host/AppHost.kt` | Sitzungen starten/stoppen, Verlauf (Zurück), Fokus, Timer, Zeitmessung (50/500 ms), Berechtigungsabfrage |
-| `host/AppThread.kt` | ein Thread für alle Apps (`Scheduler`-Schnittstelle wie in `ThreadScheduler`) |
+| `host/AppHost.kt` | Sitzungen starten/stoppen, `start` + `visible`, Verlauf (Zurück), Fokus, Timer, Zeitmessung (50/500 ms), Berechtigungsabfrage, App-Menü |
+| `host/AppThread.kt` | ein Thread für alle Apps (`Scheduler`-Schnittstelle wie `ThreadScheduler`) |
+| `host/InputRouter.kt` | Gesten von Uhr und Brille nach §5.1 in Zeiger, Fokus oder `gesture`-Ereignisse |
 | `render/PageRenderer.kt` | Seite + Zustand (Fokus, Scroll, Zeiger) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine) |
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
-| `launcher/LauncherApp.kt` | die Seite „Apps“: Liste der eingebauten und der Rechner-Apps, selbst eine `G2App` |
+| `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps und – ab M2 – Rechner-Apps, laufende markiert |
 | `AppRegistry.kt` | eingebaute Apps (§1) |
 | `builtin/…` | Beispiel-Apps: Stoppuhr, Einkaufsliste |
 
@@ -197,19 +209,55 @@ Einbau in den bestehenden Desktop (`desktop/`):
 - Neue Kachel **„Apps“** (`AppId.APPS`) öffnet den Starter. Die Kachelreihe hat 6 Plätze (3 × 2):
   „Zeiger“ und „Info“ wandern in die Einstellungen der Uhr oder in den Starter, damit „Apps“ Platz hat.
 - Solange eine App offen ist, zeichnet `DesktopRenderer` die Kopfzeile (mit „‹“ und App-Name) und
-  übernimmt für die App-Fläche das Raster aus `PageRenderer`. Der Zeiger bleibt im Modus `pointer` die
-  eigene Fläche „pointer“, im Modus `gestures` wird er ausgeblendet (`setSurfaceVisible`).
+  übernimmt für die App-Fläche das Raster aus `PageRenderer`.
+- Zeiger: im Modus `pointer` bleibt er die eigene Fläche „pointer“, im Modus `gestures` wird er
+  ausgeblendet. `setSurfaceVisible` gibt es bisher nur an `GlassesSessionCore`; die Schnittstelle
+  `GlassesDisplay` (mit `CoreDisplay` und den Test-Fakes) bekommt dafür eine neue Methode.
 - `TouchpadScreen` bekommt einen Gesten-Modus (Wischen in 4 Richtungen, Tippen, Doppeltippen, langes
   Drücken), den der AppHost ein- und ausschaltet.
-- `GlassesConnection.onRingEvent` leitet alle Gesten an den `InputRouter` weiter (heute nur Klick und
-  Doppelklick an den Desktop).
 
-## 6. Sensoren und Mikrofon (M5)
+### 5.1 Gesten der Brille
 
-`GlassesSessionCore` hat alles Nötige: `setImuReportEnabled` + `addImuListener`, `setCompassEnabled` +
-`addCompassListener`, `setAmbientLightPolling` + Listener, `startG2AudioCapture` (16 kHz PCM),
-`playBuzzerSequence`. Der AppHost schaltet sie nur ein, solange eine sichtbare App sie abonniert hat,
-und schaltet sie beim Verdecken oder Beenden wieder aus (Akku).
+`GlassesConnection.onRingEvent(kind, eventType, source)` bekommt heute alle Eingaben, lässt aber alles
+außer `kind == "sys-event"` fallen. Der `InputRouter` übernimmt stattdessen diese Tabelle (nach
+wissen/03 §2.11.2, der Übersetzung in Faceclaw):
+
+| `kind` | Code | Geste | `source` |
+|---|---|---|---|
+| `sys-event` | 0 | `click` | 1 → `right`, 2 → `ring`, 3 → `left` |
+| `sys-event` | 3 | `doubleClick` | wie oben |
+| `sys-event` | 1 / 2 | `scrollUp` / `scrollDown` | nur wenn angegeben, sonst `unknown` |
+| `sys-event` | 9 / 10 | `longPress` / `longPressRelease` | wie oben |
+| `sys-event` | 11 | `shortThenLongPress` (→ App-Menü) | wie oben |
+| `sys-event` | 14 | `press` (Berührung beginnt) | Quelle 0 oder 2 → `ring`, sonst `unknown` |
+| `text-click` | 1 / 2 | `scrollUp` / `scrollDown` | `unknown` (Wischen am Bügel kommt ohne Quelle) |
+| `display-wake` | 12 | `headUp` | – |
+
+Ring-Ereignisse kommen doppelt vor (über die Brille und direkt). Faceclaw entfernt Doppelte in einem
+Fenster von 100 Ticks (wissen/03 §2.11.3); der `InputRouter` macht es ebenso. Kopf-Heben meldet die
+Firmware nur, solange eine Faceclaw-Seite angezeigt wird.
+
+## 6. Sensoren, Mikrofon, Summer (M5)
+
+Alles liegt in `GlassesSessionCore`. Der AppHost schaltet es nur ein, solange eine sichtbare App es
+abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).
+
+- **IMU:** `setImuReportEnabled(true, pace)` + `addImuListener`; `pace` ist ein Firmware-Code 100–1000.
+- **Kompass:** `setCompassEnabled(owner, true)` + `addCompassListener`.
+- **Mikrofon:** `startG2AudioCapture(listener)` liefert **LC3-Pakete** zu 205 Byte (5 × 40 Byte LC3 + Zähler),
+  vom linken Glas, mit möglichen Doppeln vom rechten → nach Zähler aussortieren. Es gelingt nur, wenn die
+  Sitzung bereit ist (`fixedLayoutCreated`), und endet still bei Pause, Laden oder Neuverbindung; der
+  AppHost startet es danach neu, solange die App `audio(true)` hat.
+  - Für **Rechner-Apps** gehen die Pakete unverändert über das Protokoll; der Rechner entschlüsselt.
+  - Für **Uhr-Apps** entschlüsselt die Uhr mit liblc3 (Apache-2.0) über JNI zu 16-kHz-PCM, wie Faceclaw
+    (`libfaceclaw_lc3.so`, wissen/03 §7.4).
+- **Summer:** `playBuzzerSequence(bytes)` mit `[5][4][n]` und je Schritt `[freqLo, freqHi, duty, msLo, msHi]`,
+  höchstens 48 Schritte.
+- **Umgebungslicht:** Auf der Faceclaw-Firmware gehört der Lichtsensor der Helligkeitsregelung
+  (`setAmbientLightPolling` wirkt dort nicht). Erst anbieten, wenn geklärt ist, wie Werte ohne Eingriff in
+  die Regelung lesbar sind; bis dahin kein `light`.
+- **Standort:** GPS der Uhr (`FusedLocationProviderClient` oder `LocationManager`), nur mit
+  Berechtigung `location` und der Android-Standortberechtigung.
 
 ## 7. Tests
 
@@ -220,10 +268,12 @@ und schaltet sie beim Verdecken oder Beenden wieder aus (Akku).
   app.onEvent(AppEvent.Click("p_main", "startstop"), ui)
   assertEquals("Stopp", ui.page("p_main").textOf("startstop"))
   ```
-- `PageRendererSnapshotTest`: jede Bausteinart, lange Seiten mit Scroll, Fokus, Zeiger; Bilder nach
-  `docs/bilder/apps-*.png` mit `-PsnapshotDir` (wie `WatchSnapshotTest`).
-- `AppHostTest` mit `FakeScheduler`: Zurück auf der ersten Seite schließt, 500-ms-Grenze beendet,
-  Timer stoppen im Hintergrund ohne `BACKGROUND`, Berechtigung verweigert → Fehler statt Stille.
+- `PageRendererSnapshotTest`: jede Bausteinart, lange Seiten mit Scroll, Fokus, Zeiger, randloses Bild;
+  Bilder nach `docs/bilder/apps-*.png` mit `-PsnapshotDir` (wie `WatchSnapshotTest`).
+- `AppHostTest` mit `FakeScheduler`: `start` gefolgt von `visible`, Zurück auf der ersten Seite schließt,
+  500-ms-Grenze beendet, Timer ruhen im Hintergrund ohne `BACKGROUND`, Berechtigung verweigert → Fehler statt
+  Stille, App-Menü „Apps“ verdeckt die App und der Starter holt sie zurück.
+- `InputRouterTest`: jede Zeile der Tabelle §5.1, doppelte Ring-Ereignisse.
 - `FlashingBoundaryTest` bleibt grün: Apps berühren den Firmware-Pfad nicht.
 
 ## 8. Warum Kotlin auf der Uhr und kein Skript-Interpreter?

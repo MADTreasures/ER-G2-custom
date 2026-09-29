@@ -36,15 +36,15 @@ Die 16 Methoden (`EvenAppMethod` in `dist/index.d.ts`, gleich in 0.0.14 und 0.0.
 
 Ereignisse an die App: `evenAppLaunchSource`, `deviceStatusChanged`, `evenHubEvent` (Typen `sysEvent`,
 `listEvent`, `textEvent`, `audioEvent`, `menuItemClickEvent`), `appLocationChanged`. Ereigniscodes:
-Klick 0, Scroll oben 1, Scroll unten 2, Doppelklick 3, Vordergrund an 4 / aus 5, System-Ende 7, IMU 8,
-Langdruck 9, Langdruck los 10. Quelle: rechter Bügel 1, Ring 2, linker Bügel 3.
+Klick 0, Scroll oben 1, Scroll unten 2, Doppelklick 3, Vordergrund an 4 / aus 5, unerwartetes Ende 6,
+System-Ende 7, IMU 8, Langdruck 9, Langdruck los 10. Quelle: rechter Bügel 1, Ring 2, linker Bügel 3.
 
 ## 2. Funktioniert Faceclaws Emulator noch?
 
 **Ja, auf dem Handy.** Faceclaw (Android) führt Even-Hub-Apps aus. Der Teil wird laufend gepflegt: 47
-Commits zwischen 11.08. und 27.09.2026, zuletzt „Absturz bei großen Apps behoben“ und
-„EvenHub-Oberfläche auf dem Handy“. Die README nennt ihn „weitgehend kompatibel“. Unter iOS ist er nur
-teilweise nutzbar (Entwickler-Beta, Mikrofon und IMU fehlen).
+Commits zwischen 11.08. und 27.09.2026. Einige Verbesserungen sind erst im Quelltext und kommen mit 0.8.1,
+etwa „Absturz bei großen Apps behoben“ und ein Knopf für die Handy-Oberfläche einer App. Die README nennt
+ihn „weitgehend kompatibel“. Unter iOS ist er nur teilweise nutzbar (Entwickler-Beta, Mikrofon und IMU fehlen).
 
 So arbeitet er: Die App läuft in einem Android-WebView auf dem Handy. Faceclaw zeichnet ihre Container
 selbst in ein 576×288-Bild und schickt es über seine eigene Anzeige an die Brille. Die Original-Firmware
@@ -85,6 +85,9 @@ g2-host                                                                 Uhr
   (`~/.g2-host/data/<package_id>/browser/`). Die Hintergrund-Drosselung wird abgeschaltet
   (`--disable-background-timer-throttling`, `--disable-renderer-backgrounding`), damit Timer auch bei
   „unsichtbarer“ Seite laufen.
+- Die Seite der Sitzung auf der Uhr: eine Vollbild-Seite `{ "id": "p_evenhub", "statusBar": false,
+  "blocks": [ { "id": "leinwand", "type": "image", "src": null, "w": 576, "h": 288, "bleed": true } ] }`.
+  Alles Weitere kommt als `frame` für `leinwand`.
 - Das Brücken-Skript kommt vor jedem anderen Skript über `context.addInitScript`. Es definiert
   `window.flutter_inappwebview.callHandler` und leitet an eine Funktion weiter, die mit
   `page.exposeBinding` an den Host gebunden ist. Ereignisse gehen mit `page.evaluate` an
@@ -99,13 +102,13 @@ g2-host                                                                 Uhr
 | `createStartUpPageContainer` | Seite anlegen, Ergebnis `0`; ein zweiter Aufruf liefert `1` (wie das Original); danach Ereignis „Vordergrund an“ |
 | `rebuildPageContainer` | ganze Seite ersetzen, `true` |
 | `textContainerUpgrade` | Text eines Containers ändern (nach `containerID`), Original-Verhalten „ab Position schreiben und abschneiden“ |
-| `updateImageRawData` | PNG, BMP (1/4/8/24/32 Bit) oder rohe 4/8-Bit-Pixel in Containergröße; Ergebnis 0 = ok, 1 = Format, 3 = Größe |
+| `updateImageRawData` | PNG, BMP (1/4/8/24/32 Bit) oder rohe 4/8-Bit-Pixel in Containergröße; Ergebnis als Zahl wie beim Original (0 = `success`, 1 = `imageException`, 2 = `imageSizeInvalid`, 3 = `sendFailed`; das SDK macht daraus seinen Enum) |
 | `shutDownPageContainer` | `exitMode 1` → Rückfrage auf der Brille „Beenden?“, sonst Ende nach 200 ms |
 | `setLocalStorage` / `getLocalStorage` | Speicher der App im Host (`data/<id>/store.json`) |
 | `getUserInfo` | feste Werte (`name: "G2 Watch"`) |
 | `getGlassesInfo`, Ereignis `deviceStatusChanged` | Modell `g2`; **echter** Akkustand und „getragen“ von der Uhr, sobald die Uhr sie meldet |
-| `audioControl` | nur mit Mikrofon-Berechtigung: `cmd audio` an die Uhr, PCM kommt als `audioEvent` zurück |
-| `imuControl` | `cmd subscribe imu`; Werte als `sysEvent` Typ 8 mit `imuData` |
+| `audioControl` | ab M5; nur mit Mikrofon-Berechtigung: `cmd audio` an die Uhr, LC3 vom Uhr-Client im Host entschlüsseln, als `audioEvent` mit `audioPcm` = Zahlen-Array der PCM-Bytes (s16le) wie bei Faceclaw (SDK-Typ `Uint8Array`); bis M5 Ergebnis `false` |
+| `imuControl` | ab M5: `cmd subscribe imu` (Takt 100–1000 wie beim Original); Werte als `sysEvent` Typ 8 mit `imuData`; bis M5 `false` |
 | `getAppLocation`, `start/stopAppLocationUpdates` | später vom GPS der Uhr (Berechtigung `location`); bis dahin `null` |
 | `pickImageFromAlbum`, `captureImageFromCamera` | nicht möglich, `null` |
 
@@ -131,7 +134,8 @@ Die Sitzung läuft mit `input: "gestures"` ([02 §7](02_App-Modell.md#7-eingabe-
 | `doubleClick` | `sysEvent` Doppelklick (die App entscheidet, meist „Beenden?“) |
 | `scrollUp` / `scrollDown` | In einer Liste bewegt der Adapter die Auswahl selbst und zeichnet neu; am Rand bzw. ohne Liste `sysEvent` Scroll oben/unten |
 | `longPress` / `longPressRelease` | Codes 9 / 10 |
-| Uhr: Wischen nach rechts | Systemmenü des Adapters: „App beenden“ (sendet `sysEvent` System-Ende 7, dann Schluss) |
+| `shortThenLongPress` (Tippen-dann-Halten) | öffnet das App-Menü der Uhr ([02 §5](02_App-Modell.md#5-navigation-und-app-menü)). Der Adapter hält es mit `cmd menu` aktuell (die `menuObject`-Einträge der App-Seite); ein gewählter Eintrag kommt als Ereignis `menu` zurück und geht als `menuItemClickEvent` an die App |
+| Zurück (Uhr: Wischen nach rechts, oder „Zurück“/„Schließen“ im App-Menü) | Die EvenHub-App hat aus Sicht der Uhr nur eine Seite, Zurück schließt sie also: `sysEvent` System-Ende 7, 200 ms später Ende der Sitzung |
 
 Quelle: `right` → 1, `ring` und `watch` → 2, `left` → 3.
 
@@ -139,6 +143,7 @@ Quelle: `right` → 1, `ring` und `watch` → 2, `left` → 3.
 
 - Eine eigene kleine Test-App im Repo (`host/test/evenhub-fixture/`, mit dem offiziellen SDK gebaut), die
   jede Methode aufruft und jedes Ereignis anzeigt. Der Test prüft die Antworten und die gezeichneten Bilder.
+  Mikrofon und IMU prüft erst M5; in M4 müssen `audioControl`/`imuControl` `false` liefern.
 - Die Vorlage aus `evenhub init` (offizielle CLI) muss im Adapter starten und auf Klicks reagieren.
 - Zum Abgleich der Darstellung kann der offizielle Simulator `@evenrealities/evenhub-simulator` dienen.
   Er ist laut Even kein Hardware-Emulator.
@@ -155,7 +160,7 @@ Quelle: `right` → 1, `ring` und `watch` → 2, `left` → 3.
 | Quelle | Weg im Adapter |
 |---|---|
 | **Eigene Apps** mit dem offiziellen SDK und der CLI (`evenhub init`, `vite build`) | Ordner mit `app.json` + `dist/` in der App-Verwaltung installieren |
-| **Quelloffene Even-Hub-Apps** (z. B. auf GitHub, Lizenz beachten) | Git-Adresse angeben: der Host klont, baut (`npm ci && npm run build`) und installiert |
+| **Quelloffene Even-Hub-Apps** (z. B. auf GitHub, Lizenz beachten) | Git-Adresse angeben: der Host klont, installiert Pakete ohne Skripte, baut nach Bestätigung und installiert ([06 §3](06_App-Verwaltung.md#3-installieren)) |
 | **`.ehpk`-Dateien, die du rechtmäßig hast** (z. B. eigene Builds aus `evenhub pack`) | Datei hochladen; der Host entpackt sie (Format §1) |
 | **Entwicklungs-Server** (`vite dev`) | Adresse angeben, App läuft direkt von dort (wie Faceclaws „Load app from URL“) |
 

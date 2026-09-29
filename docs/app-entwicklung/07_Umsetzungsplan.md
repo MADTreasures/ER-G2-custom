@@ -23,7 +23,10 @@ Kennungen verlassen.
 - Feld „Kennung“ für Seiten und Bausteine (`[A-Za-z0-9_.-]{1,40}`, eindeutig, Vorschlag aus dem Text);
   Knöpfe verweisen weiter über die Kennung.
 - Neuer Baustein „Bild“ (`image`): PNG wählen, in Graustufen umrechnen, auf 544 × 260 begrenzen, ≤ 64 KiB.
-- Knopf-Ziel „Zurück“ (`@back`).
+- Knopf-Ziel „Zurück“ (`@back`); `normalize` lässt `@back` stehen (heute setzt es jedes Ziel, das keine
+  Seite ist, auf `null`).
+- Kennungen bleiben projektweit eindeutig (Seiten und Bausteine), wie es `normalize` heute schon erzwingt;
+  der Baukasten zeigt Doppelte an, statt sie still umzubenennen.
 - Format bleibt `g2-baukasten@1` (nur Ergänzungen); alte Projekte importieren weiter.
 - Artifact unter derselben Adresse neu veröffentlichen, `designer/README.md` und `designs/beispiel.json` anpassen.
 
@@ -35,7 +38,7 @@ Kennungen doppelt → Hinweis statt Absturz.
 **Ziel:** Auf der Brille gibt es „Apps“, darin Stoppuhr und Einkaufsliste, bedienbar mit Zeiger und Bügel.
 
 - Alles aus [03 §5](03_Uhr-Apps.md#5-plattform-der-app-host-zu-bauen-in-m1): Modell + JSON, `AppHost`,
-  `PageRenderer`, `LauncherApp`, `AppRegistry`, Gesten-Modus im `TouchpadScreen`, Weiterleitung aller
+  `PageRenderer`, Starter (`launcher/Launcher.kt`), `InputRouter` nach 03 §5.1, `AppRegistry`, Gesten-Modus im `TouchpadScreen`, Weiterleitung aller
   Bügel-/Ring-Gesten.
 - kotlinx.serialization im Modul `app` (Plugin und Bibliothek stehen schon im Versionskatalog).
 - Beispiel-Apps `StopwatchApp` und `ShoppingListApp` (Seiten als Asset aus dem Baukasten).
@@ -53,8 +56,10 @@ README-Abschnitt „Apps“.
 - `host/`: Node ≥ 22, TypeScript, `ws`, `zod`, `bonjour-service`; Sitzungen in `worker_threads`;
   Kopplung mit Code und Token-Hash; Resume; Beispiel-Apps `echo`, `pc-status`, `notizen`; SDK-Modul
   `g2-host/sdk` mit `defineApp` und den Typen.
-- Uhr: `RemoteHostClient` (OkHttp-WebSocket), Suche per `NsdManager` (mDNS), Seite „Rechner“ in den
-  Einstellungen (suchen, Adresse eingeben, Code eingeben, Token speichern, trennen), Rechner-Apps im Starter.
+- Uhr: `RemoteHostClient` (OkHttp-WebSocket, neu im Versionskatalog), Netz anfordern und binden,
+  `ACCESS_LOCAL_NETWORK`, Network-Security-Config für `ws://` zu privaten Adressen ([01 §4](01_Plattform_und_Grenzen.md#4-netz-zwischen-uhr-und-rechner)),
+  Suche per `NsdManager` (mDNS), Seite „Rechner“ in den Einstellungen (suchen, Adresse eingeben, Code
+  eingeben, Token speichern, trennen), Rechner-Apps im Starter, `status`-Meldungen.
 - CI: eigener Job für `host/` (`npm ci`, `tsc --noEmit`, Tests).
 
 **Abnahme:** Integrationstest simulierte Uhr ↔ Host mit `echo`; Kotlin-Client-Tests gegen die Vektoren und
@@ -76,16 +81,20 @@ README-Abschnitt „Apps“.
   Installationswege aus [05 §5](05_EvenHub-Apps.md#5-woher-apps-kommen-dürfen).
 - Kein Zugriff auf Evens Store-Server.
 
-**Abnahme:** Test-App deckt alle 16 Methoden und alle Ereignisarten ab; Bildvergleich des Zeichners mit
-Referenzbildern; Blockieren nicht freigegebener Netz-Hosts getestet.
+**Abnahme:** Test-App deckt alle Methoden außer Mikrofon/IMU (die liefern bis M5 `false`) und alle
+Ereignisarten außer `audioEvent` und IMU ab; Bildvergleich des Zeichners mit Referenzbildern; Blockieren
+nicht freigegebener Netz-Hosts getestet; Menüeinträge über `cmd menu` und `menuItemClickEvent`.
 
 ## M5 – Sensoren, Mikrofon, Summer
 
 **Ziel:** Apps hören zu und spüren Bewegung.
 
-- Uhr: IMU, Kompass, Umgebungslicht, Mikrofon (16 kHz PCM), Summer aus `GlassesSessionCore` an den
-  AppHost anschließen; nur aktiv, solange eine sichtbare App sie abonniert hat ([03 §6](03_Uhr-Apps.md#6-sensoren-und-mikrofon-m5)).
-- Protokoll: Audio-Binärrahmen, `subscribe`/`audio` weiterreichen.
+- Uhr: IMU, Kompass, Mikrofon (LC3), Summer aus `GlassesSessionCore` und den Standort der Uhr an den
+  AppHost anschließen; nur aktiv, solange eine sichtbare App sie abonniert hat ([03 §6](03_Uhr-Apps.md#6-sensoren-mikrofon-summer-m5)).
+  Umgebungslicht erst, wenn geklärt ist, wie es ohne Eingriff in die Helligkeitsregelung geht.
+- Protokoll: Audio-Binärrahmen (LC3 von der Uhr), LC3-Entschlüsselung im Host, `subscribe`/`audio`
+  weiterreichen; im EvenHub-Adapter `audioControl` und `imuControl` freischalten.
+- Uhr-Apps: liblc3 per JNI (wie Faceclaw) für `AppEvent.Audio`.
 - Beispiel-Rechner-App **„Diktat“**: Mikrofon → Spracherkennung auf dem PC (lokal, z. B. whisper.cpp,
   oder ein Cloud-Dienst mit eigenem Schlüssel) → Text auf der Brille, als Notiz speichern.
 - Beispiel-Uhr-App **„Kompass“**.
