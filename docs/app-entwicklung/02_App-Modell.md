@@ -16,7 +16,8 @@ und TypeScript-Typen werden daraus abgeleitet, nicht umgekehrt.
 | **Ereignis** | Etwas, das der App passiert: Klick, Schalter umgelegt, Geste, Timer, Sensorwert … |
 | **Befehl** | Etwas, das die App tut: Seite zeigen, Werte ändern, Hinweis zeigen, vibrieren … |
 | **App-Host** | Der Teil der Uhr-App, der Seiten zeichnet, Eingaben verteilt und Sitzungen verwaltet. |
-| **Rechner-Host** | `g2-host` auf einem Rechner: führt Rechner-Apps und EvenHub-Apps aus. |
+| **Rechner-Host** | `g2-host` auf einem Rechner: führt Rechner-Apps aus. |
+| **EvenHub-Laufzeit** | Teil der Uhr-App, der Even-Hub-Apps ausführt (Engine auf der Uhr oder auf dem Handy, [05](05_EvenHub-Apps.md)). |
 | **Starter** | Die Seite „Apps“ auf der Brille, vom App-Host selbst gezeichnet: alle Apps, laufende markiert. |
 | **App-Menü** | Ein vom App-Host gezeichnetes Menü über jeder App: eigene Einträge der App (Befehl `menu`), dann „Apps“ (App bleibt im Hintergrund), „Zurück“, „Schließen“. |
 
@@ -46,7 +47,7 @@ als Datei im App-Ordner.
 | `id` | ja | eindeutig, kleingeschrieben, umgekehrte Domain: `[a-z][a-z0-9_]*(\.[a-z0-9_]+)+`, ≤ 64 Zeichen |
 | `name` | ja | Anzeigename, ≤ 20 Zeichen (passt in Kopfzeile und Liste) |
 | `version` | ja | `x.y.z` |
-| `runtime` | ja | `"watch"` (Uhr-App), `"remote"` (Rechner-App), `"evenhub"` (Even-Hub-App über den Adapter) |
+| `runtime` | ja | `"watch"` (Uhr-App), `"remote"` (Rechner-App); Even-Hub-Apps haben ihr eigenes `app.json` und brauchen kein `g2app.json` ([05](05_EvenHub-Apps.md)) |
 | `entry` | bei `remote` | Einstiegsdatei (TypeScript/JavaScript-Modul) |
 | `ui` | nein | Pfad zu einem Baukasten-Export (`g2-baukasten@1`). Der Host lädt ihn **vor** `start`; die Seiten sind dann schon bekannt. |
 | `input` | nein | `"pointer"` (Standard: Maus-Zeiger + Fokus) oder `"gestures"` (rohe Gesten, z. B. für Spiele und EvenHub-Apps), siehe §7 |
@@ -129,7 +130,7 @@ umzustellen ist Meilenstein M0 ([07](07_Umsetzungsplan.md)).
 - PNG in Graustufen (8 oder 4 Bit) oder mit Farbe (wird in Helligkeit umgerechnet).
 - Größe: normal `w` ≤ 544, `h` ≤ 260 (innerhalb der Seitenränder). Mit `bleed: true` auf einer
   Vollbild-Seite (`statusBar: false`) bis 576 × 288 ohne Ränder – so zeigen Karten, Diagramme und der
-  EvenHub-Adapter ganze Bilder.
+  die EvenHub-Laufzeit ganze Bilder.
 - Große Bilder kosten Übertragungszeit ([01 §1](01_Plattform_und_Grenzen.md#übertragung-uhr--brille-bluetooth-le));
   wo es geht, Bausteine bevorzugen.
 

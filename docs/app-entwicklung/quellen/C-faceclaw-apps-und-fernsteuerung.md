@@ -199,7 +199,7 @@ starts (`:95-112`).
   running instance. `normalizeAppUrl` accepts bare `example.com/app` as https (`:177-183`).
 - Entries in Developer app: `developer-app.ts:104-124`. Other loaders: Files app opens `.ehpk`
   (`app/apps/files/index.ts:65`), EvenHub store downloads via Even's private store server
-  (details omitted, see ../05_EvenHub-Apps.md §5).
+  (details omitted, see ../05_EvenHub-Apps.md §7).
 - So "apps" loadable at runtime = HTML/JS served over the network or packed as `.ehpk`; code runs
   in the **phone WebView**, not on the glasses. No native/TS app loading. **[V]**
 

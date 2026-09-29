@@ -50,7 +50,7 @@ EHPK ──unpack──► dist/ ──served offline──► WebView (app JS +
 ## 1. STORE (omitted in this copy)
 
 The original notes describe Faceclaw's client for Even's private store server (endpoints, login,
-request signing). This project does not rebuild that access (see `../05_EvenHub-Apps.md` §5), so
+request signing). This project does not rebuild that access (see `../05_EvenHub-Apps.md` §7), so
 those details are left out here. Kept: the package format (§1.6), which is needed to import
 .ehpk files you legitimately have.
 
@@ -388,7 +388,7 @@ covers Android+iOS only). [V for current code]
   For services that don't involve API keys, more caution may be required." [V]
 - The store client uses private storefront endpoints of the official Even app, signs requests with a key
   embedded in Faceclaw and identifies itself to the server as the official Android app; no Even terms are
-  shown at login. Details deliberately left out of this copy (see 05 §5). [V]
+  shown at login. Details deliberately left out of this copy (see 05 §7). [V]
 - Per-app privacy policies are surfaced before first run/install ("Privacy policy" action in the
   permission dialog; commit 526a236 "Display link to EvenHub apps' privacy policy on first run");
   shown in an isolated, bridge-free WebView dialog or the system PDF viewer on Android, Safari on iOS

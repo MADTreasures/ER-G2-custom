@@ -53,27 +53,34 @@ Was daraus folgt:
 Heute leitet G2 Watch nur Tippen (= Klick) und Doppeltippen (= zurück) an den Desktop weiter; alle
 anderen Eingaben verwirft `GlassesConnection.onRingEvent`. Wie die Gesten technisch ankommen (Ereignisart,
 Codes, Quelle), steht in [03 §5.1](03_Uhr-Apps.md#51-gesten-der-brille). IMU, Kompass, Mikrofon und Summer
-sind im Faceclaw-Kern vorhanden (`GlassesSessionCore`), aber noch nicht zu den Apps verdrahtet (M5).
+sind im Faceclaw-Kern vorhanden (`GlassesSessionCore`), aber noch nicht zu den Apps verdrahtet (M6).
 
 ## 2. Uhr (Pixel Watch 5, 45 mm, LTE)
 
 | Größe | Wert |
 |---|---|
 | System | Wear OS 7 = Android 17, API 37; die App hat `minSdk 33`, `targetSdk 37` |
+| Chip, Speicher | Snapdragon W5 Gen 2 (4 × Cortex-A53, 1,7 GHz), **3 GB RAM**, 64 GB |
+| Apps | Pixel Watch 3 und 4 laufen mit **32-Bit-Apps** (`armeabi-v7a`); für die Watch 5 mit `adb shell getprop ro.product.cpu.abilist` prüfen. Wichtig nur für Apps mit nativen Bibliotheken (GeckoView, liblc3); G2 Watch hat heute keine. |
 | Bildschirm | rund, 456 × 456 px, 320 ppi |
 | Netz | WLAN, LTE, Bluetooth (zur Brille; zum Handy nur, wenn gekoppelt) |
 | Eingabe für die Brille | Touchpad als Maus (Finger ziehen = Zeiger, Doppeltippen = Klick), Krone = Zeigertempo, Zahnrad halten = Einstellungen |
 | Rückmeldung | Vibration |
-| Was fehlt | **kein WebView, keine JavaScript-Engine** im System; keine Kamera |
+| Was fehlt | **kein WebView** („the android.webkit APIs aren't supported“, und nachinstallieren geht nicht) → für Web-Apps bringt G2 Watch die Engine GeckoView mit ([05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview)); keine Kamera |
 | Laufzeit | Vordergrund-Dienst (`connectedDevice`) hält die Verbindung; Akku 465 mAh – jede Rechenlast kostet Tragezeit |
 
-## 3. Rechner (PC, Server, Handy)
+## 3. Handy und Rechner
 
-Jedes Gerät, auf dem **Node.js ≥ 22** läuft: Windows, macOS, Linux, ein Raspberry Pi, ein Server.
-Ein Android-Handy geht über Termux (Node aus dem Termux-Paket) nur für Rechner-Apps; das ist ungetestet,
-und Android beendet Hintergrund-Prozesse gern. Der **EvenHub-Adapter braucht einen PC oder Server**, weil
-Playwright/Chromium unter Termux nicht läuft. Der Rechner hat nie Bluetooth zur Brille. Er spricht nur
-mit der Uhr, über WebSocket.
+**Handy (Android):** Die Begleit-App „G2 Handy“ führt Even-Hub-Apps im System-WebView aus, wenn sie auf der
+Uhr nicht laufen, und installiert Apps ([05 §6](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy)). Sie
+spricht mit der Uhr über die Wear-OS-Datenschicht (Google Play Services, Bluetooth oder WLAN): Nachrichten
+bis 100 KB, Datenströme für Größeres; grob 50–200 KB/s über Bluetooth, einige MB/s über WLAN.
+
+**Rechner für Rechner-Apps:** Jedes Gerät, auf dem **Node.js ≥ 22** läuft: Windows, macOS, Linux, ein
+Raspberry Pi, ein Server. Ein Android-Handy geht über Termux (Node aus dem Termux-Paket); das ist ungetestet,
+und Android beendet Hintergrund-Prozesse gern.
+
+Weder Handy noch Rechner haben Bluetooth zur Brille. Beide sprechen nur mit der Uhr.
 
 ## 4. Netz zwischen Uhr und Rechner
 
@@ -98,7 +105,7 @@ Rückfrage), wenn ein Knopf ein festes Ziel hat ([02 §5](02_App-Modell.md#5-nav
 
 ## 5. Grenzen der originalen Even-Hub-Plattform (nur für EvenHub-Apps)
 
-Even-Hub-Apps sind für diese Grenzen geschrieben; der Adapter bildet sie nach
+Even-Hub-Apps sind für diese Grenzen geschrieben; die EvenHub-Laufzeit der Uhr bildet sie nach
 ([05](05_EvenHub-Apps.md)):
 
 - Leinwand 576 × 288, höchstens 12 Container je Seite (≤ 4 Bild, ≤ 8 Text/Liste), genau einer nimmt Eingaben an.

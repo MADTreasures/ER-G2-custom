@@ -6,7 +6,7 @@ zurück. Die App selbst sieht davon nichts: Sie benutzt dieselben Ereignisse und
 Uhr-App ([02](02_App-Modell.md)).
 
 **Stand:** `g2-host`, die TypeScript-Schnittstelle und der Rechner-Client der Uhr existieren noch
-nicht (Meilenstein M2). §1–§2 beschreiben, was eine App-Entwicklerin schreibt, §3–§7 die Plattform.
+nicht (Meilenstein M5). §1–§2 beschreiben, was eine App-Entwicklerin schreibt, §3–§7 die Plattform.
 
 ## 1. Eine Rechner-App schreiben
 
@@ -97,9 +97,9 @@ Unterschiede zur Uhr:
 
 Weitere Sprachen: Jede App läuft in einem eigenen Worker-Thread von `g2-host`. Python oder andere
 Sprachen können später über eine Stdio-Brücke angebunden werden (eine Zeile JSON je Ereignis bzw.
-Befehl, gleiche Formen wie hier). Das ist nicht Teil von M2.
+Befehl, gleiche Formen wie hier). Das ist nicht Teil von M5.
 
-## 2. Beispiele, die M2 mitliefert
+## 2. Beispiele, die M5 mitliefert
 
 | App | Zeigt |
 |---|---|
@@ -107,8 +107,7 @@ Befehl, gleiche Formen wie hier). Das ist nicht Teil von M2.
 | `echo` | Jede Geste und jeder Klick als Text; der Test für das Protokoll |
 | `notizen` | Liste auf dem PC gespeichert, abhaken auf der Brille (wie 02 §10) |
 
-Die Beispiele unter `host/apps/` installiert der Host beim Start automatisch als „eingebaut“ (vor M3 gibt
-es noch keine App-Verwaltung).
+Die Beispiele unter `host/apps/` installiert der Host beim Start automatisch als „eingebaut“.
 
 ## 3. Der Rechner-Host `g2-host`
 
@@ -117,7 +116,7 @@ es noch keine App-Verwaltung).
 | Ort im Repo | `host/` (eigenes `package.json`, TypeScript, ES-Module) |
 | Laufzeit | Node.js ≥ 22 |
 | Start | `npm start` im Ordner `host/` |
-| Abhängigkeiten | `ws` (WebSocket), `zod` (Prüfung aller Nachrichten), `bonjour-service` (mDNS), `esbuild` (Apps bauen), `lc3` per WebAssembly oder Node-Addon aus liblc3 (Mikrofon, ab M5); `playwright` nur für den EvenHub-Adapter |
+| Abhängigkeiten | `ws` (WebSocket), `zod` (Prüfung aller Nachrichten), `bonjour-service` (mDNS), `esbuild` (Apps bauen), `lc3` per WebAssembly oder Node-Addon aus liblc3 (Mikrofon, ab M6) |
 | Apps laden | Beim Installieren und bei jeder Änderung bündelt `esbuild` den `entry` einer App zu einer Datei; `g2-host/sdk` wird dabei auf das SDK des Hosts umgeleitet (`alias`), damit Apps nichts selbst installieren müssen. Eigene npm-Pakete einer App: `package.json` im App-Ordner, `npm ci --ignore-scripts` vor dem Bündeln. |
 | Daten | `~/.g2-host/`: `config.json`, `apps/<id>/`, `data/<id>/store.json`, `logs/` |
 | Port | **8790**: HTTP (App-Verwaltung, [06](06_App-Verwaltung.md)) und WebSocket unter `/g2` |

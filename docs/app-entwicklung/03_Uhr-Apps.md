@@ -173,7 +173,8 @@ nicht aus und schreibt sie ins Protokoll; `FakeAppContext` wirft in Tests eine `
 
 - Keinen Code nachladen: Uhr-Apps sind Teil der APK. Wer Apps ohne neue APK installieren will, macht
   eine Rechner-App.
-- Kein WebView, also keine EvenHub-Apps auf der Uhr ([05](05_EvenHub-Apps.md)).
+- Keine Web-Oberfläche: Web-Apps (Even-Hub-Apps) laufen in der EvenHub-Laufzeit mit eigener Engine
+  ([05](05_EvenHub-Apps.md)), nicht als Uhr-App.
 
 ---
 
@@ -194,14 +195,14 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 | Datei | Aufgabe |
 |---|---|
 | `Page.kt`, `Block.kt`, `BaukastenProject.kt` | Seitenmodell, JSON, `normalize` wie im Baukasten (Stand nach M0: projektweit eindeutige Kennungen, `@back` bleibt erhalten) |
-| `AppEvent.kt`, `AppCommand.kt`, `AppJson.kt` | Ereignisse und Befehle, JSON-Codec (auch für das Protokoll in M2) |
+| `AppEvent.kt`, `AppCommand.kt`, `AppJson.kt` | Ereignisse und Befehle, JSON-Codec (auch für das Protokoll in M5) |
 | `G2App.kt`, `AppContext.kt`, `AppManifest.kt` | die Schnittstelle aus §2 |
 | `host/AppHost.kt` | Sitzungen starten/stoppen, `start` + `visible`, Verlauf (Zurück), Fokus, Timer, Zeitmessung (50/500 ms), Berechtigungsabfrage, App-Menü |
 | `host/AppThread.kt` | ein Thread für alle Apps (`Scheduler`-Schnittstelle wie `ThreadScheduler`) |
 | `host/InputRouter.kt` | Gesten von Uhr und Brille nach §5.1 in Zeiger, Fokus oder `gesture`-Ereignisse |
 | `render/PageRenderer.kt` | Seite + Zustand (Fokus, Scroll, Zeiger) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine) |
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
-| `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps und – ab M2 – Rechner-Apps, laufende markiert |
+| `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende markiert |
 | `AppRegistry.kt` | eingebaute Apps (§1) |
 | `builtin/…` | Beispiel-Apps: Stoppuhr, Einkaufsliste |
 
@@ -237,7 +238,7 @@ Ring-Ereignisse kommen doppelt vor (über die Brille und direkt). Faceclaw entfe
 Fenster von 100 Ticks (wissen/03 §2.11.3); der `InputRouter` macht es ebenso. Kopf-Heben meldet die
 Firmware nur, solange eine Faceclaw-Seite angezeigt wird.
 
-## 6. Sensoren, Mikrofon, Summer (M5)
+## 6. Sensoren, Mikrofon, Summer (M6)
 
 Alles liegt in `GlassesSessionCore`. Der AppHost schaltet es nur ein, solange eine sichtbare App es
 abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).

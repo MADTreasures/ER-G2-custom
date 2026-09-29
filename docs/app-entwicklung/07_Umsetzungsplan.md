@@ -1,8 +1,8 @@
 # 07 – Umsetzungsplan
 
-Sechs Meilensteine, jeder für sich lieferbar und getestet. Die Reihenfolge ist so gewählt, dass nach jedem
-Schritt etwas auf der Brille benutzbar ist. Jeder Meilenstein ist ein eigener Chat
-([08](08_Prompt_fuer_neuen_Chat.md)).
+Acht Meilensteine, jeder für sich lieferbar und getestet. Die Reihenfolge folgt dem, was dir am wichtigsten
+ist: erst eigene Apps und Even-Hub-Apps auf Uhr und Brille, dann Rechner-Apps, dann Sensoren. Jeder
+Meilenstein ist ein eigener Chat ([08](08_Prompt_fuer_neuen_Chat.md)).
 
 Für alle gilt:
 - Vor dem Start die Mappe 00–06 lesen. Bei Widersprüchen gilt dieser Plan vor 02–06, das App-Modell (02)
@@ -20,13 +20,13 @@ Kennungen verlassen.
 - Vorschau: der 640×480-Rahmen mit dem sichtbaren Streifen (y 96–383), darin Kopfzeile 28 px und
   App-Fläche 576 × 260, oder Vollbild 576 × 288 bei `statusBar: false`. Maße und Graustufen genau nach
   [02 §4.2](02_App-Modell.md#42-bausteine).
-- Feld „Kennung“ für Seiten und Bausteine (`[A-Za-z0-9_.-]{1,40}`, eindeutig, Vorschlag aus dem Text);
-  Knöpfe verweisen weiter über die Kennung.
-- Neuer Baustein „Bild“ (`image`): PNG wählen, in Graustufen umrechnen, auf 544 × 260 begrenzen, ≤ 64 KiB.
+- Feld „Kennung“ für Seiten und Bausteine (`[A-Za-z0-9_.-]{1,40}`, Vorschlag aus dem Text). Kennungen bleiben
+  projektweit eindeutig, wie es `normalize` heute schon erzwingt; der Baukasten zeigt Doppelte an, statt sie
+  still umzubenennen. Knöpfe verweisen weiter über die Kennung.
+- Neuer Baustein „Bild“ (`image`): PNG wählen, in Graustufen umrechnen, auf 544 × 260 begrenzen, ≤ 48 KiB;
+  „randlos“ auf Vollbild-Seiten bis 576 × 288.
 - Knopf-Ziel „Zurück“ (`@back`); `normalize` lässt `@back` stehen (heute setzt es jedes Ziel, das keine
   Seite ist, auf `null`).
-- Kennungen bleiben projektweit eindeutig (Seiten und Bausteine), wie es `normalize` heute schon erzwingt;
-  der Baukasten zeigt Doppelte an, statt sie still umzubenennen.
 - Format bleibt `g2-baukasten@1` (nur Ergänzungen); alte Projekte importieren weiter.
 - Artifact unter derselben Adresse neu veröffentlichen, `designer/README.md` und `designs/beispiel.json` anpassen.
 
@@ -38,73 +38,109 @@ Kennungen doppelt → Hinweis statt Absturz.
 **Ziel:** Auf der Brille gibt es „Apps“, darin Stoppuhr und Einkaufsliste, bedienbar mit Zeiger und Bügel.
 
 - Alles aus [03 §5](03_Uhr-Apps.md#5-plattform-der-app-host-zu-bauen-in-m1): Modell + JSON, `AppHost`,
-  `PageRenderer`, Starter (`launcher/Launcher.kt`), `InputRouter` nach 03 §5.1, `AppRegistry`, Gesten-Modus im `TouchpadScreen`, Weiterleitung aller
-  Bügel-/Ring-Gesten.
+  `PageRenderer`, Starter (`launcher/Launcher.kt`), App-Menü, `InputRouter` nach 03 §5.1, `AppRegistry`,
+  Gesten-Modus im `TouchpadScreen`, Weiterleitung aller Bügel-/Ring-Gesten.
 - kotlinx.serialization im Modul `app` (Plugin und Bibliothek stehen schon im Versionskatalog).
 - Beispiel-Apps `StopwatchApp` und `ShoppingListApp` (Seiten als Asset aus dem Baukasten).
 - Berechtigungsabfrage auf der Brille (Seite mit „Erlauben“/„Ablehnen“).
 
-**Abnahme:** `AppHostTest`, `PageRendererSnapshotTest` (jede Bausteinart, Scroll, Fokus, Zeiger),
-Tests der Beispiel-Apps mit `FakeAppContext`; neue Bilder `docs/bilder/apps-*.png`; `FlashingBoundaryTest` grün;
-README-Abschnitt „Apps“.
+**Abnahme:** `AppHostTest`, `InputRouterTest`, `PageRendererSnapshotTest` (jede Bausteinart, Scroll, Fokus,
+Zeiger, randloses Bild), Tests der Beispiel-Apps mit `FakeAppContext`; neue Bilder `docs/bilder/apps-*.png`;
+`FlashingBoundaryTest` grün; README-Abschnitt „Apps“.
 
-## M2 – Protokoll `g2-remote@1`, Rechner-Host, erste Rechner-Apps
+## M2 – GeckoView auf der Uhr: Machbarkeitstest
 
-**Ziel:** Eine TypeScript-App auf dem PC erscheint im Starter der Brille und reagiert auf Klicks.
+**Ziel:** Messen, ob die Browser-Engine auf der Pixel Watch 5 gut genug läuft. Das geht nur auf der echten
+Uhr; der Chat baut die Test-APK, **du** installierst sie und liest die Werte ab.
+
+- Eigene kleine Test-App (`tools/gecko-probe/` oder ein Build-Flavor), damit die normale Uhr-App nicht um
+  ≈ 65–130 MB wächst, solange nichts entschieden ist.
+- Umfang und Grenzwerte aus [05 §5.1](05_EvenHub-Apps.md#51-machbarkeitstest-m2-auf-der-echten-uhr):
+  Architektur (`abilist`), Kaltstart, Speicher, Timer bei Bildschirm an/aus, Akku, drei Test-Apps über die
+  Brücke. Die Werte erscheinen auf der Uhr und im Protokoll, zum Abschreiben oder als Datei.
+- Ergebnis als Tabelle in `quellen/` und eine Entscheidung „GeckoView ja / nur für manche Apps / nein“.
+
+**Abnahme:** APK für die richtige Architektur, Anleitung zum Installieren, Messwerte eingetragen,
+Entscheidung dokumentiert. Ohne echte Messwerte ist M2 nicht fertig.
+
+## M3 – EvenHub-Laufzeit auf der Uhr
+
+**Ziel:** Eine Even-Hub-App (eigene Test-App und die offizielle Vorlage aus `evenhub init`) läuft auf der Uhr
+und erscheint auf der Brille. (Bei „GeckoView nein“ aus M2: M3 baut nur Modul und Zeichner, die Engine kommt
+mit M4 vom Handy.)
+
+- Modul `evenhub-runtime` nach [05 §4](05_EvenHub-Apps.md#4-aufbau): Paket, `AssetServer`, `WebEngine`,
+  `EvenHubSession`, `ContainerRenderer`, `EvenHubApp`; `GeckoEngine` nach [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview).
+- Installieren direkt auf der Uhr über eine Adresse ([06 §2](06_App-Verwaltung.md#2-direkt-auf-der-uhr)).
+- Lizenzseite in den Einstellungen (MPL, LGPL-Bibliotheken, GPL-Teile).
+
+**Abnahme:** Test-App deckt alle Methoden außer Mikrofon/IMU/Standort (die liefern bis M6 `false`/`null`) und
+alle Ereignisarten außer `audioEvent` und IMU ab; Bildvergleich des Zeichners mit Referenzbildern;
+Menüeinträge über das App-Menü und `menuItemClickEvent`; ein Durchlauf auf der echten Uhr (von dir) mit
+Bildschirmfoto der Brille oder Beschreibung.
+
+## M4 – Handy-App „G2 Handy“
+
+**Ziel:** Even-Hub-Apps vom Handy installieren; Apps, die auf der Uhr nicht laufen, laufen auf dem Handy.
+
+- Modul `phone/` (Android-App, gleiche `applicationId` und Signatur wie die Uhr-App), `SystemWebViewEngine`,
+  `RemoteEngine` auf der Uhr, Nachrichten über die Datenschicht nach [05 §6](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy).
+- App-Verwaltung nach [06 §1](06_App-Verwaltung.md#1-g2-handy-android-handy).
+- CI baut beide APKs.
+
+**Abnahme:** Unit- und UI-Tests nach 06 §4; `RemoteEngine` mit Fake-Datenschicht; Handy-Engine im
+Android-Emulator mit der Test-App aus M3; Anleitung „Handy-App installieren“ im README.
+
+## M5 – Rechner-Apps: Protokoll `g2-remote@1`, `g2-host`, Web-Seite
+
+**Ziel:** Eine TypeScript-App auf dem PC erscheint im Starter der Brille und reagiert auf Klicks; Apps lassen
+sich über die Web-Seite installieren.
 
 - `protocol/vectors/`: Beispielnachrichten (gültig/ungültig) für jeden Typ aus [04 §5](04_Rechner-Apps_und_Protokoll.md#5-protokoll-g2-remote1).
-- `host/`: Node ≥ 22, TypeScript, `ws`, `zod`, `bonjour-service`; Sitzungen in `worker_threads`;
-  Kopplung mit Code und Token-Hash; Resume; Beispiel-Apps `echo`, `pc-status`, `notizen`; SDK-Modul
-  `g2-host/sdk` mit `defineApp` und den Typen.
+- `host/`: Node ≥ 22, TypeScript, `ws`, `zod`, `bonjour-service`, `esbuild`; Sitzungen in `worker_threads`;
+  Kopplung mit Code und Token-Hash; Seitenstand und Resume; Beispiel-Apps `echo`, `pc-status`, `notizen`;
+  SDK-Modul `g2-host/sdk` mit `defineApp` und den Typen; Web-Seite nach [06 §3](06_App-Verwaltung.md#3-web-seite-von-g2-host-rechner-apps).
 - Uhr: `RemoteHostClient` (OkHttp-WebSocket, neu im Versionskatalog), Netz anfordern und binden,
-  `ACCESS_LOCAL_NETWORK`, Network-Security-Config für `ws://` zu privaten Adressen ([01 §4](01_Plattform_und_Grenzen.md#4-netz-zwischen-uhr-und-rechner)),
-  Suche per `NsdManager` (mDNS), Seite „Rechner“ in den Einstellungen (suchen, Adresse eingeben, Code
-  eingeben, Token speichern, trennen), Rechner-Apps im Starter, `status`-Meldungen.
+  `ACCESS_LOCAL_NETWORK`, Network-Security-Config für `ws://` zu privaten Adressen
+  ([01 §4](01_Plattform_und_Grenzen.md#4-netz-zwischen-uhr-und-rechner)), Suche per `NsdManager`, Seite
+  „Rechner“ in den Einstellungen, Rechner-Apps im Starter, `status`-Meldungen.
 - CI: eigener Job für `host/` (`npm ci`, `tsc --noEmit`, Tests).
 
 **Abnahme:** Integrationstest simulierte Uhr ↔ Host mit `echo`; Kotlin-Client-Tests gegen die Vektoren und
-`mockwebserver`; Anleitung im README „Rechner verbinden“ (WLAN, LTE über TLS-Tunnel).
+`mockwebserver`; API- und Seitentests der Web-Seite; Anleitung „Rechner verbinden“ (WLAN, LTE über TLS-Tunnel).
 
-## M3 – App-Verwaltung
-
-**Ziel:** Apps per Handy-Browser installieren, starten, entfernen; Uhr koppeln.
-
-- Alles aus [06](06_App-Verwaltung.md), inklusive `app.launch`.
-
-**Abnahme:** API-Tests, Playwright-Test der Seiten (Handy- und PC-Breite), Bildschirmfotos in der Doku.
-
-## M4 – EvenHub-Adapter
-
-**Ziel:** Eine Even-Hub-App (eigene Test-App und die offizielle Vorlage) läuft über den Rechner auf der Brille.
-
-- Alles aus [05 §3](05_EvenHub-Apps.md#3-der-evenhub-adapter-in-g2-host-zu-bauen-in-m4) und die
-  Installationswege aus [05 §5](05_EvenHub-Apps.md#5-woher-apps-kommen-dürfen).
-- Kein Zugriff auf Evens Store-Server.
-
-**Abnahme:** Test-App deckt alle Methoden außer Mikrofon/IMU (die liefern bis M5 `false`) und alle
-Ereignisarten außer `audioEvent` und IMU ab; Bildvergleich des Zeichners mit Referenzbildern; Blockieren
-nicht freigegebener Netz-Hosts getestet; Menüeinträge über `cmd menu` und `menuItemClickEvent`.
-
-## M5 – Sensoren, Mikrofon, Summer
+## M6 – Sensoren, Mikrofon, Summer, Standort
 
 **Ziel:** Apps hören zu und spüren Bewegung.
 
 - Uhr: IMU, Kompass, Mikrofon (LC3), Summer aus `GlassesSessionCore` und den Standort der Uhr an den
-  AppHost anschließen; nur aktiv, solange eine sichtbare App sie abonniert hat ([03 §6](03_Uhr-Apps.md#6-sensoren-mikrofon-summer-m5)).
+  AppHost anschließen; nur aktiv, solange eine sichtbare App sie abonniert hat ([03 §6](03_Uhr-Apps.md#6-sensoren-mikrofon-summer-m6)).
   Umgebungslicht erst, wenn geklärt ist, wie es ohne Eingriff in die Helligkeitsregelung geht.
-- Protokoll: Audio-Binärrahmen (LC3 von der Uhr), LC3-Entschlüsselung im Host, `subscribe`/`audio`
-  weiterreichen; im EvenHub-Adapter `audioControl` und `imuControl` freischalten.
-- Uhr-Apps: liblc3 per JNI (wie Faceclaw) für `AppEvent.Audio`.
+- Uhr-Apps und EvenHub-Laufzeit: liblc3 per JNI (armeabi-v7a und arm64) für PCM; in der EvenHub-Laufzeit
+  `audioControl`, `imuControl` und den Standort freischalten.
+- Protokoll: Audio-Binärrahmen (LC3 von der Uhr), LC3-Entschlüsselung im Host, `subscribe`/`audio` weiterreichen.
 - Beispiel-Rechner-App **„Diktat“**: Mikrofon → Spracherkennung auf dem PC (lokal, z. B. whisper.cpp,
   oder ein Cloud-Dienst mit eigenem Schlüssel) → Text auf der Brille, als Notiz speichern.
 - Beispiel-Uhr-App **„Kompass“**.
 
-**Abnahme:** Tests mit aufgezeichneten PCM-Daten und IMU-Folgen; Messung und Anzeige, wie viel Akku
-Sensoren auf der Uhr kosten (Protokollzeile je Minute), damit man es auf Hardware prüfen kann.
+**Abnahme:** Tests mit aufgezeichneten LC3-Paketen und IMU-Folgen; eine Protokollzeile je Minute mit dem
+Akkuverbrauch der Sensoren, damit man es auf Hardware prüfen kann.
+
+## M7 – Web-Browser auf der Brille (wenn M2 „GeckoView ja“ ergibt)
+
+**Ziel:** Normale Web-Seiten auf der Brille ansehen und mit dem Uhr-Zeiger bedienen ([05 §10](05_EvenHub-Apps.md#10-und-ein-richtiger-browser-auf-der-brille)).
+
+- GeckoView zeichnet in eine unsichtbare Fläche (`GeckoDisplay` mit `ImageReader`); die Uhr wandelt das Bild in
+  Graustufen, schickt nur geänderte Bereiche; Zeiger-Klicks und Scrollen als Touch-Ereignisse an GeckoView;
+  Adresseingabe über Tastatur/Sprache der Uhr; Lesezeichen.
+- Lesemodus (Reader View) als Standard, weil er auf 576 × 260 besser lesbar ist.
+
+**Abnahme:** Snapshot-Tests des Bildwegs; Messung von Speicher und Akku auf der echten Uhr.
 
 ## Danach (Ideen, nicht geplant)
 
-- Stdio-Brücke für Apps in Python und anderen Sprachen.
+- „Lite“-Engine auf der Uhr (QuickJS + linkedom) für sehr einfache Even-Hub-Apps.
+- Stdio-Brücke für Rechner-Apps in Python und anderen Sprachen.
 - Mehrere Rechner gleichzeitig (z. B. PC zu Hause und Server im Netz).
-- Eigene App-Sammlung als Git-Katalog in der App-Verwaltung.
+- Eigene App-Sammlung (Katalog) in „G2 Handy“.
 - Display-Listen mit Animation (Revision-35-Ausdrücke) statt Pixeln für flüssigere Übergänge.
