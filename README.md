@@ -159,6 +159,10 @@ dieses Projekts noch nicht):
 ./gradlew :app:assembleDebug        # → app/build/outputs/apk/debug/app-debug.apk
 ```
 
+In Claude Code im Web richtet [.claude/hooks/session-start.sh](.claude/hooks/session-start.sh) das bei
+jedem Chat-Start selbst ein: Android SDK, und für Maven Central einen lokalen Zwischenspeicher, der die
+Absagen „429 Too Many Requests“ der geteilten Cloud-Rechner abfängt.
+
 **Uhr ohne Internet:** Evens Image selbst laden und auf die Uhr legen; die App nimmt jede `.bin`-Datei
 mit dem richtigen SHA-256 aus diesem Ordner:
 
