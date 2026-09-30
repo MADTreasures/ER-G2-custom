@@ -23,6 +23,11 @@
          that have the "network" permission (AppContext.fetch). -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Videos ask Wear OS for WLAN or LTE instead of the Bluetooth link through the phone
+         (apps/video/FastNetwork.kt). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+
     <application
         android:name=".G2WatchApp"
         android:allowBackup="false"

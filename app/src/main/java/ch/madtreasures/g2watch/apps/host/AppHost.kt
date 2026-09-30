@@ -24,6 +24,9 @@ import ch.madtreasures.g2watch.apps.PatchBuilder
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.VideoAction
+import ch.madtreasures.g2watch.apps.VideoSearchResult
+import ch.madtreasures.g2watch.apps.VideoState
 import ch.madtreasures.g2watch.apps.builtInApps
 import ch.madtreasures.g2watch.apps.launcher.LaunchEntry
 import ch.madtreasures.g2watch.apps.launcher.LaunchKind
@@ -36,6 +39,9 @@ import ch.madtreasures.g2watch.apps.render.PageLook
 import ch.madtreasures.g2watch.apps.render.PageMetrics
 import ch.madtreasures.g2watch.apps.render.PageRenderer
 import ch.madtreasures.g2watch.apps.render.hit
+import ch.madtreasures.g2watch.apps.video.VideoListener
+import ch.madtreasures.g2watch.apps.video.VideoPlayer
+import ch.madtreasures.g2watch.apps.video.VideoRequest
 import ch.madtreasures.g2watch.desktop.AppInput
 import ch.madtreasures.g2watch.desktop.AppScreen
 import ch.madtreasures.g2watch.desktop.AppView
@@ -111,6 +117,10 @@ class AppHost(
     private var lastRenderMs = Long.MIN_VALUE / 2
     private var appOnScreen = false
     private var cachedLayout: PageLayout? = null
+    private var question: TextQuestion? = null
+
+    /** The glasses went away while connected; videos wait until they are back. */
+    private var glassesGone = false
 
     private val _inputMode = MutableStateFlow(InputMode.POINTER)
 
@@ -166,8 +176,13 @@ class AppHost(
     /** What the connection knows about the glasses. */
     fun updateGlasses(status: GlassesStatus) = scheduler.post {
         if (status == glasses) return@post
+        val was = glasses
         glasses = status
         _glasses.value = status
+        if (was.connected != status.connected) {
+            glassesGone = !status.connected
+            visible?.let { syncVideos(it) }
+        }
         for (s in sessions.values.toList()) {
             val internal = s.internal ?: continue
             try {
@@ -327,12 +342,14 @@ class AppHost(
             if (old.started && !old.ended) {
                 deliver(old, AppEvent.Hidden)
                 pauseTimers(old)
+                syncVideos(old)
             }
         }
         visible = s
         s.visible = true
         if (s.started) {
             resumeTimers(s)
+            syncVideos(s)
             deliver(s, AppEvent.Visible)
         }
         if (s.isLauncher) refreshLauncher()
@@ -350,6 +367,12 @@ class AppHost(
         s.ended = true
         s.timers.values.forEach { it.token++ }
         s.timers.clear()
+        s.videos.values.forEach { it.player.release() }
+        s.videos.clear()
+        if (question?.session === s) {
+            question = null
+            ports.cancelText()
+        }
         sessions.remove(s.entryId)
         if (overlay?.session === s) overlay = null
         if (s.isLauncher) launcher = null
@@ -531,7 +554,7 @@ class AppHost(
             return
         }
         val scr = currentScreen() ?: return
-        if (scr.host == null && s != null && s.manifest.input == InputMode.GESTURES && s.pages.current != null) {
+        if (scr.host == null && s != null && inputOf(s) == InputMode.GESTURES && s.pages.current != null) {
             when {
                 g.kind == GestureKind.SHORT_THEN_LONG_PRESS -> openMenuNow()
                 g.kind == GestureKind.SWIPE_RIGHT -> backNow()
@@ -688,6 +711,8 @@ class AppHost(
                 requirePermission(s, Permission.MIC)
                 if (command.on) notYet(s, "Mikrofon")
             }
+            is AppCommand.AskText -> askText(s, command)
+            is AppCommand.Video -> video(s, command.block, command.action)
             AppCommand.Close -> scheduler.post { stop(s) }
         }
     }
@@ -716,8 +741,17 @@ class AppHost(
 
     private fun pagesChanged(s: Session) {
         syncImages(s)
+        // New content without a focus (a list that just arrived, a focused block that went): the
+        // next drawing focuses the first target in view, so a tap on the temple reaches it.
+        s.pages.current?.let { page ->
+            val view = s.views[page.id] ?: return@let
+            val focus = view.focus
+            if (focus != null && page.block(focus.block) == null) view.focus = null
+            if (view.focus == null) view.fresh = true
+        }
         if (s === visible) {
             cachedLayout = null
+            updateInputMode()
             invalidate()
         }
     }
@@ -730,6 +764,7 @@ class AppHost(
         syncImages(s)
         if (s === visible) {
             cachedLayout = null
+            updateInputMode()
             invalidate()
             publish()
         }
@@ -856,6 +891,151 @@ class AppHost(
         }
     }
 
+    // --- Text from the watch ---------------------------------------------------------------------
+
+    private class TextQuestion(val session: Session, val tag: String)
+
+    private fun askText(s: Session, c: AppCommand.AskText) {
+        if (c.tag.isEmpty() || c.tag.length > MAX_TAG) throw CommandException.badValue("Frage braucht einen Namen mit 1 bis $MAX_TAG Zeichen")
+        if (c.prompt.length > MAX_PROMPT) throw CommandException.badValue("Frage länger als $MAX_PROMPT Zeichen")
+        if (c.suggestions.size > MAX_SUGGESTIONS || c.suggestions.any { it.isBlank() || it.length > MAX_SUGGESTION }) {
+            throw CommandException.badValue("Höchstens $MAX_SUGGESTIONS Vorschläge mit je 1 bis $MAX_SUGGESTION Zeichen")
+        }
+        // The open question, if any, is answered with "cancelled" – after this command, not inside it.
+        question?.let { old -> scheduler.post { deliver(old.session, AppEvent.TextInput(old.tag, null)) } }
+        val q = TextQuestion(s, c.tag)
+        question = q
+        ports.askText(c.prompt, c.suggestions) { text ->
+            scheduler.post {
+                if (question !== q) return@post
+                question = null
+                // The hint has done its job.
+                if (s.toast == TEXT_HINT) {
+                    s.toast = null
+                    s.toastToken++
+                    if (s === visible) invalidate()
+                }
+                deliver(s, AppEvent.TextInput(q.tag, text?.trim()?.takeIf { it.isNotEmpty() }))
+            }
+        }
+        ports.vibrate(Vibration.TICK)
+        showToast(s, TEXT_HINT, TEXT_HINT_MS)
+    }
+
+    // --- Video ----------------------------------------------------------------------------------
+
+    /** A video playing into image block [block] (03 §10). */
+    private class ActiveVideo(val block: String) {
+        lateinit var player: VideoPlayer
+        var state = VideoState.LOADING
+
+        /** Paused by the app. */
+        var paused = false
+
+        /** Paused by the host while the app is hidden or the glasses are gone; resumes by itself. */
+        var held = false
+    }
+
+    private fun video(s: Session, block: String, action: VideoAction) {
+        if (action is VideoAction.Play) {
+            play(s, block, action)
+            return
+        }
+        val v = s.videos[block] ?: throw CommandException.badValue("In „$block“ läuft kein Video")
+        when (action) {
+            VideoAction.Pause -> {
+                v.paused = true
+                v.player.pause()
+            }
+            VideoAction.Resume -> {
+                v.paused = false
+                if (!v.held) v.player.resume()
+            }
+            is VideoAction.Seek -> v.player.seekTo(action.positionMs.coerceAtLeast(0))
+            is VideoAction.Profile -> v.player.setProfile(action.profile)
+            VideoAction.Stop -> s.videos.remove(block)?.player?.release()
+            is VideoAction.Play -> Unit
+        }
+    }
+
+    private fun play(s: Session, block: String, a: VideoAction.Play) {
+        val image = s.pages.block(block) as? Block.Image
+            ?: throw CommandException.unknownBlock(block, s.pages.pageOf(block) ?: s.pages.current?.id ?: "?")
+        when {
+            a.src.startsWith("https://") -> requirePermission(s, Permission.NETWORK)
+            a.src.startsWith("test:") -> Unit
+            else -> throw CommandException.badValue("Video-Adresse muss mit https:// oder test: beginnen, nicht „${a.src.take(40)}“")
+        }
+        s.videos.remove(block)?.player?.release()
+        // A new video starts on a black picture, not on the last one of the previous.
+        s.images[block] = GrayRaster(image.w, image.h)
+        if (s === visible) invalidate()
+        val v = ActiveVideo(block)
+        val listener = object : VideoListener {
+            override fun onFrame(raster: GrayRaster) = scheduler.post { videoFrame(s, v, raster) }
+
+            override fun onState(state: VideoState, positionMs: Long, durationMs: Long, message: String?) =
+                scheduler.post { videoState(s, v, state, positionMs, durationMs, message) }
+        }
+        val request = VideoRequest(a.src, image.w, image.h, a.profile, a.sound, a.startMs.coerceAtLeast(0))
+        v.player = try {
+            ports.video.open(request, listener)
+        } catch (e: RuntimeException) {
+            throw CommandException.badValue("Video ließ sich nicht starten: ${e.message}")
+        }
+        s.videos[block] = v
+        if (!videoRuns(s)) {
+            v.held = true
+            v.player.pause()
+        }
+    }
+
+    private fun videoFrame(s: Session, v: ActiveVideo, raster: GrayRaster) {
+        if (s.ended || s.videos[v.block] !== v) return
+        val image = s.pages.block(v.block) as? Block.Image ?: return
+        // The app made the block another size meanwhile: this picture no longer fits.
+        if (raster.width != image.w || raster.height != image.h) return
+        s.images[v.block] = raster
+        if (s === visible && s.pages.current?.block(v.block) != null) invalidate()
+    }
+
+    private fun videoState(s: Session, v: ActiveVideo, state: VideoState, positionMs: Long, durationMs: Long, message: String?) {
+        if (s.ended || s.videos[v.block] !== v) return
+        v.state = state
+        if (state == VideoState.ERROR) {
+            s.videos.remove(v.block)
+            v.player.release()
+            ports.log("${s.manifest.name}: Video in „${v.block}“ – $message")
+        }
+        deliver(s, AppEvent.Video(v.block, state, positionMs, durationMs, message))
+    }
+
+    /** Videos play only while their app is on the glasses and the glasses are there (akku, data). */
+    private fun videoRuns(s: Session) = s.visible && !glassesGone
+
+    private fun syncVideos(s: Session) {
+        val run = videoRuns(s)
+        for (v in s.videos.values) {
+            if (!run && !v.held && !v.paused && v.state != VideoState.ENDED) {
+                v.held = true
+                v.player.pause()
+            } else if (run && v.held) {
+                v.held = false
+                if (!v.paused) v.player.resume()
+            }
+        }
+    }
+
+    private fun videoSearch(s: Session, query: String, onResult: (VideoSearchResult) -> Unit) {
+        requirePermission(s, Permission.NETWORK)
+        if (query.isBlank() || query.length > MAX_QUERY) throw CommandException.badValue("Suche mit 1 bis $MAX_QUERY Zeichen")
+        ports.video.search(query.trim()) { result ->
+            scheduler.post {
+                if (!s.ended) runApp(s, "videoSearch") { onResult(result) }
+            }
+        }
+    }
+
     // --- Drawing --------------------------------------------------------------------------------
 
     /** A page the host draws itself (menu, question, notice), with its own focus and scroll. */
@@ -955,8 +1135,11 @@ class AppHost(
 
     private fun updateInputMode() {
         val s = visible
-        _inputMode.value = if (s == null || overlay?.kind == "host.permission") InputMode.POINTER else s.manifest.input
+        _inputMode.value = if (s == null || overlay?.kind == "host.permission") InputMode.POINTER else inputOf(s)
     }
+
+    /** How the wearer works [s] right now: its page's mode, else its manifest's. */
+    private fun inputOf(s: Session): InputMode = s.pages.current?.input ?: s.manifest.input
 
     private fun publish() {
         val scr = currentScreen()
@@ -1003,6 +1186,7 @@ class AppHost(
         val timers = LinkedHashMap<String, TimerState>()
         val subscriptions = HashSet<Sensor>()
         val notedMissing = HashSet<String>()
+        val videos = LinkedHashMap<String, ActiveVideo>()
         var project: BaukastenProject? = null
         var granted: Set<Permission> = emptySet()
         var menu: List<MenuItem> = emptyList()
@@ -1059,6 +1243,13 @@ class AppHost(
 
         override fun fetch(request: HttpRequest, onResult: (HttpResult) -> Unit) = guarded("fetch") { fetch(s, request, onResult) }
 
+        override fun askText(tag: String, prompt: String, suggestions: List<String>) = command(AppCommand.AskText(tag, prompt, suggestions))
+
+        override fun video(block: String, action: VideoAction) = command(AppCommand.Video(block, action))
+
+        override fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit) =
+            guarded("videoSearch") { videoSearch(s, query, onResult) }
+
         override val storage: AppStorage = object : AppStorage {
             private val store by lazy { ports.storage(s.manifest.id) }
 
@@ -1104,6 +1295,15 @@ class AppHost(
         const val MAX_MENU_TEXT = 32
         const val MAX_BUZZ = 48
         const val NOTICE_MS = 3_000
+        const val MAX_TAG = 40
+        const val MAX_PROMPT = 100
+        const val MAX_SUGGESTIONS = 5
+        const val MAX_SUGGESTION = 40
+        const val MAX_QUERY = 200
+
+        /** Shown on the glasses while the watch asks for text. */
+        const val TEXT_HINT = "Bitte auf der Uhr eingeben"
+        const val TEXT_HINT_MS = 4_000
 
         const val WATCH_PREFIX = "watch:"
         const val EVEN_HUB_PREFIX = "evenhub:"

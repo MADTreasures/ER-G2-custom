@@ -13,6 +13,7 @@ import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.AppThread
 import ch.madtreasures.g2watch.apps.host.GlassesStatus
 import ch.madtreasures.g2watch.apps.host.InputRouter
+import ch.madtreasures.g2watch.apps.host.TextPrompts
 import ch.madtreasures.g2watch.ble.G2Scanner
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
@@ -30,6 +31,9 @@ import ch.madtreasures.g2watch.glasses.GlassesListener
 class G2WatchApp : Application() {
     val desktop: DesktopController by lazy { DesktopController(AndroidTextPainter()).also { it.startClock() } }
 
+    /** Text questions of the apps, answered on the watch screen (keyboard or voice). */
+    val textPrompts = TextPrompts()
+
     /** Runs the watch apps and shows them on the glasses (docs/app-entwicklung/03). */
     val apps: AppHost by lazy {
         val main = MainScheduler()
@@ -37,7 +41,7 @@ class G2WatchApp : Application() {
             scheduler = AppThread.scheduler(),
             screen = desktop,
             text = AndroidTextPainter(),
-            ports = AndroidHostPorts(this) { line -> main.post { glasses.note(line) } },
+            ports = AndroidHostPorts(this, textPrompts) { line -> main.post { glasses.note(line) } },
         ).also { desktop.connectApps(it) }
     }
 

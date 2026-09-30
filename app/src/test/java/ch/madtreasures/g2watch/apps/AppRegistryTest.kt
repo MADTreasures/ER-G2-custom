@@ -18,7 +18,7 @@ class AppRegistryTest {
     }
 
     @Test
-    fun `the launcher order is stopwatch, shopping list`() {
-        assertEquals(listOf("Stoppuhr", "Einkauf"), builtInApps.map { it().manifest.name })
+    fun `the launcher order is stopwatch, shopping list, YouTube`() {
+        assertEquals(listOf("Stoppuhr", "Einkauf", "YouTube"), builtInApps.map { it().manifest.name })
     }
 }

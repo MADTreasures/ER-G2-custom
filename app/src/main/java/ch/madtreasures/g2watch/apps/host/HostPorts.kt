@@ -8,6 +8,7 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.video.VideoEngine
 import ch.madtreasures.g2watch.desktop.GrayRaster
 
 /** What the app host needs from the platform: Android on the watch, fakes in tests. */
@@ -33,6 +34,19 @@ interface HostPorts {
 
     /** A line for the watch log (Settings → Protokoll); any thread. */
     fun log(line: String)
+
+    /**
+     * Asks the wearer for a line of text on the watch: keyboard, voice or one of [suggestions]. [done]
+     * gets the text, or null when the wearer cancelled; from any thread, at most once. A new question
+     * replaces an open one, whose [done] is then never called.
+     */
+    fun askText(prompt: String, suggestions: List<String>, done: (String?) -> Unit)
+
+    /** Takes back the open question of [askText], if any (its app ended). */
+    fun cancelText()
+
+    /** Searching and playing videos (03 §10). */
+    val video: VideoEngine
 }
 
 /** The glasses as apps may know them (03 §5.2). */

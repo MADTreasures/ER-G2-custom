@@ -29,6 +29,10 @@ class AppJsonTest {
         AppEvent.Compass(213.5f, 1727600000123),
         AppEvent.Location(47.37, 8.54, 12f, 1727600000123),
         AppEvent.Error("patch", "unknown_block", "Unbekannter Baustein"),
+        AppEvent.TextInput("suche", "Katzen"),
+        AppEvent.TextInput("suche", null),
+        AppEvent.Video("bild", VideoState.PLAYING, 12_000, 245_000),
+        AppEvent.Video("bild", VideoState.ERROR, 0, 0, "Keine Verbindung"),
     )
 
     @Test
@@ -44,6 +48,16 @@ class AppJsonTest {
             json("""{ "kind": "gesture", "gesture": "scrollDown", "source": "right" }"""),
             AppJson.encodeEvent(AppEvent.Gesture(GestureKind.SCROLL_DOWN, InputSource.RIGHT)),
         )
+        assertEquals(json("""{ "kind": "text", "tag": "suche", "text": null }"""), AppJson.encodeEvent(AppEvent.TextInput("suche", null)))
+        assertEquals(
+            json("""{ "kind": "video", "block": "bild", "state": "paused", "position": 83000, "duration": 245000, "message": null }"""),
+            AppJson.encodeEvent(AppEvent.Video("bild", VideoState.PAUSED, 83_000, 245_000)),
+        )
+        assertEquals(
+            AppEvent.Video("bild", VideoState.ENDED, 0, 0),
+            AppJson.decodeEvent(json("""{ "kind": "video", "block": "bild", "state": "ended" }""")),
+        )
+        assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "video", "block": "bild", "state": "fliegt" }""")) }
     }
 
     @Test
@@ -91,6 +105,7 @@ class AppJsonTest {
         ),
         statusBar = false,
         notes = "Notiz",
+        input = InputMode.GESTURES,
     )
 
     private val commands = listOf(
@@ -106,6 +121,14 @@ class AppJsonTest {
         AppCommand.Subscribe(Sensor.IMU, 100),
         AppCommand.Unsubscribe(Sensor.IMU),
         AppCommand.Audio(true),
+        AppCommand.AskText("suche", "YouTube durchsuchen", listOf("Katzen", "Musik")),
+        AppCommand.Video("bild", VideoAction.Play("https://www.youtube.com/watch?v=abc", VideoProfile.FAST, sound = true, startMs = 5_000)),
+        AppCommand.Video("bild", VideoAction.Play("test:muster")),
+        AppCommand.Video("bild", VideoAction.Pause),
+        AppCommand.Video("bild", VideoAction.Resume),
+        AppCommand.Video("bild", VideoAction.Seek(90_000)),
+        AppCommand.Video("bild", VideoAction.Profile(VideoProfile.STABLE)),
+        AppCommand.Video("bild", VideoAction.Stop),
         AppCommand.Close,
     )
 
@@ -127,6 +150,24 @@ class AppJsonTest {
         assertEquals(AppCommand.Toast("Gespeichert", 2000), AppJson.decodeCommand(json("""{ "c": "toast", "text": "Gespeichert" }""")))
         assertEquals(AppCommand.Vibrate(Vibration.TICK), AppJson.decodeCommand(json("""{ "c": "vibrate" }""")))
         assertEquals(AppCommand.Close, AppJson.decodeCommand(json("""{ "c": "close" }""")))
+        assertEquals(AppCommand.AskText("suche", ""), AppJson.decodeCommand(json("""{ "c": "askText", "tag": "suche" }""")))
+        assertEquals(
+            AppCommand.Video("bild", VideoAction.Play("https://example.org/film.mp4")),
+            AppJson.decodeCommand(json("""{ "c": "video", "block": "bild", "action": "play", "src": "https://example.org/film.mp4" }""")),
+        )
+        assertEquals(
+            json("""{ "c": "video", "block": "bild", "action": "seek", "position": 90000 }"""),
+            AppJson.encodeCommand(AppCommand.Video("bild", VideoAction.Seek(90_000))),
+        )
+    }
+
+    @Test
+    fun `a page may choose its input mode, without it the page keeps the old JSON`() {
+        val gestures = AppJson.encodePage(Page("p_video", "Video", emptyList(), input = InputMode.GESTURES))
+        assertEquals(JsonPrimitive("gestures"), gestures["input"])
+        assertNull(AppJson.encodePage(Page("p", "P", emptyList()))["input"])
+        assertNull(AppJson.decodePage(json("""{ "id": "p", "blocks": [] }""")).input)
+        assertThrows(CommandException::class.java) { AppJson.decodePage(json("""{ "id": "p", "input": "maus" }""")) }
     }
 
     @Test
@@ -147,6 +188,12 @@ class AppJsonTest {
             """{ "c": "buzz", "notes": [[880, 50]] }""",
             """{ "c": "subscribe", "sensor": "light" }""",
             """{ "c": "vibrate", "pattern": "brumm" }""",
+            """{ "c": "video", "block": "bild", "action": "rewind" }""",
+            """{ "c": "video", "block": "bild", "action": "play" }""",
+            """{ "c": "video", "block": "bild", "action": "play", "src": "https://x", "profile": "turbo" }""",
+            """{ "c": "video", "block": "bild", "action": "seek" }""",
+            """{ "c": "askText" }""",
+            """{ "c": "askText", "tag": "t", "suggestions": [1, 2] }""",
             """{ "page": "p" }""",
         )) {
             val e = assertThrows(text, CommandException::class.java) { AppJson.decodeCommand(json(text)) }

@@ -10,6 +10,8 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.video.AndroidVideoEngine
+import ch.madtreasures.g2watch.apps.video.VideoEngine
 import ch.madtreasures.g2watch.desktop.GrayRaster
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -18,8 +20,15 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 
-/** [HostPorts] on the watch. [logSink] receives lines for the watch log from any thread. */
-class AndroidHostPorts(context: Context, private val logSink: (String) -> Unit) : HostPorts {
+/**
+ * [HostPorts] on the watch. [logSink] receives lines for the watch log from any thread; [prompts] carries
+ * text questions to the watch screen.
+ */
+class AndroidHostPorts(
+    context: Context,
+    private val prompts: TextPrompts,
+    private val logSink: (String) -> Unit,
+) : HostPorts {
     private val context = context.applicationContext
     private val prefs = this.context.getSharedPreferences("g2watch.apps", Context.MODE_PRIVATE)
     private val stores = HashMap<String, AppStorage>()
@@ -118,6 +127,12 @@ class AndroidHostPorts(context: Context, private val logSink: (String) -> Unit) 
     }
 
     override fun log(line: String) = logSink(line)
+
+    override fun askText(prompt: String, suggestions: List<String>, done: (String?) -> Unit) = prompts.ask(prompt, suggestions, done)
+
+    override fun cancelText() = prompts.cancel()
+
+    override val video: VideoEngine by lazy { AndroidVideoEngine(context, logSink) }
 
     private companion object {
         const val TIMEOUT_MS = 10_000

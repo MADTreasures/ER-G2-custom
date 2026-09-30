@@ -1,7 +1,9 @@
 package ch.madtreasures.g2watch
 
 import android.Manifest
+import android.app.RemoteInput
 import android.bluetooth.BluetoothAdapter
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -26,7 +28,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.TimeText
+import androidx.wear.input.RemoteInputIntentHelper
 import ch.madtreasures.g2watch.apps.InputMode
+import ch.madtreasures.g2watch.apps.host.TextPrompt
 import ch.madtreasures.g2watch.glasses.FirmwareInstall
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
@@ -42,6 +46,19 @@ import ch.madtreasures.g2watch.ui.StatusScreen
 import ch.madtreasures.g2watch.ui.TouchpadScreen
 
 class MainActivity : ComponentActivity() {
+
+    /** Keyboard and voice input for [prompt], with its suggestions as ready answers. */
+    private fun textInputIntent(prompt: TextPrompt): Intent {
+        val input = RemoteInput.Builder(TEXT_KEY)
+            .setLabel(prompt.prompt)
+            .setChoices(prompt.suggestions.takeIf { it.isNotEmpty() }?.toTypedArray<CharSequence>())
+            .setAllowFreeFormInput(true)
+            .build()
+        return RemoteInputIntentHelper.createActionRemoteInputIntent().also {
+            RemoteInputIntentHelper.putRemoteInputsExtra(it, listOf(input))
+            RemoteInputIntentHelper.putTitleExtra(it, prompt.prompt)
+        }
+    }
 
     private val app get() = application as G2WatchApp
 
@@ -82,6 +99,27 @@ class MainActivity : ComponentActivity() {
         val enableBtLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { permissionTick++ }
+
+        // An app on the glasses asks for text: keyboard and voice input of Wear OS, over any screen.
+        val textPrompt by app.textPrompts.open.collectAsStateWithLifecycle()
+        var askedPrompt by rememberSaveable { mutableIntStateOf(0) }
+        val textLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            val text = result.data?.let { RemoteInput.getResultsFromIntent(it)?.getCharSequence(TEXT_KEY)?.toString() }
+            app.textPrompts.answer(askedPrompt, text)
+        }
+        LaunchedEffect(textPrompt?.id) {
+            val prompt = textPrompt ?: return@LaunchedEffect
+            if (askedPrompt == prompt.id) return@LaunchedEffect
+            askedPrompt = prompt.id
+            try {
+                textLauncher.launch(textInputIntent(prompt))
+            } catch (e: ActivityNotFoundException) {
+                app.glasses.note("Texteingabe fehlt auf dieser Uhr: ${e.message}")
+                app.textPrompts.answer(prompt.id, null)
+            }
+        }
 
         // Keep the watch awake while it talks to the glasses: the touchpad stops working once
         // Wear OS dims into ambient mode. Not while the glasses charge or are out of reach
@@ -271,4 +309,9 @@ class MainActivity : ComponentActivity() {
     private fun optionalPermissions(): List<String> =
         listOf(Manifest.permission.POST_NOTIFICATIONS)
             .filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+
+    private companion object {
+        /** Result key of the text input for apps. */
+        const val TEXT_KEY = "g2watch.text"
+    }
 }

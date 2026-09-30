@@ -41,6 +41,11 @@ data class Page(
     val statusBar: Boolean = true,
     /** What the page is for (from the Baukasten); never shown. */
     val notes: String = "",
+    /**
+     * How the wearer works this page; null means the manifest's [AppManifest.input]. A video page takes
+     * [InputMode.GESTURES] (tap = pause), the lists around it keep the pointer.
+     */
+    val input: InputMode? = null,
 ) {
     fun block(id: String): Block? = blocks.firstOrNull { it.id == id }
 }

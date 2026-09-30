@@ -13,6 +13,10 @@ junit = "4.13.2"
 junitJupiter = "6.1.3"
 robolectric = "4.17"
 composeUiTest = "1.12.1"
+media3 = "1.11.1"
+wearInput = "1.2.0"
+# YouTube app: search and stream addresses on the watch (GPL-3.0, like the Faceclaw core).
+newpipeExtractor = "v0.26.5"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,6 +32,10 @@ junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "composeUiTest" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "composeUiTest" }
+media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3" }
+wear-input = { group = "androidx.wear", name = "wear-input", version.ref = "wearInput" }
+newpipe-extractor = { group = "com.github.teamnewpipe", name = "NewPipeExtractor", version.ref = "newpipeExtractor" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

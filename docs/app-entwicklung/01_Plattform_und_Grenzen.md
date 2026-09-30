@@ -35,7 +35,9 @@ Was daraus folgt:
   überträgt geänderte Streifen (RLE). Ein neuer Wert in einer Zeile kostet wenige hundert Byte, ein
   Seitenwechsel einige zehn KiB.
 - **Höchstens 2–5 Aktualisierungen pro Sekunde** planen. Nie ein Video oder eine laufende Uhr mit
-  Sekunden-Takt über die ganze Fläche.
+  Sekunden-Takt über die ganze Fläche. Videos gehen nur als grobes Raster mit 1–4 Bildern pro Sekunde (die
+  Video-Wiedergabe seit v0.5.0 braucht so höchstens ein Drittel des Durchsatzes, simuliert,
+  [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050)).
 - Neue Bilder ersetzen noch nicht gesendete ältere (nur das neueste zählt). Eine App muss also nicht
   drosseln, verschwendet aber Akku, wenn sie es nicht tut.
 

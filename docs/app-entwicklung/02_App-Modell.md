@@ -97,6 +97,10 @@ exportieren und als `ui.json` mitliefern.
 - `name` steht in der Kopfzeile hinter dem App-Namen („Einkauf · Liste“), wenn er sich von ihm unterscheidet.
 - `statusBar: true` → App-Fläche 576 × 260 unter der Kopfzeile; `false` → Vollbild 576 × 288.
 - `notes` wird nicht angezeigt (Beschreibung aus dem Baukasten, was die Seite tun soll).
+- `input` (optional, seit v0.5.0): `"pointer"` oder `"gestures"` gilt für diese Seite statt der Eingabeart
+  aus dem Manifest (§7). So nimmt etwa das Video der YouTube-App rohe Gesten (Tippen = Pause), während die
+  Listen davor mit Zeiger und Fokus gehen. Fehlt es, gilt das Manifest. (Der Baukasten hat dafür noch kein
+  Feld; ein vorhandenes `input` bleibt beim Import erhalten.)
 - Bausteine stehen untereinander in der gegebenen Reihenfolge. Es gibt keine freie Positionierung.
 
 ### 4.2 Bausteine
@@ -180,6 +184,8 @@ Gleiche JSON-Form in beiden Laufzeiten:
 { "kind": "sensor",   "sensor": "location", "lat": 47.37, "lon": 8.54, "acc": 12, "t": 1727600000123 }
 { "kind": "audio",    "seq": 17, "pcm": "<16-kHz-PCM, siehe unten>" }
 { "kind": "menu",     "item": "sortieren" }
+{ "kind": "text",     "tag": "suche", "text": "Katzen im Schnee" }
+{ "kind": "video",    "block": "bild", "state": "playing", "position": 83000, "duration": 296000, "message": null }
 { "kind": "error",    "command": "patch", "code": "unknown_block", "message": "…" }
 ```
 
@@ -194,6 +200,11 @@ Gleiche JSON-Form in beiden Laufzeiten:
 - `audio`: `pcm` sind entschlüsselte Abtastwerte, 16 kHz, mono, 16 Bit (Kotlin `ShortArray`, TypeScript
   `Int16Array`), je Ereignis 50 ms. Das Ereignis geht nie als JSON über die Leitung; die Uhr schickt die
   LC3-Pakete binär, der Rechner entschlüsselt ([04 §5.4](04_Rechner-Apps_und_Protokoll.md#54-binärrahmen)).
+- `text` (seit v0.5.0): Antwort auf `askText` mit demselben `tag`; `text: null`, wenn die Trägerin abgebrochen
+  hat oder eine neuere Frage die alte ersetzt hat.
+- `video` (seit v0.5.0): Zustand des Videos in einem Bild-Baustein: `loading`, `playing`, `paused`,
+  `buffering`, `ended`, `error` (dann steht in `message` der Grund, deutsch). Kommt bei jedem Wechsel und
+  während des Abspielens etwa einmal pro Sekunde mit `position`; `duration` 0 = unbekannt (live).
 - `error`: nur bei Rechner-Apps; die Uhr hat einen Befehl abgelehnt (§6.2 „Fehler“).
 - Unbekannte `kind`-Werte ignoriert eine App. So kann die Plattform neue Ereignisse ergänzen.
 
@@ -215,6 +226,8 @@ Gleiche JSON-Form in beiden Laufzeiten:
 | `subscribe` / `unsubscribe` | `sensor` (`imu`, `compass`, `location`, `gestures`), `rate` | Ereignisse an/aus (Berechtigung nötig). `rate` bei `imu`: Firmware-Takt 100–1000 (Einheit von Even nicht dokumentiert); bei `location`: Sekunden |
 | `audio` | `on` (bool) | Mikrofon der Brille an/aus (Berechtigung `mic`) |
 | `storage.get` / `storage.set` | `key`, `value` (JSON) | kleiner Speicher je App (≤ 256 KiB gesamt) |
+| `askText` | `tag`, `prompt` (≤ 100 Zeichen), `suggestions` (≤ 5, je ≤ 40 Zeichen) | Tastatur/Spracheingabe auf der Uhr, auf der Brille der Hinweis „Bitte auf der Uhr eingeben“; Antwort als Ereignis `text` (seit v0.5.0) |
+| `video` | `block` (ein `image`), `action`: `play` (`src`, `profile` `stable`/`balanced`/`fast`, `sound`, `start` in ms), `pause`, `resume`, `seek` (`position`), `profile` (`profile`), `stop` | Video in einen Bild-Baustein; `src` ist eine Video-Seite (YouTube …), eine Video-Datei/HLS-Adresse (`https://`, Berechtigung `network`) oder `test:muster`. Zustand als Ereignis `video`. Details [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050) (seit v0.5.0) |
 | `close` | – | App beenden |
 
 `patch`-Felder je Baustein: `heading`/`text`: `text`, `align`; `button`: `text`, `target`;
@@ -232,7 +245,7 @@ sind aber höchstens 5 pro Sekunde, sonst entsteht nur Verkehr und Akkulast.
 
 ## 7. Eingabe und Fokus
 
-Zwei Eingabearten, im Manifest gewählt:
+Zwei Eingabearten, im Manifest gewählt (und seit v0.5.0 je Seite mit `input` überschreibbar, §4.1):
 
 **`pointer` (Standard)** – wie der heutige Desktop:
 - Uhr-Touchpad bewegt den Maus-Zeiger; Doppeltippen = Klick auf den Baustein unter dem Zeiger;

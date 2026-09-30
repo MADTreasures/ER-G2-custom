@@ -17,6 +17,18 @@ import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.builtin.shopping.ShoppingListApp
 import ch.madtreasures.g2watch.apps.builtin.stopwatch.StopwatchApp
+import ch.madtreasures.g2watch.apps.builtin.youtube.YouTubeApp
+import ch.madtreasures.g2watch.apps.VideoItem
+import ch.madtreasures.g2watch.apps.VideoProfile
+import ch.madtreasures.g2watch.apps.VideoSearchResult
+import ch.madtreasures.g2watch.apps.VideoState
+import ch.madtreasures.g2watch.apps.video.FrameConverter
+import ch.madtreasures.g2watch.apps.video.SyntheticVideo
+import ch.madtreasures.g2watch.apps.video.TestPattern
+import ch.madtreasures.g2watch.apps.video.TestPatternPlayer
+import ch.madtreasures.g2watch.apps.video.VideoListener
+import ch.madtreasures.g2watch.apps.video.VideoRequest
+import ch.madtreasures.g2watch.desktop.GrayRaster
 import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.FakePorts
 import ch.madtreasures.g2watch.apps.host.Gesture
@@ -25,6 +37,7 @@ import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.desktop.DesktopLayout
 import ch.madtreasures.g2watch.desktop.PointerSprite
+import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -140,7 +153,7 @@ class PageRendererSnapshotTest {
 
     @Test
     fun launcher() {
-        val host = host({ StopwatchApp { clock } }, ::ShoppingListApp)
+        val host = host({ StopwatchApp { clock } }, ::ShoppingListApp, { YouTubeApp() })
         host.launch("watch:ch.madtreasures.einkauf")
         settle()
         host.openLauncher()
@@ -213,6 +226,124 @@ class PageRendererSnapshotTest {
         save("apps-bild-randlos")
     }
 
+    private val youtubeId = "ch.madtreasures.youtube"
+
+    /** Made-up hits (no real videos in the repo). */
+    private val hits = listOf(
+        VideoItem("https://www.youtube.com/watch?v=aaaaaaaaaaa", "Alpenpanorama im Zeitraffer", "Bergwelt", durationS = 296, views = 1_234_567),
+        VideoItem("https://www.youtube.com/watch?v=bbbbbbbbbbb", "Zugfahrt über den Albula", "Schienenfans", durationS = 3_725, views = 48_210),
+        VideoItem("https://www.youtube.com/watch?v=ccccccccccc", "Sonnenaufgang am See", "Naturkanal", durationS = 61, views = 950),
+        VideoItem("https://www.youtube.com/watch?v=ddddddddddd", "Wetter live", "Webcam", live = true),
+    )
+
+    private fun youtube(): AppHost {
+        ports.answers["$youtubeId@1.0.0"] = setOf(Permission.NETWORK)
+        val host = host({ YouTubeApp() })
+        host.launch("watch:$youtubeId")
+        settle()
+        return host
+    }
+
+    /** Searches, answers with [hits] and plays hit 0; the fake player then gets [frame] and [state]. */
+    private fun youtubeVideo(frame: GrayRaster, state: VideoState, positionMs: Long) {
+        val host = youtube()
+        host.gesture(GestureKind.CLICK)
+        ports.questions.last().third("alpen")
+        settle()
+        ports.video.searches.last().second(VideoSearchResult(hits))
+        settle()
+        host.gesture(GestureKind.CLICK)
+        val player = ports.video.players.last()
+        player.listener.onFrame(frame)
+        player.listener.onState(state, positionMs, 296_000)
+        settle()
+    }
+
+    /** A picture of the made-up landscape video, as the watch turns it into the raster of [profile]. */
+    private fun landscapeFrame(profile: VideoProfile, w: Int = YouTubeApp.VIDEO_W, h: Int = YouTubeApp.VIDEO_H): GrayRaster {
+        val converter = FrameConverter(w, h, profile)
+        val grid = converter.grid
+        val picture = converter.pictureRect(SyntheticVideo.WIDTH, SyntheticVideo.HEIGHT)
+        val luma = ByteArray(grid.size)
+        FrameConverter.scaleInto(SyntheticVideo.LANDSCAPE.frame(90), SyntheticVideo.WIDTH, SyntheticVideo.HEIGHT, SyntheticVideo.WIDTH, luma, grid.width, picture)
+        return converter.convert(luma, picture)
+    }
+
+    @Test
+    fun youtubeStart() {
+        youtube()
+        val page = Page(YouTubeApp.START, "YouTube", listOf(Block.Button(YouTubeApp.SEARCH, "Suchen")))
+        pointerOn(page, YouTubeApp.SEARCH, dx = 120)
+        save("apps-youtube-start")
+    }
+
+    @Test
+    fun youtubeHits() {
+        val host = youtube()
+        host.gesture(GestureKind.CLICK)
+        ports.questions.last().third("alpen")
+        settle()
+        ports.video.searches.last().second(VideoSearchResult(hits))
+        settle()
+        save("apps-youtube-treffer")
+    }
+
+    @Test
+    fun youtubeVideo() {
+        youtubeVideo(landscapeFrame(VideoProfile.BALANCED), VideoState.PLAYING, 83_000)
+        save("apps-youtube-video")
+    }
+
+    @Test
+    fun youtubePaused() {
+        youtubeVideo(landscapeFrame(VideoProfile.STABLE), VideoState.PAUSED, 83_000)
+        save("apps-youtube-pause")
+    }
+
+    @Test
+    fun youtubeTestPattern() {
+        // A picture of the watch's own test video, 12.5 s in, as its player makes it.
+        val test = FakeScheduler()
+        var frame: GrayRaster? = null
+        val player = TestPatternPlayer(
+            VideoRequest(TestPattern.SRC, YouTubeApp.VIDEO_W, YouTubeApp.VIDEO_H, VideoProfile.BALANCED, startMs = 12_500),
+            object : VideoListener {
+                override fun onFrame(raster: GrayRaster) {
+                    frame = raster
+                }
+
+                override fun onState(state: VideoState, positionMs: Long, durationMs: Long, message: String?) = Unit
+            },
+            test,
+        ) { test.now }
+        player.pause()
+        test.advanceBy(TestPatternPlayer.START_MS)
+        val host = youtube()
+        // Temple: down to "Testbild" (the fifth target), tap.
+        repeat(4) { host.gesture(GestureKind.SCROLL_DOWN) }
+        host.gesture(GestureKind.CLICK)
+        val fake = ports.video.players.last()
+        assertEquals(TestPattern.SRC, fake.request.src)
+        fake.listener.onFrame(frame!!)
+        fake.listener.onState(VideoState.PLAYING, 12_500, TestPattern.DURATION_MS)
+        settle()
+        save("apps-youtube-testbild")
+    }
+
+    /** The same picture in the three profiles, one above the other: Stabil, Ausgewogen, Schnell. */
+    @Test
+    fun videoProfiles() {
+        val w = YouTubeApp.VIDEO_W
+        val h = YouTubeApp.VIDEO_H
+        val gap = 12
+        val image = BufferedImage(w, 3 * h + 2 * gap, BufferedImage.TYPE_INT_RGB)
+        VideoProfile.entries.forEachIndexed { i, profile ->
+            val raster = landscapeFrame(profile)
+            for (y in 0 until h) for (x in 0 until w) image.setRGB(x, i * (h + gap) + y, green(raster[x, y]))
+        }
+        ImageIO.write(image, "png", File(dir!!, "video-profile.png"))
+    }
+
     /** A made-up picture in grey (sky, sun, mountains, lake), as a PNG. */
     private fun landscape(): ByteArray {
         val w = 288
@@ -233,13 +364,15 @@ class PageRendererSnapshotTest {
     }
 
     /** The composite as the lens shows it: 16 shades of green, the pointer (if shown) on top with its color key. */
+    /** A grey value as the lens shows it: one of 16 levels of green. */
+    private fun green(v: Int): Int {
+        val level = minOf(15, (v + 8) shr 4) * 17
+        return ((0x7C * level / 255) shl 16) or ((0xFF * level / 255) shl 8) or (0xA0 * level / 255)
+    }
+
     private fun glassesImage(desktop: ByteArray, pointerX: Int, pointerY: Int, pointer: ByteArray?): BufferedImage {
         val w = DesktopLayout.SCREEN_WIDTH
         val h = DesktopLayout.SCREEN_HEIGHT
-        fun green(v: Int): Int {
-            val level = minOf(15, (v + 8) shr 4) * 17
-            return ((0x7C * level / 255) shl 16) or ((0xFF * level / 255) shl 8) or (0xA0 * level / 255)
-        }
         val image = BufferedImage(w, h, BufferedImage.TYPE_INT_RGB)
         for (y in 0 until h) for (x in 0 until w) image.setRGB(x, y, green(desktop[y * w + x].toInt() and 0xFF))
         if (pointer != null) {

@@ -61,6 +61,16 @@ sealed interface AppCommand {
         override val name get() = "audio"
     }
 
+    /** A line of text from the watch keyboard or voice; answered with [AppEvent.TextInput]. */
+    data class AskText(val tag: String, val prompt: String, val suggestions: List<String> = emptyList()) : AppCommand {
+        override val name get() = "askText"
+    }
+
+    /** Plays, pauses, moves or stops the video in image block [block]; reported with [AppEvent.Video]. */
+    data class Video(val block: String, val action: VideoAction) : AppCommand {
+        override val name get() = "video"
+    }
+
     data object Close : AppCommand {
         override val name get() = "close"
     }

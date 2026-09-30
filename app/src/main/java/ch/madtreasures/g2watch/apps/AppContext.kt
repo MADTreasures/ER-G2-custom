@@ -66,6 +66,27 @@ interface AppContext {
      */
     fun fetch(request: HttpRequest, onResult: (HttpResult) -> Unit)
 
+    /**
+     * Asks the wearer for a line of text on the watch: keyboard, voice or one of at most 5 [suggestions].
+     * The answer comes as [AppEvent.TextInput] with [tag] (text null when the wearer cancelled). One
+     * question at a time: a new one cancels the open one. The glasses show a hint to look at the watch.
+     */
+    fun askText(tag: String, prompt: String, suggestions: List<String> = emptyList())
+
+    /**
+     * Plays, pauses, moves or stops a video in image block [block] (03 §10). The watch decodes it on its
+     * own threads and writes its pictures into the block (at most as often as the page is drawn);
+     * [AppEvent.Video] reports the state. Addresses on the internet need [Permission.NETWORK]. While the
+     * app is hidden the video pauses, and it ends with the app.
+     */
+    fun video(block: String, action: VideoAction)
+
+    /**
+     * Searches videos on YouTube on a background thread; [onResult] runs on the app thread. Needs
+     * [Permission.NETWORK]. Takes a few seconds; the answer holds about 20 hits.
+     */
+    fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit)
+
     /** A small store of this app, at most 256 KiB, kept across restarts. */
     val storage: AppStorage
 

@@ -15,8 +15,8 @@ android {
         // Wear OS 4 (API 33) and newer: Faceclaw's GATT code uses the API 33 write call.
         minSdk = 33
         targetSdk = 37
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
     }
 
     buildTypes {
@@ -61,6 +61,13 @@ dependencies {
     implementation(libs.wear.compose.foundation)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.exoplayer.hls)
+    implementation(libs.wear.input)
+    implementation(libs.newpipe.extractor) {
+        // The javax.script binding of Rhino; NewPipeExtractor calls Rhino directly, and Android has no javax.script.
+        exclude(group = "org.mozilla", module = "rhino-engine")
+    }
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)

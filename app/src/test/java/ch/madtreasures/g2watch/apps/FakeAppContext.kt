@@ -36,6 +36,16 @@ class FakeAppContext(
 
     /** Requests the app made; answer them with [answer]. */
     val requests = mutableListOf<Pair<HttpRequest, (HttpResult) -> Unit>>()
+
+    /** The open text question (tag, prompt, suggestions), or null; the test answers with an [AppEvent.TextInput]. */
+    var question: Triple<String, String, List<String>>? = null
+        private set
+
+    /** Video commands in order: block → action. */
+    val videos = mutableListOf<Pair<String, VideoAction>>()
+
+    /** Searches the app made; answer them with [answerSearch]. */
+    val searches = mutableListOf<Pair<String, (VideoSearchResult) -> Unit>>()
     var closed = false
         private set
 
@@ -47,6 +57,12 @@ class FakeAppContext(
 
     /** Answers the oldest open request. */
     fun answer(result: HttpResult) = requests.removeAt(0).second(result)
+
+    /** Answers the oldest open search. */
+    fun answerSearch(result: VideoSearchResult) = searches.removeAt(0).second(result)
+
+    /** The last video command for [block]. */
+    fun lastVideo(block: String): VideoAction? = videos.lastOrNull { it.first == block }?.second
 
     private inline fun checked(block: () -> Unit) {
         try {
@@ -121,6 +137,39 @@ class FakeAppContext(
         require(Permission.NETWORK)
         require(request.url.startsWith("https://")) { "https only: ${request.url}" }
         requests += Pair(request, onResult)
+    }
+
+    override fun askText(tag: String, prompt: String, suggestions: List<String>) {
+        require(tag.isNotEmpty() && prompt.length <= 100) { "askText $tag" }
+        require(suggestions.size <= 5 && suggestions.all { it.isNotBlank() && it.length <= 40 }) { "at most 5 suggestions of 1 to 40 characters" }
+        question = Triple(tag, prompt, suggestions)
+    }
+
+    /** The app got its answer (or a new question replaced it). */
+    fun questionAnswered() {
+        question = null
+    }
+
+    override fun video(block: String, action: VideoAction) {
+        if (action is VideoAction.Play) {
+            checked {
+                if (pages.block(block) !is Block.Image) throw CommandException.unknownBlock(block, pages.current?.id ?: "?")
+            }
+            when {
+                action.src.startsWith("https://") -> require(Permission.NETWORK)
+                action.src.startsWith("test:") -> Unit
+                else -> throw IllegalArgumentException("${CommandException.BAD_VALUE}: video source ${action.src}")
+            }
+        } else {
+            require(videos.any { it.first == block && it.second is VideoAction.Play }) { "no video in $block" }
+        }
+        videos += Pair(block, action)
+    }
+
+    override fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit) {
+        require(Permission.NETWORK)
+        require(query.isNotBlank()) { "empty search" }
+        searches += Pair(query, onResult)
     }
 
     override fun log(message: String) {

@@ -35,4 +35,15 @@ class AppsBoundaryTest {
             assertTrue("${file.path}: $faceclaw", faceclaw.all { it == "import com.faceclaw.app.BleProtocol" })
         }
     }
+
+    @Test
+    fun `built-in apps use only the app interface, not Android or the video platform`() {
+        val apps = sources.filter { it.path.contains("/builtin/") }
+        assertTrue(apps.size >= 3)
+        val forbidden = listOf("import android.", "import androidx.", "import org.schabi", "import ch.madtreasures.g2watch.apps.video", "import ch.madtreasures.g2watch.apps.host")
+        for (file in apps) {
+            val text = file.readText()
+            for (f in forbidden) assertTrue("${file.path}: $f", !text.contains(f))
+        }
+    }
 }

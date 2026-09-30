@@ -76,6 +76,7 @@ data class BaukastenProject(
                     name = str(p["name"]).trim().ifEmpty { "Seite ${i + 1}" },
                     statusBar = !(p["statusBar"] is JsonPrimitive && (p["statusBar"] as JsonPrimitive).booleanOrNull == false),
                     notes = str(p["notes"]),
+                    input = InputMode.of(str(p["input"])),
                     blocks = ((p["blocks"] as? JsonArray) ?: JsonArray(emptyList())).mapNotNull { normBlock(it, ids) },
                 )
             }

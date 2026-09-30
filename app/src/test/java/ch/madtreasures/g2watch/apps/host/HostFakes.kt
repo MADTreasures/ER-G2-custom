@@ -10,6 +10,13 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.VideoProfile
+import ch.madtreasures.g2watch.apps.VideoSearchResult
+import ch.madtreasures.g2watch.apps.VideoState
+import ch.madtreasures.g2watch.apps.video.VideoEngine
+import ch.madtreasures.g2watch.apps.video.VideoListener
+import ch.madtreasures.g2watch.apps.video.VideoPlayer
+import ch.madtreasures.g2watch.apps.video.VideoRequest
 import ch.madtreasures.g2watch.desktop.AppScreen
 import ch.madtreasures.g2watch.desktop.AppView
 import ch.madtreasures.g2watch.desktop.GrayRaster
@@ -84,6 +91,63 @@ class FakePorts : HostPorts {
     override fun log(line: String) {
         logs += line
     }
+
+    /** Open text questions: prompt, suggestions and how to answer them. */
+    val questions = mutableListOf<Triple<String, List<String>, (String?) -> Unit>>()
+    var textCancels = 0
+
+    override fun askText(prompt: String, suggestions: List<String>, done: (String?) -> Unit) {
+        questions += Triple(prompt, suggestions, done)
+    }
+
+    override fun cancelText() {
+        textCancels++
+    }
+
+    override val video = FakeVideoEngine()
+}
+
+/** Records searches and players; a test drives a player through its [FakeVideoPlayer.listener]. */
+class FakeVideoEngine : VideoEngine {
+    val searches = mutableListOf<Pair<String, (VideoSearchResult) -> Unit>>()
+    val players = mutableListOf<FakeVideoPlayer>()
+
+    override fun search(query: String, done: (VideoSearchResult) -> Unit) {
+        searches += Pair(query, done)
+    }
+
+    override fun open(request: VideoRequest, listener: VideoListener): VideoPlayer = FakeVideoPlayer(request, listener).also { players += it }
+}
+
+/** A player that only records what it is told. */
+class FakeVideoPlayer(val request: VideoRequest, val listener: VideoListener) : VideoPlayer {
+    val calls = mutableListOf<String>()
+    var released = false
+        private set
+
+    override fun pause() {
+        calls += "pause"
+    }
+
+    override fun resume() {
+        calls += "resume"
+    }
+
+    override fun seekTo(positionMs: Long) {
+        calls += "seek $positionMs"
+    }
+
+    override fun setProfile(profile: VideoProfile) {
+        calls += "profile ${profile.json}"
+    }
+
+    override fun release() {
+        released = true
+        calls += "release"
+    }
+
+    fun state(state: VideoState, positionMs: Long = 0, durationMs: Long = 60_000, message: String? = null) =
+        listener.onState(state, positionMs, durationMs, message)
 }
 
 /** An app for host tests: records its events and runs [handler] for each. */

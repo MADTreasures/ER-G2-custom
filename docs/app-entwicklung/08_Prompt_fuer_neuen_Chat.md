@@ -10,8 +10,8 @@
    dazu, müssen aber nicht.
 3. Am Ende öffnet der Chat einen **Pull Request**. Diesen auf GitHub zusammenführen („Merge“), damit der
    nächste Chat auf der neuen App aufbaut. Der App-Host der Uhr (M1) ist seit v0.4.0 da; jede Uhr-App geht
-   jetzt direkt. Braucht eine App Rechner (M5) oder Sensoren (M6), baut der Chat diesen Teil zuerst – nach
-   Rückfrage.
+   jetzt direkt, seit v0.5.0 auch mit Texteingabe auf der Uhr und Videos (03 §10). Braucht eine App Rechner
+   (M5) oder Sensoren (M6), baut der Chat diesen Teil zuerst – nach Rückfrage.
 
 ## Der Text
 

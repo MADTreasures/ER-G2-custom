@@ -20,7 +20,9 @@ Die App baut auf [Faceclaw](https://github.com/jimrandomh/faceclaw) auf (Jim Bab
 
 Seit G2 Watch 0.4.0 öffnet die Kachel **„Apps“** den Starter des App-Hosts (Bilder im
 [README](../../README.md#apps-auf-der-brille)); das frühere Fenster „Zeiger“ ist entfallen – Tempo und
-Zentrieren gibt es an der Krone und in den Einstellungen der Uhr.
+Zentrieren gibt es an der Krone und in den Einstellungen der Uhr. Seit 0.5.0 gehört die App YouTube dazu
+([README](../../README.md#youtube-auf-der-brille)); fragt eine App nach Text, öffnet die Uhr über jedem
+Bildschirm ihre Tastatur mit Spracheingabe.
 
 Die Bilder zeigen das 640×480-Bild, das die App an die Brille schicken würde, in den 16 Grüntönen des Displays. Grün leuchtet; Schwarz leuchtet nicht und ist auf der Brille durchsichtig. Ein heller, dicker Rahmen markiert das Element unter dem Zeiger. Erzeugt hat die Bilder der eigene Renderer der App mit Androids Schrift, nicht die Brille (siehe [Bilder neu erzeugen](#bilder-neu-erzeugen)).
 

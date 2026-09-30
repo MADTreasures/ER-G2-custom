@@ -8,10 +8,11 @@ die Custom-Firmware drauf ist.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.4.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
-> gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Neu in
-> 0.4.0: der **App-Host** – eigene Apps auf der Brille, mit Starter, App-Menü und zwei Beispiel-Apps
-> ([Apps auf der Brille](#apps-auf-der-brille)).
+> **Ehrlicher Stand (v0.5.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
+> gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
+> 0.4.0 gibt es den **App-Host** – eigene Apps auf der Brille, mit Starter und App-Menü
+> ([Apps auf der Brille](#apps-auf-der-brille)). Neu in 0.5.0: die App **YouTube** – Videos suchen und
+> als Graustufen-Raster auf der Brille ansehen, alles auf der Uhr ([YouTube auf der Brille](#youtube-auf-der-brille)).
 
 ## Was aufgespielt werden kann
 
@@ -61,8 +62,8 @@ Einstellungen fasst zusammen, was schiefgehen kann ([Recherche](docs/RECHERCHE_F
 Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
 [`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)): Apps beschreiben ihre Oberfläche als
 Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
-verteilt die Eingaben. Eingebaut sind zwei Beispiel-Apps: **Stoppuhr** und **Einkauf** (Einkaufsliste zum
-Abhaken, Seite aus dem Baukasten).
+verteilt die Eingaben. Eingebaut sind **Stoppuhr**, **Einkauf** (Einkaufsliste zum Abhaken, Seite aus dem
+Baukasten) und seit 0.5.0 **YouTube** (nächster Abschnitt).
 
 | Starter | Einkauf (per Bügel abgehakt) | App-Menü |
 |---|---|---|
@@ -84,9 +85,12 @@ Abhaken, Seite aus dem Baukasten).
   Seite schließt Zurück die App.
 - **App-Menü:** am Bügel tippen und dann halten, oder den App-Namen in der Kopfzeile anklicken. Es zeigt die
   eigenen Einträge der App, dann „Apps“ (App läuft im Hintergrund weiter), „Zurück“ und „Schließen“.
-- **Gesten-Modus:** Apps mit `input: "gestures"` (Spiele, später Even-Hub-Apps) bekommen rohe Gesten. Der
-  Zeiger verschwindet, auf der Uhr steht „Gesten“: Wischen in vier Richtungen (nach rechts = zurück),
-  Tippen, Doppeltippen, lang Drücken. Das Zahnrad öffnet weiter die Einstellungen.
+- **Gesten-Modus:** Apps mit `input: "gestures"` (Spiele, später Even-Hub-Apps) bekommen rohe Gesten, seit
+  0.5.0 auch einzelne Seiten (etwa das Video der YouTube-App). Der Zeiger verschwindet, auf der Uhr steht
+  „Gesten“: Wischen in vier Richtungen (nach rechts = zurück), Tippen, Doppeltippen, lang Drücken. Das
+  Zahnrad öffnet weiter die Einstellungen.
+- **Texteingabe:** Fragt eine App nach Text (etwa die Suche), öffnet die Uhr ihre Tastatur mit
+  Spracheingabe; auf der Brille steht „Bitte auf der Uhr eingeben“.
 - Braucht eine App Mikrofon, Standort o. Ä., fragt die Brille beim ersten Start einmal nach („Erlauben“ /
   „Ablehnen“). Sensoren, Mikrofon und Summer kommen erst mit M6 bei den Apps an.
 
@@ -94,6 +98,68 @@ Eine eigene Uhr-App ist eine kleine Kotlin-Klasse unter
 [`app/src/main/java/ch/madtreasures/g2watch/apps/`](app/src/main/java/ch/madtreasures/g2watch/apps); wie das
 geht, steht in [03 – Uhr-Apps](docs/app-entwicklung/03_Uhr-Apps.md). Apps berühren nie den Firmware-Pfad
 (`AppsBoundaryTest`, `FlashingBoundaryTest`).
+
+## YouTube auf der Brille
+
+Die App **YouTube** (seit 0.5.0) läuft **ganz auf der Uhr**, ohne Handy und ohne Rechner: Sie sucht auf
+YouTube, lädt das Video über WLAN oder LTE, dekodiert es und rechnet jedes Bild in das Raster der Brille
+um – Graustufen in Grün, wie bei „G2 Agent Cam“ im Even Hub, nur mit Videos. Wie das gebaut ist, steht in
+[03 §10](docs/app-entwicklung/03_Uhr-Apps.md#10-video-auf-der-brille-v050).
+
+| Start | Treffer (Suche per Tastatur/Sprache der Uhr) | Video |
+|---|---|---|
+| ![Start](docs/bilder/apps-youtube-start.png) | ![Treffer](docs/bilder/apps-youtube-treffer.png) | ![Video](docs/bilder/apps-youtube-video.png) |
+| **Pause** | **Testbild der Uhr** (ohne Internet) | **Profile Stabil / Ausgewogen / Schnell** |
+| ![Pause](docs/bilder/apps-youtube-pause.png) | ![Testbild](docs/bilder/apps-youtube-testbild.png) | ![Profile](docs/bilder/video-profile.png) |
+
+Die Videobilder oben sind ein erfundenes Landschafts-Video (keine echten YouTube-Inhalte im Repo), durch
+dieselbe Umrechnung wie auf der Uhr.
+
+**Bedienen:**
+
+- **Suchen** anklicken → auf der Uhr erscheint die Tastatur (mit Spracheingabe und den letzten Suchen als
+  Vorschlag). Die Treffer zeigen Titel, Kanal, Länge und Aufrufe; der erste ist schon ausgewählt, ein Tipp
+  am Bügel spielt ihn ab.
+- **Im Video** (Vollbild, Gesten-Modus): **Tippen** = Pause/weiter, **Wischen** = 10 s zurück/vor,
+  **Doppeltippen** = zurück zur Liste, **lange drücken** = nächstes Profil. Auf der Uhr gilt dasselbe
+  (Wischen hoch/runter, nach links = Profil, nach rechts = zurück). Unter dem Bild steht der Titel, bei
+  Pause die Zeit.
+- **Profil** (Startseite oder App-Menü) – wie bei „G2 Agent Cam“:
+
+  | Profil | Bilder pro Sekunde | Raster (Punkte) | Graustufen | Bluetooth, Szene mit viel Detail / normal (simuliert) |
+  |---|---|---|---|---|
+  | **Stabil** | 1 | 208 × 117 | 16 | ≈ 12,5 KB/s / ≈ 3,3 KB/s |
+  | **Ausgewogen** (Standard) | 2 | 138 × 78 | 16 | ≈ 11,8 KB/s / ≈ 3,6 KB/s |
+  | **Schnell** | 4 | 104 × 58 | 8 | ≈ 10,9 KB/s / ≈ 3,3 KB/s |
+
+  Die Brille bekommt etwa 41 KB/s; jedes Profil braucht also höchstens rund ein Drittel davon. Die Werte
+  hat `VideoBudgetTest` mit Faceclaws eigener Übertragungs-Kodierung ausgerechnet, **nicht gemessen**.
+  Kommt die Brille nicht nach, zeigt sie einfach das jeweils neueste Bild (nichts staut sich).
+- **Ton auf der Uhr** (Schalter): spielt den Ton über den Lautsprecher der Uhr oder daran gekoppelte
+  Kopfhörer. Die Brille selbst hat keinen Lautsprecher.
+- **Verlauf:** die letzten 20 Videos, bleiben auf der Uhr gespeichert. **Testbild:** ein eigenes
+  Ein-Minuten-Video der Uhr (Graustufen-Treppe, Ball, Zeiger) – zeigt ohne Internet, wie flüssig die Bilder
+  ankommen.
+- Verdeckt eine andere App das Video oder ist die Brille weg, hält es an und läuft danach weiter.
+
+**Gut zu wissen:**
+
+- Für die Videos fragt die Uhr Wear OS nach **WLAN oder LTE** statt der Bluetooth-Verbindung übers Handy
+  (die teilt sich den Funk mit der Brille). Klappt das nicht innerhalb von 8 s, geht es über das Netz, das da
+  ist. Ist das Video zu Ende oder 20 s pausiert, gibt die Uhr WLAN/LTE wieder frei. Die Uhr lädt die kleinste Fassung, die für das Raster reicht (meist 144p H.264, ≈ 130 kbit/s, also
+  rund 60 MB pro Stunde; mit Ton etwa 20 MB mehr).
+- **Akku:** Dekodieren, Funk und Bluetooth zur Brille kosten spürbar Akku der Uhr (465 mAh) – nicht gemessen.
+- Die App wird dadurch rund **11 MB** größer (Debug-APK 41 statt 31 MB): NewPipeExtractor mit Rhino und
+  Media3.
+- YouTube-Zugriff über [NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor) (GPL-3.0, wie der
+  Faceclaw-Kern in dieser App) statt Googles App oder API. **YouTubes Nutzungsbedingungen untersagen den
+  Abruf an YouTubes eigenen Apps und Schnittstellen vorbei**; die App ist für den privaten Gebrauch gedacht,
+  auf eigenes Risiko. YouTube ändert seine Seiten öfter – dann hilft ein Update von NewPipeExtractor
+  (Version in `gradle/libs.versions.toml`).
+- Suche und Auflösen der Video-Adressen sind hier mit echtem Netz geprüft; **das Abspielen eines
+  YouTube-Videos nicht** (YouTube bindet die Video-Adresse an die IP, und die Testumgebung ruft YouTube und
+  die Videoserver über verschiedene Adressen auf). Auf der Uhr ist es dieselbe Adresse – das ist das Erste,
+  was auf echter Hardware zu prüfen ist.
 
 ## Wie die Uhr aufspielt – und was sie absichert
 
@@ -181,7 +247,7 @@ die Uhr offline ist.
 
 | Modul | Inhalt |
 |---|---|
-| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware` und der App-Host `ch.madtreasures.g2watch.apps` mit Starter und Beispiel-Apps |
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter und den Apps Stoppuhr, Einkauf und YouTube, und die Video-Wiedergabe `apps/video` |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
 | [`tools/cfw_bauen.py`](tools/cfw_bauen.py) | Baut und prüft Faceclaw/35 auf dem PC (Python, ohne Flashen) |
@@ -195,8 +261,8 @@ die Uhr offline ist.
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 291 Tests grün (28 Bild-Tests werden ohne `-PsnapshotDir`
-übersprungen), Lint ohne Fehler. Die wichtigsten:
+Stand dieses Commits: 15 + 184 + 350 Tests grün (34 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:
   Aufspielen beider Ziele, jedes Abbruchkriterium (Ablehnen, Lautlos, Akku, MTU, neuere Firmware,
@@ -214,6 +280,11 @@ Stand dieses Commits: 15 + 184 + 291 Tests grün (28 Bild-Tests werden ohne `-Ps
   alle 200 ms zeichnen, Timer ruhen verdeckt ohne `background`, 2-s- und 10-s-Regel, 50/500-ms-Regel,
   Absturz einer App, Berechtigungsfrage, App-Menü mit „Apps“ und Starter, Fokus per Bügel, Zeiger,
   Gesten-Modus, abgelehnte Befehle im Protokoll, interne Sitzungen (Anschlüsse für Even-Hub-Apps).
+- **`AppHostVideoTest`** – Texteingabe (Antwort, Abbruch, ersetzte Frage, App endet), Videos (Bilder im
+  Bild-Baustein, Zustände, Pause/Weiter/Springen/Profil/Stopp, Berechtigung, Pause beim Verdecken und ohne
+  Brille), Eingabeart pro Seite, Video-Suche. **`YouTubeAppTest`** – Suche, Treffer, Gesten im Video,
+  Profile, Ton, Verlauf. **`VideoBudgetTest`** – was ein Video mit Faceclaws Kodierung über Bluetooth kostet;
+  **`FrameConverterTest`**, **`StreamChooserTest`**, **`TestPatternPlayerTest`**.
 - **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel), **`AppJsonTest`**, **`PageStateTest`**,
   **`BaukastenProjectTest`**, Tests der Beispiel-Apps mit `FakeAppContext`, **`AppsBoundaryTest`** (Apps
   berühren weder Firmware noch Bluetooth).

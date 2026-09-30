@@ -83,8 +83,9 @@ async function update(ui: AppContext) {
 
 `AppContext` in TypeScript entspricht der Kotlin-Schnittstelle ([03 §2](03_Uhr-Apps.md#2-die-schnittstelle)):
 `definePages`, `show`, `replace`, `patch(pageId, changes)`, `setBlocks`, `toast`, `vibrate`, `menu`, `buzz`,
-`timer(tag, ms, {repeat})`, `cancelTimer`, `subscribe`, `unsubscribe`, `audio(on)`,
-`storage.get/set` (async, JSON-Datei je App), `log`, `close`. Netzwerk: das normale `fetch` von Node.
+`timer(tag, ms, {repeat})`, `cancelTimer`, `subscribe`, `unsubscribe`, `audio(on)`, seit v0.5.0 `askText`
+und `video` (02 §6.2), `storage.get/set` (async, JSON-Datei je App), `log`, `close`. Netzwerk: das normale
+`fetch` von Node. (`videoSearch` gibt es nur auf der Uhr; ein Rechner sucht selbst.)
 Befehle, die die Uhr ablehnt, kommen als Ereignis `{ kind: "error", command, code, message }` zurück.
 
 Unterschiede zur Uhr:
@@ -219,6 +220,8 @@ nicht über die Leitung):
 { "c": "subscribe", "sensor": "imu", "rate": 100 }
 { "c": "unsubscribe", "sensor": "imu" }
 { "c": "audio", "on": true }
+{ "c": "askText", "tag": "suche", "prompt": "Wonach suchen?", "suggestions": ["Katzen"] }
+{ "c": "video", "block": "bild", "action": "play", "src": "https://…", "profile": "balanced", "sound": false, "start": 0 }
 { "c": "close" }
 ```
 

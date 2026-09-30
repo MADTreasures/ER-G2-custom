@@ -78,6 +78,13 @@ object AppJson {
                 put("kind", "sensor"); put("sensor", "location")
                 put("lat", event.lat); put("lon", event.lon); put("acc", event.acc); put("t", event.t)
             }
+            is AppEvent.TextInput -> {
+                put("kind", "text"); put("tag", event.tag); put("text", event.text)
+            }
+            is AppEvent.Video -> {
+                put("kind", "video"); put("block", event.block); put("state", event.state.json)
+                put("position", event.positionMs); put("duration", event.durationMs); put("message", event.message)
+            }
             is AppEvent.Audio -> throw SerializationException("audio events travel as binary frames, never as JSON")
             is AppEvent.Error -> {
                 put("kind", "error"); put("command", event.command); put("code", event.code); put("message", event.message)
@@ -110,6 +117,14 @@ object AppJson {
                 "location" -> AppEvent.Location(double(o, "lat"), double(o, "lon"), float(o, "acc"), long(o, "t"))
                 else -> bad("unbekannter Sensor „$sensor“")
             }
+            "text" -> AppEvent.TextInput(string(o, "tag"), optString(o, "text"))
+            "video" -> AppEvent.Video(
+                string(o, "block"),
+                VideoState.of(string(o, "state")) ?: bad("unbekannter Videozustand „${o["state"]}“"),
+                optLong(o, "position") ?: 0,
+                optLong(o, "duration") ?: 0,
+                optString(o, "message"),
+            )
             "audio" -> bad("Audio kommt nie als JSON, sondern als Binärrahmen")
             "error" -> AppEvent.Error(string(o, "command"), string(o, "code"), string(o, "message"))
             else -> null
@@ -151,6 +166,22 @@ object AppJson {
             }
             is AppCommand.Unsubscribe -> put("sensor", command.sensor.json)
             is AppCommand.Audio -> put("on", command.on)
+            is AppCommand.AskText -> {
+                put("tag", command.tag); put("prompt", command.prompt)
+                put("suggestions", buildJsonArray { command.suggestions.forEach { add(JsonPrimitive(it)) } })
+            }
+            is AppCommand.Video -> {
+                put("block", command.block)
+                put("action", command.action.json)
+                when (val a = command.action) {
+                    is VideoAction.Play -> {
+                        put("src", a.src); put("profile", a.profile.json); put("sound", a.sound); put("start", a.startMs)
+                    }
+                    is VideoAction.Seek -> put("position", a.positionMs)
+                    is VideoAction.Profile -> put("profile", a.profile.json)
+                    VideoAction.Pause, VideoAction.Resume, VideoAction.Stop -> Unit
+                }
+            }
             AppCommand.Close -> Unit
         }
     }
@@ -193,6 +224,12 @@ object AppJson {
             "subscribe" -> AppCommand.Subscribe(sensor(o), optInt(o, "rate") ?: 0)
             "unsubscribe" -> AppCommand.Unsubscribe(sensor(o))
             "audio" -> AppCommand.Audio(bool(o, "on"))
+            "askText" -> AppCommand.AskText(
+                string(o, "tag"),
+                optString(o, "prompt") ?: "",
+                optArray(o, "suggestions").map { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content ?: bad("Vorschläge müssen Texte sein") },
+            )
+            "video" -> AppCommand.Video(string(o, "block"), videoAction(o))
             "close" -> AppCommand.Close
             else -> bad("unbekannter Befehl „$c“")
         }
@@ -205,6 +242,7 @@ object AppJson {
         put("name", page.name)
         put("statusBar", page.statusBar)
         put("notes", page.notes)
+        page.input?.let { put("input", it.json) }
         put("blocks", JsonArray(page.blocks.map(::encodeBlock)))
     }
 
@@ -216,6 +254,7 @@ object AppJson {
             blocks = optArray(o, "blocks").map(::decodeBlock),
             statusBar = optBool(o, "statusBar") ?: true,
             notes = optString(o, "notes") ?: "",
+            input = optString(o, "input")?.let { InputMode.of(it) ?: bad("„input“ muss pointer oder gestures sein") },
         )
     }
 
@@ -346,6 +385,25 @@ object AppJson {
         val v = o[key]
         if (v == null || v is JsonNull) return JsonArray(emptyList())
         return v as? JsonArray ?: bad("„$key“ muss eine Liste sein")
+    }
+
+    private fun optLong(o: JsonObject, key: String): Long? {
+        val v = o[key] ?: return null
+        if (v is JsonNull) return null
+        return (v as? JsonPrimitive)?.takeIf { !it.isString }?.longOrNull ?: bad("„$key“ muss eine ganze Zahl sein")
+    }
+
+    private fun profile(o: JsonObject): VideoProfile =
+        optString(o, "profile")?.let { VideoProfile.of(it) ?: bad("unbekanntes Videoprofil „$it“") } ?: VideoProfile.BALANCED
+
+    private fun videoAction(o: JsonObject): VideoAction = when (val action = string(o, "action")) {
+        "play" -> VideoAction.Play(string(o, "src"), profile(o), optBool(o, "sound") ?: false, optLong(o, "start") ?: 0)
+        "pause" -> VideoAction.Pause
+        "resume" -> VideoAction.Resume
+        "seek" -> VideoAction.Seek(optLong(o, "position") ?: bad("„position“ fehlt"))
+        "profile" -> VideoAction.Profile(profile(o))
+        "stop" -> VideoAction.Stop
+        else -> bad("unbekannte Videoaktion „$action“")
     }
 
     private fun sensor(o: JsonObject): Sensor =

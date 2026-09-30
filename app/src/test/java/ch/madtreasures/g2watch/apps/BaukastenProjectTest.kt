@@ -87,6 +87,15 @@ class BaukastenProjectTest {
     }
 
     @Test
+    fun `a page's input mode is kept, an unknown one means the app's`() {
+        val project = BaukastenProject.parse(
+            """{ "pages": [ { "id": "p_video", "input": "gestures", "blocks": [] }, { "id": "p_liste", "input": "maus", "blocks": [] }, { "id": "p_x" } ] }""",
+        )
+        assertEquals(listOf(InputMode.GESTURES, null, null), project.pages.map { it.input })
+        assertEquals(project, BaukastenProject.normalize(project.toJson()))
+    }
+
+    @Test
     fun `what cannot be read says why, in German`() {
         val cases = mapOf(
             "" to "leer",

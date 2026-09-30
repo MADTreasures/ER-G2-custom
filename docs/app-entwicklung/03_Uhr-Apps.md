@@ -3,9 +3,10 @@
 Uhr-Apps sind kleine Kotlin-Klassen, die fest in die G2-Watch-App eingebaut werden. Sie laufen auch
 ohne Rechner und ohne Netz. Für alles Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 
-**Stand:** Der App-Host ist gebaut (M1, v0.4.0, nicht auf Hardware erprobt). Dieses Kapitel beschreibt
-erst, was eine App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was bei der Umsetzung dazukam
-oder anders wurde als ursprünglich geplant, steht in §9.
+**Stand:** Der App-Host ist gebaut (M1, v0.4.0), dazu seit v0.5.0 Texteingabe auf der Uhr und Video auf der
+Brille mit der App YouTube (§10); nichts davon ist auf Hardware erprobt. Dieses Kapitel beschreibt erst, was
+eine App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was bei der Umsetzung dazukam oder anders
+wurde als ursprünglich geplant, steht in §9 und §10.
 
 ## 1. Eine Uhr-App schreiben
 
@@ -78,7 +79,7 @@ class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : 
 Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`), in der Reihenfolge des Starters:
 
 ```kotlin
-val builtInApps: List<() -> G2App> = listOf({ StopwatchApp() }, { ShoppingListApp() })
+val builtInApps: List<() -> G2App> = listOf({ StopwatchApp() }, { ShoppingListApp() }, { YouTubeApp() })
 ```
 
 Seiten aus dem Baukasten statt aus Code: den Export nach `app/src/main/assets/apps/<app-id>/ui.json`
@@ -128,6 +129,9 @@ interface AppContext {
     fun unsubscribe(sensor: Sensor)
     fun audio(on: Boolean)                                 // needs Permission.MIC
     fun fetch(request: HttpRequest, onResult: (HttpResult) -> Unit)  // needs Permission.NETWORK
+    fun askText(tag: String, prompt: String, suggestions: List<String> = emptyList())  // v0.5.0: keyboard/voice on the watch → AppEvent.TextInput
+    fun video(block: String, action: VideoAction)          // v0.5.0: Play(src, profile, sound, startMs), Pause, Resume, Seek, Profile, Stop → AppEvent.Video (§10)
+    fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit)  // v0.5.0: YouTube search; needs Permission.NETWORK
     val storage: AppStorage                                // get(key): JsonElement?, set(key, JsonElement); ≤ 256 KiB per app
     fun log(message: String)                               // goes to Settings → Protokoll
     fun close()
@@ -150,6 +154,8 @@ sealed interface AppEvent {
     data class Compass(val heading: Float, val t: Long) : AppEvent                         // kind "sensor", sensor "compass"
     data class Location(val lat: Double, val lon: Double, val acc: Float, val t: Long) : AppEvent
     class Audio(val pcm: ShortArray, val seq: Int) : AppEvent                              // 16 kHz mono, 50 ms
+    data class TextInput(val tag: String, val text: String?) : AppEvent                    // v0.5.0, null = cancelled
+    data class Video(val block: String, val state: VideoState, val positionMs: Long, val durationMs: Long, val message: String?) : AppEvent  // v0.5.0
 }
 ```
 
@@ -325,3 +331,100 @@ dieselbe `G2App`-Schnittstelle gelegt werden.
 | Interne Sitzungen (§5.2) | `InternalSession` + `InternalContext` (= `AppContext` + `setRaster`, `glasses`), `onGlassesStatus`, `startTimeoutMs`, `startingText`, `ownsDoubleClick` (Doppeltippen geht an die App). Der Starter ist selbst so eine Sitzung (`launcher/Launcher.kt`). `EvenHubRegistry.NONE` bis M3. |
 | Brillen-Status | `AppHost.glassesStatus` (verbunden, Akku, Laden, getragen); die Uhr schaltet beim Verbinden die Trageerkennung ein (`enableWearDetectionAndRequestState`). |
 | Beobachtbar | `AppHost.inputMode` schaltet das Touchpad; `AppHost.state` (sichtbare App, Seite, Fokus, Scroll, laufende Apps) für die Uhr-Oberfläche und Tests. |
+
+## 10. Video auf der Brille (v0.5.0)
+
+Gebaut für die App **YouTube**, auf ausdrücklichen Wunsch **ganz auf der Uhr** statt als Rechner-App (00 würde
+eine Rechner-App empfehlen: dauernd im Netz, viel Rechenarbeit). Damit die Regeln aus §3 trotzdem gelten, ist
+das Video ein **Plattform-Teil** mit eigenen Threads, wie die EvenHub-Laufzeit: Dekodieren macht der
+Hardware-Decoder, Verkleinern die GPU der Uhr; die App gibt nur Befehle und bleibt unter 50 ms je Ereignis.
+
+```
+YouTubeApp (G2App) ── video(block, Play) ──────────▶ AppHost ──▶ VideoEngine (HostPorts.video)
+     ◀── AppEvent.Video (Zustand, Position) ────────┤             AndroidVideoEngine
+     ◀── Bild im image-Baustein (≤ alle 200 ms) ────┘              ├─ NewPipeCatalog: Suche; Video-Seite → Streams
+                                                                   ├─ StreamChooser: kleinste H.264-Fassung, die reicht
+                                                                   ├─ ExoVideoPlayer (Media3, Thread „G2Watch-video“):
+                                                                   │    Hardware-Decoder → SurfaceTexture → GlFrameGrabber
+                                                                   │    (GPU: aufs Raster verkleinern, Helligkeit) → FrameConverter
+                                                                   └─ TestPatternPlayer: test:muster, ohne Netz
+```
+
+| Datei (`app/…/apps/`) | Aufgabe |
+|---|---|
+| `Video.kt` | öffentliche Typen: `VideoProfile`, `VideoAction`, `VideoState`, `VideoItem`, `VideoSearchResult` |
+| `video/VideoEngine.kt` | Anschluss des Hosts: `search`, `open(VideoRequest, VideoListener) → VideoPlayer` (pause, resume, seekTo, setProfile, release) |
+| `video/FrameConverter.kt` | Helligkeitsraster → Raster des Bild-Bausteins (reines Kotlin, getestet) |
+| `video/TestPattern.kt` | Testvideo der Uhr (`test:muster`, 16:9, 1 min) und sein Player |
+| `video/StreamChooser.kt` | welche Fassung (reines Kotlin, getestet) |
+| `video/NewPipeCatalog.kt` | YouTube-Suche und Stream-Adressen mit NewPipeExtractor (GPL-3.0) |
+| `video/ExoVideoPlayer.kt`, `GlFrameGrabber.kt`, `GooglevideoDataSource.kt`, `FastNetwork.kt`, `AndroidVideoEngine.kt` | Wiedergabe auf der Uhr (Android, nicht auf Hardware erprobt) |
+| `host/TextPrompts.kt` | Texteingabe: Frage des Hosts → `MainActivity` (Wear-OS-`RemoteInput`: Tastatur, Sprache, Vorschläge) → Antwort |
+| `builtin/youtube/YouTubeApp.kt` | die App: Start, Suche, Treffer, Verlauf, Video, Profile, Ton |
+
+**Vom Video zum Raster** (`FrameConverter`, je Bild):
+
+1. Die GPU zeichnet das dekodierte Bild **auf Rastergröße** (ein Wert je Rasterpunkt, Mittel aus vier
+   Abtastungen), seitenrichtig mit schwarzen Rändern, und rechnet es in Helligkeit um. Zurückgelesen werden
+   nur ein paar zehn KB statt eines ganzen Videobilds. Ein `ImageReader` wäre einfacher, lässt sich aber von
+   vielen Qualcomm-Decodern nicht füttern (eigene YUV-Formate).
+2. **Kontrast** zwischen 2. und 98. Perzentil strecken (höchstens auf 72 Stufen Spanne), über die Zeit
+   geglättet (35 % je Bild), Mitteltöne leicht angehoben (Gamma 0,85): die dunkle Hälfte eines Bilds ist auf
+   dem Glas durchsichtig.
+3. Auf die Graustufen des Profils runden; ein Punkt wechselt seine Stufe erst, wenn der Wert **13/16 einer
+   Stufe** davon weg ist. Ruhige Bildteile bleiben so Byte für Byte gleich – das spart Funk, weil Faceclaws
+   Kern nur Änderungen schickt und zlib Wiederholungen findet.
+4. Jeder Rasterpunkt wird ein Quadrat aus `cell` × `cell` Pixeln.
+
+**Profile** (Budget: `VideoBudgetTest` rechnet mit Faceclaws eigener Kodierung – geändertes Rechteck, RLE
+Modus 3, zlib-Strom des Transports – für drei erfundene Videos; Bild-Baustein 416 × 234):
+
+| Profil | Bild alle | Rasterpunkt | Stufen | Raster | Landschaft / viel Detail / Gespräch |
+|---|---|---|---|---|---|
+| `stable` Stabil | 1000 ms | 2 × 2 | 16 | 208 × 117 | 3,3 / 12,5 / 1,3 KB/s |
+| `balanced` Ausgewogen | 500 ms | 3 × 3 | 16 | 138 × 78 | 3,6 / 11,8 / 1,4 KB/s |
+| `fast` Schnell | 250 ms | 4 × 4 | 8 | 104 × 58 | 3,3 / 10,9 / 1,6 KB/s |
+
+Der Test verlangt höchstens 16 KiB/s (≈ 40 % der ≈ 41 KiB/s, 01 §1) und für gewöhnliche Szenen 5 KiB/s.
+Ordered Dithering wurde verworfen: Es macht aus jeder Fläche abwechselnde Pixel und kostet ein Vielfaches.
+
+**Wiedergabe** (`ExoVideoPlayer`):
+
+- Video-Seiten fragt `NewPipeCatalog` nach Streams; `StreamChooser` nimmt die **kleinste H.264-Fassung mit
+  mindestens so vielen Zeilen wie das Raster** (meist 144p), sonst VP9, nie AV1 und nie über 480p; mit Ton die
+  kleinste AAC-Spur der Originalsprache ab 48 kbit/s. Reihenfolge der Versuche: Bild(+Ton) → HLS → Datei mit
+  Ton. Schlägt ein Stream fehl (z. B. HTTP 403), kommt der nächste; sind alle durch, wird die Seite einmal neu
+  aufgelöst (Adressen verfallen). Live-Videos nur über HLS.
+- YouTubes Videoserver bekommen, was NewPipe schickt: den User-Agent des Clients, der die Adresse bekam
+  (Android, iOS, visionOS), bei Web-Adressen POST und Origin/Referer, und die Bytes stückweise als
+  `range=a-b` mit Zähler `rn` (je 1 MiB).
+- Vor dem Abspielen bittet die Uhr Wear OS um **WLAN oder LTE** (`FastNetwork`, `bindProcessToNetwork`) und
+  wartet darauf höchstens 8 s; die Bluetooth-Verbindung übers Handy würde den Funk der Brille mitbelegen. Die
+  Uhr hält das Netz, solange das Video lädt oder läuft, und gibt es zurück, wenn es zu Ende ist, 20 s pausiert
+  oder fehlschlägt (Akku). Suchen nehmen das Netz, das da ist. Braucht `ACCESS_NETWORK_STATE` und
+  `CHANGE_NETWORK_STATE`.
+- Ein Sprung während des Ladens gilt ab dem Start; ein Live-Video, das länger pausiert war, als sein Fenster
+  reicht, geht an der Live-Kante weiter.
+- Puffer 15–30 s, Ton nur mit `sound` (sonst ist die Tonspur abgeschaltet), Wake-Lock fürs Netz.
+
+**Im Host:** `video(block, …)` verlangt einen `image`-Baustein; `https://` braucht `network`, `test:` nicht.
+Ein neues Video beginnt schwarz und ersetzt ein altes im selben Baustein. Bilder gehen in den Baustein wie
+`setRaster` und werden höchstens alle 200 ms gezeichnet. Das Video **pausiert**, solange die App verdeckt ist
+oder die Brille weg ist, und läuft danach von selbst weiter – außer die App hat selbst pausiert. Ein Fehler
+beendet das Video (Eintrag im Protokoll, Ereignis `error`); mit der App endet es immer.
+
+**Weitere Änderungen am Host in v0.5.0:** Seiten können ihre Eingabeart wählen (`Page.input`, 02 §4.1).
+`askText` zeigt auf der Brille „Bitte auf der Uhr eingeben“ (bis zur Antwort), die Uhr vibriert; eine neue
+Frage beantwortet die offene mit `null`; endet die App, nimmt die Uhr die Frage zurück. Die Eingabe erscheint,
+sobald die G2-Watch-App im Vordergrund ist (während der Verbindung hält sie den Bildschirm an). Bekommt die
+angezeigte Seite neuen Inhalt und ist nichts fokussiert, fokussiert der Host den ersten sichtbaren Knopf –
+so spielt ein Tipp am Bügel den ersten Treffer ab, sobald die Liste da ist.
+
+**Tests (ohne Hardware):** `AppHostVideoTest`, `YouTubeAppTest`, `FrameConverterTest`, `StreamChooserTest`,
+`TestPatternPlayerTest`, `VideoBudgetTest`, Bilder `apps-youtube-*.png` und `video-profile.png`. Suche und
+Auflösen sind einmal mit echtem Netz gegen YouTube probiert (20 Treffer; 144p H.264 gewählt), nicht in der CI.
+
+**Nicht erprobt:** alles auf der echten Uhr – GPU-Abgriff, Media3 mit dem Decoder der Pixel Watch 5,
+WLAN/LTE-Anforderung, Tastatur/Sprache, Akku. Ob YouTube die Videos an die Uhr ausliefert, ist offen: In der
+Testumgebung antworteten YouTubes Videoserver mit 403, weil sie die Adresse an die IP binden und die
+Umgebung YouTube und die Videoserver über verschiedene Adressen erreicht.

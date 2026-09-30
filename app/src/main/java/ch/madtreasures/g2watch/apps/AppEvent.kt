@@ -53,6 +53,21 @@ sealed interface AppEvent {
         override fun toString() = "Audio(seq=$seq, ${pcm.size} samples)"
     }
 
+    /** The wearer's answer to [AppContext.askText] with [tag]; [text] is null when the wearer cancelled. */
+    data class TextInput(val tag: String, val text: String?) : AppEvent
+
+    /**
+     * The video in image block [block] changed its state, or (while playing) about once a second, with
+     * where it is. [durationMs] is 0 when unknown (live); [message] explains [VideoState.ERROR].
+     */
+    data class Video(
+        val block: String,
+        val state: VideoState,
+        val positionMs: Long,
+        val durationMs: Long,
+        val message: String? = null,
+    ) : AppEvent
+
     /** A command was refused ([CommandException.code]). Only remote apps get this; watch apps see it in the log. */
     data class Error(val command: String, val code: String, val message: String) : AppEvent
 }

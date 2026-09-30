@@ -36,7 +36,8 @@ Kennungen doppelt → Hinweis statt Absturz.
 ## M1 – App-Host auf der Uhr, erste Uhr-Apps
 
 **Stand:** erledigt in v0.4.0 (nicht auf Hardware erprobt). Was dabei von 03 abweicht oder dazukam, steht
-dort in §9.
+dort in §9. Außer der Reihe kam in v0.5.0 für die App YouTube dazu: Texteingabe auf der Uhr, Eingabeart je
+Seite und die Video-Wiedergabe auf der Uhr (03 §10) – statt M5, weil alles auf der Uhr laufen soll.
 
 **Ziel:** Auf der Brille gibt es „Apps“, darin Stoppuhr und Einkaufsliste, bedienbar mit Zeiger und Bügel.
 
