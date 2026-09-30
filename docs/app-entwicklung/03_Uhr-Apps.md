@@ -367,7 +367,7 @@ YouTubeApp (G2App) ── video(block, Play) ──────────▶ A
 | `video/NewPipeCatalog.kt` | YouTube-Suche und Stream-Adressen mit NewPipeExtractor (GPL-3.0) |
 | `video/ExoVideoPlayer.kt`, `GlFrameGrabber.kt`, `GooglevideoDataSource.kt`, `FastNetwork.kt`, `AndroidVideoEngine.kt` | Wiedergabe auf der Uhr (Android, nicht auf Hardware erprobt) |
 | `host/TextPrompts.kt` | Texteingabe: Frage des Hosts → `MainActivity` (Wear-OS-`RemoteInput`: Tastatur, Sprache, Vorschläge) → Antwort |
-| `builtin/youtube/YouTubeApp.kt` | die App: Start, Suche, Treffer, Verlauf, Video, Profile, Ton |
+| `builtin/youtube/YouTubeApp.kt` | die App: Start, Suche, Treffer, Verlauf, Video, Profile, Ton; Titel ohne Emoji (v0.5.1: die Schrift hat keine, und Farb-Emoji werden in 16 Stufen zu Klecksen) |
 
 **Vom Video zum Raster** (`FrameConverter`, je Bild):
 

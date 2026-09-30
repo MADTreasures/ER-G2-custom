@@ -8,11 +8,12 @@ die Custom-Firmware drauf ist.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.5.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
+> **Ehrlicher Stand (v0.5.1):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
 > gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
 > 0.4.0 gibt es den **App-Host** – eigene Apps auf der Brille, mit Starter und App-Menü
 > ([Apps auf der Brille](#apps-auf-der-brille)). Neu in 0.5.0: die App **YouTube** – Videos suchen und
 > als Graustufen-Raster auf der Brille ansehen, alles auf der Uhr ([YouTube auf der Brille](#youtube-auf-der-brille)).
+> 0.5.1 zeigt Video-Titel ohne Emoji (die Brille könnte sie nur als Kleckse zeichnen).
 
 ## Was aufgespielt werden kann
 
@@ -262,7 +263,7 @@ die Uhr offline ist.
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 351 Tests grün (34 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 352 Tests grün (34 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:

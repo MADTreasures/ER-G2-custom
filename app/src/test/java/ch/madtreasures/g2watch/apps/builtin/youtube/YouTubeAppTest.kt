@@ -271,6 +271,24 @@ class YouTubeAppTest {
     }
 
     @Test
+    fun `titles show without emoji, which the glasses can only draw as blobs`() {
+        assertEquals("These CATS are too FUNNY! | New Cat Videos", YouTubeApp.plain("These CATS are too FUNNY! 🤣 | New Cat Videos"))
+        assertEquals("Funniest Cats and Dogs Clips 2025 Try Not To Laugh", YouTubeApp.plain("Funniest Cats and Dogs Clips 2025😼🐶Try Not To Laugh😜"))
+        assertEquals("Liebe", YouTubeApp.plain("❤️ Liebe ⭐"))
+        assertEquals("Schweiz", YouTubeApp.plain("🇨🇭 Schweiz"))
+        assertEquals("Familie", YouTubeApp.plain("👨‍👩‍👧 Familie"))
+        assertEquals("Grüße – „Test“ · 1:02 | ß", YouTubeApp.plain("Grüße – „Test“ · 1:02 | ß"))
+        assertEquals("Ohne Titel", YouTubeApp.title(VideoItem("https://x", "🔥🔥🔥")))
+
+        started()
+        click(YouTubeApp.START, YouTubeApp.SEARCH)
+        send(AppEvent.TextInput(YouTubeApp.ASK_SEARCH, "katzen"))
+        ui.answerSearch(VideoSearchResult(listOf(VideoItem("https://www.youtube.com/watch?v=c", "Katzen 😂 TOP 10", "Tiere 🐾", durationS = 60))))
+        assertEquals("Katzen TOP 10", ui.page(YouTubeApp.RESULTS).textOf("v0"))
+        assertEquals("Tiere · 1:00", ui.page(YouTubeApp.RESULTS).textOf("vi0"))
+    }
+
+    @Test
     fun `numbers read the German way`() {
         assertEquals("0:07", YouTubeApp.clock(7_000))
         assertEquals("1:02:03", YouTubeApp.clock(3_723_000))

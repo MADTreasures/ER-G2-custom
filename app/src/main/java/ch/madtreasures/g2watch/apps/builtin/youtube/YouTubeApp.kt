@@ -168,13 +168,13 @@ class YouTubeApp : G2App {
         val blocks = when {
             !result.ok -> listOf(Block.Text(RESULTS_STATUS, "Suche ging nicht: ${result.error}"), Block.Button(AGAIN, "Nochmal suchen"))
             hits.isEmpty() -> listOf(Block.Text(RESULTS_STATUS, "Nichts gefunden."), Block.Button(AGAIN, "Anders suchen"))
-            else -> hits.flatMapIndexed { i, v -> listOf(Block.Button("$HIT$i", v.title.ifBlank { "Ohne Titel" }), Block.Text("$HIT_INFO$i", info(v))) }
+            else -> hits.flatMapIndexed { i, v -> listOf(Block.Button("$HIT$i", title(v)), Block.Text("$HIT_INFO$i", info(v))) }
         }
         ui.definePages(listOf(resultsPage(blocks, query)))
     }
 
     private fun resultsPage(blocks: List<Block>, query: String = "") =
-        Page(RESULTS, "Treffer", listOf(Block.Heading(RESULTS_TITLE, if (query.isEmpty()) "Treffer" else "„${shorten(query, 30)}“")) + blocks)
+        Page(RESULTS, "Treffer", listOf(Block.Heading(RESULTS_TITLE, if (query.isEmpty()) "Treffer" else "„${shorten(plain(query), 30)}“")) + blocks)
 
     // --- History --------------------------------------------------------------------------------
 
@@ -185,7 +185,7 @@ class YouTubeApp : G2App {
             blocks += Block.Text(HISTORY_EMPTY, "Noch nichts angesehen.")
         } else {
             history.forEachIndexed { i, v ->
-                blocks += Block.Button("$SEEN$i", v.title.ifBlank { "Ohne Titel" })
+                blocks += Block.Button("$SEEN$i", title(v))
                 blocks += Block.Text("$SEEN_INFO$i", info(v))
             }
             blocks += Block.Button(CLEAR_HISTORY, "Verlauf löschen")
@@ -240,7 +240,7 @@ class YouTubeApp : G2App {
         state = e.state
         val line = when (e.state) {
             VideoState.LOADING -> "Lädt … Tippen = Pause, Wischen = ±10 s"
-            VideoState.PLAYING -> shorten(item.title, 42)
+            VideoState.PLAYING -> shorten(title(item), 42)
             VideoState.PAUSED -> "Pause ${time()} – tippen: weiter"
             VideoState.BUFFERING -> "Lädt nach … ${time()}"
             VideoState.ENDED -> "Ende – tippen: nochmal"
@@ -370,7 +370,7 @@ class YouTubeApp : G2App {
         /** "Kanal · 4:56 · 1,2 Mio. Aufrufe", short enough for one line. */
         fun info(v: VideoItem): String {
             val parts = ArrayList<String>()
-            if (v.channel.isNotBlank()) parts += shorten(v.channel, 24)
+            plain(v.channel).takeIf { it.isNotEmpty() }?.let { parts += shorten(it, 24) }
             parts += if (v.live) "live" else if (v.durationS > 0) clock(v.durationS * 1000) else ""
             if (v.views >= 0) parts += views(v.views)
             return parts.filter { it.isNotEmpty() }.joinToString(" · ")
@@ -396,5 +396,34 @@ class YouTubeApp : G2App {
         private fun decimal(tenths: Long): String = if (tenths % 10 == 0L) "${tenths / 10}" else "${tenths / 10},${tenths % 10}"
 
         fun shorten(s: String, max: Int): String = if (s.length <= max) s else s.take(max - 1).trimEnd() + "…"
+
+        /** The title to show; "Ohne Titel" when nothing is left of it. */
+        fun title(v: VideoItem): String = plain(v.title).ifEmpty { "Ohne Titel" }
+
+        /**
+         * [s] without emoji and other pictographs, which YouTube titles love and the glasses can only show as
+         * grey blobs (the font has no glyphs for them, a colour emoji becomes a smudge in 16 levels). Where one
+         * stood between words, a space remains.
+         */
+        fun plain(s: String): String {
+            val out = StringBuilder(s.length)
+            var i = 0
+            while (i < s.length) {
+                val cp = s.codePointAt(i)
+                i += Character.charCount(cp)
+                if (pictograph(cp)) out.append(' ') else out.appendCodePoint(cp)
+            }
+            return out.toString().replace(WHITESPACE, " ").trim()
+        }
+
+        private val WHITESPACE = Regex("\\s+")
+
+        private fun pictograph(cp: Int): Boolean =
+            cp in 0x1F000..0x1FAFF || // emoji, pictographs, flags (regional indicators), playing cards, …
+                cp in 0x2600..0x27BF || // miscellaneous symbols and dingbats (☀ ★ ✅ ❤ …)
+                cp in 0x2B00..0x2BFF || // arrows and symbols (⭐ ⬆ …)
+                cp in 0x2300..0x23FF || // technical symbols used as emoji (⌚ ⏰ ⏩ …)
+                cp in 0xE0000..0xE007F || // tag characters of flag sequences
+                cp == 0x200D || cp == 0xFE0F || cp == 0xFE0E || cp == 0x20E3 // joiners, variation selectors, keycaps
     }
 }

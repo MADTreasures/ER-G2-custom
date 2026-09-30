@@ -15,8 +15,8 @@ android {
         // Wear OS 4 (API 33) and newer: Faceclaw's GATT code uses the API 33 write call.
         minSdk = 33
         targetSdk = 37
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.5.1"
     }
 
     buildTypes {
