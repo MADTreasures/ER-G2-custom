@@ -35,18 +35,23 @@ Kennungen doppelt → Hinweis statt Absturz.
 
 ## M1 – App-Host auf der Uhr, erste Uhr-Apps
 
-**Stand:** erledigt in v0.4.0 (nicht auf Hardware erprobt). Was dabei von 03 abweicht oder dazukam, steht
-dort in §9. Außer der Reihe kam in v0.5.0 für die App YouTube dazu: Texteingabe auf der Uhr, Eingabeart je
-Seite und die Video-Wiedergabe auf der Uhr (03 §10) – statt M5, weil alles auf der Uhr laufen soll.
+**Ziel:** Auf der Brille gibt es „Apps“ (den Starter), bedienbar mit Zeiger und Bügel.
 
-**Ziel:** Auf der Brille gibt es „Apps“, darin Stoppuhr und Einkaufsliste, bedienbar mit Zeiger und Bügel.
+**Stand:** erledigt in v0.4.0 (nicht auf Hardware erprobt), aus Pull Request #2. Pull Request #1 baute M1 ein
+zweites Mal (dazu Webseiten-Raster und GeckoView-Test aus M2): von dort nur noch M2 übernehmen; kein Chat baut
+M1 noch einmal. Stoppuhr und Einkaufsliste sind nur noch Test-Apps (siehe unten). Was von 03 abweicht oder
+dazukam, steht dort in §9. Außer der Reihe kam in v0.5.0 für die App YouTube dazu: Texteingabe auf der Uhr,
+Eingabeart je Seite und die Video-Wiedergabe auf der Uhr (03 §10) – statt M5, weil alles auf der Uhr laufen
+soll.
 
 - Alles aus [03 §5](03_Uhr-Apps.md#5-plattform-der-app-host-zu-bauen-in-m1): Modell + JSON, `AppHost`,
   `PageRenderer`, Starter (`launcher/Launcher.kt`), App-Menü, `InputRouter` nach 03 §5.1, `AppRegistry`,
   Gesten-Modus im `TouchpadScreen`, Weiterleitung aller Bügel-/Ring-Gesten, und schon die Anschlüsse für
   EvenHub-Sitzungen nach 03 §5.2 (noch ohne Inhalt).
 - kotlinx.serialization im Modul `app` (Plugin und Bibliothek stehen schon im Versionskatalog).
-- Beispiel-Apps `StopwatchApp` und `ShoppingListApp` (Seiten als Asset aus dem Baukasten).
+- Beispiel-Apps `StopwatchApp` und `ShoppingListApp` **nur als Test-Apps** unter `app/src/test/…` (Seiten
+  aus dem Baukasten in den Test-Ressourcen). Sie stehen nicht in `AppRegistry`: Der Starter zeigt nur
+  echte Apps, ohne Apps den Hinweis „Noch keine Apps“.
 - Berechtigungsabfrage auf der Brille (Seite mit „Erlauben“/„Ablehnen“).
 
 **Abnahme:** `AppHostTest`, `InputRouterTest`, `PageRendererSnapshotTest` (jede Bausteinart, Scroll, Fokus,

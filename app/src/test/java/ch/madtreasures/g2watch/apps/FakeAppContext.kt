@@ -198,18 +198,24 @@ class FakeAppContext(
     companion object {
         /**
          * A context with the Baukasten pages of [app]'s manifest already defined, as the host loads
-         * them from `src/main/assets` before [AppEvent.Start], and the permissions the manifest asks for.
+         * them from `src/main/assets` (test apps: `src/test/resources`) before [AppEvent.Start], and the
+         * permissions the manifest asks for.
          */
         fun forApp(app: G2App): FakeAppContext {
             val ui = FakeAppContext(app.manifest.permissions)
             app.manifest.ui?.let { path ->
-                // Unit tests run in the module directory.
-                ui.definePages(BaukastenProject.parse(File("src/main/assets", path).readText()))
+                ui.definePages(BaukastenProject.parse(assetFile(path).readText()))
             }
             return ui
         }
     }
 }
+
+/**
+ * An asset of the app (`src/main/assets`), or of a test app (`src/test/resources`). Unit tests run in the
+ * module directory.
+ */
+fun assetFile(path: String): File = File("src/main/assets", path).takeIf { it.isFile } ?: File("src/test/resources", path)
 
 /** The text of a heading, text, button or toggle, or the label of a value or progress block. */
 fun Page.textOf(blockId: String): String = when (val b = block(blockId)) {

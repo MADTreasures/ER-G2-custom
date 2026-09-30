@@ -39,7 +39,7 @@ class AppsBoundaryTest {
     @Test
     fun `built-in apps use only the app interface, not Android or the video platform`() {
         val apps = sources.filter { it.path.contains("/builtin/") }
-        assertTrue(apps.size >= 3)
+        assertTrue(apps.isNotEmpty())
         val forbidden = listOf("import android.", "import androidx.", "import org.schabi", "import ch.madtreasures.g2watch.apps.video", "import ch.madtreasures.g2watch.apps.host")
         for (file in apps) {
             val text = file.readText()

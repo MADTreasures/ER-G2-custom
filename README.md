@@ -62,13 +62,14 @@ Einstellungen fasst zusammen, was schiefgehen kann ([Recherche](docs/RECHERCHE_F
 Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
 [`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)): Apps beschreiben ihre Oberfläche als
 Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
-verteilt die Eingaben. Eingebaut sind **Stoppuhr**, **Einkauf** (Einkaufsliste zum Abhaken, Seite aus dem
-Baukasten) und seit 0.5.0 **YouTube** (nächster Abschnitt).
+verteilt die Eingaben. Eingebaut ist seit 0.5.0 die App **YouTube** (nächster Abschnitt). Die Beispiele
+**Stoppuhr** und **Einkauf** (Einkaufsliste zum Abhaken, Seite aus dem Baukasten) sind nur noch Test-Apps:
+Sie prüfen den Host und liefern einige der Bilder unten, stehen aber nicht im Starter.
 
-| Starter | Einkauf (per Bügel abgehakt) | App-Menü |
+| Starter | Einkauf (Test-App, per Bügel abgehakt) | App-Menü |
 |---|---|---|
 | ![Starter](docs/bilder/apps-starter.png) | ![Einkauf](docs/bilder/apps-einkauf.png) | ![App-Menü](docs/bilder/apps-menue.png) |
-| **Stoppuhr** | **Berechtigung beim ersten Start** | **Vollbild-Seite mit randlosem Bild** |
+| **Stoppuhr** (Test-App) | **Berechtigung beim ersten Start** | **Vollbild-Seite mit randlosem Bild** |
 | ![Stoppuhr](docs/bilder/apps-stoppuhr.png) | ![Berechtigung](docs/bilder/apps-berechtigung.png) | ![Bild](docs/bilder/apps-bild-randlos.png) |
 | **Alle Bausteine** | **… gescrollt, Fokus unten** | **Uhr im Gesten-Modus** |
 | ![Bausteine](docs/bilder/apps-bausteine.png) | ![Gescrollt](docs/bilder/apps-bausteine-gescrollt.png) | ![Gesten](docs/bilder/uhr-touchpad-gesten.png) |
@@ -76,7 +77,7 @@ Baukasten) und seit 0.5.0 **YouTube** (nächster Abschnitt).
 **Bedienen:**
 
 - Auf dem Desktop der Brille die Kachel **Apps** anklicken → der **Starter** listet alle Apps; laufende
-  sind mit „läuft“ markiert.
+  sind mit „läuft“ markiert. Ohne Apps steht dort „Noch keine Apps“.
 - **Zeiger** (Finger auf der Uhr): Was unter dem Zeiger liegt, ist hervorgehoben; Doppeltipp auf der Uhr
   klickt es. Den Zeiger über den oberen oder unteren Rand hinaus schieben scrollt lange Seiten.
 - **Bügel oder Ring:** Wischen springt zum nächsten/vorigen Knopf, Schalter oder Häkchen (die Seite scrollt
@@ -247,7 +248,7 @@ die Uhr offline ist.
 
 | Modul | Inhalt |
 |---|---|
-| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter und den Apps Stoppuhr, Einkauf und YouTube, und die Video-Wiedergabe `apps/video` |
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter und der App YouTube, und die Video-Wiedergabe `apps/video` (die Beispiel-Apps Stoppuhr und Einkauf nur in den Tests) |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
 | [`tools/cfw_bauen.py`](tools/cfw_bauen.py) | Baut und prüft Faceclaw/35 auf dem PC (Python, ohne Flashen) |
@@ -261,7 +262,7 @@ die Uhr offline ist.
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 350 Tests grün (34 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 351 Tests grün (34 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:
@@ -286,6 +287,6 @@ die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`), Lint ohne Fehler. Die w
   Profile, Ton, Verlauf. **`VideoBudgetTest`** – was ein Video mit Faceclaws Kodierung über Bluetooth kostet;
   **`FrameConverterTest`**, **`StreamChooserTest`**, **`TestPatternPlayerTest`**.
 - **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel), **`AppJsonTest`**, **`PageStateTest`**,
-  **`BaukastenProjectTest`**, Tests der Beispiel-Apps mit `FakeAppContext`, **`AppsBoundaryTest`** (Apps
-  berühren weder Firmware noch Bluetooth).
+  **`BaukastenProjectTest`**, Tests der Test-Apps Stoppuhr und Einkauf mit `FakeAppContext` (die Apps selbst
+  liegen unter `app/src/test`), **`AppsBoundaryTest`** (Apps berühren weder Firmware noch Bluetooth).
 - Bilder neu erzeugen (Uhr, Desktop und Apps auf der Brille): `./gradlew :app:testDebugUnitTest --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`

@@ -18,6 +18,7 @@ import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.builtin.shopping.ShoppingListApp
 import ch.madtreasures.g2watch.apps.builtin.stopwatch.StopwatchApp
 import ch.madtreasures.g2watch.apps.builtin.youtube.YouTubeApp
+import ch.madtreasures.g2watch.apps.builtInApps
 import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
@@ -153,12 +154,14 @@ class PageRendererSnapshotTest {
 
     @Test
     fun launcher() {
-        val host = host({ StopwatchApp { clock } }, ::ShoppingListApp, { YouTubeApp() })
-        host.launch("watch:ch.madtreasures.einkauf")
+        // The real launcher: the built-in apps only (the examples are test apps), YouTube running.
+        ports.answers["$youtubeId@1.0.0"] = setOf(Permission.NETWORK)
+        val host = host(*builtInApps.toTypedArray())
+        host.launch("watch:$youtubeId")
         settle()
         host.openLauncher()
         settle()
-        val page = Page("p_apps", "Apps", listOf(Block.Button("app0", "Stoppuhr"), Block.Button("app1", "Einkauf · läuft")))
+        val page = Page("p_apps", "Apps", listOf(Block.Button("app0", "YouTube · läuft")))
         pointerOn(page, "app0", dx = 140)
         save("apps-starter")
     }

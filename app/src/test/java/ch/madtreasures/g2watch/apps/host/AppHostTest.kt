@@ -127,6 +127,15 @@ class AppHostTest {
     }
 
     @Test
+    fun `without apps the launcher says so`() {
+        val host = host()
+        host.openLauncher()
+        settle()
+        assertEquals(Launcher.PAGE, host.page)
+        assertTrue(Launcher.EMPTY in text.drawn)
+    }
+
+    @Test
     fun `the launcher lists the apps and marks the running ones`() {
         val host = host(app(), app(id = "ch.test.zwei", name = "Zwei"))
         host.openLauncher()

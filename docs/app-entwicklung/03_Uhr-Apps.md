@@ -3,9 +3,10 @@
 Uhr-Apps sind kleine Kotlin-Klassen, die fest in die G2-Watch-App eingebaut werden. Sie laufen auch
 ohne Rechner und ohne Netz. Für alles Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 
-**Stand:** Der App-Host ist gebaut (M1, v0.4.0), dazu seit v0.5.0 Texteingabe auf der Uhr und Video auf der
-Brille mit der App YouTube (§10); nichts davon ist auf Hardware erprobt. Dieses Kapitel beschreibt erst, was
-eine App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was bei der Umsetzung dazukam oder anders
+**Stand:** Der App-Host ist gebaut (M1, v0.4.0, aus Pull Request #2; Pull Request #1 enthält einen zweiten,
+der nicht zusätzlich übernommen wird), dazu seit v0.5.0 Texteingabe auf der Uhr und Video auf der Brille mit
+der App YouTube (§10); nichts davon ist auf Hardware erprobt. Dieses Kapitel beschreibt erst, was eine
+App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was bei der Umsetzung dazukam oder anders
 wurde als ursprünglich geplant, steht in §9 und §10.
 
 ## 1. Eine Uhr-App schreiben
@@ -79,8 +80,13 @@ class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : 
 Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`), in der Reihenfolge des Starters:
 
 ```kotlin
-val builtInApps: List<() -> G2App> = listOf({ StopwatchApp() }, { ShoppingListApp() }, { YouTubeApp() })
+val builtInApps: List<() -> G2App> = listOf({ YouTubeApp() })   // nur echte Apps
 ```
+
+In diese Liste und damit in den Starter kommen nur Apps, die auf der Brille gebraucht werden. Die
+Beispiele Stoppuhr und Einkaufsliste liegen unter `app/src/test/…` (Seiten in den Test-Ressourcen) und
+prüfen dort den Host; die Tests tragen sie selbst in ihren Host ein. Ohne eigene Apps zeigt der Starter
+„Noch keine Apps“.
 
 Seiten aus dem Baukasten statt aus Code: den Export nach `app/src/main/assets/apps/<app-id>/ui.json`
 legen und im Manifest `ui = "apps/<app-id>/ui.json"` setzen. Der Host lädt die Datei vor `Start`; die App
@@ -214,7 +220,7 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
 | `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende markiert |
 | `AppRegistry.kt` | eingebaute Apps (§1) |
-| `builtin/…` | Beispiel-Apps: Stoppuhr, Einkaufsliste |
+| `builtin/…` | die eigenen Apps; die Beispiele Stoppuhr und Einkaufsliste nur unter `src/test`, nicht im Starter |
 
 Einbau in den bestehenden Desktop (`desktop/`):
 - Neue Kachel **„Apps“** (`AppId.APPS`) öffnet den Starter. Die Kachelreihe hat 6 Plätze (3 × 2):
@@ -286,7 +292,8 @@ abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).
 
 - `FakeAppContext` (Testquellen, Paket `ch.madtreasures.g2watch.apps`) führt die Seiten mit demselben
   `PageState` wie der Host und zeichnet alles andere auf (Timer, Hinweise, Menü, Anfragen, Protokoll).
-  `FakeAppContext.forApp(app)` lädt vorher die Baukasten-Seiten aus `src/main/assets`, wie der Host.
+  `FakeAppContext.forApp(app)` lädt vorher die Baukasten-Seiten aus `src/main/assets` (bei Test-Apps aus
+  `src/test/resources`), wie der Host.
   Eine App-Prüfung sieht so aus:
   ```kotlin
   val ui = FakeAppContext.forApp(app)

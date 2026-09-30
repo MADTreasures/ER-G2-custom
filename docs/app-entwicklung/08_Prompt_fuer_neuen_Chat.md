@@ -9,9 +9,9 @@
    Seiten aus dem [G2 Baukasten](../../designer/README.md) („⋯“ → „Für den Chat kopieren“) können mit
    dazu, müssen aber nicht.
 3. Am Ende öffnet der Chat einen **Pull Request**. Diesen auf GitHub zusammenführen („Merge“), damit der
-   nächste Chat auf der neuen App aufbaut. Der App-Host der Uhr (M1) ist seit v0.4.0 da; jede Uhr-App geht
-   jetzt direkt, seit v0.5.0 auch mit Texteingabe auf der Uhr und Videos (03 §10). Braucht eine App Rechner
-   (M5) oder Sensoren (M6), baut der Chat diesen Teil zuerst – nach Rückfrage.
+   nächste Chat auf der neuen App aufbaut. **Erst zusammenführen, dann den nächsten Chat starten** –
+   sonst baut jeder Chat die fehlenden Plattform-Teile (etwa den App-Host, M1) von neuem. Der App-Host (M1)
+   ist seit v0.4.0 da, seit v0.5.0 auch Texteingabe auf der Uhr und Videos (03 §10).
 
 ## Der Text
 
@@ -24,8 +24,10 @@ Lies zuerst README.md, docs/app-entwicklung/00_LIES_MICH.md bis 07_Umsetzungspla
 designer/README.md.
 
 So gehst du vor:
-1. Prüf im Code und in der Stand-Tabelle von 00, ob der App-Host auf der Uhr (M1) schon da ist.
-   Wenn nicht, bau ihn zuerst nach 07 (M1, mit den Anschlüssen aus 03 §5.2) und sag mir das.
+1. Prüf im Code, in der Stand-Tabelle von 00 und in den offenen Pull Requests, ob der App-Host auf
+   der Uhr (M1) schon da ist. Liegt er nur in einem offenen Pull Request, bau ihn nicht neu, sondern
+   sag mir, welchen ich zuerst zusammenführen soll. Fehlt er ganz, bau ihn nach 07 (M1, mit den
+   Anschlüssen aus 03 §5.2) und sag mir das.
 2. Wähl die Laufzeit nach 00 und begründe sie in einem Satz: normalerweise Uhr-App; Rechner-App nur,
    wenn sie viel rechnet; Even-Hub-Apps laufen auf der Uhr oder dem Handy, nie auf dem Rechner.
 3. Braucht meine App einen weiteren Plattform-Teil, der noch fehlt (Rechner = M5, Mikrofon/Sensoren = M6
@@ -34,10 +36,10 @@ So gehst du vor:
 5. Wo meine Beschreibung Lücken hat, triff sinnvolle Annahmen und nenn sie mir am Ende.
 
 Regeln: Tests ohne Hardware (simulierte Brille, Fakes, Snapshot-Bilder), CI und Lint grün, Doku,
-Stand-Tabelle in 00 und Bilder nachziehen, Versionsnummer erhöhen. Nichts als auf Hardware erprobt
-bezeichnen. Evens Firmware nie ins Repo, kein Zugriff auf Evens Store-Server, Firmware-Pfad nicht
-anfassen (FlashingBoundaryTest bleibt grün). Code und Commits auf Englisch, Erklärungen für mich auf
-Deutsch.
+Stand-Tabelle in 00 und Bilder nachziehen, Versionsnummer erhöhen. In den Starter auf der Brille
+kommen nur meine Apps, keine Beispiel- oder Test-Apps. Nichts als auf Hardware erprobt bezeichnen.
+Evens Firmware nie ins Repo, kein Zugriff auf Evens Store-Server, Firmware-Pfad nicht anfassen
+(FlashingBoundaryTest bleibt grün). Code und Commits auf Englisch, Erklärungen für mich auf Deutsch.
 
 Am Ende: Committe, pushe und öffne einen Pull Request auf den Standard-Branch. Erklär mir kurz, was
 gebaut ist, wie ich es mit Android Studio auf die Uhr bringe und was ich auf der echten Brille
@@ -54,7 +56,7 @@ denselben Text und schreibt nach „Meine App:“ stattdessen eine Zeile aus die
 | Meilenstein | Zeile |
 |---|---|
 | M0 | Keine App – setze M0 um (Baukasten an die App-Fläche anpassen, Kennungen, Bild-Baustein, Knopf „Zurück“) und veröffentliche den Baukasten unter derselben Adresse neu. |
-| M1 | Keine App – setze M1 um: App-Host auf der Uhr nach 03 §5 mit Stoppuhr und Einkaufsliste. |
+| M1 | Keine App – setze M1 um: App-Host auf der Uhr nach 03 §5; Stoppuhr und Einkaufsliste nur als Test-Apps. |
 | M2 | Keine App – setze M2 um: Test-APK mit GeckoView nach 05 §5.1. Sag mir genau, wie ich sie installiere und welche Werte ich dir zurückmelde. |
 | M3 | Keine App – setze M3 um: EvenHub-Laufzeit auf der Uhr nach 05 §4–§5 mit Test-App für alle Methoden. |
 | M4 | Keine App – setze M4 um: Handy-App „G2 Handy“ nach 05 §6 und 06 §1. |

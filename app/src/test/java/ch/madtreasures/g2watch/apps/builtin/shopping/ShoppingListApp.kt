@@ -11,9 +11,9 @@ import ch.madtreasures.g2watch.apps.MenuItem
 import kotlinx.serialization.json.JsonArray
 
 /**
- * Shopping list with ticks, the example of 02 §10. Its page comes from the Baukasten
- * (`assets/apps/ch.madtreasures.einkauf/ui.json`); the app only fills in the list, which it keeps in
- * its store so it survives restarts.
+ * Shopping list with ticks, the example of 02 §10, as a test app (not in the launcher). Its page comes
+ * from the Baukasten (`src/test/resources/apps/ch.madtreasures.einkauf/ui.json`); the app only fills in
+ * the list, which it keeps in its store so it survives restarts.
  */
 class ShoppingListApp : G2App {
 

@@ -10,6 +10,7 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.assetFile
 import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
 import ch.madtreasures.g2watch.apps.VideoState
@@ -50,7 +51,7 @@ class FakeScreen : AppScreen {
     }
 }
 
-/** In-memory platform: stores, permission answers, requests to answer, assets from src/main/assets. */
+/** In-memory platform: stores, permission answers, requests to answer, assets from src/main/assets or the test resources. */
 class FakePorts : HostPorts {
     val stores = HashMap<String, FakeAppContext.MemoryStorage>()
     val answers = HashMap<String, Set<Permission>>()
@@ -75,8 +76,7 @@ class FakePorts : HostPorts {
         requests += Pair(request, done)
     }
 
-    // Unit tests run in the module directory.
-    override fun asset(path: String): ByteArray? = assets[path] ?: File("src/main/assets", path).takeIf { it.isFile }?.readBytes()
+    override fun asset(path: String): ByteArray? = assets[path] ?: assetFile(path).takeIf { it.isFile }?.readBytes()
 
     override fun decodeImage(bytes: ByteArray): GrayRaster? {
         val image = ImageIO.read(ByteArrayInputStream(bytes)) ?: return null

@@ -55,7 +55,7 @@ class Launcher(private val host: LauncherHost) : InternalSession {
         val kinds = entries.map { it.kind }.distinct()
         val blocks = ArrayList<Block>()
         val ids = LinkedHashMap<String, String>()
-        if (entries.isEmpty()) blocks += Block.Text("leer", "Keine Apps installiert.")
+        if (entries.isEmpty()) blocks += Block.Text("leer", EMPTY)
         for (kind in LaunchKind.entries) {
             val group = entries.filter { it.kind == kind }
             if (group.isEmpty()) continue
@@ -74,5 +74,8 @@ class Launcher(private val host: LauncherHost) : InternalSession {
     companion object {
         const val ID = "ch.madtreasures.g2watch.launcher"
         const val PAGE = "p_apps"
+
+        /** What the launcher says without any app. */
+        const val EMPTY = "Noch keine Apps"
     }
 }
