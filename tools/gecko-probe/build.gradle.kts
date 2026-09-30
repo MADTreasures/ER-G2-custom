@@ -27,6 +27,8 @@ android {
     productFlavors {
         create("armv7") {
             dimension = "abi"
+            // The Pixel Watch 5 runs 32-bit apps: Android Studio reported "Device supports armeabi-v7a, armeabi".
+            isDefault = true
             ndk { abiFilters += "armeabi-v7a" }
             buildConfigField("String", "APK_ABI", "\"armeabi-v7a\"")
         }

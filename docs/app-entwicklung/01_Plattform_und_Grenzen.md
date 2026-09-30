@@ -64,7 +64,7 @@ seit die Uhr beim Verbinden die Trageerkennung einschaltet (wie Faceclaw).
 |---|---|
 | System | Wear OS 7 = Android 17, API 37; die App hat `minSdk 33`, `targetSdk 37` |
 | Chip, Speicher | Snapdragon W5 Gen 2 (4 × Cortex-A53, 1,7 GHz), **3 GB RAM**, 64 GB |
-| Apps | Pixel Watch 3 und 4 laufen mit **32-Bit-Apps** (`armeabi-v7a`); für die Watch 5 mit `adb shell getprop ro.product.cpu.abilist` prüfen. Wichtig für native Bibliotheken: heute nur `libandroidx.graphics.path.so` aus AndroidX (für alle Architekturen dabei), später GeckoView und liblc3. |
+| Apps | Pixel Watch 3, 4 und **5** laufen mit **32-Bit-Apps** (`armeabi-v7a`; für die Watch 5 bestätigt: Android Studio meldet „Device supports armeabi-v7a, armeabi“). Wichtig für native Bibliotheken: heute nur `libandroidx.graphics.path.so` aus AndroidX (für alle Architekturen dabei), später GeckoView und liblc3. |
 | Bildschirm | rund, 456 × 456 px, 320 ppi |
 | Netz | WLAN, LTE, Bluetooth (zur Brille; zum Handy nur, wenn gekoppelt) |
 | Eingabe für die Brille | Touchpad als Maus (Finger ziehen = Zeiger, Doppeltippen = Klick), Krone = Zeigertempo, Zahnrad halten = Einstellungen |

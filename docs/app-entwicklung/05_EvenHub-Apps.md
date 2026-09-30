@@ -193,7 +193,7 @@ Quelle: `right` → 1, `ring` und `watch` → 2, `left` → 3.
 |---|---|
 | Bibliothek | pro Architektur `org.mozilla.geckoview:geckoview-armeabi-v7a` bzw. `-arm64-v8a` (für den Emulator `-x86_64`), von `maven.mozilla.org` (MPL-2.0). Nicht `geckoview` (alle Architekturen, 242 MB). **Festgelegt: 157.0.20260924084938** (`geckoview` im Versionskatalog). Sie verlangt `compileSdk` **37.1** (`compileSdk = 37` + `compileSdkMinor = 1`, SDK-Paket `platforms;android-37.1`); `targetSdk` bleibt 37. |
 | Repository | steht in `settings.gradle.kts`: `maven("https://maven.mozilla.org/maven2/")` mit Inhaltsfilter `includeGroup("org.mozilla.geckoview")` (M2) |
-| Architektur | Pixel Watch 3 und 4 laufen mit 32-Bit-Apps (`armeabi-v7a`); für die Watch 5 vorher mit `adb shell getprop ro.product.cpu.abilist` prüfen und die APK mit `abiFilters` darauf beschränken (der Gecko-Test hat dafür je Architektur eine Variante) |
+| Architektur | Pixel Watch 3, 4 und 5 laufen mit 32-Bit-Apps (`armeabi-v7a`; für die Watch 5 bestätigt); bei anderen Uhren vorher mit `adb shell getprop ro.product.cpu.abilist` prüfen und die APK mit `abiFilters` darauf beschränken (der Gecko-Test hat dafür je Architektur eine Variante) |
 | Größe | `libxul.so` allein: 116 MB (armeabi-v7a, schon ohne Symbole). Gecko-Test-APK mit komprimierten Bibliotheken (`useLegacyPackaging = true`): 117 MB (armv7) bzw. 120 MB (arm64); unkomprimiert 190 MB. Installiert kommen die entpackten Bibliotheken dazu. Was auf der Uhr tatsächlich belegt ist, zeigt *Einstellungen → Apps* nach der Installation (M2). |
 | Speicher | Uhr: 3 GB RAM. GeckoView braucht geschätzt 150–300 MB; **messen** (M2) |
 | Prozesse | GeckoView startet eigene Dienst-Prozesse (`:socket`, `:gpu`, `:media`, Inhalts-Prozesse). `G2WatchApp.onCreate` darf seine Arbeit (Desktop, Verbindung) nur im Hauptprozess tun (Prozessname prüfen). Laufzeit mit `fissionEnabled(false)`, `extensionsProcessEnabled(false)`. |
@@ -225,7 +225,7 @@ Auswertung und Layout; ob GeckoView auf der Uhr startet, zeigt erst der erste La
 
 | Variante | für |
 |---|---|
-| `armv7Release` | Uhr mit 32-Bit-Apps (`abilist` beginnt mit `armeabi-v7a`) |
+| `armv7Release` | Uhr mit 32-Bit-Apps (`abilist` beginnt mit `armeabi-v7a`), **die Pixel Watch 5**; Standard-Variante |
 | `arm64Release` | Uhr mit 64-Bit-Apps (`abilist` beginnt mit `arm64-v8a`) |
 | `x86Debug` | nur Emulator |
 
