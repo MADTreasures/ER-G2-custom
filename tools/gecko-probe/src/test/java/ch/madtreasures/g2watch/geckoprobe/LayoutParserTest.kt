@@ -48,6 +48,15 @@ class LayoutParserTest {
     }
 
     @Test
+    fun `the capture without text is passed on`() {
+        val layout = Json.parseToJsonElement("""{"vw":4,"texts":[[0,0,2,1,"rgb(0, 0, 0)"]]}""").jsonObject
+        val bare = IntArray(4 * 2) { 0xFFFFFFFF.toInt() }
+        assertSame(bare, LayoutParser.capture(4, 2, IntArray(8), layout, bare).textless)
+        // A capture of another size is left out rather than misread.
+        assertNull(LayoutParser.capture(4, 2, IntArray(8), layout, IntArray(3)).textless)
+    }
+
+    @Test
     fun `without a layout only the pixels count`() {
         val argb = IntArray(4 * 2)
         val none = LayoutParser.capture(4, 2, argb, null)

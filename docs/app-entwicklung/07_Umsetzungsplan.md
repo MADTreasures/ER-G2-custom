@@ -162,7 +162,7 @@ Akkuverbrauch der Sensoren, damit man es auf Hardware prüfen kann.
 **Abnahme:** Snapshot-Tests des Bildwegs; Messung von Speicher und Akku auf der echten Uhr.
 
 **Schon gebaut (Vorarbeit):** das Modul `web-raster` – Seite → Brillen-Raster mit durchsichtigem Grund,
-positiven Bildern, Text in voller Helligkeit und automatisch negativem Text auf unruhigem Grund oder in
+positiven Fotos, Logos als Grafik, Text in voller Helligkeit und automatisch negativem Text (Umriss) auf unruhigem Grund oder in
 überladenen Fenstern ([05 §10.1](05_EvenHub-Apps.md#101-seiten-ins-brillen-raster-wandeln-web-raster-gebaut)),
 mit Tests und Bildern `docs/bilder/raster-*.png`. Der Gecko-Test (M2) nutzt es schon auf der Uhr. Für M7 fehlt
 noch: die Browser-App im App-Host (interne Sitzung nach 03 §5.2, Bild über `setRaster` in einen randlosen

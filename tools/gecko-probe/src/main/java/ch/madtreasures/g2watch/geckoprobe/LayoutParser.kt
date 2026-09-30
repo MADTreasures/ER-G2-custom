@@ -12,11 +12,12 @@ import kotlin.math.roundToInt
 
 /**
  * Turns the layout the content script reports (CSS pixels, CSS colours) and a captured picture
- * of the page into a [PageCapture] for web-raster.
+ * of the page into a [PageCapture] for web-raster. [textless] is the second capture with all text
+ * transparent, when there is one.
  */
 object LayoutParser {
 
-    fun capture(width: Int, height: Int, argb: IntArray, layout: JsonObject?): PageCapture {
+    fun capture(width: Int, height: Int, argb: IntArray, layout: JsonObject?, textless: IntArray? = null): PageCapture {
         if (layout == null) return PageCapture(width, height, argb)
         val vw = layout.number("vw") ?: return PageCapture(width, height, argb)
         // CSS pixels to captured pixels: the surface may be smaller or larger than the viewport.
@@ -28,7 +29,10 @@ object LayoutParser {
         }
         fun colour(a: JsonArray): Int? = (a.getOrNull(4) as? JsonPrimitive)?.content?.let(::cssColour)
         val texts = layout.array("texts").mapNotNull { e -> (e as? JsonArray)?.let { a -> box(a)?.let { TextRun(it, colour(a)) } } }
-        val pictures = layout.array("pictures").mapNotNull { e -> (e as? JsonArray)?.let(::box) }
+        // [x, y, w, h] for pictures, [x, y, w, h, "g"] for vector drawings (graphics).
+        val allPictures = layout.array("pictures").mapNotNull { e -> (e as? JsonArray)?.let { a -> box(a)?.let { it to ((a.getOrNull(4) as? JsonPrimitive)?.content == "g") } } }
+        val pictures = allPictures.filter { !it.second }.map { it.first }
+        val graphics = allPictures.filter { it.second }.map { it.first }
         val surfaces = ArrayList<Surface>()
         // The page's own background first (largest), then the elements with a background colour.
         val page = listOfNotNull(layout.string("page"), layout.string("body")).mapNotNull(::cssColour).lastOrNull()
@@ -39,7 +43,7 @@ object LayoutParser {
             val c = colour(a) ?: return@forEach
             surfaces += Surface(b, c)
         }
-        return PageCapture(width, height, argb, texts, pictures, surfaces)
+        return PageCapture(width, height, argb, texts, pictures, surfaces, textless?.takeIf { it.size == argb.size }, graphics)
     }
 
     /**

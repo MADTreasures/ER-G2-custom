@@ -258,15 +258,15 @@ Die Tests auf der Uhr, der Reihe nach:
 | 1 · Schnelltest | ≈ 1 min | Engine-Start, Kaltstart bis zum ersten Aufruf der Text-App, Rundlauf der Brücke, die drei Test-Apps, Speicher (PSS aller Prozesse der App aus `/proc/<pid>/smaps_rollup`; `getProcessMemoryInfo` nur als Ersatz, weil Android es nur alle 5 min auffrischt), Prozessliste |
 | 2 · Timer-Test | 4 min | 2 min mit Bildschirm an, Vibration, 2 min mit Bildschirm aus (Handgelenk senken); Abweichung vom 100-ms-Takt und längste Lücke |
 | 3 · Dauertest | 30 min | Text- und Timer-App laufen; Abstürze (`onCrash`, `onKill`, Engine-Ende), Speicherspitze, Akku pro Stunde (Ladezähler, feiner als ganze Prozent) |
-| 4 · Seite rendern | ≈ 10 s | der Bildweg des Browsers (M7): GeckoView zeichnet die Testseite in eine unsichtbare Fläche (`ImageReader` 576 × 260, `GeckoDisplay.capturePixels`), das Content-Script meldet Textzeilen, Bilder und Hintergründe, `web-raster` macht daraus das Brillenbild (§10) |
+| 4 · Seite rendern | ≈ 10 s | der Bildweg des Browsers (M7): GeckoView zeichnet die Testseite in eine unsichtbare Fläche (`ImageReader` 576 × 260, `GeckoDisplay.capturePixels`), das Content-Script meldet Textzeilen, Bilder und Hintergründe und blendet für eine zweite Aufnahme die Schrift aus, `web-raster` macht daraus das Brillenbild (§10) |
 | 5 · Wikipedia rendern | ≈ 10 s | dasselbe mit `https://de.m.wikipedia.org/wiki/Brille` (braucht Internet) |
 
 Die Uhr zeigt jeden Wert mit ✓ (Ziel erreicht), ~ (knapp) oder ✗ und darunter eine **Empfehlung** nach
 §5.1. Ein laufender Test lässt sich oben mit „Abbrechen“ beenden. „Bericht“ (unterer Rand, am Ende der Liste)
 schreibt alles nach
 `/sdcard/Android/data/ch.madtreasures.g2watch.geckoprobe/files/g2-gecko-bericht.txt`; die Seiten-Tests legen
-dort `render-seite.png` (was GeckoView gezeichnet hat) und `render-brille.png` (was die Brille zeigen würde)
-ab. Holen mit `adb pull`. Eintragen in [quellen/E-m2-messwerte.md](quellen/E-m2-messwerte.md).
+dort `render-seite.png` (was GeckoView gezeichnet hat), `render-ohne-schrift.png` (die zweite Aufnahme) und
+`render-brille.png` (was die Brille zeigen würde) ab. Holen mit `adb pull`. Eintragen in [quellen/E-m2-messwerte.md](quellen/E-m2-messwerte.md).
 
 ## 6. Engine auf dem Handy: „G2 Handy“
 
@@ -394,23 +394,26 @@ Ausgabe: 576 Pixel breit, 16 Stufen, dazu ein Bericht.
 |---|---|
 | Grund wird durchsichtig | Hintergrund je Stelle schätzen (häufigste Helligkeit in 24 × 24 Pixeln, oder die Farbe der kleinsten DOM-Fläche darunter) und abziehen: weiße und dunkle Seiten verlieren ihren Grund gleichermaßen; kleine Unterschiede (< 28 von 255, Schatten, Kartenränder) bleiben dunkel |
 | DOM-Flächen nur, wo die Pixel sie zeigen | eine DOM-Farbe gilt nur in 8 × 8-Kacheln, in denen ≥ 15 % der Pixel sie zeigen; halbdurchsichtige Flächen (Alpha < 90 %) zählen nicht. Kleine, ringsum eingeschlossene Formen anderer Farbe (Logo, Symbol, bis ≈ 48 × 48 Pixel) bleiben Vordergrund und leuchten ganz, nicht nur als Umriss |
-| Bilder bleiben positiv | Bilder behalten Hell und Dunkel, je Bild auf 2–98 % gestreckt, mal 0,85, mit Floyd–Steinberg auf die 16 Stufen gebracht. Flache Grafiken (zwei Töne ≥ 80 % oder höchstens drei Stufen: Symbole, Logos) sind keine Fotos und werden wie Text behandelt |
-| Text immer voll lesbar | jede Textzeile wird aus ihren Pixeln neu gezeichnet: Glyphen in voller Helligkeit (Stufe 15), auch blaue Links und graue Bildunterschriften |
-| Text auf unruhigem Grund → **negativ** | wäre der Grund um eine Zeile auf der Brille hell oder unruhig (Text auf einem Foto: Mittel > 70 oder Streuung > 40 von 255; andere Textzeilen zählen dabei nicht), bekommt die Zeile eine helle Platte (Stufe 12) mit dunkel ausgesparten Buchstaben |
-| **Überladenes Fenster → negativ** | nehmen Bilder (mit ihrer ganzen Fläche, auch dunkle) und leuchtende Flächen mehr als 35 % des Fensters ein, wird **aller** Text negativ gesetzt, und helle Bilder werden auf ein Mittel von 80 gedämpft, damit die Platten sich abheben |
+| Fotos bleiben positiv | Fotos behalten Hell und Dunkel, je Bild auf 2–98 % gestreckt, mal 0,85, mit Floyd–Steinberg auf die 16 Stufen gebracht. Ein Rand in der Farbe eines hellen Grunds rundherum (Produktbild auf Weiß, durchsichtige Teile eines PNG) wird durchsichtig |
+| Logos und Symbole sind Grafik | ob Foto oder Grafik, entscheidet sich an den Pixeln, die sich vom **Grund rund um das Bild** abheben: wenige flache Töne (zwei ≥ 80 % oder höchstens drei Stufen) = Grafik; SVG (inline oder als Datei) ist immer Grafik. Grafik wird gegen diesen umgebenden Grund gerechnet wie Text: auf dunkler Leiste behält ein Logo seine Töne (NASA), auf weißer Seite leuchtet es (SRF, Apple). Ein Symbol auf einem Foto gehört zum Foto |
+| Text immer voll lesbar | jede Textzeile wird neu gezeichnet: Glyphen in voller Helligkeit (Stufe 15), auch blaue Links und graue oder halbdurchsichtige Bildunterschriften. Die Glyphen kommen aus einer **zweiten Aufnahme ohne Schrift** (Buchstaben-Füllung durchsichtig, Animationen angehalten): der Unterschied zur ersten ist genau die Schrift, auch auf Fotos. Ohne zweite Aufnahme werden sie geschätzt |
+| Text auf unruhigem Grund → **negativ, nur an der Schrift** | wäre der Grund um eine Zeile auf der Brille hell oder unruhig (Text auf einem Foto: Mittel > 70 oder Streuung > 40 von 255; andere Textzeilen zählen dabei nicht), werden die Buchstaben **dunkel mit einem schmalen hellen Umriss** (2 px, bei kleiner Schrift 1, bei großer 3); das Bild bleibt rundherum sichtbar. Wählbar (`RasterOptions.contrast`): `OUTLINE` (Standard), `HALO` (helle Buchstaben mit durchsichtigem Rand), `PLATE` (helle Platte hinter der Zeile, wie bis 0.4.0) |
+| **Überladenes Fenster** | nehmen Bilder (mit ihrer ganzen Fläche, auch dunkle) und leuchtende Flächen mehr als 35 % des Fensters ein, wird Text schon abgesetzt, sobald um ihn etwas leuchtet (Mittel > 16 oder Streuung > 20); Text auf ruhigem, durchsichtigem Grund bleibt hell, weil er so am besten lesbar ist. Helle Bilder werden auf ein Mittel von 80 gedämpft |
 
 Die Bilder in `docs/bilder/raster-*.png` zeigen die vier Fälle (erzeugt von `RasterSnapshotTest` aus
-Java2D-Testseiten, nicht von einem Browser):
+Java2D-Testseiten, nicht von einem Browser; Text auf Foto im Standard-Stil Umriss):
 
-| Heller Artikel | Dunkle Seite | Text auf Foto | Überladen |
+| Heller Artikel | Dunkle Seite | Text auf Foto (Umriss) | Überladen: Text auf Bildern negativ, daneben hell |
 |---|---|---|---|
 | ![hell](../bilder/raster-hell.png) | ![dunkel](../bilder/raster-dunkel.png) | ![Text auf Bild](../bilder/raster-text-auf-bild.png) | ![überladen](../bilder/raster-ueberladen.png) |
 
 Geprüft an echten Seiten mit der **Seiten-Vorschau** ([`tools/page-preview/`](../../tools/page-preview/README.md):
-Chromium als Ersatz für GeckoView, gleiches Layout-Skript, echter Rasterer): Wikipedia, SRF News, Hacker News,
-evenrealities.com, GitHub (dunkel), apple.com, nasa.gov, MDN. Dabei gefunden und behoben: unsichtbare Menüs,
-Screenreader-Beschriftungen und Overlays im Layout, DOM-Farben, die nicht gemalt sind (Hintergrundbilder),
-Symbole als leuchtende Quadrate, Trennstriche zwischen Links als Platten. Die Grenzwerte bleiben Annahmen,
+Chromium als Ersatz für GeckoView, gleiches Layout-Skript, gleiche zweite Aufnahme, echter Rasterer): Wikipedia,
+SRF News, Hacker News, evenrealities.com, GitHub (dunkel), apple.com, nasa.gov, MDN. Dabei gefunden und behoben:
+unsichtbare Menüs, Screenreader-Beschriftungen und Overlays im Layout, DOM-Farben, die nicht gemalt sind
+(Hintergrundbilder), Symbole als leuchtende Quadrate, Trennstriche zwischen Links als Platten, zerfallene Logos
+(NASA), Balken hinter negativer Schrift (jetzt Umriss). Die Malkarte liest Hintergründe durch Bilder hindurch
+(eine weiße Kopfzeile bleibt eine Fläche um ihr Logo) und legt Bildkästen an die echten Kanten der Elemente. Die Grenzwerte bleiben Annahmen,
 bis echte Seiten auf der echten Brille zu sehen sind (Gecko-Test „Seite rendern“ liefert dafür
 `render-brille.png`). Was M7 noch fehlt, steht in
 [07 M7](07_Umsetzungsplan.md#m7--web-browser-auf-der-brille-wenn-m2-geckoview-ja-ergibt).

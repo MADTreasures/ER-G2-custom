@@ -262,6 +262,8 @@ class GeckoLab(private val app: Context) {
             if (!stopped) note("Seite lud nicht fertig in 30 s – nehme, was da ist")
             delay(SETTLE_MS)
 
+            // Animations and videos held, so both captures show the same moment.
+            val frozen = stage("freeze")
             val id = nextLayoutId++
             val lt0 = clock()
             val since = mark()
@@ -279,10 +281,20 @@ class GeckoLab(private val app: Context) {
             val h = bitmap.height
             val argb = IntArray(w * h)
             bitmap.getPixels(argb, 0, w, 0, 0, w, h)
-            val raster = withContext(Dispatchers.Default) { GlassesRasterizer.rasterize(LayoutParser.capture(w, h, argb, layout?.layout)) }
+            // The same moment without text: the difference is exactly the glyphs (outlines on photos).
+            var textless: IntArray? = null
+            var bare: Bitmap? = null
+            if (frozen && stage("hide-text")) {
+                delay(COMPOSITE_MS)
+                bare = capture(display)
+                bare?.takeIf { it.width == w && it.height == h }?.let { b -> textless = IntArray(w * h).also { b.getPixels(it, 0, w, 0, 0, w, h) } }
+            }
+            stage("restore")
+            if (textless == null) note("Keine Aufnahme ohne Schrift – Buchstaben nur geschätzt")
+            val raster = withContext(Dispatchers.Default) { GlassesRasterizer.rasterize(LayoutParser.capture(w, h, argb, layout?.layout, textless)) }
             val glasses = greenBitmap(raster.width, raster.height) { raster.pixels[it].toInt() and 0xFF }
             _preview.value = "Brille: $target" to glasses
-            saveImages(bitmap, glasses)
+            saveImages(bitmap, glasses, bare)
             val r = raster.report
             _results.update {
                 it.copy(render = RenderResult(target, loadMs, captureMs, layoutMs, r.millis, w, h, r.textRuns, r.negativeRuns, r.overloaded))
@@ -302,6 +314,15 @@ class GeckoLab(private val app: Context) {
 
     fun cancel() {
         job?.cancel()
+    }
+
+    /** One stage of the double capture in the render session; true once the page has painted it. */
+    private suspend fun stage(name: String): Boolean {
+        val port = ports["render"] ?: return false
+        val id = nextLayoutId++
+        val since = mark()
+        port.postMessage(wrap(BridgeProtocol.stage(id, name)))
+        return await<BridgeEvent.Staged>(since, 3_000) { it.app == "render" && it.id == id } != null
     }
 
     /** `capturePixels` fails while the compositor is not ready yet; a few tries, half a second apart. */
@@ -494,10 +515,11 @@ class GeckoLab(private val app: Context) {
         return Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888)
     }
 
-    private fun saveImages(page: Bitmap, glasses: Bitmap) {
+    private fun saveImages(page: Bitmap, glasses: Bitmap, bare: Bitmap?) {
         val dir = app.getExternalFilesDir(null) ?: return
         try {
             FileOutputStream(File(dir, "render-seite.png")).use { page.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bare?.let { b -> FileOutputStream(File(dir, "render-ohne-schrift.png")).use { b.compress(Bitmap.CompressFormat.PNG, 100, it) } }
             FileOutputStream(File(dir, "render-brille.png")).use { glasses.compress(Bitmap.CompressFormat.PNG, 100, it) }
         } catch (e: IOException) {
             note("Bilder nicht gespeichert: ${e.message}")
@@ -553,6 +575,9 @@ class GeckoLab(private val app: Context) {
         const val DENSITY = 1.5f
         const val PHASE_MS = 120_000L
         const val SETTLE_MS = 1_500L
+
+        /** After the page painted a stage, until the compositor has it in the surface. */
+        const val COMPOSITE_MS = 120L
         const val CAPTURE_TRIES = 6
         const val REPORT = "g2-gecko-bericht.txt"
         const val NATIVE_APP = "g2probe"

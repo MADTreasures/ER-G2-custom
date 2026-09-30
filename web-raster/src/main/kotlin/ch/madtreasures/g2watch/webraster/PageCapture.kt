@@ -41,8 +41,19 @@ class PageCapture(
     /** Pictures: `<img>`, `<video>`, `<canvas>`, elements with a background image. */
     val pictures: List<Box> = emptyList(),
     val surfaces: List<Surface> = emptyList(),
+    /**
+     * The same moment of the page painted once more with all text transparent. The difference to
+     * [argb] is exactly the glyphs, also on photos, so outlines can hug the letters.
+     */
+    val textless: IntArray? = null,
+    /**
+     * Pictures the DOM knows to be drawings (inline SVG, SVG files): logos and icons, always
+     * measured against the ground around them, never shown as photos.
+     */
+    val graphics: List<Box> = emptyList(),
 ) {
     init {
         require(width > 0 && height > 0 && argb.size == width * height) { "capture $width × $height with ${argb.size} pixels" }
+        require(textless == null || textless.size == argb.size) { "textless capture with ${textless?.size} pixels" }
     }
 }

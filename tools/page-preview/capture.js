@@ -34,6 +34,15 @@ const PAGES = [
   { id: "07-nasa", url: "https://www.nasa.gov/", scroll: [0, 900] },
   { id: "08-mdn", url: "https://developer.mozilla.org/de/docs/Web/HTML", scroll: [0, 700] },
 ];
+// The stage() function of content.js, run in the page, and two frames to get it painted.
+const stageSrc = content.slice(content.indexOf("const STAGE_CSS"), content.indexOf("// --- Layout for the render test"));
+async function stage(page, name) {
+  await page.evaluate(`(() => { ${stageSrc}\n const list = window.__g2stages || (window.__g2stages = []); ` +
+    `if (${JSON.stringify(name)} === "restore") { while (list.length) list.pop().remove(); return; } ` +
+    `stage(${JSON.stringify(name)}); list.push(...stageStyles); })()`);
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+}
+
 // Cookie dialogs: take the most restrictive choice, as a careful wearer would (also inside iframes).
 async function dismissConsent(page) {
   const names = [/^\s*nur notwendige/i, /^\s*nur erforderliche/i, /^\s*alle ablehnen/i, /^\s*ablehnen/i, /^\s*reject all/i, /^\s*decline/i, /^\s*only necessary/i];
@@ -59,6 +68,8 @@ async function dismissConsent(page) {
     const ctx = await browser.newContext({
       viewport: { width: 384, height: 174 }, deviceScaleFactor: 1.5, isMobile: true, hasTouch: true,
       locale: "de-CH", timezoneId: "Europe/Zurich", colorScheme: p.dark ? "dark" : "light", userAgent: UA,
+      // The stages of the double capture add style sheets; strict pages would refuse them otherwise.
+      bypassCSP: true,
     });
     const page = await ctx.newPage();
     const t0 = Date.now();
@@ -78,9 +89,15 @@ async function dismissConsent(page) {
       await page.evaluate((y) => window.scrollTo(0, y), y);
       await page.waitForTimeout(1500);
       const scrollY = await page.evaluate(() => window.scrollY);
+      // As in the probe: hold animations, capture, hide all text, capture again (the glyphs are
+      // the difference), restore.
+      await stage(page, "freeze");
       const layout = await page.evaluate(`(() => { ${layoutSrc}\n return collectLayout(); })()`).catch((e) => ({ error: String(e) }));
       const base = `${OUT}/${p.id}-${String(y).padStart(4, "0")}`;
       await page.screenshot({ path: base + ".png" });
+      await stage(page, "hide-text");
+      await page.screenshot({ path: base + "-bare.png" });
+      await stage(page, "restore");
       fs.writeFileSync(base + ".json", JSON.stringify({ id: p.id, url: page.url(), title: await page.title(), scrollY, loadMs, layout }));
       console.log(p.id, "y=" + scrollY, "texts=" + (layout.texts || []).length, "pictures=" + (layout.pictures || []).length, "surfaces=" + (layout.surfaces || []).length, "vw=" + layout.vw, layout.error || "");
     }

@@ -21,6 +21,9 @@ sealed interface BridgeMessage {
 
     /** The answer to a layout request of the render test. */
     data class Layout(val id: Long, val layout: JsonObject) : BridgeMessage
+
+    /** A stage of the double capture (freeze, hide-text, restore) is painted. */
+    data class Staged(val id: Long) : BridgeMessage
 }
 
 /**
@@ -58,6 +61,7 @@ object BridgeProtocol {
                 val id = (m["id"] as? JsonPrimitive)?.longOrNull ?: return null
                 BridgeMessage.Layout(id, m["layout"] as? JsonObject ?: JsonObject(emptyMap()))
             }
+            "staged" -> BridgeMessage.Staged((m["id"] as? JsonPrimitive)?.longOrNull ?: return null)
             else -> null
         }
     }
@@ -85,6 +89,13 @@ object BridgeProtocol {
         put("kind", "layout")
         put("id", id)
     }.toString()
+
+    /** One step of the double capture: "freeze", "hide-text" or "restore". */
+    fun stage(id: Long, stage: String): String = buildJsonObject {
+        put("kind", "stage")
+        put("id", id)
+        put("stage", stage)
+    }.toString()
 }
 
 /** What a test app did, for the measurements. */
@@ -94,6 +105,7 @@ sealed interface BridgeEvent {
     data class Hello(override val app: String, val url: String) : BridgeEvent
     data class Called(override val app: String, val method: String, val data: JsonObject) : BridgeEvent
     data class LayoutReady(override val app: String, val id: Long, val layout: JsonObject) : BridgeEvent
+    data class Staged(override val app: String, val id: Long) : BridgeEvent
 }
 
 /**
@@ -115,6 +127,10 @@ class ProbeBridge(private val app: String, private val events: (BridgeEvent) -> 
         }
         is BridgeMessage.Layout -> {
             events(BridgeEvent.LayoutReady(app, m.id, m.layout))
+            null
+        }
+        is BridgeMessage.Staged -> {
+            events(BridgeEvent.Staged(app, m.id))
             null
         }
     }

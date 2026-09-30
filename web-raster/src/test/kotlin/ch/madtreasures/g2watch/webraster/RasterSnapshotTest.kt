@@ -58,7 +58,8 @@ class RasterSnapshotTest {
         }
         save(out, "raster-text-auf-bild", hero)
 
-        // A window full of dark pictures: overloaded, so all text turns negative and pictures dim.
+        // A window full of dark pictures: overloaded, so text on the pictures turns negative (an
+        // outline at the letters) and bright pictures dim; the caption on plain ground stays bright.
         val gallery = TestPage(576, 260, Color(245, 245, 245)).apply {
             photo(8, 8, 184, 110, dark = true)
             photo(196, 8, 184, 110, dark = true)
@@ -66,6 +67,7 @@ class RasterSnapshotTest {
             photo(8, 130, 184, 90, dark = true)
             photo(196, 130, 184, 90, dark = true)
             photo(384, 130, 184, 90, dark = true)
+            text("Am See", 18, 86, 20, Color(240, 240, 240), bold = true)
             text("Album: Abendstimmung", 12, 232, 18, ink, bold = true)
             text("6 Bilder", 470, 232, 18, ink)
         }

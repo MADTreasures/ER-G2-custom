@@ -40,6 +40,9 @@ class ProbeBridgeTest {
         val l = BridgeProtocol.decode("""{"kind":"layout","id":3,"layout":{"vw":384,"texts":[]}}""") as BridgeMessage.Layout
         assertEquals(3L, l.id)
         assertEquals(384, l.layout["vw"]?.jsonPrimitive?.int)
+
+        assertEquals(BridgeMessage.Staged(12), BridgeProtocol.decode("""{"kind":"staged","id":12}"""))
+        assertNull(BridgeProtocol.decode("""{"kind":"staged"}"""))
     }
 
     @Test
@@ -82,13 +85,15 @@ class ProbeBridgeTest {
     }
 
     @Test
-    fun `layout answers are reported, not answered`() {
+    fun `layout answers and painted stages are reported, not answered`() {
         val events = ArrayList<BridgeEvent>()
         val bridge = ProbeBridge("render") { events += it }
         assertNull(bridge.receive("""{"kind":"layout","id":9,"layout":{"vw":384}}"""))
-        val e = events.single() as BridgeEvent.LayoutReady
+        assertNull(bridge.receive("""{"kind":"staged","id":10}"""))
+        val e = events[0] as BridgeEvent.LayoutReady
         assertEquals(9L, e.id)
         assertEquals("render", e.app)
+        assertEquals(BridgeEvent.Staged("render", 10), events[1])
     }
 
     @Test
@@ -103,5 +108,10 @@ class ProbeBridgeTest {
         val l = Json.parseToJsonElement(BridgeProtocol.layoutRequest(4)).jsonObject
         assertEquals("layout", l["kind"]?.jsonPrimitive?.content)
         assertEquals(4L, l["id"]?.jsonPrimitive?.long)
+
+        val st = Json.parseToJsonElement(BridgeProtocol.stage(5, "hide-text")).jsonObject
+        assertEquals("stage", st["kind"]?.jsonPrimitive?.content)
+        assertEquals(5L, st["id"]?.jsonPrimitive?.long)
+        assertEquals("hide-text", st["stage"]?.jsonPrimitive?.content)
     }
 }

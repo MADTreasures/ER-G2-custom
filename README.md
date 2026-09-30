@@ -93,11 +93,13 @@ schreibt: [03_Uhr-Apps.md](docs/app-entwicklung/03_Uhr-Apps.md).
 
 Das Modul [`web-raster/`](web-raster) wandelt eine gezeichnete Web-Seite in das Bild der Brille, so wie die
 Even-Apps „Photos“ und „G2 Agent Cam“ Inhalte zeigen: Der Grund der Seite wird durchsichtig (egal ob weiß
-oder dunkel), Bilder bleiben Bilder, und **Text wird immer in voller Helligkeit neu gezeichnet**. Steht Text
-auf einem Foto oder unruhigem Grund, oder ist das Fenster mit Bildern und hellen Flächen **überladen**, wird
-der Text **negativ**: dunkle Buchstaben in einer hellen Platte.
+oder dunkel), Fotos bleiben Bilder, Logos und Symbole werden gegen den Grund um sie herum gerechnet, und
+**Text wird immer in voller Helligkeit neu gezeichnet**. Steht Text auf einem Foto oder unruhigem Grund, oder
+leuchtet um ihn etwas in einem mit Bildern **überladenen** Fenster, wird er **negativ, nur an der Schrift**:
+dunkle Buchstaben mit einem schmalen hellen Umriss, das Bild bleibt rundherum sichtbar. Wählbar sind auch
+„Leuchtschrift mit Rand“ und die helle Platte hinter der ganzen Zeile.
 
-| Heller Artikel | Dunkle Seite | Text auf Foto | Überladen → Text negativ |
+| Heller Artikel | Dunkle Seite | Text auf Foto (Umriss) | Überladen: Text auf Bildern negativ, daneben hell |
 |---|---|---|---|
 | ![hell](docs/bilder/raster-hell.png) | ![dunkel](docs/bilder/raster-dunkel.png) | ![Text auf Bild](docs/bilder/raster-text-auf-bild.png) | ![überladen](docs/bilder/raster-ueberladen.png) |
 
@@ -134,8 +136,8 @@ Sie ist getrennt von G2 Watch, damit die Uhr-App nicht um ≈ 120 MB wächst, so
    ```sh
    adb pull /sdcard/Android/data/ch.madtreasures.g2watch.geckoprobe/files/ .
    ```
-   Darin `g2-gecko-bericht.txt` (alle Werte mit ✓/~/✗ und einer Empfehlung) sowie `render-seite.png` und
-   `render-brille.png`. Den Bericht in den nächsten Chat geben oder in
+   Darin `g2-gecko-bericht.txt` (alle Werte mit ✓/~/✗ und einer Empfehlung) sowie `render-seite.png`,
+   `render-ohne-schrift.png` und `render-brille.png`. Den Bericht in den nächsten Chat geben oder in
    [`quellen/E-m2-messwerte.md`](docs/app-entwicklung/quellen/E-m2-messwerte.md) eintragen.
 
 ## Wie die Uhr aufspielt – und was sie absichert
@@ -240,7 +242,7 @@ die Uhr offline ist.
 ./gradlew :gecko-probe:testArmv7DebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 21 + 258 + 29 Tests grün (23 Bild-Tests werden ohne `-PsnapshotDir`
+Stand dieses Commits: 15 + 184 + 27 + 258 + 30 Tests grün (23 Bild-Tests werden ohne `-PsnapshotDir`
 übersprungen, der Vorschau-Test ohne `PREVIEW_DIR`, 2 Tests brauchen Evens Image), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:

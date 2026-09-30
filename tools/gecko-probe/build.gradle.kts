@@ -87,6 +87,12 @@ kotlin {
     }
 }
 
+// The page preview (PagePreviewTest) renders what tools/page-preview/capture.js wrote into
+// PREVIEW_DIR; with a new capture the tests must run again even though no source changed.
+tasks.withType<Test>().configureEach {
+    outputs.upToDateWhen { System.getenv("PREVIEW_DIR").isNullOrBlank() }
+}
+
 dependencies {
     implementation(project(":web-raster"))
     "armv7Implementation"(libs.geckoview.armeabi.v7a)

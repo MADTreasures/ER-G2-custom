@@ -8,6 +8,8 @@
 //    nested or mixed arrays, and the layout below is made of them.
 // 2. Reports the layout of the visible page (text lines with their colour, pictures, surfaces
 //    with a background colour) for the render test; see collectLayout(). Only what is visible.
+// 3. Prepares the second capture of the render test: animations held, then all text transparent,
+//    so the difference between both captures is exactly the glyphs; see stage().
 "use strict";
 
 const port = browser.runtime.connectNative("g2probe");
@@ -32,6 +34,10 @@ port.onMessage.addListener((wrapped) => {
   } else if (m.kind === "push") {
     const listener = window.wrappedJSObject._listenEvenAppMessage;
     if (typeof listener === "function") listener(cloneInto(m.msg, window));
+  } else if (m.kind === "stage") {
+    stage(m.stage);
+    // Two frames later the change is painted.
+    requestAnimationFrame(() => requestAnimationFrame(() => send({ kind: "staged", id: m.id })));
   } else if (m.kind === "layout") {
     let layout;
     try {
@@ -55,6 +61,39 @@ const bridge = {
 window.wrappedJSObject.flutter_inappwebview = cloneInto(bridge, window, { cloneFunctions: true });
 
 send({ kind: "hello", url: String(location.href), t: performance.now() });
+
+// --- Stages of the double capture -----------------------------------------------------------------
+
+const STAGE_CSS = {
+  freeze: "*, *::before, *::after { animation-play-state: paused !important; transition: none !important; caret-color: transparent !important; }",
+  // Only the letters' fill: `color` stays, so borders, icons and underlines in the text colour
+  // (currentColor) are the same in both captures and do not count as glyphs.
+  "hide-text": "*, *::before, *::after { -webkit-text-fill-color: transparent !important; text-shadow: none !important; " +
+    "-webkit-text-stroke-width: 0 !important; }",
+};
+const stageStyles = [];
+
+/** "freeze" holds animations and videos, "hide-text" makes all text transparent, "restore" undoes both. */
+function stage(name) {
+  if (name === "restore") {
+    while (stageStyles.length) stageStyles.pop().remove();
+    return;
+  }
+  if (!STAGE_CSS[name]) return;
+  if (name === "freeze") {
+    for (const video of document.querySelectorAll("video")) {
+      try {
+        video.pause();
+      } catch (e) {
+        // A video that cannot be paused keeps running; its box is a picture anyway.
+      }
+    }
+  }
+  const style = document.createElement("style");
+  style.textContent = STAGE_CSS[name];
+  (document.head || document.documentElement).appendChild(style);
+  stageStyles.push(style);
+}
 
 // --- Layout for the render test -------------------------------------------------------------------
 //
@@ -106,22 +145,41 @@ function paintOf(el, cache) {
 }
 
 /**
- * The topmost painting element at a point: its paint and the element, or null for the bare page. A
- * veil over a picture (a gradient for the headline on a photo) still shows the picture.
+ * What is painted at a point: the ground (the first opaque background, looking through pictures
+ * and icons, so a white header stays one surface around its logo; null when a veil lies over it
+ * or nothing paints) and all pictures down to that background (an icon on a photo: the photo is
+ * there too; a gradient veil over a photo still shows the photo).
  */
 function painterAt(x, y, cache) {
-  let veil = null;
+  let ground;
+  const pictures = [];
   for (const el of document.elementsFromPoint(x, y)) {
     const p = paintOf(el, cache);
     if (!p) continue;
-    if (p === "veil") {
-      if (!veil) veil = { paint: p, el };
+    if (p === "picture") {
+      pictures.push(el);
       continue;
     }
-    if (veil && p !== "picture") return veil;
-    return { paint: p, el };
+    if (p === "veil") {
+      if (ground === undefined) ground = null;
+      continue;
+    }
+    if (ground === undefined) ground = { paint: p, el };
+    break;
   }
-  return veil;
+  return { ground: ground || null, pictures };
+}
+
+/** An inline SVG's parts belong to the whole drawing. */
+function pictureElement(el) {
+  return el.namespaceURI === SVG_NS && el.ownerSVGElement ? el.ownerSVGElement : el;
+}
+
+/** Vector drawings (inline SVG, SVG files) are graphics, never photos. */
+function isVector(el) {
+  if (el.namespaceURI === SVG_NS) return true;
+  const src = el.tagName.toUpperCase() === "IMG" ? String(el.currentSrc || el.src || "") : "";
+  return /\.svg(\?|#|$)/i.test(src) || src.startsWith("data:image/svg");
 }
 
 /** The part of a text line inside all clipping ancestors (overflow, clip, clip-path), or null. */
@@ -187,16 +245,23 @@ function collectLayout() {
     }
   }
 
-  // The paint map, merged into boxes: runs per row, extended downwards while they repeat.
-  const pictures = [];
+  // The paint map: every CELL CSS pixels the topmost opaque background (for the grounds) and the
+  // pictures above it. Surfaces are merged into boxes (runs per row, extended downwards while
+  // they repeat); each picture gets the boxes of its own cells.
   const surfaces = [];
+  const cellsOf = new Map();
   let open = new Map();
   for (let y = 0; y < vh; y += CELL) {
     const row = [];
     for (let x = 0; x < vw; x += CELL) {
-      const hit = painterAt(Math.min(vw - 1, x + CELL / 2), Math.min(vh - 1, y + CELL / 2), cache);
-      const p = hit && hit.paint;
-      const key = p === "picture" ? "picture" : Array.isArray(p) ? "s" + p[1] : "";
+      const at = painterAt(Math.min(vw - 1, x + CELL / 2), Math.min(vh - 1, y + CELL / 2), cache);
+      for (const found of at.pictures) {
+        const el = pictureElement(found);
+        if (!cellsOf.has(el)) cellsOf.set(el, new Set());
+        cellsOf.get(el).add(y * 100000 + x);
+      }
+      const p = at.ground && at.ground.paint;
+      const key = Array.isArray(p) ? "s" + p[1] : "";
       const last = row[row.length - 1];
       if (last && last.key === key) last.x1 = x + CELL;
       else row.push({ key, x0: x, x1: x + CELL, color: Array.isArray(p) ? p[1] : null });
@@ -210,12 +275,51 @@ function collectLayout() {
       if (b) {
         b.h += h;
       } else {
-        b = { key: run.key, color: run.color, x: run.x0, y, w: Math.min(run.x1, vw) - run.x0, h };
-        (run.key === "picture" ? pictures : surfaces).push(b);
+        b = { color: run.color, x: run.x0, y, w: Math.min(run.x1, vw) - run.x0, h };
+        surfaces.push(b);
       }
       next.set(id, b);
     }
     open = next;
+  }
+
+  // A picture's cells end on the CELL grid; where the element's own edge lies within a cell of
+  // that, the edge is the element's (a small logo keeps its whole height). Edges further in come
+  // from something covering it and stay.
+  const pictures = [];
+  for (const [el, cells] of cellsOf) {
+    const r = el.getBoundingClientRect();
+    const vector = isVector(el);
+    const boxes = [];
+    let openRuns = new Map();
+    for (let y = 0; y < vh; y += CELL) {
+      const next = new Map();
+      let x0 = -1;
+      for (let x = 0; x <= vw; x += CELL) {
+        const on = x < vw && cells.has(y * 100000 + x);
+        if (on && x0 < 0) x0 = x;
+        if (!on && x0 >= 0) {
+          const id = x0 + "|" + x;
+          let b = openRuns.get(id);
+          if (b) b.h += Math.min(CELL, vh - y);
+          else boxes.push((b = { x: x0, y, w: Math.min(x, vw) - x0, h: Math.min(CELL, vh - y) }));
+          next.set(id, b);
+          x0 = -1;
+        }
+      }
+      openRuns = next;
+    }
+    const snap = (cell, edge) => (Math.abs(edge - cell) <= CELL ? edge : cell);
+    for (const b of boxes) {
+      const x0 = snap(b.x, Math.max(0, r.left));
+      const y0 = snap(b.y, Math.max(0, r.top));
+      const x1 = snap(b.x + b.w, Math.min(vw, r.right));
+      const y1 = snap(b.y + b.h, Math.min(vh, r.bottom));
+      if (x1 - x0 >= 1 && y1 - y0 >= 1) {
+        const box = [Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0)];
+        pictures.push(vector ? box.concat(["g"]) : box);
+      }
+    }
   }
 
   const page = getComputedStyle(document.documentElement).backgroundColor;
@@ -225,7 +329,7 @@ function collectLayout() {
     vw,
     vh,
     texts,
-    pictures: pictures.map((b) => [b.x, b.y, b.w, b.h]),
+    pictures,
     surfaces: surfaces.map((b) => [b.x, b.y, b.w, b.h, b.color]),
     page,
     body,

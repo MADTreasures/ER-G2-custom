@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.awt.Color
+import kotlin.math.abs
 
 class GlassesRasterizerTest {
     private val black = Color(20, 20, 20)
@@ -135,6 +136,62 @@ class GlassesRasterizerTest {
     }
 
     @Test
+    fun `a logo on a dark bar keeps its tones instead of losing its inside`() {
+        // Like the NASA logo in a black header: a mid-blue disc with white letters, reported as a
+        // picture. Measured against the black around it, the disc glows dimly, the letters brightly.
+        val page = TestPage(576, 260, white)
+        page.rect(0, 0, 576, 90, Color(0, 0, 0))
+        page.disc(288, 45, 36, Color(20, 60, 170))
+        page.lettering("NASA", 258, 34, 18, Color.WHITE)
+        val logo = Box(248, 5, 80, 80)
+        page.pictures += logo
+        val r = GlassesRasterizer.rasterize(page.capture())
+        val disc = Box(275, 62, 26, 12)
+        assertTrue(r.meanIn(disc) in 20.0..140.0, "disc ${r.meanIn(disc)}")
+        assertTrue(r.maxIn(Box(258, 34, 60, 20)) >= 240)
+        assertEquals(0, r[logo.x + 2, logo.y + 2])
+        assertEquals(0, r[200, 45])
+    }
+
+    @Test
+    fun `a wordmark in a light header lights up its letters, not its box`() {
+        // A dark wordmark in a light header that shows a blurred, restless page behind it, once
+        // reported by the DOM as a drawing (SVG), once only as a picture box.
+        val page = TestPage(576, 260, white)
+        page.photo(0, 0, 576, 60)
+        page.paint(0, 0, 576, 60, Color(240, 240, 240, 215))
+        page.lettering("Even Realities", 20, 18, 22, Color(30, 30, 30))
+        page.pictures.clear()
+        val mark = Box(16, 14, 190, 34)
+        val base = page.capture()
+        for (capture in listOf(
+            PageCapture(base.width, base.height, base.argb, graphics = listOf(mark)),
+            PageCapture(base.width, base.height, base.argb, pictures = listOf(mark)),
+        )) {
+            val r = GlassesRasterizer.rasterize(capture)
+            assertTrue(r.maxIn(Box(20, 22, 150, 20)) >= 192, "letters ${r.maxIn(Box(20, 22, 150, 20))}")
+            assertEquals(0, r[mark.x + 2, mark.y + 2])
+            assertTrue(r.meanIn(mark) < 90, "box ${r.meanIn(mark)}")
+            assertEquals(0f, r.report.pictureShare)
+        }
+    }
+
+    @Test
+    fun `a photo's margin in the page colour becomes see-through`() {
+        // A product shot on white inside a larger white picture box.
+        val page = TestPage(576, 260, white)
+        page.photo(200, 80, 160, 100)
+        page.pictures.clear()
+        val box = Box(160, 40, 240, 180)
+        page.pictures += box
+        val r = GlassesRasterizer.rasterize(page.capture())
+        assertEquals(0, r.maxIn(Box(165, 45, 30, 170)))
+        assertEquals(0, r.maxIn(Box(210, 45, 140, 30)))
+        assertTrue(r.meanIn(Box(210, 90, 140, 80)) > 40)
+        assertFalse(r.report.overloaded)
+    }
+
+    @Test
     fun `coloured text is drawn at full brightness`() {
         val page = TestPage(576, 260, white)
         val link = page.text("Ein blauer Link", 16, 20, 22, Color(26, 13, 171))
@@ -144,38 +201,104 @@ class GlassesRasterizerTest {
         assertEquals(255, r.maxIn(caption))
     }
 
+    /** A photo with a bold white line over it and a black line beside it on white. */
+    private fun heroPage(withText: Boolean = true) = TestPage(576, 260, white).apply {
+        photo(16, 110, 300, 130)
+        if (withText) {
+            text("Über dem Foto", 24, 150, 26, white, bold = true)
+            text("Daneben auf Weiß", 340, 40, 22, black)
+        }
+    }
+
     @Test
-    fun `text over a restless photo turns negative, elsewhere it stays bright`() {
-        val page = TestPage(576, 260, white)
-        page.photo(16, 120, 220, 100)
-        val onPhoto = page.text("Über dem Foto", 24, 150, 22, white, bold = true)
-        val plain = page.text("Daneben auf Weiß", 260, 40, 22, black)
+    fun `text over a restless photo gets a lit outline around its letters only`() {
+        val page = heroPage()
+        val onPhoto = page.texts[0].box
+        val plain = page.texts[1].box
         val r = GlassesRasterizer.rasterize(page.capture())
         r.assertLevels()
         assertFalse(r.report.overloaded)
         assertEquals(1, r.report.negativeRuns)
-        // The plate is lit around the letters, the letters are cut out of it.
-        val plate = Levels.gray(RasterOptions().plateLevel)
-        assertEquals(plate, r[onPhoto.x - 2, onPhoto.y + onPhoto.h / 2])
-        assertTrue(r.minIn(onPhoto) < 64)
+        val glyph = page.glyphMask()
+        fun near(x: Int, y: Int, d: Int) = (-d..d).any { dy -> (-d..d).any { dx -> x + dx in 0 until 576 && y + dy in 0 until 260 && glyph[(y + dy) * 576 + x + dx] } }
+        val area = onPhoto.inflate(6).clip(576, 260)
+        val core = ArrayList<Int>()
+        val rim = ArrayList<Int>()
+        val far = ArrayList<Pair<Int, Int>>()
+        for (y in area.y until area.bottom) for (x in area.x until area.right) {
+            when {
+                glyph[y * 576 + x] -> core += r[x, y]
+                near(x, y, 1) -> Unit // the letters' smoothed edges
+                near(x, y, 2) -> rim += r[x, y]
+                !near(x, y, 5) -> far += x to y
+            }
+        }
+        // Dark letters in a lit outline …
+        assertTrue(core.average() < 40, "letters ${core.average()}")
+        assertTrue(rim.average() > 180, "outline ${rim.average()}")
+        // … and no plate: away from the letters the photo looks as it does without the text.
+        val bare = GlassesRasterizer.rasterize(heroPage(withText = false).capture())
+        val diff = far.map { (x, y) -> abs(r[x, y] - bare[x, y]) }.average()
+        assertTrue(diff < 16, "photo changed by $diff")
+        assertTrue(far.map { (x, y) -> r[x, y] }.distinct().size > 4)
+        // The line beside it on white stays plainly bright.
         assertEquals(255, r.maxIn(plain))
         assertEquals(0, r[plain.right + 20, plain.y + plain.h / 2])
     }
 
     @Test
-    fun `a window full of dark pictures turns all text negative`() {
+    fun `grey captions in a translucent colour are drawn at full brightness too`() {
+        // CSS rgba(0, 0, 0, 0.56) on white: painted as a mid grey.
+        val page = TestPage(576, 260, white)
+        val caption = page.text("Copyright © 2026", 16, 40, 20, Color(0, 0, 0, 143))
+        val r = GlassesRasterizer.rasterize(page.capture())
+        assertEquals(255, r.maxIn(caption))
+        assertEquals(0, r.report.negativeRuns)
+    }
+
+    @Test
+    fun `the lit outline also works without the textless capture`() {
+        val page = heroPage()
+        val onPhoto = page.texts[0].box
+        val r = GlassesRasterizer.rasterize(page.capture(textless = false))
+        assertEquals(1, r.report.negativeRuns)
+        val glyph = page.glyphMask()
+        val core = (onPhoto.y until onPhoto.bottom).flatMap { y -> (onPhoto.x until onPhoto.right).filter { x -> glyph[y * 576 + x] }.map { x -> r[x, y] } }
+        assertTrue(core.average() < 64, "letters ${core.average()}")
+    }
+
+    @Test
+    fun `the other contrast styles`() {
+        val page = heroPage()
+        val onPhoto = page.texts[0].box
+        val glyph = page.glyphMask()
+        val cores = (onPhoto.y until onPhoto.bottom).flatMap { y -> (onPhoto.x until onPhoto.right).filter { x -> glyph[y * 576 + x] }.map { x -> x to y } }
+        // Lit letters, cut free from the photo by a see-through outline.
+        val halo = GlassesRasterizer.rasterize(page.capture(), RasterOptions(contrast = Contrast.HALO))
+        assertEquals(1, halo.report.negativeRuns)
+        assertTrue(cores.map { (x, y) -> halo[x, y] }.average() > 220)
+        // The plate: a lit bar behind the whole line, as before.
+        val plate = GlassesRasterizer.rasterize(page.capture(), RasterOptions(contrast = Contrast.PLATE))
+        assertEquals(Levels.gray(RasterOptions().plateLevel), plate[onPhoto.x - 2, onPhoto.y + onPhoto.h / 2])
+        assertTrue(plate.minIn(onPhoto) < 64)
+    }
+
+    @Test
+    fun `in an overloaded window text on pictures is set apart, text on plain ground stays bright`() {
         val page = TestPage(576, 260, white)
         page.photo(0, 0, 280, 200, dark = true)
         page.photo(296, 0, 280, 200, dark = true)
-        page.text("Bild 1: Abend am See", 8, 210, 20, black)
-        page.text("Bild 2: Hügel", 300, 210, 20, black)
+        page.text("Abend am See", 16, 80, 22, Color(235, 235, 235), bold = true)
+        val below = page.text("Bild 2: Hügel", 300, 214, 20, black)
         val r = GlassesRasterizer.rasterize(page.capture())
         assertTrue(r.report.overloaded)
-        assertEquals(2, r.report.negativeRuns)
+        assertEquals(1, r.report.negativeRuns)
+        assertEquals(255, r.maxIn(below))
+        assertEquals(0, r[below.right + 10, below.y + below.h / 2])
         // Dark pictures are not dimmed any further.
         val calm = GlassesRasterizer.rasterize(page.capture(), RasterOptions(overloadShare = 1f))
         assertFalse(calm.report.overloaded)
-        val photo = Box(20, 20, 240, 160)
+        val photo = Box(300, 20, 240, 160)
         assertEquals(calm.meanIn(photo), r.meanIn(photo), 2.0)
     }
 

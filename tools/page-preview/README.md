@@ -16,7 +16,11 @@ npm i -g playwright && npx playwright install chromium   # einmal
 node tools/page-preview/capture.js /tmp/vorschau          # Seiten aufnehmen → /tmp/vorschau/raw/
 PREVIEW_DIR=/tmp/vorschau ./gradlew :gecko-probe:testArmv7DebugUnitTest --tests '*PagePreviewTest*'
 # → /tmp/vorschau/views/<seite>.png: links die Seite, rechts die Brille
+# mit PREVIEW_STYLES=1 zusätzlich <seite>-stile.png: Umriss, Leuchtschrift mit Rand, Platte nebeneinander
 ```
+
+Wie im Gecko-Test wird jede Stelle zweimal aufgenommen: einmal normal, einmal mit durchsichtiger Schrift
+(`<stelle>-bare.png`, Animationen und Videos angehalten); der Unterschied ergibt die Buchstaben genau.
 
 Die Seitenliste steht oben in `capture.js` (Adresse, Stellen zum Scrollen, dunkles Design). Cookie-Hinweise
 werden mit der sparsamsten Wahl („Nur notwendige“, „Ablehnen“) geschlossen. Die Bilder fremder Seiten
