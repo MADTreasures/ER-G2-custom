@@ -3,7 +3,8 @@
 Uhr-Apps sind kleine Kotlin-Klassen, die fest in die G2-Watch-App eingebaut werden. Sie laufen auch
 ohne Rechner und ohne Netz. Für alles Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 
-**Stand:** Der App-Host auf der Uhr existiert noch nicht (Meilenstein M1). Dieses Kapitel beschreibt
+**Stand:** Der App-Host auf der Uhr (Meilenstein M1) ist zweimal gebaut, in den offenen Pull Requests #1
+und #2; auf dem Standard-Branch fehlt er noch, bis einer davon übernommen ist. Dieses Kapitel beschreibt
 erst, was eine App-Entwicklerin schreibt (§1–§4), dann, was M1 an der Plattform bauen muss (§5–§8).
 
 ## 1. Eine Uhr-App schreiben
@@ -77,8 +78,13 @@ class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : 
 Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`):
 
 ```kotlin
-val builtInApps: List<() -> G2App> = listOf(::StopwatchApp, ::ShoppingListApp)
+val builtInApps: List<() -> G2App> = listOf(::KochTimerApp)   // nur echte Apps
 ```
+
+In diese Liste und damit in den Starter kommen nur Apps, die auf der Brille gebraucht werden. Die
+Beispiele Stoppuhr und Einkaufsliste liegen unter `app/src/test/…` (Seiten in den Test-Ressourcen) und
+prüfen dort den Host; die Tests tragen sie selbst in ihren Host ein. Ohne eigene Apps zeigt der Starter
+„Noch keine Apps“.
 
 Seiten aus dem Baukasten statt aus Code: den Export nach `app/src/main/assets/apps/<app-id>/ui.json`
 legen und im Manifest `ui = "apps/<app-id>/ui.json"` setzen. Der Host lädt die Datei vor `Start`; die App
@@ -207,7 +213,7 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
 | `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende markiert |
 | `AppRegistry.kt` | eingebaute Apps (§1) |
-| `builtin/…` | Beispiel-Apps: Stoppuhr, Einkaufsliste |
+| `builtin/…` | die eigenen Apps; die Beispiele Stoppuhr und Einkaufsliste nur unter `src/test`, nicht im Starter |
 
 Einbau in den bestehenden Desktop (`desktop/`):
 - Neue Kachel **„Apps“** (`AppId.APPS`) öffnet den Starter. Die Kachelreihe hat 6 Plätze (3 × 2):

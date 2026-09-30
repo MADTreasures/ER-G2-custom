@@ -35,14 +35,20 @@ Kennungen doppelt → Hinweis statt Absturz.
 
 ## M1 – App-Host auf der Uhr, erste Uhr-Apps
 
-**Ziel:** Auf der Brille gibt es „Apps“, darin Stoppuhr und Einkaufsliste, bedienbar mit Zeiger und Bügel.
+**Ziel:** Auf der Brille gibt es „Apps“ (den Starter), bedienbar mit Zeiger und Bügel.
+
+**Stand:** zweimal gebaut, in den offenen Pull Requests #1 (dazu Webseiten-Raster und GeckoView-Test aus
+M2) und #2 (nur der Host). Einer wird übernommen, der andere geschlossen; kein Chat baut M1 ein drittes Mal.
+Beim übernommenen kommen Stoppuhr und Einkaufsliste noch aus dem Starter in die Tests (siehe unten).
 
 - Alles aus [03 §5](03_Uhr-Apps.md#5-plattform-der-app-host-zu-bauen-in-m1): Modell + JSON, `AppHost`,
   `PageRenderer`, Starter (`launcher/Launcher.kt`), App-Menü, `InputRouter` nach 03 §5.1, `AppRegistry`,
   Gesten-Modus im `TouchpadScreen`, Weiterleitung aller Bügel-/Ring-Gesten, und schon die Anschlüsse für
   EvenHub-Sitzungen nach 03 §5.2 (noch ohne Inhalt).
 - kotlinx.serialization im Modul `app` (Plugin und Bibliothek stehen schon im Versionskatalog).
-- Beispiel-Apps `StopwatchApp` und `ShoppingListApp` (Seiten als Asset aus dem Baukasten).
+- Beispiel-Apps `StopwatchApp` und `ShoppingListApp` **nur als Test-Apps** unter `app/src/test/…` (Seiten
+  aus dem Baukasten in den Test-Ressourcen). Sie stehen nicht in `AppRegistry`: Der Starter zeigt nur
+  echte Apps, ohne Apps den Hinweis „Noch keine Apps“.
 - Berechtigungsabfrage auf der Brille (Seite mit „Erlauben“/„Ablehnen“).
 
 **Abnahme:** `AppHostTest`, `InputRouterTest`, `PageRendererSnapshotTest` (jede Bausteinart, Scroll, Fokus,

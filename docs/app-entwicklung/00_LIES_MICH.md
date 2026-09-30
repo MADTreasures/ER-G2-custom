@@ -64,8 +64,8 @@ Eingabe, kein Rechenknecht (Akku).
 | Firmware aufspielen, Verbindung, Maus-Desktop auf der Brille | **fertig** (v0.3.0, nicht auf Hardware erprobt) | `app/`, [FIRMWARE.md](../FIRMWARE.md) |
 | G2 Baukasten (Seiten entwerfen) | **fertig**, braucht kleine Erweiterungen (M0) | `designer/` |
 | App-Modell, Seitenformat, Ereignisse | **spezifiziert** hier | [02](02_App-Modell.md) |
-| App-Host auf der Uhr, Uhr-Apps | **zu bauen** (M1) | [03](03_Uhr-Apps.md) |
-| GeckoView auf der Uhr: Machbarkeitstest | **zu bauen und auf der Uhr zu messen** (M2) | [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview) |
+| App-Host auf der Uhr, Uhr-Apps | **gebaut, noch nicht übernommen** (M1): zweimal, in den offenen Pull Requests #1 und #2; einer wird übernommen, der andere geschlossen. Nicht ein drittes Mal bauen | [03](03_Uhr-Apps.md) |
+| GeckoView auf der Uhr: Machbarkeitstest | **Test-APK gebaut** im offenen Pull Request #1, **auf der Uhr zu messen** (M2) | [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview) |
 | EvenHub-Laufzeit auf der Uhr | **zu bauen** (M3) | [05](05_EvenHub-Apps.md) |
 | Handy-App „G2 Handy“ (Ausweich-Engine, Apps installieren) | **zu bauen** (M4) | [05 §6–§7](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy), [06](06_App-Verwaltung.md) |
 | Rechner-Apps: `g2-host`, Protokoll `g2-remote@1`, Web-Verwaltung | **zu bauen** (M5) | [04](04_Rechner-Apps_und_Protokoll.md), [06](06_App-Verwaltung.md) |
