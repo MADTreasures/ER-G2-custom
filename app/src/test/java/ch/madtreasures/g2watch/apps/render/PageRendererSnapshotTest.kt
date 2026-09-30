@@ -15,8 +15,6 @@ import ch.madtreasures.g2watch.apps.ListStyle
 import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
-import ch.madtreasures.einkauf.ShoppingListApp
-import ch.madtreasures.stoppuhr.StopwatchApp
 import ch.madtreasures.youtube.YouTubeApp
 import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
@@ -74,7 +72,6 @@ class PageRendererSnapshotTest {
     private val display = FakeDisplay()
     private val ports = FakePorts()
     private lateinit var desktop: DesktopController
-    private var clock = 1_000_000L
 
     @Before
     fun setUp() {
@@ -168,31 +165,12 @@ class PageRendererSnapshotTest {
     }
 
     @Test
-    fun stopwatch() {
-        val host = host({ StopwatchApp { clock } })
-        host.launch("watch:ch.madtreasures.stoppuhr")
+    fun appMenu() {
+        // Tap-then-hold on the temple opens the app menu over YouTube's start page.
+        ports.answers["$youtubeId@1.0.0"] = setOf(Permission.NETWORK)
+        val host = host({ YouTubeApp() })
+        host.launch("watch:$youtubeId")
         settle()
-        host.gesture(GestureKind.CLICK)
-        clock += 65_300
-        scheduler.advanceBy(500)
-        val page = Page(
-            StopwatchApp.PAGE, "Stoppuhr",
-            listOf(Block.Heading("zeit", "0:00,0", size = HeadingSize.GROSS), Block.Button("startstop", "Start"), Block.Button("reset", "Zurücksetzen")),
-        )
-        pointerOn(page, "startstop", dx = 60)
-        save("apps-stoppuhr")
-    }
-
-    @Test
-    fun shoppingList() {
-        val host = host(::ShoppingListApp)
-        host.launch("watch:ch.madtreasures.einkauf")
-        settle()
-        // Temple: down to "Brot", tick it, on to "Äpfel".
-        host.gesture(GestureKind.SCROLL_DOWN)
-        host.gesture(GestureKind.CLICK)
-        host.gesture(GestureKind.SCROLL_DOWN)
-        save("apps-einkauf")
         host.gesture(GestureKind.SHORT_THEN_LONG_PRESS)
         save("apps-menue")
     }

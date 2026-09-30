@@ -12,6 +12,7 @@ import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputSource
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.PackageFormatException
+import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.FakePorts
 import ch.madtreasures.g2watch.apps.host.FakeScreen
@@ -20,6 +21,7 @@ import ch.madtreasures.g2watch.apps.host.HostPorts
 import ch.madtreasures.g2watch.apps.host.InstalledApp
 import ch.madtreasures.g2watch.apps.host.InstalledApps
 import ch.madtreasures.g2watch.apps.launcher.Launcher
+import ch.madtreasures.youtube.YouTubeApp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -53,6 +55,10 @@ class InstalledPackagesTest {
 
     private val classPath = PackageLoader { _, m -> DexPackageLoader.instantiate(javaClass.classLoader!!, m) }
 
+    private companion object {
+        const val YOUTUBE = "ch.madtreasures.youtube"
+    }
+
     private fun settle() {
         scheduler.runPending()
         scheduler.advanceBy(AppHost.RENDER_INTERVAL_MS)
@@ -64,7 +70,7 @@ class InstalledPackagesTest {
     @Test
     fun `every package folder builds one valid package named after its app`() {
         val folders = File("../packages").listFiles().orEmpty().filter { File(it, "build.gradle.kts").isFile }
-        assertTrue("stoppuhr and einkauf at least", folders.size >= 2)
+        assertTrue("youtube at least", folders.isNotEmpty())
         assertEquals(folders.size, built.size)
         for (file in built) {
             val archive = PackageArchive.read(file)
@@ -76,7 +82,7 @@ class InstalledPackagesTest {
     }
 
     @Test
-    fun `installed packages show in the launcher, run with their own pages and end when removed`() {
+    fun `an installed package shows in the launcher, runs and ends when removed`() {
         val inbox = tmp.newFolder("apps")
         built.forEach { it.copyTo(File(inbox, it.name)) }
         var host: AppHost? = null
@@ -91,20 +97,42 @@ class InstalledPackagesTest {
 
         host.openLauncher()
         settle()
-        assertEquals(listOf("Einkauf", "Stoppuhr"), host.launcherButtons().filter { it == "Einkauf" || it == "Stoppuhr" })
+        assertTrue(host.launcherButtons().any { it == "YouTube" })
 
-        // Einkauf takes its page from assets/ of its package, not from the APK.
-        host.launch("watch:ch.madtreasures.einkauf")
+        fakePorts.answers["$YOUTUBE@1.0.0"] = setOf(Permission.NETWORK)
+        host.launch("watch:$YOUTUBE")
         settle()
-        assertEquals("ch.madtreasures.einkauf", host.state.value.visible)
-        assertEquals("p_liste", host.state.value.page)
-        assertTrue(fakePorts.logs.none { it.contains("fehlen") })
+        assertEquals(YOUTUBE, host.state.value.visible)
+        assertEquals(YouTubeApp.START, host.state.value.page)
 
-        packages.remove("ch.madtreasures.einkauf")
+        packages.remove(YOUTUBE)
         settle()
-        assertFalse("ch.madtreasures.einkauf" in host.state.value.running)
+        assertFalse(YOUTUBE in host.state.value.running)
         assertEquals(Launcher.ID, host.state.value.visible)
-        assertFalse(host.launcherButtons().any { it.startsWith("Einkauf") })
+        assertFalse(host.launcherButtons().any { it.startsWith("YouTube") })
+    }
+
+    @Test
+    fun `a package's pages come from its own files, not from the APK`() {
+        val manifest = AppManifest("ch.test.seiten", "Seiten", "1.0.0", ui = "apps/ch.test.seiten/ui.json")
+        val pages = File("../designs/beispiel.json").readBytes()
+        val app = object : G2App {
+            override val manifest = manifest
+
+            override fun onEvent(event: AppEvent, ui: AppContext) {
+                if (event == AppEvent.Start) ui.show("p_start")
+            }
+        }
+        val installed = object : InstalledApps {
+            override val apps = listOf(manifest)
+
+            override fun open(id: String) = InstalledApp(app) { path -> pages.takeIf { path == manifest.ui } }
+        }
+        val host = AppHost(scheduler, screen, FakeText(), ports, builtIn = emptyList(), installed = installed, nowMs = { scheduler.now })
+        host.launch("watch:ch.test.seiten")
+        settle()
+        assertEquals("p_start", host.state.value.page)
+        assertTrue(fakePorts.logs.none { it.contains("fehlen") })
     }
 
     private class Broken(override val manifest: AppManifest, private val error: Throwable) : G2App {

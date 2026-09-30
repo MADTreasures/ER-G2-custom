@@ -193,10 +193,11 @@ class WatchSnapshotTest {
 
     @Test
     fun apps() = snapshot("uhr-apps") {
-        fun pkg(id: String, name: String) = PackageManifest(1, "$id.App", AppManifest(id, name, "1.0.0"))
+        // An update of YouTube waits in the folder, the older version is installed.
+        fun pkg(version: String) = PackageManifest(1, "ch.madtreasures.youtube.YouTubeApp", AppManifest("ch.madtreasures.youtube", "YouTube", version))
         AppsScreen(
-            waiting = listOf(WaitingPackage(File("stoppuhr.g2app"), pkg("ch.madtreasures.stoppuhr", "Stoppuhr"), null)),
-            installed = listOf(pkg("ch.madtreasures.einkauf", "Einkauf"), pkg("ch.madtreasures.youtube", "YouTube")),
+            waiting = listOf(WaitingPackage(File("ch.madtreasures.youtube-1.1.0.g2app"), pkg("1.1.0"), null)),
+            installed = listOf(pkg("1.0.0")),
             builtIn = emptyList(),
             message = null,
             busy = false,

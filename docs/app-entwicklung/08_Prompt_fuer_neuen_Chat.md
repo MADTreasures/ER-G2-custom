@@ -36,7 +36,7 @@ So gehst du vor:
 1. Wähl die Laufzeit nach 00 und begründe sie in einem Satz: normalerweise ein App-Paket für die Uhr;
    eine Rechner-App nur, wenn sie viel rechnet; Even-Hub-Apps laufen auf der Uhr oder dem Handy, nie auf
    dem Rechner.
-2. Bau die App als App-Paket nach 09 in packages/<name>/ (Vorlagen: packages/stoppuhr, packages/einkauf).
+2. Bau die App als App-Paket nach 09 in packages/<name>/ (Vorlage: packages/youtube).
    Die Uhr-App selbst (app/, app-api/, die Bau-Logik im Hauptordner) änderst du nicht.
 3. Braucht die App etwas, das die Schnittstelle nicht kann, oder einen Plattform-Teil, der noch fehlt
    (Rechner = M5, Mikrofon/Sensoren = M6 usw.), sag mir das zuerst: was genau fehlt und wie groß es ist.

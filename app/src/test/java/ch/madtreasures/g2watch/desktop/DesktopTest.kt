@@ -90,7 +90,7 @@ class DesktopTest {
 
     @Test
     fun `over an app only the header answers, with back arrow and title`() {
-        desktop.app = AppView("Einkauf", null, fullScreen = false, ByteArray(576 * 260), 576, 260, pointer = true)
+        desktop.app = AppView("YouTube", null, fullScreen = false, ByteArray(576 * 260), 576, 260, pointer = true)
         assertEquals(Target.AppBack, desktop.hitTest(layout.appBack.centerX(), layout.appBack.centerY()))
         assertEquals(Target.AppTitle, desktop.hitTest(layout.appTitle.centerX(), layout.appTitle.centerY()))
         val area = layout.appArea(fullScreen = false)
@@ -99,7 +99,7 @@ class DesktopTest {
         assertEquals(ClickEffect.NONE, desktop.click(tile(AppId.COUNTER).centerX(), tile(AppId.COUNTER).centerY()))
         assertNull(desktop.openApp)
         // Full screen: no header at all.
-        desktop.app = AppView("Einkauf", null, fullScreen = true, ByteArray(576 * 288), 576, 288, pointer = false)
+        desktop.app = AppView("YouTube", null, fullScreen = true, ByteArray(576 * 288), 576, 288, pointer = false)
         assertNull(desktop.hitTest(layout.appBack.centerX(), layout.appBack.centerY()))
     }
 

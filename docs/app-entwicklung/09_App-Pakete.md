@@ -35,19 +35,19 @@ Eine ZIP-Datei mit der Endung `.g2app`:
 {
   "format": "g2app-paket@1",
   "api": 1,
-  "main": "ch.madtreasures.einkauf.ShoppingListApp",
-  "id": "ch.madtreasures.einkauf",
-  "name": "Einkauf",
+  "main": "ch.madtreasures.youtube.YouTubeApp",
+  "id": "ch.madtreasures.youtube",
+  "name": "YouTube",
   "version": "1.0.0",
   "input": "pointer",
-  "permissions": [],
-  "ui": "apps/ch.madtreasures.einkauf/ui.json",
-  "description": "Einkaufsliste zum Abhaken, gespeichert auf der Uhr."
+  "permissions": ["network"],
+  "description": "YouTube-Videos suchen und als Graustufen-Raster auf der Brille ansehen."
 }
 ```
 
 `api` ist die Schnittstellen-Version, gegen die gebaut wurde (§5), `main` die Klasse, die `G2App`
-implementiert. Die übrigen Felder sind das `AppManifest` der App ([02 §2](02_App-Modell.md), [03 §1](03_Uhr-Apps.md)).
+implementiert. Hat die App Seiten aus dem Baukasten, steht deren Datei in `ui` (etwa
+`"apps/<app-id>/ui.json"`). Die übrigen Felder sind das `AppManifest` der App ([02 §2](02_App-Modell.md), [03 §1](03_Uhr-Apps.md)).
 
 Grenzen: Datei höchstens 20 MB, entpackt höchstens 50 MB, höchstens 2000 Dateien, Pfade ohne `..`.
 
@@ -62,16 +62,15 @@ packages/<name>/
 ```
 
 Jeder Ordner in `packages/` mit einer `build.gradle.kts` ist automatisch ein Paket; die gemeinsame
-Bau-Logik steht in der `build.gradle.kts` im Hauptordner. Vorlagen: [`packages/stoppuhr`](../../packages/stoppuhr)
-(nur Code), [`packages/einkauf`](../../packages/einkauf) (Code und Seiten aus dem Baukasten) und
-[`packages/youtube`](../../packages/youtube) (Video über die Schnittstelle).
+Bau-Logik steht in der `build.gradle.kts` im Hauptordner. Vorlage:
+[`packages/youtube`](../../packages/youtube) (Seiten aus Code, Texteingabe und Video über die Schnittstelle).
 
 ```sh
-./gradlew :packages:einkauf:g2app   # → packages/einkauf/build/g2app/ch.madtreasures.einkauf-1.0.0.g2app
+./gradlew :packages:youtube:g2app   # → packages/youtube/build/g2app/ch.madtreasures.youtube-1.0.0.g2app
 ./gradlew g2appPackages             # alle Pakete → build/g2app/
 ```
 
-In Android Studio: rechts **Gradle** → *G2Watch → packages → einkauf → Tasks → g2app → g2app*
+In Android Studio: rechts **Gradle** → *G2Watch → packages → youtube → Tasks → g2app → g2app*
 doppelklicken. Jeder Push baut außerdem alle Pakete auf GitHub (Actions → *Build* → Artefakt `g2-apps`).
 
 Beim Bauen sucht der Schritt `g2appManifest` die eine Klasse, die `G2App` implementiert, legt sie an,
@@ -102,7 +101,7 @@ bricht er ab. Dann übersetzt D8 (die Version aus AGP 9.4) den Code nach DEX, un
      `sdcard/Android/data/ch.madtreasures.g2watch/files/apps/` gehen, Rechtsklick → *Upload* → die
      `.g2app`-Datei wählen.
    - **oder auf der Kommandozeile:**
-     `adb push ch.madtreasures.einkauf-1.0.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/`
+     `adb push ch.madtreasures.youtube-1.0.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/`
 
    Den Ordner legt die Uhr-App ab Version 0.6.0 beim ersten Start selbst an.
 3. Auf der Uhr: Zahnrad halten → **Einstellungen → Apps installieren**. Unter „Neu auf der Uhr“ steht die

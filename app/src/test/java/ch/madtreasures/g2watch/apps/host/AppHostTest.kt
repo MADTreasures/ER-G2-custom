@@ -31,6 +31,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.Base64
 import javax.imageio.ImageIO
 
@@ -279,12 +280,14 @@ class AppHostTest {
 
     @Test
     fun `an app with Baukasten pages that shows nothing gets its start page after 2 s`() {
-        val host = host(app(id = "ch.madtreasures.einkauf", name = "Einkauf", ui = "apps/ch.madtreasures.einkauf/ui.json") { _, _ -> })
-        host.start("watch:ch.madtreasures.einkauf")
+        // The Baukasten example project as the app's pages.
+        ports.assets["apps/ch.test.seiten/ui.json"] = File("../designs/beispiel.json").readBytes()
+        val host = host(app(id = "ch.test.seiten", name = "Seiten", ui = "apps/ch.test.seiten/ui.json") { _, _ -> })
+        host.start("watch:ch.test.seiten")
         assertEquals(AppHost.PLACEHOLDER, host.page)
         scheduler.advanceBy(AppHost.FIRST_PAGE_MS)
         settle()
-        assertEquals("p_liste", host.page)
+        assertEquals("p_start", host.page)
     }
 
     @Test

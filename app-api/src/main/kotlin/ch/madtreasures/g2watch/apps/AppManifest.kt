@@ -5,7 +5,7 @@ package ch.madtreasures.g2watch.apps
  * carry it as an object; an invalid manifest fails at construction, so a broken app never ships.
  */
 data class AppManifest(
-    /** Reverse domain, lower case: `ch.madtreasures.stoppuhr`. At most 64 characters. */
+    /** Reverse domain, lower case: `ch.madtreasures.youtube`. At most 64 characters. */
     val id: String,
     /** Shown in the header and the launcher; at most 20 characters. */
     val name: String,

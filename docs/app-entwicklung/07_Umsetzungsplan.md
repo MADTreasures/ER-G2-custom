@@ -38,7 +38,7 @@ Kennungen doppelt → Hinweis statt Absturz.
 **Ziel:** Auf der Brille gibt es „Apps“ (den Starter), bedienbar mit Zeiger und Bügel.
 
 **Stand:** erledigt in v0.4.0 (nicht auf Hardware erprobt), aus Pull Request #2. Pull Request #1 baute M1 ein
-zweites Mal; von ihm sind in v0.7.0 nur Webseiten-Raster und GeckoView-Test (M2) übernommen, sein Host nicht. Stoppuhr und Einkaufsliste sind seit v0.6.0 App-Pakete (M1b). Was von 03 abweicht oder
+zweites Mal; von ihm sind in v0.7.0 nur Webseiten-Raster und GeckoView-Test (M2) übernommen, sein Host nicht. Die Beispiele Stoppuhr und Einkaufsliste sind seit v0.7.0 entfernt; YouTube ist ein App-Paket (M1b). Was von 03 abweicht oder
 dazukam, steht dort in §9. Außer der Reihe kam in v0.5.0 für die App YouTube dazu: Texteingabe auf der Uhr,
 Eingabeart je Seite und die Video-Wiedergabe auf der Uhr (03 §10) – statt M5, weil alles auf der Uhr laufen
 soll. In v0.5.2 kamen Emoji in allen Texten dazu (03 §11).
@@ -48,7 +48,7 @@ soll. In v0.5.2 kamen Emoji in allen Texten dazu (03 §11).
   Gesten-Modus im `TouchpadScreen`, Weiterleitung aller Bügel-/Ring-Gesten, und schon die Anschlüsse für
   EvenHub-Sitzungen nach 03 §5.2 (noch ohne Inhalt).
 - kotlinx.serialization im Modul `app` (Plugin und Bibliothek stehen schon im Versionskatalog).
-- Beispiel-Apps `StopwatchApp` und `ShoppingListApp`, seit v0.6.0 als App-Pakete in `packages/` (M1b).
+- Beispiel-Apps `StopwatchApp` und `ShoppingListApp` (v0.6.0 App-Pakete, seit v0.7.0 entfernt).
   Sie stehen nicht in `AppRegistry`: Der Starter zeigt nur installierte Apps, ohne
   Apps den Hinweis „Noch keine Apps“.
 - Berechtigungsabfrage auf der Brille (Seite mit „Erlauben“/„Ablehnen“).
@@ -71,8 +71,8 @@ nicht testbar).
   `DexPackageLoader`, `AppPackages` (Ordner für neue Apps, Listen), Seite „Apps“ in den Einstellungen; der
   App-Host listet installierte Apps im Starter, lädt ihre Seiten aus dem Paket und beendet sie beim
   Entfernen oder Aktualisieren.
-- Stoppuhr und Einkauf als Vorlagen-Pakete; CI-Artefakt `g2-apps` mit allen Paketen. In v0.7.0 wurde auch
-  YouTube ein Paket; `builtInApps` ist leer.
+- CI-Artefakt `g2-apps` mit allen Paketen. In v0.7.0 wurde YouTube ein Paket, `builtInApps` ist leer; die
+  Beispiel-Pakete Stoppuhr und Einkauf sind entfernt.
 
 **Abnahme:** `PackageArchiveTest`, `PackageStoreTest`, `InstalledPackagesTest` (die echt gebauten Pakete
 im echten App-Host), `AppsScreenTest`, `PackageManifestTest`, erweiterter `AppsBoundaryTest`; Bild

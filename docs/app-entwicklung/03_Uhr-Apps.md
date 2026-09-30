@@ -13,7 +13,8 @@ bei der Umsetzung dazukam oder anders wurde als ursprünglich geplant, steht in 
 
 ## 1. Eine Uhr-App schreiben
 
-Das Beispiel ist die Stoppuhr aus [`packages/stoppuhr`](../../packages/stoppuhr) (gekürzt):
+Ein kleines Beispiel zum Lesen, eine Stoppuhr (sie liegt nicht im Repo; die echte Vorlage ist
+[`packages/youtube`](../../packages/youtube)):
 
 ```kotlin
 package ch.madtreasures.stoppuhr
@@ -83,7 +84,7 @@ class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : 
 
 Die App ist ein eigener Ordner `packages/<name>/` mit dem Code in `src/main/kotlin/`; daraus baut
 `./gradlew :packages:<name>:g2app` die Paket-Datei, die auf der Uhr installiert wird ([09 §3–§4](09_App-Pakete.md)).
-Stoppuhr und Einkauf sind die Vorlagen; installiert sind sie nur, wenn man ihre Pakete installiert. Ohne
+Im Starter steht eine App, sobald ihr Paket installiert ist. Ohne
 Apps zeigt der Starter „Noch keine Apps“.
 
 Seiten aus dem Baukasten statt aus Code: den Export nach `packages/<name>/src/main/assets/apps/<app-id>/ui.json`

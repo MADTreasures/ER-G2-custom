@@ -74,15 +74,14 @@ Einstellungen fasst zusammen, was schiefgehen kann ([Recherche](docs/RECHERCHE_F
 Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
 [`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)): Apps beschreiben ihre Oberfläche als
 Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
-verteilt die Eingaben. Alle Apps sind App-Pakete: **YouTube** ([YouTube auf der Brille](#youtube-auf-der-brille))
-und die Beispiele **Stoppuhr** und **Einkauf** (Einkaufsliste zum Abhaken, Seite aus dem Baukasten). Im
-Starter stehen sie, sobald man sie installiert hat ([Eigene Apps installieren](#eigene-apps-installieren)).
+verteilt die Eingaben. Jede App ist ein App-Paket, zurzeit **YouTube** ([YouTube auf der Brille](#youtube-auf-der-brille)).
+Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installieren](#eigene-apps-installieren)).
 
-| Starter | Einkauf (App-Paket, per Bügel abgehakt) | App-Menü |
+| Starter | App-Menü | Berechtigung beim ersten Start |
 |---|---|---|
-| ![Starter](docs/bilder/apps-starter.png) | ![Einkauf](docs/bilder/apps-einkauf.png) | ![App-Menü](docs/bilder/apps-menue.png) |
-| **Stoppuhr** (App-Paket) | **Berechtigung beim ersten Start** | **Vollbild-Seite mit randlosem Bild** |
-| ![Stoppuhr](docs/bilder/apps-stoppuhr.png) | ![Berechtigung](docs/bilder/apps-berechtigung.png) | ![Bild](docs/bilder/apps-bild-randlos.png) |
+| ![Starter](docs/bilder/apps-starter.png) | ![App-Menü](docs/bilder/apps-menue.png) | ![Berechtigung](docs/bilder/apps-berechtigung.png) |
+| **Vollbild-Seite mit randlosem Bild** | | |
+| ![Bild](docs/bilder/apps-bild-randlos.png) | | |
 | **Alle Bausteine** | **… gescrollt, Fokus unten** | **Uhr im Gesten-Modus** |
 | ![Bausteine](docs/bilder/apps-bausteine.png) | ![Gescrollt](docs/bilder/apps-bausteine-gescrollt.png) | ![Gesten](docs/bilder/uhr-touchpad-gesten.png) |
 
@@ -138,18 +137,18 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
 | ![Apps auf der Uhr](docs/bilder/uhr-apps.png) |
 
 1. **Paket-Datei holen:** vom App-Chat, aus GitHub (Actions → *Build* → Artefakt `g2-apps`, enthält alle
-   Pakete aus `packages/`) oder selbst bauen: `./gradlew :packages:einkauf:g2app`.
+   Pakete aus `packages/`) oder selbst bauen: `./gradlew :packages:youtube:g2app`.
 2. **Auf die Uhr legen** (Uhr mit Android Studio verbunden, wie beim Installieren der Uhr-App): *View →
    Tool Windows → Device Explorer* → Uhr → `sdcard/Android/data/ch.madtreasures.g2watch/files/apps/` →
    Rechtsklick → *Upload*. Oder:
    ```sh
-   adb push ch.madtreasures.einkauf-1.0.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
+   adb push ch.madtreasures.youtube-1.0.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
    ```
 3. **Installieren:** auf der Uhr Zahnrad halten → *Einstellungen → Apps installieren* → unter „Neu auf der
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
-zweimal antippen. Fertige Pakete: **YouTube**, **Stoppuhr** und **Einkauf**.
+zweimal antippen. Fertiges Paket: **YouTube**.
 
 ## YouTube auf der Brille
 
@@ -356,7 +355,7 @@ die Uhr offline ist.
 |---|---|
 | [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der fest eingebauten App YouTube, der Video-Wiedergabe `apps/video` und der Installation von App-Paketen `apps/packages` |
 | [`app-api/`](app-api) | Die Schnittstelle der Apps (`G2App`, `AppContext`, Ereignisse, Seiten), reines Kotlin; App-Pakete werden dagegen gebaut ([09](docs/app-entwicklung/09_App-Pakete.md)) |
-| [`packages/`](packages) | Ein Ordner je App-Paket: [`stoppuhr`](packages/stoppuhr) und [`einkauf`](packages/einkauf) als Vorlagen. `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
+| [`packages/`](packages) | Ein Ordner je App-Paket, zurzeit [`youtube`](packages/youtube). `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
 | [`web-raster/`](web-raster) | Reines Kotlin ohne Android: gezeichnete Web-Seite → Brillenbild mit lesbarem, bei Bedarf negativem Text (Vorarbeit für den Browser, M7) |
@@ -374,7 +373,7 @@ die Uhr offline ist.
 ./gradlew :gecko-probe:testArmv7DebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 27 + 4 + 382 Tests grün, dazu 30 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 27 + 4 + 374 Tests grün, dazu 30 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -405,8 +404,8 @@ Lint ohne Fehler. Die wichtigsten:
 - **App-Pakete:** **`InstalledPackagesTest`** installiert die Dateien, die `:packages:<name>:g2app` wirklich
   baut, in einen echten App-Host und startet sie (nur den DEX-Schritt ersetzt die JVM);
   **`PackageArchiveTest`**, **`PackageStoreTest`** (Prüfen, Installieren, Aktualisieren, Entfernen, Ordner
-  für neue Apps), **`AppsScreenTest`**, in `app-api` **`PackageManifestTest`**; die Tests der Pakete Stoppuhr
-  und Einkauf liegen in `packages/<name>/src/test` und laufen mit `:app:testDebugUnitTest`.
+  für neue Apps), **`AppsScreenTest`**, in `app-api` **`PackageManifestTest`**; die Tests eines Pakets liegen in
+  `packages/<name>/src/test` und laufen mit `:app:testDebugUnitTest`.
 - Bilder neu erzeugen (Uhr, Desktop, Apps und Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
 - **`GlassesRasterizerTest`** (web-raster) – Grund, Bilder, lesbarer und negativer Text; die Tests des
   Gecko-Tests (`tools/gecko-probe`) prüfen Brücke, Auswertung und Bildschirm ohne Uhr.

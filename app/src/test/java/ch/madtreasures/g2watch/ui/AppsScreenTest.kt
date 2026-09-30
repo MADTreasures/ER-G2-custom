@@ -43,7 +43,7 @@ class AppsScreenTest {
             AppsScreen(
                 waiting = waiting,
                 installed = installed,
-                builtIn = listOf("YouTube"),
+                builtIn = emptyList(),
                 message = message,
                 busy = false,
                 inboxPath = "/storage/emulated/0/Android/data/ch.madtreasures.g2watch/files/apps",
@@ -60,35 +60,34 @@ class AppsScreenTest {
     fun `a waiting package is installed with one tap, a broken one says why`() {
         show(
             waiting = listOf(
-                WaitingPackage(File("stoppuhr.g2app"), pkg("ch.madtreasures.stoppuhr", "Stoppuhr"), null),
+                WaitingPackage(File("youtube.g2app"), pkg("ch.madtreasures.youtube", "YouTube", "1.1.0"), null),
                 WaitingPackage(File("kaputt.g2app"), null, "kaputt.g2app ist keine ZIP-Datei"),
             ),
         )
-        scrollTo("Stoppuhr")
-        compose.onNodeWithText("Stoppuhr").performClick()
-        assertEquals(listOf("stoppuhr.g2app"), installs)
+        scrollTo("YouTube")
+        compose.onNodeWithText("YouTube").performClick()
+        assertEquals(listOf("youtube.g2app"), installs)
         scrollTo("kaputt.g2app ist keine ZIP-Datei")
         compose.onNodeWithText("kaputt.g2app").performClick()
-        assertEquals("a broken file cannot be installed", listOf("stoppuhr.g2app"), installs)
+        assertEquals("a broken file cannot be installed", listOf("youtube.g2app"), installs)
     }
 
     @Test
     fun `removing takes a second tap`() {
-        show(installed = listOf(pkg("ch.madtreasures.einkauf", "Einkauf")))
-        scrollTo("Einkauf")
-        compose.onNodeWithText("Einkauf").performClick()
+        show(installed = listOf(pkg("ch.madtreasures.youtube", "YouTube")))
+        scrollTo("YouTube")
+        compose.onNodeWithText("YouTube").performClick()
         assertEquals(emptyList<String>(), removals)
         compose.onNodeWithText("Nochmals tippen: entfernen").assertExists()
-        compose.onNodeWithText("Einkauf").performClick()
-        assertEquals(listOf("ch.madtreasures.einkauf"), removals)
+        compose.onNodeWithText("YouTube").performClick()
+        assertEquals(listOf("ch.madtreasures.youtube"), removals)
     }
 
     @Test
     fun `without own apps it says so and where new files go`() {
-        show(message = "Stoppuhr entfernt")
-        compose.onNodeWithText("Stoppuhr entfernt").assertExists()
+        show(message = "YouTube entfernt")
+        compose.onNodeWithText("YouTube entfernt").assertExists()
         scrollTo("Noch keine eigenen Apps.")
-        scrollTo("YouTube")
         scrollTo(
             "Datei *.g2app auf die Uhr legen, in den Ordner Android/data/ch.madtreasures.g2watch/files/apps " +
                 "(Android Studio: Device Explorer). Dann erscheint sie hier.",

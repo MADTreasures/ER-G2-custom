@@ -258,7 +258,7 @@ class DesktopControllerTest {
 
     private fun appView(pointer: Boolean = true, fullScreen: Boolean = false, value: Int = 90): AppView {
         val h = if (fullScreen) 288 else 260
-        return AppView("Einkauf", "Liste", fullScreen, ByteArray(576 * h) { value.toByte() }, 576, h, pointer)
+        return AppView("YouTube", "Liste", fullScreen, ByteArray(576 * h) { value.toByte() }, 576, h, pointer)
     }
 
     @Test
@@ -284,7 +284,7 @@ class DesktopControllerTest {
         // The app area as the host drew it; the band's edges stay dark.
         assertEquals(90, desktop[200 * 640 + 320].toInt() and 0xFF)
         assertEquals(0, desktop[200 * 640 + 10].toInt() and 0xFF)
-        assertTrue("Einkauf" in text.drawn)
+        assertTrue("YouTube" in text.drawn)
         assertTrue(" · Liste" in text.drawn)
         assertTrue("14:05" in text.drawn)
         assertFalse("Uhr" in text.drawn)
