@@ -84,8 +84,10 @@ object GlassesRasterizer {
         val lum = IntArray(n) { Levels.luma(c.argb[it]) }
 
         // Pictures: from the DOM; only a capture without any DOM information is searched for them.
+        // Icons and logos of two or three tones are graphics, not photos: they lose their ground
+        // like text instead of turning into lit squares.
         val picture = BooleanArray(n)
-        val boxes = c.pictures.map { it.clip(w, h) }.filter { it.area > 0 }
+        val boxes = c.pictures.map { it.clip(w, h) }.filter { it.area > 0 && !flatGraphic(lum, w, it) }
         for (b in boxes) fill(picture, w, b)
         val noDom = c.pictures.isEmpty() && c.texts.isEmpty() && c.surfaces.isEmpty()
         if (noDom && options.detectPictures) detectPictures(lum, w, h, picture)
@@ -124,9 +126,11 @@ object GlassesRasterizer {
         if (pictureCount > 0) Dither.toLevels(base, w, h, picture, out)
 
         // 3. Text at full contrast, negative where needed.
+        val text = BooleanArray(n)
+        for (run in runs) fill(text, w, run.box)
         var negative = 0
         for (run in runs) {
-            if (drawRun(run, lum, base, out, w, h, overloaded, options)) negative++
+            if (drawRun(run, lum, base, out, text, w, h, overloaded, options)) negative++
         }
 
         val pixels = ByteArray(n) { out[it].toByte() }
@@ -147,9 +151,20 @@ object GlassesRasterizer {
     private const val TILE = 8
     private const val BUCKETS = 32
 
+    /** A DOM surface counts in a tile where at least this share of its pixels show the surface's colour. */
+    private const val SURFACE_AGREEMENT = 0.15f
+
+    /** How close (0–255) a pixel must be to a neighbouring tile's ground to count as part of it. */
+    private const val EDGE_TOLERANCE = 24
+
+    /** Surfaces less opaque than this (alpha 0–255) are veils over something else, not a ground. */
+    private const val OPAQUE = 230
+
     /**
      * The ground brightness under every pixel: the most common brightness in the 24 × 24
      * neighbourhood (pictures left out), or the colour of the smallest DOM surface that holds it.
+     * A surface only counts where the pixels around confirm its colour: the DOM also reports
+     * backgrounds hidden behind others, painted over by background images, or semi-transparent.
      */
     internal fun groundMap(lum: IntArray, picture: BooleanArray, w: Int, h: Int, surfaces: List<Surface>): IntArray {
         val tw = (w + TILE - 1) / TILE
@@ -188,15 +203,111 @@ object GlassesRasterizer {
         fillUnknown(tileGround, tw, th)
         val ground = IntArray(w * h)
         for (y in 0 until h) for (x in 0 until w) ground[y * w + x] = tileGround[(y / TILE) * tw + x / TILE]
-        // The DOM knows the real grounds: the smallest surface wins.
+        // The DOM knows the real grounds (the smallest surface wins), where the pixels agree. The
+        // tile's own 8 × 8 pixels decide, so an unreported dark bar next to a light surface stays
+        // dark up to its edge.
+        fun agrees(t: Int, bucket: Int): Boolean {
+            var count = 0
+            var near = 0
+            for (b in 0 until BUCKETS) {
+                val c = hist[t * BUCKETS + b]
+                count += c
+                if (b in bucket - 1..bucket + 1) near += c
+            }
+            return count > 0 && near >= count * SURFACE_AGREEMENT
+        }
+        // The tile's most common tone is the surface's colour.
+        fun dominates(t: Int, bucket: Int): Boolean {
+            var best = -1
+            for (b in 0 until BUCKETS) if (hist[t * BUCKETS + b] > 0 && (best < 0 || hist[t * BUCKETS + b] > hist[t * BUCKETS + best])) best = b
+            return best >= 0 && abs(best - bucket) <= 1
+        }
         for (s in surfaces.sortedByDescending { it.box.area }) {
+            if (s.color ushr 24 < OPAQUE) continue
             val b = s.box.clip(w, h)
             if (b.area == 0) continue
             val g = Levels.luma(s.color)
-            for (y in b.y until b.bottom) for (x in b.x until b.right) ground[y * w + x] = g
+            val bucket = g * BUCKETS / 256
+            val tx0 = b.x / TILE
+            val ty0 = b.y / TILE
+            val cw = (b.right - 1) / TILE - tx0 + 1
+            val ch = (b.bottom - 1) / TILE - ty0 + 1
+            val ok = BooleanArray(cw * ch) { k -> agrees((ty0 + k / cw) * tw + tx0 + k % cw, bucket) }
+            val surfaceMode = BooleanArray(cw * ch) { k -> dominates((ty0 + k / cw) * tw + tx0 + k % cw, bucket) }
+            shapesOnSurface(ok, surfaceMode, cw, ch)
+            fun okAt(tx: Int, ty: Int): Boolean =
+                if (tx - tx0 in 0 until cw && ty - ty0 in 0 until ch) ok[(ty - ty0) * cw + tx - tx0] else agrees(ty * tw + tx, bucket)
+            val others = IntArray(8)
+            for (ty in ty0 until ty0 + ch) for (tx in tx0 until tx0 + cw) {
+                if (!okAt(tx, ty)) continue
+                // Grounds of neighbouring tiles that do not show this surface: an unreported
+                // background reaching into this tile keeps its own ground up to its edge.
+                var count = 0
+                for (dy in -1..1) for (dx in -1..1) {
+                    val nx = tx + dx
+                    val ny = ty + dy
+                    if ((dx == 0 && dy == 0) || nx !in 0 until tw || ny !in 0 until th) continue
+                    val n = ny * tw + nx
+                    if (!okAt(nx, ny) && abs(tileGround[n] - g) > EDGE_TOLERANCE) others[count++] = tileGround[n]
+                }
+                for (y in max(b.y, ty * TILE) until min(b.bottom, ty * TILE + TILE)) {
+                    for (x in max(b.x, tx * TILE) until min(b.right, tx * TILE + TILE)) {
+                        val i = y * w + x
+                        var gi = g
+                        if (abs(lum[i] - g) > EDGE_TOLERANCE) {
+                            for (k in 0 until count) if (abs(lum[i] - others[k]) <= EDGE_TOLERANCE) {
+                                gi = others[k]
+                                break
+                            }
+                        }
+                        ground[i] = gi
+                    }
+                }
+            }
         }
         return ground
     }
+
+    /**
+     * Patches of tiles dominated by another tone than a surface's colour that lie inside it, away
+     * from its border, and are small (a logo, an icon, a thick letter) are shapes on that surface,
+     * not another ground: they are marked as agreeing, so their inside lights up instead of only
+     * their outline. A patch reaching the border (an unreported bar) keeps its own ground.
+     */
+    private fun shapesOnSurface(ok: BooleanArray, surfaceMode: BooleanArray, cw: Int, ch: Int) {
+        val seen = BooleanArray(ok.size)
+        val queue = IntArray(ok.size)
+        for (start in ok.indices) {
+            if (surfaceMode[start] || seen[start]) continue
+            var head = 0
+            var tail = 0
+            var enclosed = true
+            queue[tail++] = start
+            seen[start] = true
+            while (head < tail) {
+                val k = queue[head++]
+                val cx = k % cw
+                val cy = k / cw
+                if (cx == 0 || cy == 0 || cx == cw - 1 || cy == ch - 1) enclosed = false
+                for ((dx, dy) in NEIGHBOURS) {
+                    val nx = cx + dx
+                    val ny = cy + dy
+                    if (nx !in 0 until cw || ny !in 0 until ch) continue
+                    val m = ny * cw + nx
+                    if (!surfaceMode[m] && !seen[m]) {
+                        seen[m] = true
+                        queue[tail++] = m
+                    }
+                }
+            }
+            if (enclosed && tail <= MAX_SHAPE_TILES) for (i in 0 until tail) ok[queue[i]] = true
+        }
+    }
+
+    private val NEIGHBOURS = listOf(-1 to 0, 1 to 0, 0 to -1, 0 to 1)
+
+    /** Up to this many tiles (36 = about 48 × 48 pixels) an enclosed patch counts as a shape. */
+    private const val MAX_SHAPE_TILES = 36
 
     /** Tiles that are all picture take the ground of the nearest known tile; no ground at all is white. */
     private fun fillUnknown(tiles: IntArray, tw: Int, th: Int) {
@@ -270,6 +381,16 @@ object GlassesRasterizer {
         for (y in 0 until h) for (x in 0 until w) picture[y * w + x] = closed[(y / size) * tw + x / size]
     }
 
+    /** Two tones cover most of [b], or at most three levels are really used: an icon, a logo, a flat graphic. */
+    internal fun flatGraphic(lum: IntArray, w: Int, b: Box): Boolean {
+        val hist = IntArray(BUCKETS)
+        for (y in b.y until b.bottom) for (x in b.x until b.right) hist[lum[y * w + x] * BUCKETS / 256]++
+        val count = b.area
+        if (count == 0) return false
+        val sorted = hist.sortedDescending()
+        return (sorted[0] + sorted[1]) >= count * 0.8f || hist.count { it >= count * 0.02f } <= 3
+    }
+
     /**
      * Positive, stretched between the 2nd and 98th percentile of each picture, times [gain]; bright
      * pictures are dimmed to a mean of at most [maxMean] (dark ones stay as they are).
@@ -318,7 +439,7 @@ object GlassesRasterizer {
      * Draws one line of text; true if negative. The glyphs are found against the line's own
      * ground (its most common brightness), towards the CSS colour or else the far end of its pixels.
      */
-    private fun drawRun(run: TextRun, lum: IntArray, base: FloatArray, out: IntArray, w: Int, h: Int, overloaded: Boolean, o: RasterOptions): Boolean {
+    private fun drawRun(run: TextRun, lum: IntArray, base: FloatArray, out: IntArray, text: BooleanArray, w: Int, h: Int, overloaded: Boolean, o: RasterOptions): Boolean {
         val b = run.box
         val hist = IntArray(256)
         for (y in b.y until b.bottom) for (x in b.x until b.right) hist[lum[y * w + x]]++
@@ -340,6 +461,8 @@ object GlassesRasterizer {
         for (y in pad.y until pad.bottom) for (x in pad.x until pad.right) {
             val inRun = x in b.x until b.right && y in b.y until b.bottom
             if (inRun && coverage[(y - b.y) * b.w + (x - b.x)] > 0.25f) continue
+            // Neighbouring lines and links ("new | past") are text, not a restless ground.
+            if (!inRun && text[y * w + x]) continue
             val v = base[y * w + x].toDouble()
             sum += v
             sumSq += v * v

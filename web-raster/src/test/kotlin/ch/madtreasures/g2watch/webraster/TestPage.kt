@@ -33,6 +33,12 @@ class TestPage(val width: Int, val height: Int, ground: Color) {
         surfaces += Surface(Box(x, y, w, h), color.rgb)
     }
 
+    /** Painted without telling the DOM, like a CSS background image or gradient. */
+    fun paint(x: Int, y: Int, w: Int, h: Int, color: Color): TestPage = apply {
+        g.color = color
+        g.fillRect(x, y, w, h)
+    }
+
     /** One line of text with its top-left at ([x], [y]); returns its box. */
     fun text(s: String, x: Int, y: Int, size: Int, color: Color, bold: Boolean = false): Box {
         g.font = Font(Font.SANS_SERIF, if (bold) Font.BOLD else Font.PLAIN, size)

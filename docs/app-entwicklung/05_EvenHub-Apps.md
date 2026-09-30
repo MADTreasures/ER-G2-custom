@@ -383,16 +383,20 @@ Schrift. Das Modul `web-raster` (reines Kotlin, ohne Android) macht daraus ein B
 immer lesbar**.
 
 Eingabe (`PageCapture`): die Pixel der Seite (ARGB, wie `Bitmap.getPixels`) und, wenn vorhanden, was das DOM
-weiß: Textzeilen mit Farbe (`TextRun`), Bilder (`<img>`, `<video>`, `<canvas>`, Hintergrundbilder) und Flächen
-mit Hintergrundfarbe (`Surface`). Im Gecko-Test liefert das Content-Script diese Angaben (`collectLayout`,
-CSS-Pixel → `LayoutParser`). Ausgabe: 576 Pixel breit, 16 Stufen, dazu ein Bericht.
+weiß: Textzeilen mit Farbe (`TextRun`), Bilder (`<img>`, `<video>`, `<canvas>`, SVG, Hintergrundbilder) und
+Flächen mit Hintergrundfarbe (`Surface`). Im Gecko-Test liefert das Content-Script diese Angaben
+(`collectLayout`, CSS-Pixel → `LayoutParser`), und zwar **nur, was wirklich zu sehen ist**: Bilder und Flächen
+aus einer Malkarte (alle 8 CSS-Pixel das oberste Element, das etwas malt; `elementsFromPoint`), Text nur, wenn
+er nicht abgeschnitten (Menüs außerhalb, Beschriftungen für Screenreader) und nicht verdeckt ist (Dialoge).
+Ausgabe: 576 Pixel breit, 16 Stufen, dazu ein Bericht.
 
 | Regel | Umsetzung (`GlassesRasterizer`, Werte in `RasterOptions`) |
 |---|---|
 | Grund wird durchsichtig | Hintergrund je Stelle schätzen (häufigste Helligkeit in 24 × 24 Pixeln, oder die Farbe der kleinsten DOM-Fläche darunter) und abziehen: weiße und dunkle Seiten verlieren ihren Grund gleichermaßen; kleine Unterschiede (< 28 von 255, Schatten, Kartenränder) bleiben dunkel |
-| Bilder bleiben positiv | Bilder behalten Hell und Dunkel, je Bild auf 2–98 % gestreckt, mal 0,85, mit Floyd–Steinberg auf die 16 Stufen gebracht |
+| DOM-Flächen nur, wo die Pixel sie zeigen | eine DOM-Farbe gilt nur in 8 × 8-Kacheln, in denen ≥ 15 % der Pixel sie zeigen; halbdurchsichtige Flächen (Alpha < 90 %) zählen nicht. Kleine, ringsum eingeschlossene Formen anderer Farbe (Logo, Symbol, bis ≈ 48 × 48 Pixel) bleiben Vordergrund und leuchten ganz, nicht nur als Umriss |
+| Bilder bleiben positiv | Bilder behalten Hell und Dunkel, je Bild auf 2–98 % gestreckt, mal 0,85, mit Floyd–Steinberg auf die 16 Stufen gebracht. Flache Grafiken (zwei Töne ≥ 80 % oder höchstens drei Stufen: Symbole, Logos) sind keine Fotos und werden wie Text behandelt |
 | Text immer voll lesbar | jede Textzeile wird aus ihren Pixeln neu gezeichnet: Glyphen in voller Helligkeit (Stufe 15), auch blaue Links und graue Bildunterschriften |
-| Text auf unruhigem Grund → **negativ** | wäre der Grund um eine Zeile auf der Brille hell oder unruhig (Text auf einem Foto: Mittel > 70 oder Streuung > 40 von 255), bekommt die Zeile eine helle Platte (Stufe 12) mit dunkel ausgesparten Buchstaben |
+| Text auf unruhigem Grund → **negativ** | wäre der Grund um eine Zeile auf der Brille hell oder unruhig (Text auf einem Foto: Mittel > 70 oder Streuung > 40 von 255; andere Textzeilen zählen dabei nicht), bekommt die Zeile eine helle Platte (Stufe 12) mit dunkel ausgesparten Buchstaben |
 | **Überladenes Fenster → negativ** | nehmen Bilder (mit ihrer ganzen Fläche, auch dunkle) und leuchtende Flächen mehr als 35 % des Fensters ein, wird **aller** Text negativ gesetzt, und helle Bilder werden auf ein Mittel von 80 gedämpft, damit die Platten sich abheben |
 
 Die Bilder in `docs/bilder/raster-*.png` zeigen die vier Fälle (erzeugt von `RasterSnapshotTest` aus
@@ -402,6 +406,11 @@ Java2D-Testseiten, nicht von einem Browser):
 |---|---|---|---|
 | ![hell](../bilder/raster-hell.png) | ![dunkel](../bilder/raster-dunkel.png) | ![Text auf Bild](../bilder/raster-text-auf-bild.png) | ![überladen](../bilder/raster-ueberladen.png) |
 
-Die Grenzwerte sind Annahmen und werden nachjustiert, sobald echte Seiten auf der echten Brille zu sehen sind
-(Gecko-Test „Seite rendern“ liefert dafür `render-brille.png`). Was M7 noch fehlt, steht in
+Geprüft an echten Seiten mit der **Seiten-Vorschau** ([`tools/page-preview/`](../../tools/page-preview/README.md):
+Chromium als Ersatz für GeckoView, gleiches Layout-Skript, echter Rasterer): Wikipedia, SRF News, Hacker News,
+evenrealities.com, GitHub (dunkel), apple.com, nasa.gov, MDN. Dabei gefunden und behoben: unsichtbare Menüs,
+Screenreader-Beschriftungen und Overlays im Layout, DOM-Farben, die nicht gemalt sind (Hintergrundbilder),
+Symbole als leuchtende Quadrate, Trennstriche zwischen Links als Platten. Die Grenzwerte bleiben Annahmen,
+bis echte Seiten auf der echten Brille zu sehen sind (Gecko-Test „Seite rendern“ liefert dafür
+`render-brille.png`). Was M7 noch fehlt, steht in
 [07 M7](07_Umsetzungsplan.md#m7--web-browser-auf-der-brille-wenn-m2-geckoview-ja-ergibt).

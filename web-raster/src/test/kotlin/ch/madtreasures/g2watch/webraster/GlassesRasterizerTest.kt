@@ -63,6 +63,78 @@ class GlassesRasterizerTest {
     }
 
     @Test
+    fun `a DOM ground the pixels do not show is ignored`() {
+        // The DOM reports a white page, but the header is black (a background image): it must
+        // not light up, as it did when the page's colour was taken on trust.
+        val page = TestPage(576, 260, white)
+        page.paint(0, 0, 576, 60, Color(0, 0, 0))
+        val head = page.text("NASA", 16, 18, 26, white, bold = true)
+        val body = page.text("Ein Artikel auf weißem Grund.", 16, 90, 22, black)
+        val r = GlassesRasterizer.rasterize(page.capture())
+        assertEquals(0, r.maxIn(Box(300, 0, 276, 60)))
+        assertEquals(0, r.maxIn(Box(300, 120, 276, 140)))
+        assertEquals(255, r.maxIn(head))
+        assertEquals(255, r.maxIn(body))
+        assertFalse(r.report.overloaded)
+        assertEquals(0, r.report.negativeRuns)
+    }
+
+    @Test
+    fun `a semi-transparent DOM surface is no ground`() {
+        // A hidden menu veil (rgba(0, 0, 0, 0.8)) over a white article, as Wikipedia reports one.
+        val page = article(white, black)
+        page.surfaces += Surface(Box(0, 0, 576, 260), 0xCC000000.toInt())
+        val r = GlassesRasterizer.rasterize(page.capture())
+        assertEquals(0, r.maxIn(Box(300, 150, 200, 80)))
+        for (t in page.texts) assertEquals(255, r.maxIn(t.box))
+        assertFalse(r.report.overloaded)
+        assertEquals(0, r.report.negativeRuns)
+    }
+
+    @Test
+    fun `an icon among the pictures is drawn like text, not as a lit square`() {
+        // A menu icon (three dark bars on white) that the DOM reports as a picture (<svg>, <img>).
+        val page = article(white, black)
+        val icon = Box(520, 12, 36, 30)
+        page.paint(icon.x + 4, icon.y + 4, 28, 4, black)
+        page.paint(icon.x + 4, icon.y + 13, 28, 4, black)
+        page.paint(icon.x + 4, icon.y + 22, 28, 4, black)
+        page.pictures += icon
+        val r = GlassesRasterizer.rasterize(page.capture())
+        assertEquals(0, r[icon.x + 1, icon.y + 1])
+        assertEquals(0, r[icon.x + 18, icon.y + 10])
+        assertTrue(r[icon.x + 18, icon.y + 5] >= 240)
+        // A real photo stays a picture.
+        val photo = TestPage(576, 260, white).apply { photo(100, 40, 300, 180) }
+        val p = GlassesRasterizer.rasterize(photo.capture())
+        assertTrue(p.report.pictureShare > 0.3f)
+    }
+
+    @Test
+    fun `links in a row with separators stay bright`() {
+        // "new | past | comments" as separate text nodes that touch each other, as on Hacker News.
+        val page = TestPage(576, 260, white)
+        var x = 16
+        for (word in listOf("new", " | ", "past", " | ", "comments", " | ", "ask")) {
+            val b = page.text(word, x, 20, 20, black)
+            x = b.right
+        }
+        val r = GlassesRasterizer.rasterize(page.capture())
+        assertEquals(0, r.report.negativeRuns)
+        for (t in page.texts) assertEquals(255, r.maxIn(t.box))
+    }
+
+    @Test
+    fun `a solid logo on a page lights up whole, not as an outline`() {
+        val page = article(white, black)
+        val logo = Box(480, 150, 40, 40)
+        page.paint(logo.x, logo.y, logo.w, logo.h, black)
+        val r = GlassesRasterizer.rasterize(page.capture())
+        assertTrue(r[logo.x + 20, logo.y + 20] >= 240, "inside ${r[logo.x + 20, logo.y + 20]}")
+        assertEquals(0, r[logo.x - 8, logo.y + 20])
+    }
+
+    @Test
     fun `coloured text is drawn at full brightness`() {
         val page = TestPage(576, 260, white)
         val link = page.text("Ein blauer Link", 16, 20, 22, Color(26, 13, 171))

@@ -101,7 +101,8 @@ der Text **negativ**: dunkle Buchstaben in einer hellen Platte.
 |---|---|---|---|
 | ![hell](docs/bilder/raster-hell.png) | ![dunkel](docs/bilder/raster-dunkel.png) | ![Text auf Bild](docs/bilder/raster-text-auf-bild.png) | ![überladen](docs/bilder/raster-ueberladen.png) |
 
-Links jeweils die Test-Seite, rechts das Brillenbild. Die Regeln und Grenzwerte stehen in
+Links jeweils die Test-Seite, rechts das Brillenbild. Wie echte Seiten aussehen, zeigt die
+[Seiten-Vorschau](tools/page-preview/README.md) (Chromium statt GeckoView). Die Regeln und Grenzwerte stehen in
 [05 §10.1](docs/app-entwicklung/05_EvenHub-Apps.md#101-seiten-ins-brillen-raster-wandeln-web-raster-gebaut).
 Der Browser selbst (Meilenstein M7) kommt, wenn der Gecko-Test zeigt, dass GeckoView auf der Uhr taugt.
 
@@ -226,6 +227,7 @@ die Uhr offline ist.
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
 | [`web-raster/`](web-raster) | Reines Kotlin ohne Android: gezeichnete Web-Seite → Brillenbild mit lesbarem, bei Bedarf negativem Text (Vorarbeit für den Browser, M7) |
 | [`tools/gecko-probe/`](tools/gecko-probe) | Test-APK „Gecko-Test“ (M2): misst GeckoView auf der Uhr; eigene App, nicht Teil von G2 Watch |
+| [`tools/page-preview/`](tools/page-preview/README.md) | Seiten-Vorschau: echte Web-Seiten in Chromium im Brillenfenster öffnen und daneben das Brillenbild zeigen (zum Prüfen von `web-raster`) |
 | [`tools/cfw_bauen.py`](tools/cfw_bauen.py) | Baut und prüft Faceclaw/35 auf dem PC (Python, ohne Flashen) |
 | [`designer/`](designer), [`designs/`](designs) | G2 Baukasten: Brillen-Seiten aus Bausteinen zusammenstellen (Web-App), und ein Beispiel |
 | [`docs/app-entwicklung/`](docs/app-entwicklung/00_LIES_MICH.md) | **Spezifikation für Apps**: Uhr-Apps, Even-Hub-Apps auf der Uhr (GeckoView) oder dem Handy, Rechner-Apps, Umsetzungsplan und Texte für neue Chats |
@@ -238,8 +240,8 @@ die Uhr offline ist.
 ./gradlew :gecko-probe:testArmv7DebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 16 + 258 + 28 Tests grün (23 Bild-Tests werden ohne `-PsnapshotDir`
-übersprungen, 2 brauchen Evens Image), Lint ohne Fehler. Die wichtigsten:
+Stand dieses Commits: 15 + 184 + 21 + 258 + 29 Tests grün (23 Bild-Tests werden ohne `-PsnapshotDir`
+übersprungen, der Vorschau-Test ohne `PREVIEW_DIR`, 2 Tests brauchen Evens Image), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:
   Aufspielen beider Ziele, jedes Abbruchkriterium (Ablehnen, Lautlos, Akku, MTU, neuere Firmware,
