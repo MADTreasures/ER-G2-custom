@@ -81,7 +81,7 @@ class ProbeActivity : ComponentActivity() {
 }
 
 @Composable
-private fun ProbeScreen(lab: GeckoLab, keepScreenOn: (Boolean) -> Unit) {
+internal fun ProbeScreen(lab: GeckoLab, keepScreenOn: (Boolean) -> Unit) {
     val results by lab.results.collectAsStateWithLifecycle()
     val running by lab.running.collectAsStateWithLifecycle()
     val instruction by lab.instruction.collectAsStateWithLifecycle()
@@ -93,15 +93,10 @@ private fun ProbeScreen(lab: GeckoLab, keepScreenOn: (Boolean) -> Unit) {
 
     val listState = rememberScalingLazyListState()
     val busy = running != null
+    // The edge button only unfolds at the end of the list (below the log), so cancelling sits at the top.
     ScreenScaffold(
         scrollState = listState,
-        edgeButton = {
-            if (busy) {
-                EdgeButton(onClick = { lab.cancel() }) { Text("Abbrechen") }
-            } else {
-                EdgeButton(onClick = { saved = lab.saveReport() }) { Text("Bericht") }
-            }
-        },
+        edgeButton = { EdgeButton(onClick = { saved = lab.saveReport() }) { Text("Bericht") } },
     ) { padding ->
         ScalingLazyColumn(state = listState, contentPadding = padding, modifier = Modifier.fillMaxWidth()) {
             item { ListHeader { Text("Gecko-Test") } }
@@ -112,6 +107,7 @@ private fun ProbeScreen(lab: GeckoLab, keepScreenOn: (Boolean) -> Unit) {
                         Text("$running läuft", fontSize = 13.sp)
                     }
                 }
+                item { OutlinedButton(onClick = { lab.cancel() }, modifier = Modifier.fillMaxWidth()) { Text("Abbrechen") } }
             }
             instruction?.let { item { Centered(it, color = Warn, size = 14) } }
 

@@ -262,7 +262,8 @@ Die Tests auf der Uhr, der Reihe nach:
 | 5 · Wikipedia rendern | ≈ 10 s | dasselbe mit `https://de.m.wikipedia.org/wiki/Brille` (braucht Internet) |
 
 Die Uhr zeigt jeden Wert mit ✓ (Ziel erreicht), ~ (knapp) oder ✗ und darunter eine **Empfehlung** nach
-§5.1. „Bericht“ (unterer Rand) schreibt alles nach
+§5.1. Ein laufender Test lässt sich oben mit „Abbrechen“ beenden. „Bericht“ (unterer Rand, am Ende der Liste)
+schreibt alles nach
 `/sdcard/Android/data/ch.madtreasures.g2watch.geckoprobe/files/g2-gecko-bericht.txt`; die Seiten-Tests legen
 dort `render-seite.png` (was GeckoView gezeichnet hat) und `render-brille.png` (was die Brille zeigen würde)
 ab. Holen mit `adb pull`. Eintragen in [quellen/E-m2-messwerte.md](quellen/E-m2-messwerte.md).

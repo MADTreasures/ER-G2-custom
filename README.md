@@ -129,7 +129,7 @@ Sie ist getrennt von G2 Watch, damit die Uhr-App nicht um ≈ 120 MB wächst, so
    es wieder vibriert) → **3 · Dauertest** (30 min Uhr normal tragen, nicht laden) → **4 · Seite rendern** →
    **5 · Wikipedia rendern** (braucht Internet). Den **Schnelltest als Erstes nach dem Öffnen** der App
    laufen lassen, sonst gibt es keinen Kaltstart-Wert.
-4. **Bericht** (Knopf am unteren Rand) speichern und holen:
+4. Ganz nach unten scrollen, **Bericht** antippen (Knopf am unteren Rand) und am Rechner holen:
    ```sh
    adb pull /sdcard/Android/data/ch.madtreasures.g2watch.geckoprobe/files/ .
    ```
@@ -238,7 +238,7 @@ die Uhr offline ist.
 ./gradlew :gecko-probe:testArmv7DebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 16 + 258 + 25 Tests grün (23 Bild-Tests werden ohne `-PsnapshotDir`
+Stand dieses Commits: 15 + 184 + 16 + 258 + 28 Tests grün (23 Bild-Tests werden ohne `-PsnapshotDir`
 übersprungen, 2 brauchen Evens Image), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:
