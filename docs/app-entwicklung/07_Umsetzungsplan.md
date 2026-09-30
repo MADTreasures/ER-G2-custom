@@ -39,7 +39,7 @@ Kennungen doppelt → Hinweis statt Absturz.
 
 **Stand:** erledigt in v0.4.0 (nicht auf Hardware erprobt), aus Pull Request #2. Pull Request #1 baute M1 ein
 zweites Mal (dazu Webseiten-Raster und GeckoView-Test aus M2): von dort nur noch M2 übernehmen; kein Chat baut
-M1 noch einmal. Stoppuhr und Einkaufsliste sind nur noch Test-Apps (siehe unten). Was von 03 abweicht oder
+M1 noch einmal. Stoppuhr und Einkaufsliste sind seit v0.6.0 App-Pakete (M1b). Was von 03 abweicht oder
 dazukam, steht dort in §9. Außer der Reihe kam in v0.5.0 für die App YouTube dazu: Texteingabe auf der Uhr,
 Eingabeart je Seite und die Video-Wiedergabe auf der Uhr (03 §10) – statt M5, weil alles auf der Uhr laufen
 soll.
@@ -49,14 +49,34 @@ soll.
   Gesten-Modus im `TouchpadScreen`, Weiterleitung aller Bügel-/Ring-Gesten, und schon die Anschlüsse für
   EvenHub-Sitzungen nach 03 §5.2 (noch ohne Inhalt).
 - kotlinx.serialization im Modul `app` (Plugin und Bibliothek stehen schon im Versionskatalog).
-- Beispiel-Apps `StopwatchApp` und `ShoppingListApp` **nur als Test-Apps** unter `app/src/test/…` (Seiten
-  aus dem Baukasten in den Test-Ressourcen). Sie stehen nicht in `AppRegistry`: Der Starter zeigt nur
-  echte Apps, ohne Apps den Hinweis „Noch keine Apps“.
+- Beispiel-Apps `StopwatchApp` und `ShoppingListApp`, seit v0.6.0 als App-Pakete in `packages/` (M1b).
+  Sie stehen nicht in `AppRegistry`: Der Starter zeigt nur installierte und fest eingebaute Apps, ohne
+  Apps den Hinweis „Noch keine Apps“.
 - Berechtigungsabfrage auf der Brille (Seite mit „Erlauben“/„Ablehnen“).
 
 **Abnahme:** `AppHostTest`, `InputRouterTest`, `PageRendererSnapshotTest` (jede Bausteinart, Scroll, Fokus,
 Zeiger, randloses Bild), Tests der Beispiel-Apps mit `FakeAppContext`; neue Bilder `docs/bilder/apps-*.png`;
 `FlashingBoundaryTest` grün; README-Abschnitt „Apps“.
+
+## M1b – App-Pakete: Apps getrennt installieren
+
+**Ziel:** Die Uhr-App wird einmal installiert; jede eigene App kommt als Datei (`.g2app`) dazu und steht nach
+dem Installieren auf der Uhr im Starter ([09](09_App-Pakete.md)).
+
+**Stand:** erledigt in v0.6.0 (nicht auf Hardware erprobt; das Laden des DEX-Codes auf der Uhr ist ohne Uhr
+nicht testbar).
+
+- Modul `app-api/` mit der Schnittstelle und `G2AppApi.VERSION`; Paket-Bau in der `build.gradle.kts` im
+  Hauptordner (`g2appManifest`, D8, Zip), ein Ordner je App in `packages/`.
+- Auf der Uhr: `PackageArchive` (prüfen), `PackageStore` (installieren, aktualisieren, entfernen),
+  `DexPackageLoader`, `AppPackages` (Ordner für neue Apps, Listen), Seite „Apps“ in den Einstellungen; der
+  App-Host listet installierte Apps im Starter, lädt ihre Seiten aus dem Paket und beendet sie beim
+  Entfernen oder Aktualisieren.
+- Stoppuhr und Einkauf als Vorlagen-Pakete; CI-Artefakt `g2-apps` mit allen Paketen.
+
+**Abnahme:** `PackageArchiveTest`, `PackageStoreTest`, `InstalledPackagesTest` (die echt gebauten Pakete
+im echten App-Host), `AppsScreenTest`, `PackageManifestTest`, erweiterter `AppsBoundaryTest`; Bild
+`docs/bilder/uhr-apps.png`; README-Abschnitt „Eigene Apps installieren“.
 
 ## M2 – GeckoView auf der Uhr: Machbarkeitstest
 

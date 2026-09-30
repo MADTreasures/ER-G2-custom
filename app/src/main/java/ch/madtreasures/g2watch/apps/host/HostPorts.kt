@@ -3,6 +3,7 @@ package ch.madtreasures.g2watch.apps.host
 import ch.madtreasures.g2watch.apps.AppContext
 import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.AppManifest
+import ch.madtreasures.g2watch.apps.G2App
 import ch.madtreasures.g2watch.apps.AppStorage
 import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
@@ -88,6 +89,29 @@ interface InternalContext : AppContext {
     fun setRaster(blockId: String, raster: GrayRaster)
 
     val glasses: GlassesStatus
+}
+
+/** An installed app package, ready to run: the app and the files of its package (`assets/…`). */
+class InstalledApp(val app: G2App, val asset: (String) -> ByteArray?)
+
+/**
+ * The apps installed as packages (docs/app-entwicklung/09): the launcher lists them after the built-in
+ * apps. [ch.madtreasures.g2watch.apps.packages.AppPackages] fills it on the watch.
+ */
+interface InstalledApps {
+    /** The installed apps, in launcher order. */
+    val apps: List<AppManifest>
+
+    /** A new instance of app [id], or null if it is not installed; throws if its code does not load. */
+    fun open(id: String): InstalledApp?
+
+    companion object {
+        val NONE: InstalledApps = object : InstalledApps {
+            override val apps: List<AppManifest> = emptyList()
+
+            override fun open(id: String): InstalledApp? = null
+        }
+    }
 }
 
 /** Where an Even Hub app runs (05 §3). */

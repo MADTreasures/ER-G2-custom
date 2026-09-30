@@ -35,6 +35,7 @@ import ch.madtreasures.g2watch.glasses.FirmwareInstall
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.Stage
+import ch.madtreasures.g2watch.ui.AppsScreen
 import ch.madtreasures.g2watch.ui.DevicesScreen
 import ch.madtreasures.g2watch.ui.FirmwareConfirmScreen
 import ch.madtreasures.g2watch.ui.FirmwareProgressScreen
@@ -73,7 +74,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private enum class Screen { DEVICES, STATUS, TOUCHPAD, SETTINGS, LOG, FIRMWARE_CONFIRM, FIRMWARE_PROGRESS, RISKS }
+    private enum class Screen { DEVICES, STATUS, TOUCHPAD, SETTINGS, LOG, FIRMWARE_CONFIRM, FIRMWARE_PROGRESS, RISKS, APPS }
 
     @Composable
     private fun Root() {
@@ -91,6 +92,9 @@ class MainActivity : ComponentActivity() {
         var risksReturn by rememberSaveable { mutableStateOf(Screen.SETTINGS) }
         var firmwareTarget by rememberSaveable { mutableStateOf(FirmwareTarget.CUSTOM) }
         val firmware = app.firmware
+        val packages = app.packages
+        val installedApps by packages.installed.collectAsStateWithLifecycle()
+        val waitingApps by packages.waiting.collectAsStateWithLifecycle()
         val install by firmware.progress.collectAsStateWithLifecycle()
 
         val permissionLauncher = rememberLauncherForActivityResult(
@@ -237,6 +241,8 @@ class MainActivity : ComponentActivity() {
 
             Screen.SETTINGS -> {
                 BackHandler { screen = settingsReturn }
+                // Files laid on the watch since the last look show up as "neu" under "Apps installieren".
+                LaunchedEffect(Unit) { packages.rescan() }
                 SettingsScreen(
                     state = state,
                     speed = speed,
@@ -251,6 +257,26 @@ class MainActivity : ComponentActivity() {
                     onLog = { logReturn = Screen.SETTINGS; screen = Screen.LOG },
                     backLabel = if (settingsReturn == Screen.TOUCHPAD) "Touchpad" else "Zurück",
                     onRisks = { risksReturn = Screen.SETTINGS; screen = Screen.RISKS },
+                    onApps = { screen = Screen.APPS },
+                    appsSummary = appsSummary(installedApps.size, waitingApps.size),
+                )
+            }
+
+            Screen.APPS -> {
+                val message by packages.message.collectAsStateWithLifecycle()
+                val busy by packages.busy.collectAsStateWithLifecycle()
+                LaunchedEffect(Unit) { packages.rescan() }
+                BackHandler { packages.clearMessage(); screen = Screen.SETTINGS }
+                AppsScreen(
+                    waiting = waitingApps,
+                    installed = installedApps,
+                    builtIn = app.builtInAppManifests.map { it.name },
+                    message = message,
+                    busy = busy,
+                    inboxPath = packages.inboxPath,
+                    onInstall = { packages.install(it.file) },
+                    onRemove = { packages.remove(it) },
+                    onBack = { packages.clearMessage(); screen = Screen.SETTINGS },
                 )
             }
 
@@ -313,5 +339,9 @@ class MainActivity : ComponentActivity() {
     private companion object {
         /** Result key of the text input for apps. */
         const val TEXT_KEY = "g2watch.text"
+
+        /** "2 installiert · 1 neu" under the settings button "Apps installieren". */
+        fun appsSummary(installed: Int, waiting: Int): String =
+            listOfNotNull("$installed installiert", "$waiting neu".takeIf { waiting > 0 }).joinToString(" · ")
     }
 }

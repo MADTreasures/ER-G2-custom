@@ -114,7 +114,7 @@ class BaukastenProjectTest {
 
     @Test
     fun `the shopping list asset is a valid project`() {
-        val project = BaukastenProject.parse(File("src/test/resources/apps/ch.madtreasures.einkauf/ui.json").readText())
+        val project = BaukastenProject.parse(assetFile("apps/ch.madtreasures.einkauf/ui.json").readText())
         assertEquals("p_liste", project.start)
         assertEquals(listOf("offen", "items", "leeren"), project.page("p_liste")!!.blocks.map { it.id })
     }

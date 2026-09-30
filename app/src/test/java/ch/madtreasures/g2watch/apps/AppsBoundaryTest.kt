@@ -37,6 +37,19 @@ class AppsBoundaryTest {
     }
 
     @Test
+    fun `app packages and the app interface use only Kotlin, kotlinx serialization and the interface`() {
+        // App packages (09) compile against app-api alone; this keeps them honest in the sources too.
+        val packages = File("../packages").walkTopDown().filter { it.extension == "kt" && "/src/main/" in it.path }.toList()
+        val api = File("../app-api/src/main").walkTopDown().filter { it.extension == "kt" }.toList()
+        assertTrue(packages.isNotEmpty() && api.isNotEmpty())
+        val allowed = Regex("""import (kotlin\.|kotlinx\.serialization\.|java\.(util|io|lang|time|text|net)\.|ch\.madtreasures\.g2watch\.apps\.[A-Z])""")
+        for (file in packages + api) {
+            val imports = file.readLines().filter { it.startsWith("import ") }
+            for (line in imports) assertTrue("${file.path}: $line", allowed.containsMatchIn(line))
+        }
+    }
+
+    @Test
     fun `built-in apps use only the app interface, not Android or the video platform`() {
         val apps = sources.filter { it.path.contains("/builtin/") }
         assertTrue(apps.isNotEmpty())

@@ -8,11 +8,13 @@ die Custom-Firmware drauf ist.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.5.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
+> **Ehrlicher Stand (v0.6.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
 > gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
 > 0.4.0 gibt es den **App-Host** – eigene Apps auf der Brille, mit Starter und App-Menü
-> ([Apps auf der Brille](#apps-auf-der-brille)). Neu in 0.5.0: die App **YouTube** – Videos suchen und
+> ([Apps auf der Brille](#apps-auf-der-brille)). Seit 0.5.0 die App **YouTube** – Videos suchen und
 > als Graustufen-Raster auf der Brille ansehen, alles auf der Uhr ([YouTube auf der Brille](#youtube-auf-der-brille)).
+> Neu in 0.6.0: **App-Pakete** – eigene Apps als Datei auf die Uhr legen und dort installieren, ohne die
+> Uhr-App neu zu bauen ([Eigene Apps installieren](#eigene-apps-installieren)).
 
 ## Was aufgespielt werden kann
 
@@ -62,14 +64,14 @@ Einstellungen fasst zusammen, was schiefgehen kann ([Recherche](docs/RECHERCHE_F
 Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
 [`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)): Apps beschreiben ihre Oberfläche als
 Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
-verteilt die Eingaben. Eingebaut ist seit 0.5.0 die App **YouTube** (nächster Abschnitt). Die Beispiele
-**Stoppuhr** und **Einkauf** (Einkaufsliste zum Abhaken, Seite aus dem Baukasten) sind nur noch Test-Apps:
-Sie prüfen den Host und liefern einige der Bilder unten, stehen aber nicht im Starter.
+verteilt die Eingaben. Fest eingebaut ist seit 0.5.0 die App **YouTube** (übernächster Abschnitt). Die
+Beispiele **Stoppuhr** und **Einkauf** (Einkaufsliste zum Abhaken, Seite aus dem Baukasten) sind App-Pakete:
+Im Starter stehen sie erst, wenn man sie installiert ([Eigene Apps installieren](#eigene-apps-installieren)).
 
-| Starter | Einkauf (Test-App, per Bügel abgehakt) | App-Menü |
+| Starter | Einkauf (App-Paket, per Bügel abgehakt) | App-Menü |
 |---|---|---|
 | ![Starter](docs/bilder/apps-starter.png) | ![Einkauf](docs/bilder/apps-einkauf.png) | ![App-Menü](docs/bilder/apps-menue.png) |
-| **Stoppuhr** (Test-App) | **Berechtigung beim ersten Start** | **Vollbild-Seite mit randlosem Bild** |
+| **Stoppuhr** (App-Paket) | **Berechtigung beim ersten Start** | **Vollbild-Seite mit randlosem Bild** |
 | ![Stoppuhr](docs/bilder/apps-stoppuhr.png) | ![Berechtigung](docs/bilder/apps-berechtigung.png) | ![Bild](docs/bilder/apps-bild-randlos.png) |
 | **Alle Bausteine** | **… gescrollt, Fokus unten** | **Uhr im Gesten-Modus** |
 | ![Bausteine](docs/bilder/apps-bausteine.png) | ![Gescrollt](docs/bilder/apps-bausteine-gescrollt.png) | ![Gesten](docs/bilder/uhr-touchpad-gesten.png) |
@@ -95,10 +97,35 @@ Sie prüfen den Host und liefern einige der Bilder unten, stehen aber nicht im S
 - Braucht eine App Mikrofon, Standort o. Ä., fragt die Brille beim ersten Start einmal nach („Erlauben“ /
   „Ablehnen“). Sensoren, Mikrofon und Summer kommen erst mit M6 bei den Apps an.
 
-Eine eigene Uhr-App ist eine kleine Kotlin-Klasse unter
-[`app/src/main/java/ch/madtreasures/g2watch/apps/`](app/src/main/java/ch/madtreasures/g2watch/apps); wie das
-geht, steht in [03 – Uhr-Apps](docs/app-entwicklung/03_Uhr-Apps.md). Apps berühren nie den Firmware-Pfad
+Eine eigene Uhr-App ist eine kleine Kotlin-Klasse in einem eigenen Ordner unter [`packages/`](packages)
+und kommt als App-Paket auf die Uhr (nächster Abschnitt); wie man sie schreibt, steht in
+[03 – Uhr-Apps](docs/app-entwicklung/03_Uhr-Apps.md). Apps berühren nie den Firmware-Pfad
 (`AppsBoundaryTest`, `FlashingBoundaryTest`).
+
+## Eigene Apps installieren
+
+Seit 0.6.0 ist jede eigene App ein **App-Paket**: eine Datei `<app-id>-<version>.g2app` (eine ZIP-Datei).
+Die Uhr-App installierst du einmal (unten, [App auf die Uhr bringen](#app-auf-die-uhr-bringen)); Apps
+kommen danach einzeln dazu, ändern und entfernen sich ohne neue Uhr-App. Alles Weitere, auch wie ein
+Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
+
+| Seite „Apps“ auf der Uhr |
+|---|
+| ![Apps auf der Uhr](docs/bilder/uhr-apps.png) |
+
+1. **Paket-Datei holen:** vom App-Chat, aus GitHub (Actions → *Build* → Artefakt `g2-apps`, enthält alle
+   Pakete aus `packages/`) oder selbst bauen: `./gradlew :packages:einkauf:g2app`.
+2. **Auf die Uhr legen** (Uhr mit Android Studio verbunden, wie beim Installieren der Uhr-App): *View →
+   Tool Windows → Device Explorer* → Uhr → `sdcard/Android/data/ch.madtreasures.g2watch/files/apps/` →
+   Rechtsklick → *Upload*. Oder:
+   ```sh
+   adb push ch.madtreasures.einkauf-1.0.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
+   ```
+3. **Installieren:** auf der Uhr Zahnrad halten → *Einstellungen → Apps installieren* → unter „Neu auf der
+   Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
+
+Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
+zweimal antippen. Zum Ausprobieren gibt es die Pakete **Stoppuhr** und **Einkauf**.
 
 ## YouTube auf der Brille
 
@@ -248,7 +275,9 @@ die Uhr offline ist.
 
 | Modul | Inhalt |
 |---|---|
-| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter und der App YouTube, und die Video-Wiedergabe `apps/video` (die Beispiel-Apps Stoppuhr und Einkauf nur in den Tests) |
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der fest eingebauten App YouTube, der Video-Wiedergabe `apps/video` und der Installation von App-Paketen `apps/packages` |
+| [`app-api/`](app-api) | Die Schnittstelle der Apps (`G2App`, `AppContext`, Ereignisse, Seiten), reines Kotlin; App-Pakete werden dagegen gebaut ([09](docs/app-entwicklung/09_App-Pakete.md)) |
+| [`packages/`](packages) | Ein Ordner je App-Paket: [`stoppuhr`](packages/stoppuhr) und [`einkauf`](packages/einkauf) als Vorlagen. `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
 | [`tools/cfw_bauen.py`](tools/cfw_bauen.py) | Baut und prüft Faceclaw/35 auf dem PC (Python, ohne Flashen) |
@@ -259,10 +288,10 @@ die Uhr offline ist.
 ## Testen
 
 ```sh
-./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
+./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app-api:test :app:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 351 Tests grün (34 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 4 + 368 Tests grün (35 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:
@@ -287,6 +316,11 @@ die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`), Lint ohne Fehler. Die w
   Profile, Ton, Verlauf. **`VideoBudgetTest`** – was ein Video mit Faceclaws Kodierung über Bluetooth kostet;
   **`FrameConverterTest`**, **`StreamChooserTest`**, **`TestPatternPlayerTest`**.
 - **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel), **`AppJsonTest`**, **`PageStateTest`**,
-  **`BaukastenProjectTest`**, Tests der Test-Apps Stoppuhr und Einkauf mit `FakeAppContext` (die Apps selbst
-  liegen unter `app/src/test`), **`AppsBoundaryTest`** (Apps berühren weder Firmware noch Bluetooth).
+  **`BaukastenProjectTest`**, **`AppsBoundaryTest`** (Apps berühren weder Firmware noch Bluetooth, App-Pakete
+  nur die Schnittstelle).
+- **App-Pakete:** **`InstalledPackagesTest`** installiert die Dateien, die `:packages:<name>:g2app` wirklich
+  baut, in einen echten App-Host und startet sie (nur den DEX-Schritt ersetzt die JVM);
+  **`PackageArchiveTest`**, **`PackageStoreTest`** (Prüfen, Installieren, Aktualisieren, Entfernen, Ordner
+  für neue Apps), **`AppsScreenTest`**, in `app-api` **`PackageManifestTest`**; die Tests der Pakete Stoppuhr
+  und Einkauf liegen in `packages/<name>/src/test` und laufen mit `:app:testDebugUnitTest`.
 - Bilder neu erzeugen (Uhr, Desktop und Apps auf der Brille): `./gradlew :app:testDebugUnitTest --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`

@@ -83,6 +83,8 @@ fun SettingsScreen(
     onLog: () -> Unit,
     backLabel: String = "Touchpad",
     onRisks: () -> Unit = {},
+    onApps: () -> Unit = {},
+    appsSummary: String? = null,
 ) {
     val listState = rememberScalingLazyListState()
     val watchBattery = rememberWatchBattery()
@@ -94,6 +96,16 @@ fun SettingsScreen(
             item { ListHeader { Text("Einstellungen") } }
             item { BatteryRow(watchBattery, state) }
             item { CenterText(state.stage.label + (state.title?.let { " · $it" } ?: ""), size = 12) }
+
+            item { ListSubHeader { Text("Apps") } }
+            item {
+                FilledTonalButton(
+                    onClick = onApps,
+                    modifier = Modifier.fillMaxWidth().testTag(APPS_TAG),
+                    label = { Text("Apps installieren") },
+                    secondaryLabel = appsSummary?.let { { Text(it, fontSize = 11.sp) } },
+                )
+            }
 
             item { ListSubHeader { Text("Übertragung Uhr → Brille") } }
             item { TransferPanel(state.transfer, state.framesSent) }
@@ -364,6 +376,7 @@ internal const val HOLD_CONFIRM_MS = 2_000
 
 internal const val HOLD_TO_CONFIRM_TAG = "hold-to-confirm"
 internal const val RISKS_TAG = "firmware-risks"
+internal const val APPS_TAG = "settings-apps"
 
 /**
  * What the wearer should know before a transfer, in the order it matters. Worded after the

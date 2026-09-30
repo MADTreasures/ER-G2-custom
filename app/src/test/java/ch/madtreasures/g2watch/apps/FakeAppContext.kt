@@ -212,10 +212,16 @@ class FakeAppContext(
 }
 
 /**
- * An asset of the app (`src/main/assets`), or of a test app (`src/test/resources`). Unit tests run in the
+ * An asset of the app (`src/main/assets`), of a test (`src/test/resources`) or of an app package
+ * (`packages/<name>/src/main/assets`). Unit tests run in the
  * module directory.
  */
-fun assetFile(path: String): File = File("src/main/assets", path).takeIf { it.isFile } ?: File("src/test/resources", path)
+fun assetFile(path: String): File =
+    (listOf(File("src/main/assets"), File("src/test/resources")) + packageAssetDirs).map { File(it, path) }.firstOrNull { it.isFile }
+        ?: File("src/main/assets", path)
+
+/** `src/main/assets` of every app package (09). */
+private val packageAssetDirs: List<File> = File("../packages").listFiles().orEmpty().sortedBy { it.name }.map { File(it, "src/main/assets") }
 
 /** The text of a heading, text, button or toggle, or the label of a value or progress block. */
 fun Page.textOf(blockId: String): String = when (val b = block(blockId)) {

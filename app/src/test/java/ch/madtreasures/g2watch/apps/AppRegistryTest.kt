@@ -18,7 +18,7 @@ class AppRegistryTest {
     }
 
     @Test
-    fun `only real apps are built in, the examples stay in the tests`() {
+    fun `only real apps are built in, the examples are app packages`() {
         assertEquals(listOf("YouTube"), builtInApps.map { it().manifest.name })
     }
 }

@@ -15,8 +15,8 @@ import ch.madtreasures.g2watch.apps.ListStyle
 import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
-import ch.madtreasures.g2watch.apps.builtin.shopping.ShoppingListApp
-import ch.madtreasures.g2watch.apps.builtin.stopwatch.StopwatchApp
+import ch.madtreasures.einkauf.ShoppingListApp
+import ch.madtreasures.stoppuhr.StopwatchApp
 import ch.madtreasures.g2watch.apps.builtin.youtube.YouTubeApp
 import ch.madtreasures.g2watch.apps.builtInApps
 import ch.madtreasures.g2watch.apps.VideoItem

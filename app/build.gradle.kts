@@ -1,5 +1,10 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+/** The app packages in packages/ (docs/app-entwicklung/09), as settings.gradle.kts includes them. */
+val appPackages: List<File> = rootDir.resolve("packages").listFiles().orEmpty()
+    .filter { File(it, "build.gradle.kts").isFile }
+    .sortedBy { it.name }
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -15,8 +20,8 @@ android {
         // Wear OS 4 (API 33) and newer: Faceclaw's GATT code uses the API 33 write call.
         minSdk = 33
         targetSdk = 37
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
     }
 
     buildTypes {
@@ -42,6 +47,9 @@ android {
         unitTests.isReturnDefaultValues = true
         unitTests.isIncludeAndroidResources = true
     }
+
+    // The tests of the app packages (09 §4) run here, with the host and its fakes.
+    sourceSets.getByName("test").kotlin.srcDirs(appPackages.map { File(it, "src/test/kotlin") })
 }
 
 kotlin {
@@ -51,6 +59,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(project(":app-api"))
     implementation(project(":faceclaw-android"))
     implementation(project(":firmware-image"))
 
@@ -69,6 +78,7 @@ dependencies {
         exclude(group = "org.mozilla", module = "rhino-engine")
     }
 
+    appPackages.forEach { testImplementation(project(":packages:${it.name}")) }
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.compose.ui.test.junit4)
@@ -78,6 +88,11 @@ dependencies {
 tasks.withType<Test>().configureEach {
     // Robolectric's Android runtime needs this on JDK 17 and newer.
     jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED")
+    // BuiltPackagesTest installs the real package files of packages/ (09 §4).
+    val packageDirs = appPackages.map { File(it, "build/g2app") }
+    dependsOn(appPackages.map { ":packages:${it.name}:g2app" })
+    inputs.files(packageDirs.map { fileTree(it) { include("*.g2app") } }).withPropertyName("appPackages")
+    systemProperty("g2app.packages", packageDirs.joinToString(File.pathSeparator))
     // Where RenderSnapshotTest writes its pictures of the glasses display; it is skipped without.
     providers.gradleProperty("snapshotDir").orNull?.let { systemProperty("snapshotDir", it) }
     // RealImageTransferTest streams Even's real image when it is given here (never part of the repo).

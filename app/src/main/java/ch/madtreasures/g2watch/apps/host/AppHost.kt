@@ -89,6 +89,7 @@ class AppHost(
     private val ports: HostPorts,
     builtIn: List<() -> G2App> = builtInApps,
     private val evenHub: EvenHubRegistry = EvenHubRegistry.NONE,
+    private val installed: InstalledApps = InstalledApps.NONE,
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
     private val nanoTime: () -> Long = System::nanoTime,
 ) : AppInput, LauncherHost {
@@ -193,6 +194,23 @@ class AppHost(
         }
     }
 
+    /**
+     * App packages were installed, updated or removed (09): a running app whose package is gone or has
+     * another version now ends, and the launcher lists the installed apps again.
+     */
+    fun packagesChanged() = scheduler.post {
+        val current = installed.apps.associateBy { WATCH_PREFIX + it.id }
+        for (s in sessions.values.toList()) {
+            if (s.app == null || s.entryId in watchApps) continue
+            val now = current[s.entryId]
+            when {
+                now == null -> stop(s, "wurde entfernt")
+                now.version != s.manifest.version -> stop(s, "wurde aktualisiert")
+            }
+        }
+        refreshLauncher()
+    }
+
     /** The page app [appId] shows right now, with every toggle and tick; for tests. Call on the app thread. */
     internal fun currentPageOf(appId: String): Page? = sessions.values.firstOrNull { it.manifest.id == appId }?.pages?.current
 
@@ -200,6 +218,9 @@ class AppHost(
 
     override fun entries(): List<LaunchEntry> =
         watchApps.map { (id, app) -> LaunchEntry(id, app.manifest.name, LaunchKind.WATCH, id in sessions) } +
+            installed.apps.map { WATCH_PREFIX + it.id to it }.filter { (id, _) -> id !in watchApps }.map { (id, manifest) ->
+                LaunchEntry(id, manifest.name, LaunchKind.WATCH, id in sessions)
+            } +
             evenHub.apps.map {
                 val id = EVEN_HUB_PREFIX + it.id
                 LaunchEntry(id, it.name, LaunchKind.EVEN_HUB, id in sessions, detail = it.location.label)
@@ -239,7 +260,11 @@ class AppHost(
         }
         val s = when {
             entryId.startsWith(WATCH_PREFIX) -> {
-                val entry = watchApps[entryId] ?: return ports.log("Unbekannte App $entryId")
+                val entry = watchApps[entryId]
+                if (entry == null) {
+                    openInstalled(entryId)?.let { launchSession(it) }
+                    return
+                }
                 val app = try {
                     entry.factory()
                 } catch (e: RuntimeException) {
@@ -253,6 +278,29 @@ class AppHost(
             }
             else -> return ports.log("Unbekannte App $entryId")
         }
+        launchSession(s)
+    }
+
+    /** A session for the installed package of [entryId] (09), or null if it is gone or does not load. */
+    private fun openInstalled(entryId: String): Session? {
+        val id = entryId.removePrefix(WATCH_PREFIX)
+        val name = installed.apps.firstOrNull { it.id == id }?.name ?: id
+        val opened = try {
+            installed.open(id)
+        } catch (e: Exception) {
+            ports.log("$name: ${e.message}")
+            showLauncher("$name lässt sich nicht starten")
+            return null
+        }
+        if (opened == null) {
+            ports.log("Unbekannte App $entryId")
+            return null
+        }
+        return Session(entryId, opened.app.manifest, app = opened.app, internal = null, assets = opened.asset)
+    }
+
+    /** Loads [s]'s pages and starts it, after asking for its permissions if needed. */
+    private fun launchSession(s: Session) {
         loadUi(s)
         val wanted = s.manifest.permissions
         if (s.internal != null) {
@@ -273,7 +321,7 @@ class AppHost(
     /** Loads the Baukasten pages of [s]'s manifest before the app starts. */
     private fun loadUi(s: Session) {
         val path = s.manifest.ui ?: return
-        val bytes = ports.asset(path)
+        val bytes = s.assets(path)
         if (bytes == null) {
             ports.log("${s.manifest.name}: Seiten $path fehlen")
             return
@@ -414,6 +462,10 @@ class AppHost(
         try {
             block()
         } catch (e: Exception) {
+            crash(s, e)
+            return
+        } catch (e: LinkageError) {
+            // An app package built for another watch app version calls something that is not there.
             crash(s, e)
             return
         }
@@ -854,7 +906,7 @@ class AppHost(
                 }
                 src.startsWith("asset:") -> {
                     val file = src.removePrefix("asset:")
-                    if (file.contains("..") || file.startsWith("/")) null else ports.asset("apps/${s.manifest.id}/$file")
+                    if (file.contains("..") || file.startsWith("/")) null else s.assets("apps/${s.manifest.id}/$file")
                 }
                 else -> null
             }
@@ -1178,7 +1230,14 @@ class AppHost(
     }
 
     /** One running app (or the launcher): its pages and everything the host keeps for it. */
-    private inner class Session(val entryId: String, val manifest: AppManifest, val app: G2App?, val internal: InternalSession?) {
+    private inner class Session(
+        val entryId: String,
+        val manifest: AppManifest,
+        val app: G2App?,
+        val internal: InternalSession?,
+        /** The session's files: the APK's assets, or those of its package. */
+        val assets: (String) -> ByteArray? = ports::asset,
+    ) {
         val pages = PageState()
         val views = HashMap<String, ViewState>()
         val images = HashMap<String, GrayRaster>()

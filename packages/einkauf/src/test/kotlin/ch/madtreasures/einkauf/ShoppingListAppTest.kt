@@ -1,10 +1,9 @@
-package ch.madtreasures.g2watch.apps.builtin
+package ch.madtreasures.einkauf
 
 import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.FakeAppContext
 import ch.madtreasures.g2watch.apps.ListItem
 import ch.madtreasures.g2watch.apps.MenuItem
-import ch.madtreasures.g2watch.apps.builtin.shopping.ShoppingListApp
 import ch.madtreasures.g2watch.apps.itemsOf
 import ch.madtreasures.g2watch.apps.valueOf
 import kotlinx.serialization.json.JsonPrimitive

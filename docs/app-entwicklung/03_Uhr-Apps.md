@@ -1,7 +1,9 @@
 # 03 – Uhr-Apps (Kotlin, auf der Pixel Watch)
 
-Uhr-Apps sind kleine Kotlin-Klassen, die fest in die G2-Watch-App eingebaut werden. Sie laufen auch
-ohne Rechner und ohne Netz. Für alles Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
+Uhr-Apps sind kleine Kotlin-Klassen. Seit v0.6.0 kommt jede eigene App als **App-Paket** (`.g2app`) auf
+die Uhr und wird dort installiert, ohne die Uhr-App neu zu bauen ([09](09_App-Pakete.md)); fest in die
+Uhr-App eingebaut ist nur noch YouTube. Uhr-Apps laufen auch ohne Rechner und ohne Netz. Für alles
+Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 
 **Stand:** Der App-Host ist gebaut (M1, v0.4.0, aus Pull Request #2; Pull Request #1 enthält einen zweiten,
 der nicht zusätzlich übernommen wird), dazu seit v0.5.0 Texteingabe auf der Uhr und Video auf der Brille mit
@@ -11,8 +13,10 @@ wurde als ursprünglich geplant, steht in §9 und §10.
 
 ## 1. Eine Uhr-App schreiben
 
+Das Beispiel ist die Stoppuhr aus [`packages/stoppuhr`](../../packages/stoppuhr) (gekürzt):
+
 ```kotlin
-package ch.madtreasures.g2watch.apps.builtin.stopwatch
+package ch.madtreasures.stoppuhr
 
 import ch.madtreasures.g2watch.apps.*
 
@@ -77,26 +81,24 @@ class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : 
 }
 ```
 
-Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`), in der Reihenfolge des Starters:
+Die App ist ein eigener Ordner `packages/<name>/` mit dem Code in `src/main/kotlin/`; daraus baut
+`./gradlew :packages:<name>:g2app` die Paket-Datei, die auf der Uhr installiert wird ([09 §3–§4](09_App-Pakete.md)).
+Stoppuhr und Einkauf sind die Vorlagen; installiert sind sie nur, wenn man ihre Pakete installiert. Ohne
+Apps zeigt der Starter „Noch keine Apps“.
 
-```kotlin
-val builtInApps: List<() -> G2App> = listOf({ YouTubeApp() })   // nur echte Apps
-```
+Seiten aus dem Baukasten statt aus Code: den Export nach `packages/<name>/src/main/assets/apps/<app-id>/ui.json`
+legen und im Manifest `ui = "apps/<app-id>/ui.json"` setzen. Der Host lädt die Datei aus dem Paket vor
+`Start`; die App ruft dann nur noch `show(...)` oder `patch(...)` auf.
 
-In diese Liste und damit in den Starter kommen nur Apps, die auf der Brille gebraucht werden. Die
-Beispiele Stoppuhr und Einkaufsliste liegen unter `app/src/test/…` (Seiten in den Test-Ressourcen) und
-prüfen dort den Host; die Tests tragen sie selbst in ihren Host ein. Ohne eigene Apps zeigt der Starter
-„Noch keine Apps“.
-
-Seiten aus dem Baukasten statt aus Code: den Export nach `app/src/main/assets/apps/<app-id>/ui.json`
-legen und im Manifest `ui = "apps/<app-id>/ui.json"` setzen. Der Host lädt die Datei vor `Start`; die App
-ruft dann nur noch `show(...)` oder `patch(...)` auf.
+Fest in die Uhr-App (`apps/AppRegistry.kt`, `builtInApps`) kommen nur Apps, die zur Plattform gehören;
+zurzeit YouTube. Neue Apps nie dort eintragen.
 
 ## 2. Die Schnittstelle
 
 Alle Typen, die eine App braucht, liegen direkt im Paket `ch.madtreasures.g2watch.apps`
-(`G2App`, `AppContext`, `AppManifest`, `AppEvent`, `Page`, `Block`, `PatchBuilder`, …). Die
-Unterpakete `host/`, `render/`, `launcher/` sind intern. Die Typen entsprechen den JSON-Formen in
+(`G2App`, `AppContext`, `AppManifest`, `AppEvent`, `Page`, `Block`, `PatchBuilder`, …), seit v0.6.0 im
+eigenen Modul [`app-api/`](../../app-api), gegen das die App-Pakete gebaut werden. Die Unterpakete
+`host/`, `render/`, `launcher/`, `packages/` der Uhr-App sind intern. Die Typen entsprechen den JSON-Formen in
 [02 §4 und §6](02_App-Modell.md#4-oberfläche-seiten-und-bausteine). Für JSON gibt es eigene Serializer
 (kotlinx.serialization, `JsonContentPolymorphicSerializer`, der nach `kind` und bei Sensoren nach `sensor`
 unterscheidet), weil mehrere Kotlin-Klassen auf `kind: "sensor"` abgebildet werden.
@@ -219,8 +221,11 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 | `render/PageRenderer.kt` | Seite + Zustand (Fokus, Scroll, Zeiger) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine) |
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
 | `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende markiert |
-| `AppRegistry.kt` | eingebaute Apps (§1) |
-| `builtin/…` | die eigenen Apps; die Beispiele Stoppuhr und Einkaufsliste nur unter `src/test`, nicht im Starter |
+| `AppRegistry.kt` | fest eingebaute Apps (§1), zurzeit nur YouTube |
+| `builtin/…` | die fest eingebauten Apps |
+| `packages/…` | App-Pakete prüfen, installieren, entfernen und laden ([09](09_App-Pakete.md)) |
+
+Seit v0.6.0 liegen die Schnittstellen-Dateien (`Page.kt` … `AppManifest.kt`) im Modul `app-api/`.
 
 Einbau in den bestehenden Desktop (`desktop/`):
 - Neue Kachel **„Apps“** (`AppId.APPS`) öffnet den Starter. Die Kachelreihe hat 6 Plätze (3 × 2):
@@ -292,8 +297,8 @@ abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).
 
 - `FakeAppContext` (Testquellen, Paket `ch.madtreasures.g2watch.apps`) führt die Seiten mit demselben
   `PageState` wie der Host und zeichnet alles andere auf (Timer, Hinweise, Menü, Anfragen, Protokoll).
-  `FakeAppContext.forApp(app)` lädt vorher die Baukasten-Seiten aus `src/main/assets` (bei Test-Apps aus
-  `src/test/resources`), wie der Host.
+  `FakeAppContext.forApp(app)` lädt vorher die Baukasten-Seiten aus `src/main/assets` (bei App-Paketen aus
+  `packages/<name>/src/main/assets`), wie der Host.
   Eine App-Prüfung sieht so aus:
   ```kotlin
   val ui = FakeAppContext.forApp(app)

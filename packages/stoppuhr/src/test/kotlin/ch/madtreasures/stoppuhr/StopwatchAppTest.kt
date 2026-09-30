@@ -1,8 +1,7 @@
-package ch.madtreasures.g2watch.apps.builtin
+package ch.madtreasures.stoppuhr
 
 import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.FakeAppContext
-import ch.madtreasures.g2watch.apps.builtin.stopwatch.StopwatchApp
 import ch.madtreasures.g2watch.apps.textOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

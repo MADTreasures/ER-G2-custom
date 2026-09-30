@@ -17,6 +17,8 @@ media3 = "1.11.1"
 wearInput = "1.2.0"
 # YouTube app: search and stream addresses on the watch (GPL-3.0, like the Faceclaw core).
 newpipeExtractor = "v0.26.5"
+# D8 for app packages (docs/app-entwicklung/09), the R8 line of AGP 9.4.
+r8 = "9.4.28"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -36,6 +38,7 @@ media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", versi
 media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3" }
 wear-input = { group = "androidx.wear", name = "wear-input", version.ref = "wearInput" }
 newpipe-extractor = { group = "com.github.teamnewpipe", name = "NewPipeExtractor", version.ref = "newpipeExtractor" }
+r8 = { group = "com.android.tools", name = "r8", version.ref = "r8" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

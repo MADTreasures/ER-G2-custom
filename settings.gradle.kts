@@ -32,3 +32,10 @@ include(":faceclaw-core")
 include(":faceclaw-android")
 include(":firmware-image")
 include(":app")
+include(":app-api")
+
+// App packages (docs/app-entwicklung/09): every folder in packages/ with a build file is one app.
+file("packages").listFiles()
+    ?.filter { File(it, "build.gradle.kts").isFile }
+    ?.sortedBy { it.name }
+    ?.forEach { include(":packages:${it.name}") }

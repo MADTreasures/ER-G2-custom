@@ -13,7 +13,7 @@ Code, Bezeichner und Commit-Texte sind englisch, Erklärungen deutsch.
 2. Eine **App** beschreibt ihre Oberfläche als **Seiten aus Bausteinen**, im gleichen Format wie der
    [G2 Baukasten](../../designer/README.md). Sie reagiert auf **Ereignisse** wie Klicks, Schalter,
    Gesten, Timer und Sensoren.
-3. Eigene Apps laufen **auf der Uhr** (Kotlin, fest eingebaut) oder, wenn sie viel rechnen, **auf einem
+3. Eigene Apps laufen **auf der Uhr** (Kotlin, als App-Paket installiert, [09](09_App-Pakete.md)) oder, wenn sie viel rechnen, **auf einem
    Rechner** (PC, Server oder Handy; TypeScript), der über **WLAN oder LTE** mit der Uhr spricht.
 4. Apps aus Evens **Even Hub** (Web-Apps mit Evens SDK) laufen **auf der Uhr** in einer eingebauten
    Browser-Engine (GeckoView, weil Wear OS keinen Browser-Kern hat). Geht eine App dort nicht, läuft sie
@@ -69,7 +69,8 @@ Weitere Video-Apps können denselben Befehl `video` nutzen.
 | Firmware aufspielen, Verbindung, Maus-Desktop auf der Brille | **fertig** (v0.3.0, nicht auf Hardware erprobt) | `app/`, [FIRMWARE.md](../FIRMWARE.md) |
 | G2 Baukasten (Seiten entwerfen) | **fertig**, braucht kleine Erweiterungen (M0) | `designer/` |
 | App-Modell, Seitenformat, Ereignisse | **spezifiziert** hier | [02](02_App-Modell.md) |
-| App-Host auf der Uhr, Uhr-Apps (Starter, App-Menü) | **fertig** (M1, v0.4.0 aus Pull Request #2, nicht auf Hardware erprobt). Pull Request #1 baute den Host ein zweites Mal: von dort nur noch M2 übernehmen, M1 nicht noch einmal bauen. Stoppuhr und Einkaufsliste sind nur Test-Apps | [03](03_Uhr-Apps.md), `app/…/apps/` |
+| App-Host auf der Uhr, Uhr-Apps (Starter, App-Menü) | **fertig** (M1, v0.4.0 aus Pull Request #2, nicht auf Hardware erprobt). Pull Request #1 baute den Host ein zweites Mal: von dort nur noch M2 übernehmen, M1 nicht noch einmal bauen. Stoppuhr und Einkaufsliste sind App-Pakete (Vorlagen), nicht fest eingebaut | [03](03_Uhr-Apps.md), `app/…/apps/` |
+| **App-Pakete** (`.g2app`): eigene Apps getrennt von der Uhr-App installieren, Seite „Apps“ auf der Uhr | **fertig** (v0.6.0, nicht auf Hardware erprobt). Stoppuhr und Einkauf sind die Vorlagen | [09](09_App-Pakete.md), `packages/`, `app-api/` |
 | Texteingabe auf der Uhr, Video auf der Brille, App **YouTube** | **fertig** (v0.5.0, nicht auf Hardware erprobt; YouTube-Wiedergabe ungeprüft) | [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050), `app/…/apps/video/`, `app/…/apps/builtin/youtube/` |
 | GeckoView auf der Uhr: Machbarkeitstest | **Test-APK gebaut** im offenen Pull Request #1, **auf der Uhr zu messen** (M2) | [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview) |
 | EvenHub-Laufzeit auf der Uhr | **zu bauen** (M3) | [05](05_EvenHub-Apps.md) |
@@ -79,7 +80,7 @@ Weitere Video-Apps können denselben Befehl `video` nutzen.
 | Web-Browser auf der Brille | **Idee** (M7) | [05 §10](05_EvenHub-Apps.md#10-und-ein-richtiger-browser-auf-der-brille) |
 
 Die Reihenfolge und die Abnahmekriterien stehen im [Umsetzungsplan](07_Umsetzungsplan.md),
-der Text für neue Chats in [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md).
+die Texte für neue Chats in [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md).
 
 ## Inhalt
 
@@ -92,7 +93,8 @@ der Text für neue Chats in [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_
 | [05_EvenHub-Apps.md](05_EvenHub-Apps.md) | Even-Hub-Apps: Aufbau, EvenHub-Laufzeit, GeckoView auf der Uhr, Ausweichweg Handy, Installation, Lizenzen |
 | [06_App-Verwaltung.md](06_App-Verwaltung.md) | Apps installieren: „G2 Handy“ für Even-Hub-Apps, Web-Seite von `g2-host` für Rechner-Apps |
 | [07_Umsetzungsplan.md](07_Umsetzungsplan.md) | Meilensteine M0–M7 mit Abnahme |
-| [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md) | Der Text zum Einfügen in einen neuen Chat |
+| [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md) | Texte zum Einfügen in neue Chats: App-Chat (eine App) und Hauptchat (die Uhr-App) |
+| [09_App-Pakete.md](09_App-Pakete.md) | App-Pakete: eine App bauen, auf die Uhr legen, installieren; wer was macht |
 | [quellen/](quellen/) | Recherche-Notizen (Faceclaw, offizielle Even-Hub-Doku, Browser auf der Uhr) mit Quellenangaben |
 
 ## Harte Regeln für alle Chats

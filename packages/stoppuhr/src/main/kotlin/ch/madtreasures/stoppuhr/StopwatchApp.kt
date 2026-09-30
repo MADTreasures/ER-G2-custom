@@ -1,4 +1,4 @@
-package ch.madtreasures.g2watch.apps.builtin.stopwatch
+package ch.madtreasures.stoppuhr
 
 import ch.madtreasures.g2watch.apps.Align
 import ch.madtreasures.g2watch.apps.AppContext
@@ -11,8 +11,9 @@ import ch.madtreasures.g2watch.apps.Page
 import java.util.Locale
 
 /**
- * Start/stop stopwatch, the example of 03 §1. It ticks only while visible to keep the link to the
- * glasses quiet; the time itself comes from the clock, so nothing is lost while it is hidden.
+ * Start/stop stopwatch, the example of 03 §1 and the smallest app package (09). It ticks only while
+ * visible to keep the link to the glasses quiet; the time itself comes from the clock, so nothing is
+ * lost while it is hidden.
  */
 class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : G2App {
 

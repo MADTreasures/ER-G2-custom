@@ -8,12 +8,17 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import ch.madtreasures.g2watch.apps.builtInApps
 import ch.madtreasures.g2watch.apps.host.AndroidHostPorts
 import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.AppThread
 import ch.madtreasures.g2watch.apps.host.GlassesStatus
 import ch.madtreasures.g2watch.apps.host.InputRouter
 import ch.madtreasures.g2watch.apps.host.TextPrompts
+import ch.madtreasures.g2watch.apps.launcher.Launcher
+import ch.madtreasures.g2watch.apps.packages.AppPackages
+import ch.madtreasures.g2watch.apps.packages.DexPackageLoader
+import ch.madtreasures.g2watch.apps.packages.PackageStore
 import ch.madtreasures.g2watch.ble.G2Scanner
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
@@ -23,6 +28,8 @@ import ch.madtreasures.g2watch.firmware.WatchFirmwareInstaller
 import ch.madtreasures.g2watch.glasses.FirmwareInstaller
 import ch.madtreasures.g2watch.glasses.GlassesConnection
 import ch.madtreasures.g2watch.glasses.GlassesListener
+import java.io.File
+import java.util.concurrent.Executors
 
 /**
  * Holds the desktop and the glasses connection for the whole process, so both survive activity
@@ -34,15 +41,40 @@ class G2WatchApp : Application() {
     /** Text questions of the apps, answered on the watch screen (keyboard or voice). */
     val textPrompts = TextPrompts()
 
-    /** Runs the watch apps and shows them on the glasses (docs/app-entwicklung/03). */
-    val apps: AppHost by lazy {
+    private val appsLazy = lazy {
         val main = MainScheduler()
         AppHost(
             scheduler = AppThread.scheduler(),
             screen = desktop,
             text = AndroidTextPainter(),
             ports = AndroidHostPorts(this, textPrompts) { line -> main.post { glasses.note(line) } },
+            installed = packages,
         ).also { desktop.connectApps(it) }
+    }
+
+    /** Runs the watch apps and shows them on the glasses (docs/app-entwicklung/03). */
+    val apps: AppHost by appsLazy
+
+    /** Manifests of the apps built into the APK; app packages cannot take their ids. */
+    val builtInAppManifests by lazy { builtInApps.map { it().manifest } }
+
+    /**
+     * The app packages installed on the watch (docs/app-entwicklung/09): new ones arrive as `.g2app` files
+     * in `Android/data/ch.madtreasures.g2watch/files/apps/` and are installed on the page "Apps".
+     */
+    val packages: AppPackages by lazy {
+        val main = MainScheduler()
+        val reserved = builtInAppManifests.map { it.id }.toSet() + Launcher.ID
+        AppPackages(
+            store = PackageStore(File(filesDir, "app-packages"), reserved),
+            inbox = getExternalFilesDir("apps"),
+            loader = DexPackageLoader(G2WatchApp::class.java.classLoader ?: ClassLoader.getSystemClassLoader()),
+            io = Executors.newSingleThreadExecutor { Thread(it, "G2Watch-packages") },
+            reserved = reserved,
+            // Only a host that exists needs to hear about it; a new one reads the list itself.
+            onChange = { if (appsLazy.isInitialized()) apps.packagesChanged() },
+            log = { line -> main.post { glasses.note(line) } },
+        ).also { it.rescan() }
     }
 
     /** Turns the glasses' and the watch's gestures into input for the apps. */

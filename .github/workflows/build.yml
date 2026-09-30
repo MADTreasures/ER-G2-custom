@@ -22,14 +22,20 @@ jobs:
       - name: Android SDK packages
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
 
-      - name: Tests and debug APK
-        run: ./gradlew --no-daemon :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
+      - name: Tests, debug APK and app packages
+        run: ./gradlew --no-daemon :firmware-image:test :faceclaw-core:testAndroidHostTest :app-api:test :app:testDebugUnitTest :app:assembleDebug :app:lintDebug g2appPackages
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: g2watch-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload app packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: g2-apps
+          path: build/g2app/*.g2app
 
       - name: Upload reports
         if: always()

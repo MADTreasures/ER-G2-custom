@@ -25,6 +25,9 @@ import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.TimeSource
 import androidx.wear.compose.material3.TimeText
 import ch.madtreasures.g2watch.G2WatchApp
+import ch.madtreasures.g2watch.apps.AppManifest
+import ch.madtreasures.g2watch.apps.PackageManifest
+import ch.madtreasures.g2watch.apps.packages.WaitingPackage
 import ch.madtreasures.g2watch.glasses.FirmwareInstall
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
@@ -187,6 +190,22 @@ class WatchSnapshotTest {
 
     @Test
     fun settingsTop() = settingsSnapshot("uhr-einstellungen", null)
+
+    @Test
+    fun apps() = snapshot("uhr-apps") {
+        fun pkg(id: String, name: String) = PackageManifest(1, "$id.App", AppManifest(id, name, "1.0.0"))
+        AppsScreen(
+            waiting = listOf(WaitingPackage(File("stoppuhr.g2app"), pkg("ch.madtreasures.stoppuhr", "Stoppuhr"), null)),
+            installed = listOf(pkg("ch.madtreasures.einkauf", "Einkauf")),
+            builtIn = listOf("YouTube"),
+            message = null,
+            busy = false,
+            inboxPath = null,
+            onInstall = {},
+            onRemove = {},
+            onBack = {},
+        )
+    }
 
     @Test
     fun settingsTransfer() = settingsSnapshot("uhr-einstellungen-log", FRAMES_TEXT)
