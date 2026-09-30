@@ -64,7 +64,7 @@ Eingabe, kein Rechenknecht (Akku).
 | Firmware aufspielen, Verbindung, Maus-Desktop auf der Brille | **fertig** (v0.3.0, nicht auf Hardware erprobt) | `app/`, [FIRMWARE.md](../FIRMWARE.md) |
 | G2 Baukasten (Seiten entwerfen) | **fertig**, braucht kleine Erweiterungen (M0) | `designer/` |
 | App-Modell, Seitenformat, Ereignisse | **spezifiziert** hier | [02](02_App-Modell.md) |
-| App-Host auf der Uhr, Uhr-Apps | **zu bauen** (M1) | [03](03_Uhr-Apps.md) |
+| App-Host auf der Uhr, Uhr-Apps (Starter, App-Menü, Stoppuhr, Einkauf) | **fertig** (M1, v0.4.0, nicht auf Hardware erprobt) | [03](03_Uhr-Apps.md), `app/…/apps/` |
 | GeckoView auf der Uhr: Machbarkeitstest | **zu bauen und auf der Uhr zu messen** (M2) | [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview) |
 | EvenHub-Laufzeit auf der Uhr | **zu bauen** (M3) | [05](05_EvenHub-Apps.md) |
 | Handy-App „G2 Handy“ (Ausweich-Engine, Apps installieren) | **zu bauen** (M4) | [05 §6–§7](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy), [06](06_App-Verwaltung.md) |

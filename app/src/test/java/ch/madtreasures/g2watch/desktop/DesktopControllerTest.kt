@@ -209,31 +209,144 @@ class DesktopControllerTest {
     }
 
     @Test
-    fun `speed stays in range and the pointer window changes it`() {
+    fun `speed stays in range, and centring brings the pointer back to the middle`() {
         controller.setSpeed(10f)
         scheduler.runPending()
         assertEquals(PointerMotion.MAX_SPEED, controller.speed.value)
         controller.setSpeed(0f)
         scheduler.runPending()
         assertEquals(PointerMotion.MIN_SPEED, controller.speed.value)
-
-        controller.setSpeed(1f)
-        val (tx, ty) = tileCenter(AppId.POINTER)
-        moveTo(tx, ty)
-        controller.click()
-        scheduler.runPending()
-        val (fx, fy) = buttonCenter(AppId.POINTER, ButtonId.FASTER)
-        moveTo(fx, fy)
-        controller.click()
+        controller.setSpeed(1.2f)
         scheduler.runPending()
         assertEquals(1.2f, controller.speed.value, 0.001f)
 
-        val (cx, cy) = buttonCenter(AppId.POINTER, ButtonId.CENTER)
-        moveTo(cx, cy)
-        controller.click()
-        scheduler.runPending()
+        moveTo(40, 120)
+        controller.centerPointer()
+        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
         assertEquals(320, controller.frame.value.pointerX)
         assertEquals(240, controller.frame.value.pointerY)
+    }
+
+    /** Records what the desktop hands to the app host. */
+    private class Apps : AppInput {
+        val calls = mutableListOf<String>()
+
+        override fun openLauncher() {
+            calls += "launcher"
+        }
+
+        override fun pointerAt(x: Int, y: Int) {
+            calls += "pointer $x,$y"
+        }
+
+        override fun clickAt(x: Int, y: Int) {
+            calls += "click $x,$y"
+        }
+
+        override fun scrollBy(dy: Int) {
+            calls += "scroll $dy"
+        }
+
+        override fun back() {
+            calls += "back"
+        }
+
+        override fun openMenu() {
+            calls += "menu"
+        }
+    }
+
+    private fun appView(pointer: Boolean = true, fullScreen: Boolean = false, value: Int = 90): AppView {
+        val h = if (fullScreen) 288 else 260
+        return AppView("Einkauf", "Liste", fullScreen, ByteArray(576 * h) { value.toByte() }, 576, h, pointer)
+    }
+
+    @Test
+    fun `the apps tile asks the app host for the launcher`() {
+        val apps = Apps()
+        controller.connectApps(apps)
+        attached()
+        val (x, y) = tileCenter(AppId.APPS)
+        moveTo(x, y)
+        controller.click()
+        scheduler.runPending()
+        assertEquals(listOf("launcher"), apps.calls)
+    }
+
+    @Test
+    fun `an app replaces the tiles, under a header with its name`() {
+        controller.startClock()
+        attached()
+        text.drawn.clear()
+        controller.showApp(appView())
+        scheduler.runPending()
+        val desktop = display.submitsOf("desktop").last().pixels
+        // The app area as the host drew it; the band's edges stay dark.
+        assertEquals(90, desktop[200 * 640 + 320].toInt() and 0xFF)
+        assertEquals(0, desktop[200 * 640 + 10].toInt() and 0xFF)
+        assertTrue("Einkauf" in text.drawn)
+        assertTrue(" · Liste" in text.drawn)
+        assertTrue("14:05" in text.drawn)
+        assertFalse("Uhr" in text.drawn)
+
+        controller.closeApp()
+        scheduler.runPending()
+        assertTrue("Uhr" in text.drawn)
+    }
+
+    @Test
+    fun `over an app, clicks and the pointer go to the app host in app coordinates`() {
+        val apps = Apps()
+        controller.connectApps(apps)
+        attached()
+        controller.showApp(appView())
+        scheduler.runPending()
+        apps.calls.clear()
+        moveTo(132, 224)
+        controller.click()
+        scheduler.runPending()
+        assertEquals(listOf("pointer 100,100", "click 100,100"), apps.calls)
+
+        apps.calls.clear()
+        val back = controller.layout.appBack
+        moveTo(back.x + back.w / 2, back.y + back.h / 2)
+        controller.click()
+        val title = controller.layout.appTitle
+        moveTo(title.x + 20, title.y + 10)
+        controller.click()
+        controller.back()
+        scheduler.runPending()
+        assertEquals(listOf("pointer -1,-1", "back", "menu", "back"), apps.calls)
+    }
+
+    @Test
+    fun `pushing the pointer past the bottom edge scrolls the app`() {
+        val apps = Apps()
+        controller.connectApps(apps)
+        attached()
+        controller.showApp(appView())
+        scheduler.runPending()
+        moveTo(300, 383)
+        apps.calls.clear()
+        controller.moveBy(0f, 30f)
+        scheduler.runPending()
+        assertEquals(listOf("scroll 30"), apps.calls)
+    }
+
+    @Test
+    fun `in gesture mode the pointer is hidden, and shown again afterwards`() {
+        attached()
+        controller.showApp(appView(pointer = false, fullScreen = true))
+        scheduler.runPending()
+        assertEquals(false, display.visibility["pointer"])
+        // A new connection keeps it hidden.
+        val again = FakeDisplay()
+        controller.attach(again)
+        scheduler.runPending()
+        assertEquals(false, again.visibility["pointer"])
+        controller.closeApp()
+        scheduler.runPending()
+        assertEquals(true, again.visibility["pointer"])
     }
 
     @Test

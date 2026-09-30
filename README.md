@@ -8,8 +8,10 @@ die Custom-Firmware drauf ist.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.3.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
-> gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher.
+> **Ehrlicher Stand (v0.4.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
+> gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Neu in
+> 0.4.0: der **App-Host** – eigene Apps auf der Brille, mit Starter, App-Menü und zwei Beispiel-Apps
+> ([Apps auf der Brille](#apps-auf-der-brille)).
 
 ## Was aufgespielt werden kann
 
@@ -53,6 +55,45 @@ die Brille auch mit der Faceclaw-Handy-App verwendbar, ohne hin und her zu flash
 **Zurück zur Original-Firmware** geht auf demselben Weg (Einstellungen → *Original-Firmware*),
 solange die Brille startet und sich verbinden lässt. Die Seite **Risiken & Rückweg** in den
 Einstellungen fasst zusammen, was schiefgehen kann ([Recherche](docs/RECHERCHE_FIRMWARE.md)).
+
+## Apps auf der Brille
+
+Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
+[`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)): Apps beschreiben ihre Oberfläche als
+Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
+verteilt die Eingaben. Eingebaut sind zwei Beispiel-Apps: **Stoppuhr** und **Einkauf** (Einkaufsliste zum
+Abhaken, Seite aus dem Baukasten).
+
+| Starter | Einkauf (per Bügel abgehakt) | App-Menü |
+|---|---|---|
+| ![Starter](docs/bilder/apps-starter.png) | ![Einkauf](docs/bilder/apps-einkauf.png) | ![App-Menü](docs/bilder/apps-menue.png) |
+| **Stoppuhr** | **Berechtigung beim ersten Start** | **Vollbild-Seite mit randlosem Bild** |
+| ![Stoppuhr](docs/bilder/apps-stoppuhr.png) | ![Berechtigung](docs/bilder/apps-berechtigung.png) | ![Bild](docs/bilder/apps-bild-randlos.png) |
+| **Alle Bausteine** | **… gescrollt, Fokus unten** | **Uhr im Gesten-Modus** |
+| ![Bausteine](docs/bilder/apps-bausteine.png) | ![Gescrollt](docs/bilder/apps-bausteine-gescrollt.png) | ![Gesten](docs/bilder/uhr-touchpad-gesten.png) |
+
+**Bedienen:**
+
+- Auf dem Desktop der Brille die Kachel **Apps** anklicken → der **Starter** listet alle Apps; laufende
+  sind mit „läuft“ markiert.
+- **Zeiger** (Finger auf der Uhr): Was unter dem Zeiger liegt, ist hervorgehoben; Doppeltipp auf der Uhr
+  klickt es. Den Zeiger über den oberen oder unteren Rand hinaus schieben scrollt lange Seiten.
+- **Bügel oder Ring:** Wischen springt zum nächsten/vorigen Knopf, Schalter oder Häkchen (die Seite scrollt
+  mit), Tippen klickt ihn, Doppeltippen geht zurück.
+- **Zurück** geht immer: Doppeltipp am Bügel, „‹“ in der Kopfzeile, „Zurück“ im App-Menü. Auf der ersten
+  Seite schließt Zurück die App.
+- **App-Menü:** am Bügel tippen und dann halten, oder den App-Namen in der Kopfzeile anklicken. Es zeigt die
+  eigenen Einträge der App, dann „Apps“ (App läuft im Hintergrund weiter), „Zurück“ und „Schließen“.
+- **Gesten-Modus:** Apps mit `input: "gestures"` (Spiele, später Even-Hub-Apps) bekommen rohe Gesten. Der
+  Zeiger verschwindet, auf der Uhr steht „Gesten“: Wischen in vier Richtungen (nach rechts = zurück),
+  Tippen, Doppeltippen, lang Drücken. Das Zahnrad öffnet weiter die Einstellungen.
+- Braucht eine App Mikrofon, Standort o. Ä., fragt die Brille beim ersten Start einmal nach („Erlauben“ /
+  „Ablehnen“). Sensoren, Mikrofon und Summer kommen erst mit M6 bei den Apps an.
+
+Eine eigene Uhr-App ist eine kleine Kotlin-Klasse unter
+[`app/src/main/java/ch/madtreasures/g2watch/apps/`](app/src/main/java/ch/madtreasures/g2watch/apps); wie das
+geht, steht in [03 – Uhr-Apps](docs/app-entwicklung/03_Uhr-Apps.md). Apps berühren nie den Firmware-Pfad
+(`AppsBoundaryTest`, `FlashingBoundaryTest`).
 
 ## Wie die Uhr aufspielt – und was sie absichert
 
@@ -136,7 +177,7 @@ die Uhr offline ist.
 
 | Modul | Inhalt |
 |---|---|
-| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket) und das Firmware-Paket `ch.madtreasures.g2watch.firmware` |
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware` und der App-Host `ch.madtreasures.g2watch.apps` mit Starter und Beispiel-Apps |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
 | [`tools/cfw_bauen.py`](tools/cfw_bauen.py) | Baut und prüft Faceclaw/35 auf dem PC (Python, ohne Flashen) |
@@ -150,7 +191,7 @@ die Uhr offline ist.
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 187 Tests grün (21 Bild-Tests werden ohne `-PsnapshotDir`
+Stand dieses Commits: 15 + 184 + 291 Tests grün (28 Bild-Tests werden ohne `-PsnapshotDir`
 übersprungen), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:
@@ -164,4 +205,12 @@ Stand dieses Commits: 15 + 184 + 187 Tests grün (21 Bild-Tests werden ohne `-Ps
   `RealImageTest` baut Faceclaw/35 bitgenau nach; `RealImageTransferTest` schickt das komplette echte
   Image (≈ 1.130 Blöcke pro Glas) durch Faceclaws Flasher an die simulierte Brille und vergleicht, was
   ankommt.
-- Bilder der Uhr neu erzeugen: `./gradlew :app:testDebugUnitTest --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
+- **`AppHostTest`** – der App-Host mit Test-Apps, simuliertem Desktop und virtueller Zeit: `start` vor
+  `visible`, Zurück auf der ersten Seite schließt, Knopf-Ziele und `@back`, Schalter und Häkchen sofort, höchstens
+  alle 200 ms zeichnen, Timer ruhen verdeckt ohne `background`, 2-s- und 10-s-Regel, 50/500-ms-Regel,
+  Absturz einer App, Berechtigungsfrage, App-Menü mit „Apps“ und Starter, Fokus per Bügel, Zeiger,
+  Gesten-Modus, abgelehnte Befehle im Protokoll, interne Sitzungen (Anschlüsse für Even-Hub-Apps).
+- **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel), **`AppJsonTest`**, **`PageStateTest`**,
+  **`BaukastenProjectTest`**, Tests der Beispiel-Apps mit `FakeAppContext`, **`AppsBoundaryTest`** (Apps
+  berühren weder Firmware noch Bluetooth).
+- Bilder neu erzeugen (Uhr, Desktop und Apps auf der Brille): `./gradlew :app:testDebugUnitTest --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`

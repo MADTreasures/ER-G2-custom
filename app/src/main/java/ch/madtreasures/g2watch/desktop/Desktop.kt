@@ -1,11 +1,14 @@
 package ch.madtreasures.g2watch.desktop
 
-/** The little programs on the desktop. */
+/**
+ * The tiles on the desktop. "Apps" opens the launcher of the app host; the pointer speed that used to
+ * have a window of its own is set on the watch (crown, settings).
+ */
 enum class AppId(val title: String) {
+    APPS("Apps"),
     CLOCK("Uhr"),
     NOTE("Notiz"),
     COUNTER("Zähler"),
-    POINTER("Zeiger"),
     INFO("Info"),
     HELP("Hilfe"),
 }
@@ -14,9 +17,6 @@ enum class ButtonId(val label: String) {
     MINUS("−"),
     PLUS("+"),
     RESET("0"),
-    SLOWER("langsamer"),
-    FASTER("schneller"),
-    CENTER("zentrieren"),
 }
 
 /** What the pointer can be over. */
@@ -24,10 +24,16 @@ sealed interface Target {
     data class Tile(val app: AppId) : Target
     data object Close : Target
     data class Button(val id: ButtonId) : Target
+
+    /** The back arrow in the header of an app. */
+    data object AppBack : Target
+
+    /** The title in the header of an app: opens the app menu. */
+    data object AppTitle : Target
 }
 
 /** What a click did, beyond redrawing the desktop. */
-enum class ClickEffect { NONE, REDRAW, SLOWER, FASTER, CENTER_POINTER }
+enum class ClickEffect { NONE, REDRAW, OPEN_APPS }
 
 /** Live values shown in the top bar and the info window. */
 data class DesktopStatus(
@@ -38,7 +44,6 @@ data class DesktopStatus(
     val glassesCharging: Boolean = false,
     val connection: String = "nicht verbunden",
     val firmware: String = "–",
-    val speed: Float = 1f,
 )
 
 /**
@@ -64,6 +69,15 @@ class DesktopLayout(val band: Rect) {
     }
 
     val window = Rect(content.x + 28, content.y + 4, content.w - 56, content.h - 12)
+
+    /** In an app's header: the back arrow and the title (app name and page). */
+    val appBack = Rect(band.x + APP_AREA_X - 8, band.y, 36, TOP_BAR_HEIGHT)
+    val appTitle = Rect(appBack.right + 4, band.y, 232, TOP_BAR_HEIGHT)
+
+    /** Where an app draws: 576 × 260 below the header, or 576 × 288 without it (02 §4). */
+    fun appArea(fullScreen: Boolean): Rect =
+        if (fullScreen) Rect(band.x + APP_AREA_X, band.y, APP_AREA_WIDTH, band.h)
+        else Rect(band.x + APP_AREA_X, band.y + TOP_BAR_HEIGHT, APP_AREA_WIDTH, band.h - TOP_BAR_HEIGHT)
     val titleBar = Rect(window.x, window.y, window.w, TITLE_HEIGHT)
     val closeButton = Rect(window.right - 40, window.y + 3, 36, TITLE_HEIGHT - 6)
     val windowBody = Rect(window.x + 12, window.y + TITLE_HEIGHT + 8, window.w - 24, window.h - TITLE_HEIGHT - 16)
@@ -73,7 +87,6 @@ class DesktopLayout(val band: Rect) {
         val row = windowBody.bottom - BUTTON_HEIGHT
         return when (app) {
             AppId.COUNTER -> buttonRow(row, listOf(ButtonId.MINUS, ButtonId.RESET, ButtonId.PLUS), 90)
-            AppId.POINTER -> buttonRow(row, listOf(ButtonId.SLOWER, ButtonId.CENTER, ButtonId.FASTER), 150)
             else -> emptyList()
         }
     }
@@ -92,6 +105,8 @@ class DesktopLayout(val band: Rect) {
         const val TOP_BAR_HEIGHT = 28
         const val TITLE_HEIGHT = 32
         const val BUTTON_HEIGHT = 40
+        const val APP_AREA_X = 32
+        const val APP_AREA_WIDTH = 576
 
         /** Faceclaw's default: the band centred vertically (y = 96). */
         fun centered(): DesktopLayout =
@@ -106,6 +121,9 @@ class DesktopLayout(val band: Rect) {
 class Desktop(val layout: DesktopLayout) {
     var openApp: AppId? = null
         private set
+
+    /** The app on the glasses (from the app host); while set, the desktop shows it instead of the tiles. */
+    var app: AppView? = null
     var hover: Target? = null
         private set
     var counter: Int = 0
@@ -114,6 +132,12 @@ class Desktop(val layout: DesktopLayout) {
 
     /** The element at ([x], [y]). An open window is modal: only its own controls answer. */
     fun hitTest(x: Int, y: Int): Target? {
+        this.app?.let { view ->
+            if (view.fullScreen) return null
+            if (layout.appBack.contains(x, y)) return Target.AppBack
+            if (layout.appTitle.contains(x, y)) return Target.AppTitle
+            return null
+        }
         val app = openApp
         if (app != null) {
             if (layout.closeButton.contains(x, y)) return Target.Close
@@ -131,7 +155,8 @@ class Desktop(val layout: DesktopLayout) {
     }
 
     fun click(x: Int, y: Int): ClickEffect = when (val target = hitTest(x, y)) {
-        null -> ClickEffect.NONE
+        null, Target.AppBack, Target.AppTitle -> ClickEffect.NONE
+        Target.Tile(AppId.APPS) -> ClickEffect.OPEN_APPS
         is Target.Tile -> {
             openApp = target.app
             ClickEffect.REDRAW
@@ -153,9 +178,6 @@ class Desktop(val layout: DesktopLayout) {
                 counter = 0
                 ClickEffect.REDRAW
             }
-            ButtonId.SLOWER -> ClickEffect.SLOWER
-            ButtonId.FASTER -> ClickEffect.FASTER
-            ButtonId.CENTER -> ClickEffect.CENTER_POINTER
         }
     }
 

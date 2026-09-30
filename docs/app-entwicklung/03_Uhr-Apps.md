@@ -3,8 +3,9 @@
 Uhr-Apps sind kleine Kotlin-Klassen, die fest in die G2-Watch-App eingebaut werden. Sie laufen auch
 ohne Rechner und ohne Netz. Für alles Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 
-**Stand:** Der App-Host auf der Uhr existiert noch nicht (Meilenstein M1). Dieses Kapitel beschreibt
-erst, was eine App-Entwicklerin schreibt (§1–§4), dann, was M1 an der Plattform bauen muss (§5–§8).
+**Stand:** Der App-Host ist gebaut (M1, v0.4.0, nicht auf Hardware erprobt). Dieses Kapitel beschreibt
+erst, was eine App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was bei der Umsetzung dazukam
+oder anders wurde als ursprünglich geplant, steht in §9.
 
 ## 1. Eine Uhr-App schreiben
 
@@ -74,10 +75,10 @@ class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : 
 }
 ```
 
-Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`):
+Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`), in der Reihenfolge des Starters:
 
 ```kotlin
-val builtInApps: List<() -> G2App> = listOf(::StopwatchApp, ::ShoppingListApp)
+val builtInApps: List<() -> G2App> = listOf({ StopwatchApp() }, { ShoppingListApp() })
 ```
 
 Seiten aus dem Baukasten statt aus Code: den Export nach `app/src/main/assets/apps/<app-id>/ui.json`
@@ -277,12 +278,15 @@ abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).
 
 ## 7. Tests
 
-- `FakeAppContext` zeichnet alle Befehle auf. Eine App-Prüfung sieht so aus:
+- `FakeAppContext` (Testquellen, Paket `ch.madtreasures.g2watch.apps`) führt die Seiten mit demselben
+  `PageState` wie der Host und zeichnet alles andere auf (Timer, Hinweise, Menü, Anfragen, Protokoll).
+  `FakeAppContext.forApp(app)` lädt vorher die Baukasten-Seiten aus `src/main/assets`, wie der Host.
+  Eine App-Prüfung sieht so aus:
   ```kotlin
-  val ui = FakeAppContext()
+  val ui = FakeAppContext.forApp(app)
   app.onEvent(AppEvent.Start, ui)
   app.onEvent(AppEvent.Click("p_main", "startstop"), ui)
-  assertEquals("Stopp", ui.page("p_main").textOf("startstop"))
+  assertEquals("Stopp", ui.page("p_main").textOf("startstop"))   // auch valueOf(…), itemsOf(…)
   ```
 - `PageRendererSnapshotTest`: jede Bausteinart, lange Seiten mit Scroll, Fokus, Zeiger, randloses Bild;
   Bilder nach `docs/bilder/apps-*.png` mit `-PsnapshotDir` (wie `WatchSnapshotTest`).
@@ -298,3 +302,26 @@ Ein eingebetteter JavaScript- oder Lua-Interpreter würde Apps ohne neue APK erl
 Speicher, Akku und eine zweite Sicherheitsgrenze auf der Uhr. Die Rechner-Laufzeit deckt dynamische
 Apps bereits ab. Wenn später ein Bedarf entsteht, kann ein Interpreter als weitere Laufzeit hinter
 dieselbe `G2App`-Schnittstelle gelegt werden.
+
+## 9. Umsetzung in v0.4.0 (M1) – was dazukam oder abweicht
+
+| Punkt | So ist es gebaut |
+|---|---|
+| Dateien | wie in §5; dazu `host/PageState.kt` (Seitenstand, von Host und `FakeAppContext` geteilt), `host/HostPorts.kt` (Plattform-Anschlüsse, Brillen-Status, interne Sitzungen, `EvenHubRegistry`), `host/AndroidHostPorts.kt`, `host/FileAppStorage.kt`, `render/PageLayout.kt`, `render/Shapes.kt` (kantengeglättete Formen), `render/GrayImages.kt`, `desktop/AppView.kt` |
+| JSON | `AppJson` mit eigenen Serializern (`AppEventSerializer`, `AppCommandSerializer`) statt `JsonContentPolymorphicSerializer`: Ereignisse werden nach `kind` und bei Sensoren nach `sensor` unterschieden. Streng: kaputte Ereignisse/Befehle sind ein Fehler (`bad_value`), nur unbekannte `kind` werden ignoriert. `definePages` nimmt `pages` oder ein ganzes Baukasten-Projekt (`project`). |
+| Desktop | Die Kachel **„Apps“** ersetzt „Zeiger“ (Tempo und Zentrieren gibt es in den Einstellungen der Uhr und an der Krone). „Info“ bleibt, weil die sechs Plätze reichen. |
+| Kopfzeile | „‹“, App-Name fett, dahinter „· Seitenname“, wenn er vom App-Namen abweicht; Uhrzeit und Akkus wie auf dem Desktop. Klick auf „‹“ = Zurück, auf den Namen = App-Menü. |
+| Maße | wie 02 §4.2, dazu 8 px Innenabstand oben und unten; ein randloses Bild als erster Baustein beginnt ganz oben. Toggle-Schalter 46 × 26, Häkchen-Kästchen 22 × 22, Fokus als heller Rahmen (Knöpfe 3 px, Zeilen 2 px). |
+| Zeiger und Scrollen | Was unter dem Zeiger liegt, bekommt den Fokus; über leerer Fläche bleibt der Fokus. Den Zeiger über den oberen/unteren Rand des sichtbaren Streifens hinaus zu schieben scrollt die Seite. |
+| Fokus per Bügel | Wischen springt zum nächsten fokussierbaren Baustein, wenn er höchstens ¾ Seite entfernt ist; sonst scrollt die Seite um ¾ Höhe (lange Texte lesen). Eine neue Seite fokussiert ihren ersten sichtbaren Knopf. |
+| Gesten-Modus der Uhr | Finger nach oben = `scrollDown` (das Nächste, wie am Handy), nach unten = `scrollUp`, links/rechts = `swipeLeft`/`swipeRight` (rechts = Zurück). Tippen wird erst nach 400 ms ohne zweites Tippen zum `click`. Auf der Uhr steht „Gesten“. Das App-Menü wird auch im Gesten-Modus mit Wischen und Tippen bedient. |
+| Abonnierte Gesten | Eine `pointer`-App mit `subscribe(GESTURES)` bekommt nur die Gesten, die der Host nicht selbst braucht (lang drücken/loslassen, `press`, `headUp`, `swipeLeft`). |
+| Zurück | Die App bekommt `back` vor dem Seitenwechsel; was sie währenddessen am Verlauf ändert, wird verworfen – Zurück verlässt die Seite immer. |
+| Timer | wiederholte Timer mindestens 50 ms; verdeckt ohne `background` pausiert (Restzeit bleibt). |
+| 2-s-Regel | ohne Seite nach 2 s: Baukasten-Startseite, sonst Seite „App antwortet nicht“ mit „Schließen“; Ende nach 10 s. Interne Sitzungen: eigenes Zeitlimit (Even Hub: 20 s mit „Startet …“), danach 8 s bis zum Ende. |
+| M6-Befehle | `subscribe` (außer `gestures`), `audio`, `buzz` prüfen Berechtigung und Werte und merken sich das Abo; bis M6 steht einmal „… ist noch nicht angeschlossen (kommt mit M6)“ im Protokoll. |
+| Speicher | eine JSON-Datei je App unter `files/apps/<id>/store.json`, höchstens 256 KiB; mehr wird abgelehnt. |
+| Bilder | `data:image/…;base64,…` und `asset:<datei>` (aus `assets/apps/<app-id>/`), dekodiert mit Android, in Helligkeit umgerechnet (Transparenz = schwarz) und auf `w × h` skaliert. |
+| Interne Sitzungen (§5.2) | `InternalSession` + `InternalContext` (= `AppContext` + `setRaster`, `glasses`), `onGlassesStatus`, `startTimeoutMs`, `startingText`, `ownsDoubleClick` (Doppeltippen geht an die App). Der Starter ist selbst so eine Sitzung (`launcher/Launcher.kt`). `EvenHubRegistry.NONE` bis M3. |
+| Brillen-Status | `AppHost.glassesStatus` (verbunden, Akku, Laden, getragen); die Uhr schaltet beim Verbinden die Trageerkennung ein (`enableWearDetectionAndRequestState`). |
+| Beobachtbar | `AppHost.inputMode` schaltet das Touchpad; `AppHost.state` (sichtbare App, Seite, Fokus, Scroll, laufende Apps) für die Uhr-Oberfläche und Tests. |

@@ -83,12 +83,30 @@ class DesktopTest {
     }
 
     @Test
-    fun `pointer window buttons report their effect`() {
-        desktop.click(tile(AppId.POINTER).centerX(), tile(AppId.POINTER).centerY())
-        fun clickOn(id: ButtonId) = button(AppId.POINTER, id).let { desktop.click(it.centerX(), it.centerY()) }
-        assertEquals(ClickEffect.SLOWER, clickOn(ButtonId.SLOWER))
-        assertEquals(ClickEffect.FASTER, clickOn(ButtonId.FASTER))
-        assertEquals(ClickEffect.CENTER_POINTER, clickOn(ButtonId.CENTER))
+    fun `the apps tile opens the launcher instead of a window`() {
+        assertEquals(ClickEffect.OPEN_APPS, desktop.click(tile(AppId.APPS).centerX(), tile(AppId.APPS).centerY()))
+        assertNull(desktop.openApp)
+    }
+
+    @Test
+    fun `over an app only the header answers, with back arrow and title`() {
+        desktop.app = AppView("Einkauf", null, fullScreen = false, ByteArray(576 * 260), 576, 260, pointer = true)
+        assertEquals(Target.AppBack, desktop.hitTest(layout.appBack.centerX(), layout.appBack.centerY()))
+        assertEquals(Target.AppTitle, desktop.hitTest(layout.appTitle.centerX(), layout.appTitle.centerY()))
+        val area = layout.appArea(fullScreen = false)
+        assertNull(desktop.hitTest(area.centerX(), area.centerY()))
+        // Tiles under the app do not react.
+        assertEquals(ClickEffect.NONE, desktop.click(tile(AppId.COUNTER).centerX(), tile(AppId.COUNTER).centerY()))
+        assertNull(desktop.openApp)
+        // Full screen: no header at all.
+        desktop.app = AppView("Einkauf", null, fullScreen = true, ByteArray(576 * 288), 576, 288, pointer = false)
+        assertNull(desktop.hitTest(layout.appBack.centerX(), layout.appBack.centerY()))
+    }
+
+    @Test
+    fun `the app area is 576 by 260 below the header, 576 by 288 without it`() {
+        assertEquals(Rect(32, 124, 576, 260), layout.appArea(fullScreen = false))
+        assertEquals(Rect(32, 96, 576, 288), layout.appArea(fullScreen = true))
     }
 
     @Test

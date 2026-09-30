@@ -1,0 +1,28 @@
+{
+  "format": "g2-baukasten@1",
+  "name": "Einkauf",
+  "start": "p_liste",
+  "updatedAt": "2026-09-30T08:00:00.000Z",
+  "pages": [
+    {
+      "id": "p_liste",
+      "name": "Einkauf",
+      "statusBar": true,
+      "notes": "Liste abhaken. „Erledigte löschen“ entfernt, was abgehakt ist; im App-Menü holt „Beispielliste“ die Beispiel-Einträge zurück.",
+      "blocks": [
+        { "id": "offen", "type": "value", "text": "Offen", "value": "0" },
+        {
+          "id": "items",
+          "type": "list",
+          "style": "checks",
+          "items": [
+            { "text": "Milch", "done": false },
+            { "text": "Brot", "done": false },
+            { "text": "Äpfel", "done": false }
+          ]
+        },
+        { "id": "leeren", "type": "button", "text": "Erledigte löschen", "target": null, "action": "löscht alle abgehakten Einträge" }
+      ]
+    }
+  ]
+}

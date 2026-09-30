@@ -15,10 +15,12 @@ Die App baut auf [Faceclaw](https://github.com/jimrandomh/faceclaw) auf (Jim Bab
 | ![Desktop mit Kacheln](../bilder/desktop-start.png) | ![Fenster Uhr](../bilder/desktop-uhr.png) |
 | **Fenster „Notiz“** | **Fenster „Zähler“** (3× auf „+“ geklickt) |
 | ![Fenster Notiz](../bilder/desktop-notiz.png) | ![Fenster Zähler](../bilder/desktop-zaehler.png) |
-| **Fenster „Zeiger“** | **Fenster „Info“** |
-| ![Fenster Zeiger](../bilder/desktop-zeiger.png) | ![Fenster Info](../bilder/desktop-info.png) |
-| **Fenster „Hilfe“** | |
-| ![Fenster Hilfe](../bilder/desktop-hilfe.png) | |
+| **Fenster „Info“** | **Fenster „Hilfe“** |
+| ![Fenster Info](../bilder/desktop-info.png) | ![Fenster Hilfe](../bilder/desktop-hilfe.png) |
+
+Seit G2 Watch 0.4.0 öffnet die Kachel **„Apps“** den Starter des App-Hosts (Bilder im
+[README](../../README.md#apps-auf-der-brille)); das frühere Fenster „Zeiger“ ist entfallen – Tempo und
+Zentrieren gibt es an der Krone und in den Einstellungen der Uhr.
 
 Die Bilder zeigen das 640×480-Bild, das die App an die Brille schicken würde, in den 16 Grüntönen des Displays. Grün leuchtet; Schwarz leuchtet nicht und ist auf der Brille durchsichtig. Ein heller, dicker Rahmen markiert das Element unter dem Zeiger. Erzeugt hat die Bilder der eigene Renderer der App mit Androids Schrift, nicht die Brille (siehe [Bilder neu erzeugen](#bilder-neu-erzeugen)).
 

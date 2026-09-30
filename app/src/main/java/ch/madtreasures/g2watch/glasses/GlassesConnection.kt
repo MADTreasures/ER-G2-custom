@@ -5,8 +5,10 @@ import androidx.annotation.MainThread
 import ch.madtreasures.g2watch.MainScheduler
 import ch.madtreasures.g2watch.Scheduler
 import ch.madtreasures.g2watch.ThreadScheduler
+import ch.madtreasures.g2watch.apps.GestureKind
+import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.host.GlassesStatus
 import ch.madtreasures.g2watch.desktop.DesktopController
-import com.faceclaw.app.BleProtocol
 import com.faceclaw.app.FaceclawBleCommunicatorListener
 import com.faceclaw.app.FaceclawDeviceInfoProbeListener
 import com.faceclaw.app.FrameTimingsCore
@@ -44,9 +46,11 @@ class GlassesConnection internal constructor(
     private val worker: Scheduler,
     /** Milliseconds for pacing the frame metrics; tests pass their own. */
     private val clockMs: () -> Long = { System.nanoTime() / 1_000_000L },
+    /** Gets every tap, swipe and hold of temples and ring, and the glasses' status: the app host. */
+    private val listener: GlassesListener = GlassesListener.desktopOnly(desktop),
 ) {
-    constructor(context: Context, desktop: DesktopController) :
-        this(desktop, FaceclawParts(context), MainScheduler(), ThreadScheduler("G2Watch-connection"))
+    constructor(context: Context, desktop: DesktopController, listener: GlassesListener) :
+        this(desktop, FaceclawParts(context), MainScheduler(), ThreadScheduler("G2Watch-connection"), listener = listener)
 
     private val _state = MutableStateFlow(GlassesState())
     val state: StateFlow<GlassesState> = _state.asStateFlow()
@@ -62,6 +66,7 @@ class GlassesConnection internal constructor(
     private var target: Target? = null
     private var probe: FirmwareProbe? = null
     private var active: Active? = null
+    private var sentStatus: GlassesStatus? = null
     private var framesSent = 0L
     private var lastMetricsAtMs = 0L
     private val recentTransmitMs = ArrayDeque<Int>()
@@ -261,8 +266,12 @@ class GlassesConnection internal constructor(
             when (stage) {
                 // Keeps the watch CPU awake while the glasses show the desktop. Not while they
                 // charge in the case or are out of reach: retrying can go on for hours, and the
-                // watch wakes up often enough on its own to reconnect.
-                Stage.CONNECTED -> active?.session?.setScreenOn(true)
+                // watch wakes up often enough on its own to reconnect. The wear detector tells the
+                // apps whether the glasses are worn (03 §5.2); Faceclaw switches it on the same way.
+                Stage.CONNECTED -> active?.session?.apply {
+                    setScreenOn(true)
+                    enableWearDetection()
+                }
                 Stage.CHARGING, Stage.RECONNECTING -> active?.session?.setScreenOn(false)
                 else -> Unit
             }
@@ -291,22 +300,10 @@ class GlassesConnection internal constructor(
             ringAux: Int,
             ringSpeed: Int,
         ) {
-            if (!current || kind != "sys-event") return
-            val source = when (eventSource) {
-                BleProtocol.EVENT_SOURCE_GLASSES_R -> "rechter Bügel"
-                BleProtocol.EVENT_SOURCE_GLASSES_L -> "linker Bügel"
-                BleProtocol.EVENT_SOURCE_RING -> "Ring"
-                else -> "Brille"
-            }
-            val gesture = when (eventType) {
-                BleProtocol.EVENT_CLICK -> "Tipp".also { desktop.click() }
-                BleProtocol.EVENT_DOUBLE_CLICK -> "Doppeltipp".also { desktop.back() }
-                BleProtocol.EVENT_SCROLL_TOP -> "Wisch vor"
-                BleProtocol.EVENT_SCROLL_BOTTOM -> "Wisch zurück"
-                BleProtocol.EVENT_RING_LONG_PRESS -> "Halten"
-                else -> return
-            }
-            setState(_state.value.copy(lastInput = "$gesture ($source)"))
+            if (!current) return
+            // The input router (03 §5.1) decides what it is; the app host what it means.
+            val gesture = listener.onInput(kind, eventType, eventSource, ringTick, ringType) ?: return
+            setState(_state.value.copy(lastInput = "${label(gesture.kind)} (${label(gesture.source)})"))
         }
 
         override fun onBatteryState(headsetBattery: Int, headsetCharging: Int, ringBattery: Int, ringCharging: Int) {
@@ -425,6 +422,16 @@ class GlassesConnection internal constructor(
 
     private fun setState(next: GlassesState) {
         _state.value = next
+        val status = GlassesStatus(
+            connected = next.stage == Stage.CONNECTED,
+            battery = next.battery.takeIf { next.stage.hasSession },
+            charging = next.charging && next.stage.hasSession,
+            wearing = next.wearing.takeIf { next.stage.hasSession },
+        )
+        if (status != sentStatus) {
+            sentStatus = status
+            listener.onStatus(status)
+        }
     }
 
     private fun log(line: String) {
@@ -433,6 +440,28 @@ class GlassesConnection internal constructor(
     }
 
     private companion object {
+        fun label(kind: GestureKind): String = when (kind) {
+            GestureKind.CLICK -> "Tipp"
+            GestureKind.DOUBLE_CLICK -> "Doppeltipp"
+            GestureKind.SCROLL_UP -> "Wisch vor"
+            GestureKind.SCROLL_DOWN -> "Wisch zurück"
+            GestureKind.LONG_PRESS -> "Halten"
+            GestureKind.LONG_PRESS_RELEASE -> "Loslassen"
+            GestureKind.SHORT_THEN_LONG_PRESS -> "Tippen und halten"
+            GestureKind.PRESS -> "Berührung"
+            GestureKind.HEAD_UP -> "Kopf gehoben"
+            GestureKind.SWIPE_LEFT -> "Wisch links"
+            GestureKind.SWIPE_RIGHT -> "Wisch rechts"
+        }
+
+        fun label(source: InputSource): String = when (source) {
+            InputSource.RIGHT -> "rechter Bügel"
+            InputSource.LEFT -> "linker Bügel"
+            InputSource.RING -> "Ring"
+            InputSource.WATCH -> "Uhr"
+            InputSource.UNKNOWN -> "Brille"
+        }
+
         const val LOG_LINES = 300
         const val PROBE_TO_SESSION_MS = 1_000L
         const val METRICS_INTERVAL_MS = 500L

@@ -67,6 +67,9 @@ class FakeDisplay : GlassesDisplay {
     val configs = mutableListOf<Config>()
     val submits = mutableListOf<Submit>()
 
+    /** Surface id → shown, as last set with [setSurfaceVisible] (surfaces start shown). */
+    val visibility = mutableMapOf<String, Boolean>()
+
     fun submitsOf(id: String) = submits.filter { it.id == id }
 
     fun clear() {
@@ -80,6 +83,10 @@ class FakeDisplay : GlassesDisplay {
 
     override fun submit(id: String, pixels: ByteArray, width: Int, height: Int, fingerprint: String) {
         submits += Submit(id, width, height, fingerprint, pixels)
+    }
+
+    override fun setSurfaceVisible(id: String, visible: Boolean) {
+        visibility[id] = visible
     }
 }
 

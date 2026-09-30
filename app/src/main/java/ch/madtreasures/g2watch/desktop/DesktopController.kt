@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * The desktop as last rendered: its visible band and the pointer on it, exactly as the glasses get
@@ -40,7 +41,7 @@ class DesktopController(
     private val scheduler: Scheduler = ThreadScheduler("G2Watch-desktop"),
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
     private val now: () -> LocalDateTime = { LocalDateTime.now() },
-) {
+) : AppScreen {
     val layout = DesktopLayout.centered()
 
     private val desktop = Desktop(layout)
@@ -59,6 +60,9 @@ class DesktopController(
     private var sentPointerFingerprint: String? = null
     private var sentPointerX = 0
     private var sentPointerY = 0
+    private var apps: AppInput? = null
+    private var pointerShown = true
+    private var lastAppPointer: Pair<Int, Int>? = null
 
     private val _frame = MutableStateFlow(
         DesktopFrame(layout.band, ByteArray(layout.band.w * layout.band.h), 0, pointer.x, pointer.y, pointerPixels),
@@ -69,7 +73,7 @@ class DesktopController(
 
     private val _speed = MutableStateFlow(1f)
 
-    /** Pointer speed factor, adjustable with the crown and in the "Zeiger" window. */
+    /** Pointer speed factor, adjustable with the crown and in the watch settings. */
     val speed: StateFlow<Float> = _speed.asStateFlow()
 
     init {
@@ -81,6 +85,7 @@ class DesktopController(
         this.display = display
         display.configureSurface(DESKTOP, 0, 0, DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT, DESKTOP_Z, colorKey = false)
         configurePointer(display)
+        if (!pointerShown) display.setSurfaceVisible(POINTER, false)
         sentDesktopFingerprint = null
         sentPointerFingerprint = null
         desktopDirty = true
@@ -89,9 +94,17 @@ class DesktopController(
 
     fun detach() = scheduler.post { display = null }
 
-    /** Moves the pointer by a delta in glasses pixels. */
+    /** Where input for the apps goes: the app host. */
+    fun connectApps(input: AppInput) = scheduler.post { apps = input }
+
+    /**
+     * Moves the pointer by a delta in glasses pixels. Over an app, pushing on past the top or bottom
+     * edge of the visible band scrolls the app's page.
+     */
     fun moveBy(dx: Float, dy: Float) = scheduler.post {
         if (pointer.moveBy(dx, dy)) afterPointerMoved()
+        val push = pointer.overflowY.roundToInt()
+        if (push != 0 && desktop.app != null) apps?.scrollBy(push)
     }
 
     fun centerPointer() = scheduler.post {
@@ -99,30 +112,79 @@ class DesktopController(
         afterPointerMoved()
     }
 
-    /** A click at the pointer. */
-    fun click() = scheduler.post {
+    /** A click at the pointer; over an app it goes to the app host. */
+    override fun click() = scheduler.post {
+        val app = desktop.app
+        if (app != null) {
+            when (desktop.hitTest(pointer.x, pointer.y)) {
+                Target.AppBack -> apps?.back()
+                Target.AppTitle -> apps?.openMenu()
+                else -> {
+                    val area = layout.appArea(app.fullScreen)
+                    if (area.contains(pointer.x, pointer.y)) apps?.clickAt(pointer.x - area.x, pointer.y - area.y)
+                }
+            }
+            return@post
+        }
         when (desktop.click(pointer.x, pointer.y)) {
             ClickEffect.NONE -> return@post
             ClickEffect.REDRAW -> Unit
-            ClickEffect.SLOWER -> applySpeed(_speed.value - SPEED_STEP)
-            ClickEffect.FASTER -> applySpeed(_speed.value + SPEED_STEP)
-            ClickEffect.CENTER_POINTER -> {
-                pointer.center()
-                renderPointer()
-                publishPointer()
-                schedulePointerFlush()
+            ClickEffect.OPEN_APPS -> {
+                apps?.openLauncher()
+                return@post
             }
         }
         desktop.updateHover(pointer.x, pointer.y)
         invalidate()
     }
 
-    /** Closes the open window. */
-    fun back() = scheduler.post {
+    /** Closes the open window; over an app, back in the app. */
+    override fun back() = scheduler.post {
+        if (desktop.app != null) {
+            apps?.back()
+            return@post
+        }
         if (desktop.back()) {
             desktop.updateHover(pointer.x, pointer.y)
             invalidate()
         }
+    }
+
+    /** Shows [view] (an app with its header) instead of the desktop, or updates it. */
+    override fun showApp(view: AppView) = scheduler.post {
+        val wasApp = desktop.app != null
+        desktop.app = view
+        showPointer(view.pointer)
+        desktop.updateHover(pointer.x, pointer.y)
+        if (!wasApp) lastAppPointer = null
+        forwardPointer()
+        invalidate()
+    }
+
+    /** Back to the desktop tiles. */
+    override fun closeApp() = scheduler.post {
+        if (desktop.app == null) return@post
+        desktop.app = null
+        showPointer(true)
+        desktop.updateHover(pointer.x, pointer.y)
+        invalidate()
+    }
+
+    /** The pointer is its own surface: shown in pointer mode, hidden in gesture mode. */
+    private fun showPointer(shown: Boolean) {
+        if (shown == pointerShown) return
+        pointerShown = shown
+        display?.setSurfaceVisible(POINTER, shown)
+    }
+
+    /** Tells the app host where the pointer is in the app area, when that changed. */
+    private fun forwardPointer() {
+        val app = desktop.app ?: return
+        val area = layout.appArea(app.fullScreen)
+        val at = if (area.contains(pointer.x, pointer.y)) Pair(pointer.x - area.x, pointer.y - area.y) else Pair(-1, -1)
+        if (at == lastAppPointer) return
+        lastAppPointer = at
+        apps?.pointerAt(at.first, at.second)
     }
 
     fun setSpeed(value: Float) = scheduler.post { applySpeed(value) }
@@ -150,16 +212,12 @@ class DesktopController(
     }
 
     private fun applySpeed(value: Float) {
-        val v = value.coerceIn(PointerMotion.MIN_SPEED, PointerMotion.MAX_SPEED)
-        _speed.value = v
-        if (desktop.status.speed != v) {
-            desktop.status = desktop.status.copy(speed = v)
-            invalidate()
-        }
+        _speed.value = value.coerceIn(PointerMotion.MIN_SPEED, PointerMotion.MAX_SPEED)
     }
 
     private fun afterPointerMoved() {
         if (desktop.updateHover(pointer.x, pointer.y)) invalidate()
+        forwardPointer()
         renderPointer()
         publishPointer()
         schedulePointerFlush()

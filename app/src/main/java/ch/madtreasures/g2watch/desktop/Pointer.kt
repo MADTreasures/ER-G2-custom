@@ -94,12 +94,18 @@ class PointerPosition(private val bounds: Rect) {
     val x: Int get() = fx.roundToInt()
     val y: Int get() = fy.roundToInt()
 
+    /** How far the last move wanted to go past the top (negative) or bottom edge. */
+    var overflowY = 0f
+        private set
+
     /** Moves by a delta in glasses pixels; true if the rounded position changed. */
     fun moveBy(dx: Float, dy: Float): Boolean {
         val oldX = x
         val oldY = y
         fx = (fx + dx).coerceIn(bounds.x.toFloat(), (bounds.right - 1).toFloat())
-        fy = (fy + dy).coerceIn(bounds.y.toFloat(), (bounds.bottom - 1).toFloat())
+        val wantedY = fy + dy
+        fy = wantedY.coerceIn(bounds.y.toFloat(), (bounds.bottom - 1).toFloat())
+        overflowY = wantedY - fy
         return x != oldX || y != oldY
     }
 

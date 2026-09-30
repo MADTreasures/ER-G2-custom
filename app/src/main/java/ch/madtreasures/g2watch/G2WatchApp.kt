@@ -8,6 +8,11 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import ch.madtreasures.g2watch.apps.host.AndroidHostPorts
+import ch.madtreasures.g2watch.apps.host.AppHost
+import ch.madtreasures.g2watch.apps.host.AppThread
+import ch.madtreasures.g2watch.apps.host.GlassesStatus
+import ch.madtreasures.g2watch.apps.host.InputRouter
 import ch.madtreasures.g2watch.ble.G2Scanner
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
@@ -16,6 +21,7 @@ import ch.madtreasures.g2watch.firmware.LensPair
 import ch.madtreasures.g2watch.firmware.WatchFirmwareInstaller
 import ch.madtreasures.g2watch.glasses.FirmwareInstaller
 import ch.madtreasures.g2watch.glasses.GlassesConnection
+import ch.madtreasures.g2watch.glasses.GlassesListener
 
 /**
  * Holds the desktop and the glasses connection for the whole process, so both survive activity
@@ -23,7 +29,33 @@ import ch.madtreasures.g2watch.glasses.GlassesConnection
  */
 class G2WatchApp : Application() {
     val desktop: DesktopController by lazy { DesktopController(AndroidTextPainter()).also { it.startClock() } }
-    val glasses: GlassesConnection by lazy { GlassesConnection(this, desktop) }
+
+    /** Runs the watch apps and shows them on the glasses (docs/app-entwicklung/03). */
+    val apps: AppHost by lazy {
+        val main = MainScheduler()
+        AppHost(
+            scheduler = AppThread.scheduler(),
+            screen = desktop,
+            text = AndroidTextPainter(),
+            ports = AndroidHostPorts(this) { line -> main.post { glasses.note(line) } },
+        ).also { desktop.connectApps(it) }
+    }
+
+    /** Turns the glasses' and the watch's gestures into input for the apps. */
+    val input: InputRouter by lazy { InputRouter { apps.gesture(it) } }
+
+    val glasses: GlassesConnection by lazy {
+        GlassesConnection(
+            this,
+            desktop,
+            object : GlassesListener {
+                override fun onInput(kind: String?, eventType: Int, eventSource: Int, ringTick: Long, ringType: Int) =
+                    input.onGlassesEvent(kind, eventType, eventSource, ringTick, ringType)
+
+                override fun onStatus(status: GlassesStatus) = apps.updateGlasses(status)
+            },
+        )
+    }
     val scanner: G2Scanner by lazy { G2Scanner(this) }
 
     /**
@@ -48,6 +80,8 @@ class G2WatchApp : Application() {
     override fun onCreate() {
         super.onCreate()
         followWatchBattery()
+        // Connects itself to the desktop, so the "Apps" tile works from the first frame.
+        apps
     }
 
     fun lastPair(): LastPair? {

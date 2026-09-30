@@ -149,11 +149,14 @@ class WatchSnapshotTest {
     private fun Settings() = SettingsScreen(connected, 1.2f, ::example, {}, {}, {}, {}, {}, {}, {}, {})
 
     @Composable
-    private fun Touchpad(glasses: GlassesState = connected) =
-        TouchpadScreen(glasses, 1f, { _, _ -> }, {}, {}, {}, timeSource = FixedTime)
+    private fun Touchpad(glasses: GlassesState = connected, gestureMode: Boolean = false) =
+        TouchpadScreen(glasses, 1f, { _, _ -> }, {}, {}, {}, timeSource = FixedTime, gestureMode = gestureMode)
 
     @Test
     fun touchpadConnected() = snapshot("uhr-touchpad") { Touchpad() }
+
+    @Test
+    fun touchpadGestures() = snapshot("uhr-touchpad-gesten") { Touchpad(gestureMode = true) }
 
     @Test
     fun touchpadReconnecting() = snapshot("uhr-touchpad-brille-weg") {

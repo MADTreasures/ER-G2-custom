@@ -50,10 +50,11 @@ Was daraus folgt:
 | Mikrofon | **LC3**-kodiert: 16 kHz mono, 10-ms-Rahmen à 40 Byte (32 kbit/s); Pakete à 205 Byte = 5 Rahmen = 50 ms, vom linken Glas (Doppel vom rechten möglich, per Zähler aussortieren). Entschlüsseln mit liblc3 (Apache-2.0) zu PCM s16le. Ein Mikrofon für alle Apps. Siehe wissen/03 §7 |
 | Ausgabe außer Bild | Summer (Piezo) mit Tonfolgen, Helligkeit |
 
-Heute leitet G2 Watch nur Tippen (= Klick) und Doppeltippen (= zurück) an den Desktop weiter; alle
-anderen Eingaben verwirft `GlassesConnection.onRingEvent`. Wie die Gesten technisch ankommen (Ereignisart,
-Codes, Quelle), steht in [03 §5.1](03_Uhr-Apps.md#51-gesten-der-brille). IMU, Kompass, Mikrofon und Summer
-sind im Faceclaw-Kern vorhanden (`GlassesSessionCore`), aber noch nicht zu den Apps verdrahtet (M6).
+Seit M1 (v0.4.0) übersetzt der `InputRouter` alle diese Gesten der Tabelle in [03 §5.1](03_Uhr-Apps.md#51-gesten-der-brille)
+(Ereignisart, Codes, Quelle) und gibt sie an den App-Host; ohne offene App wirken Tippen (= Klick) und
+Doppeltippen (= zurück) wie bisher auf den Desktop. IMU, Kompass, Mikrofon und Summer sind im Faceclaw-Kern
+vorhanden (`GlassesSessionCore`), aber noch nicht zu den Apps verdrahtet (M6). „Getragen“ meldet die Brille,
+seit die Uhr beim Verbinden die Trageerkennung einschaltet (wie Faceclaw).
 
 ## 2. Uhr (Pixel Watch 5, 45 mm, LTE)
 

@@ -58,6 +58,7 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeSource
 import androidx.wear.compose.material3.TimeTextDefaults
+import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.desktop.PointerMotion
 import ch.madtreasures.g2watch.glasses.GlassesState
 import kotlinx.coroutines.CoroutineScope
@@ -66,6 +67,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -79,6 +81,12 @@ import kotlin.math.sin
  * Only while a finger touches the face, a dark glass disc with a glowing blue rim sits under it and
  * follows it; the moment the finger lifts, the disc is gone. When the touch is the second of a
  * double tap, the rim lights up brightly: lifting now clicks.
+ *
+ * In [gestureMode] (an app with `input: "gestures"` on the glasses, 02 §7) there is no pointer: the
+ * face reports gestures instead. A swipe up is [GestureKind.SCROLL_DOWN] (the next thing, as on a
+ * phone), down [GestureKind.SCROLL_UP], left and right [GestureKind.SWIPE_LEFT] / [GestureKind.SWIPE_RIGHT]
+ * (right means back); a tap is a click once no second tap followed, two taps a double click, and holding
+ * a long press with its release. Holding the gear still opens the settings.
  */
 @Composable
 fun TouchpadScreen(
@@ -89,6 +97,8 @@ fun TouchpadScreen(
     onClick: () -> Unit,
     onOpenSettings: () -> Unit,
     timeSource: TimeSource = TimeTextDefaults.rememberTimeSource(TimeTextDefaults.timeFormat()),
+    gestureMode: Boolean = false,
+    onGesture: (GestureKind) -> Unit = {},
 ) {
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current.density
@@ -98,6 +108,10 @@ fun TouchpadScreen(
     val setSpeed by rememberUpdatedState(onSpeed)
     val click by rememberUpdatedState(onClick)
     val openSettings by rememberUpdatedState(onOpenSettings)
+    val gestures by rememberUpdatedState(gestureMode)
+    val gesture by rememberUpdatedState(onGesture)
+    val track = remember { GestureTrack() }
+    val scope = rememberCoroutineScope()
     var lastTapAt by remember { mutableLongStateOf(NO_TAP) }
     // Whether the touch now down came soon enough after a tap to click when it lifts.
     var clicking by remember { mutableStateOf(false) }
@@ -133,9 +147,14 @@ fun TouchpadScreen(
                     relativeTouchpad(
                         onDown = { position, timeMs ->
                             val onGear = gear.contains(position)
-                            clicking = !onGear && timeMs - lastTapAt <= DOUBLE_TAP_MS
-                            // A tap waits for one more touch only; this is it.
-                            if (clicking) lastTapAt = NO_TAP
+                            if (gestures) {
+                                track.start()
+                                clicking = !onGear && track.tapPending()
+                            } else {
+                                clicking = !onGear && timeMs - lastTapAt <= DOUBLE_TAP_MS
+                                // A tap waits for one more touch only; this is it.
+                                if (clicking) lastTapAt = NO_TAP
+                            }
                             feedback.down(position, onGear = onGear, clicking = clicking)
                         },
                         onPosition = { feedback.follow(it) },
@@ -143,14 +162,26 @@ fun TouchpadScreen(
                             clicking = false
                             lastTapAt = NO_TAP
                             feedback.moving()
-                            val (gx, gy) = PointerMotion.toGlasses(dx / density, dy / density, dtMs, currentSpeed)
-                            move(gx, gy)
+                            if (gestures) {
+                                track.dx += dx
+                                track.dy += dy
+                            } else {
+                                val (gx, gy) = PointerMotion.toGlasses(dx / density, dy / density, dtMs, currentSpeed)
+                                move(gx, gy)
+                            }
                         },
-                        onUp = { feedback.up() },
+                        onUp = {
+                            feedback.up()
+                            if (gestures) track.swipeOrRelease(SWIPE_MIN_DP * density)?.let { gesture(it) }
+                        },
                         onTap = { at, position ->
                             when {
                                 // The gear opens only when held; a tap on it is nothing.
                                 gear.contains(position) -> lastTapAt = NO_TAP
+                                gestures -> track.tap(scope) { kind ->
+                                    if (kind == GestureKind.DOUBLE_CLICK) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+                                    gesture(kind)
+                                }
                                 clicking -> {
                                     clicking = false
                                     haptics.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -160,13 +191,20 @@ fun TouchpadScreen(
                             }
                         },
                         onLongPress = { position ->
-                            if (gear.contains(position)) {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                openSettings()
-                                true
-                            } else {
+                            when {
+                                gear.contains(position) -> {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    openSettings()
+                                    true
+                                }
+                                gestures -> {
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    track.longPressed = true
+                                    gesture(GestureKind.LONG_PRESS)
+                                    true
+                                }
                                 // Resting elsewhere is part of aiming: the finger may move on.
-                                false
+                                else -> false
                             }
                         },
                     )
@@ -187,11 +225,58 @@ fun TouchpadScreen(
                         .testTag(GEAR_TAG)
                         .onGloballyPositioned { gear.button = it },
                 )
-                if (speedShownAt != 0L) {
+                if (speedShownAt != 0L && !gestureMode) {
                     Text(String.format(Locale.GERMANY, "Tempo %.1f×", speed), fontSize = 14.sp, color = Color.White)
+                }
+                if (gestureMode) {
+                    Text("Gesten", fontSize = 13.sp, color = RIM_TOP, modifier = Modifier.testTag(GESTURES_TAG))
                 }
             }
             TouchFeedbackLayer(feedback, Modifier.fillMaxSize())
+        }
+    }
+}
+
+/**
+ * One touch in gesture mode: how far the finger went, whether it was held, and a tap that waits
+ * [DOUBLE_TAP_MS] for a second one before it counts as a click.
+ */
+private class GestureTrack {
+    var dx = 0f
+    var dy = 0f
+    var longPressed = false
+    private var pendingTap: Job? = null
+
+    fun start() {
+        dx = 0f
+        dy = 0f
+        longPressed = false
+    }
+
+    /** A first tap is waiting for its second one. */
+    fun tapPending(): Boolean = pendingTap?.isActive == true
+
+    /** The finger lifted: the release of a long press, a swipe of at least [minPx], or nothing. */
+    fun swipeOrRelease(minPx: Float): GestureKind? = when {
+        longPressed -> GestureKind.LONG_PRESS_RELEASE
+        maxOf(abs(dx), abs(dy)) < minPx -> null
+        abs(dx) > abs(dy) -> if (dx > 0) GestureKind.SWIPE_RIGHT else GestureKind.SWIPE_LEFT
+        // Finger up shows what comes next, as on a phone.
+        else -> if (dy < 0) GestureKind.SCROLL_DOWN else GestureKind.SCROLL_UP
+    }
+
+    fun tap(scope: CoroutineScope, emit: (GestureKind) -> Unit) {
+        val waiting = pendingTap
+        if (waiting != null && waiting.isActive) {
+            waiting.cancel()
+            pendingTap = null
+            emit(GestureKind.DOUBLE_CLICK)
+            return
+        }
+        pendingTap = scope.launch {
+            delay(DOUBLE_TAP_MS)
+            pendingTap = null
+            emit(GestureKind.CLICK)
         }
     }
 }
@@ -426,6 +511,12 @@ private const val GEAR_HIT = 1.15f
 
 /** Test tag of the gear, so tests can find where it is. */
 internal const val GEAR_TAG = "gear"
+
+/** Test tag of the hint that the face reports gestures. */
+internal const val GESTURES_TAG = "gestures"
+
+/** A swipe in gesture mode must cover at least this much. */
+private const val SWIPE_MIN_DP = 24f
 
 /** Finger must rest this long (without moving past the touch slop) on the gear to open the settings. */
 private const val LONG_PRESS_MS = 900L

@@ -1,0 +1,180 @@
+package ch.madtreasures.g2watch.apps
+
+import ch.madtreasures.g2watch.apps.host.PageState
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import java.io.File
+
+/**
+ * The [AppContext] for unit tests of an app (03 §7): it keeps the pages exactly as the host would (same
+ * [PageState]), records everything else, and throws [IllegalArgumentException] where the host would
+ * refuse a command and write it to the log. So a test sees mistakes at once:
+ *
+ *     val ui = FakeAppContext.forApp(app)
+ *     app.onEvent(AppEvent.Start, ui)
+ *     app.onEvent(AppEvent.Click("p_main", "startstop"), ui)
+ *     assertEquals("Stopp", ui.page("p_main").textOf("startstop"))
+ */
+class FakeAppContext(
+    /** What the app may use; by default everything its manifest asks for (as if the wearer allowed it). */
+    val granted: Set<Permission> = Permission.entries.toSet(),
+) : AppContext {
+    val pages = PageState()
+    val toasts = mutableListOf<String>()
+    val vibrations = mutableListOf<Vibration>()
+    var menu: List<MenuItem> = emptyList()
+        private set
+
+    /** Running timers: tag → (ms, repeat). */
+    val timers = LinkedHashMap<String, Pair<Long, Boolean>>()
+    val subscriptions = mutableSetOf<Sensor>()
+    var audioOn = false
+        private set
+    val buzzes = mutableListOf<List<BuzzNote>>()
+    val logs = mutableListOf<String>()
+
+    /** Requests the app made; answer them with [answer]. */
+    val requests = mutableListOf<Pair<HttpRequest, (HttpResult) -> Unit>>()
+    var closed = false
+        private set
+
+    override val storage = MemoryStorage()
+
+    val current: Page? get() = pages.current
+
+    fun page(id: String): Page = pages.page(id) ?: throw AssertionError("no page $id (have ${pages.pageIds()})")
+
+    /** Answers the oldest open request. */
+    fun answer(result: HttpResult) = requests.removeAt(0).second(result)
+
+    private inline fun checked(block: () -> Unit) {
+        try {
+            block()
+        } catch (e: CommandException) {
+            throw IllegalArgumentException("${e.code}: ${e.message}", e)
+        }
+    }
+
+    private fun require(permission: Permission) {
+        if (permission !in granted) throw IllegalArgumentException("${CommandException.PERMISSION_DENIED}: ${permission.label}")
+    }
+
+    override fun definePages(pages: List<Page>) = checked { this.pages.define(pages) }
+
+    override fun definePages(project: BaukastenProject) = definePages(project.pages)
+
+    override fun show(pageId: String) = checked { pages.show(pageId) }
+
+    override fun replace(pageId: String) = checked { pages.replace(pageId) }
+
+    override fun patch(pageId: String, changes: PatchBuilder.() -> Unit) =
+        checked { pages.patch(pageId, PatchBuilder().apply(changes).build()) }
+
+    override fun setBlocks(pageId: String, blocks: List<Block>) = checked { pages.setBlocks(pageId, blocks) }
+
+    override fun toast(text: String, ms: Int) {
+        require(text.isNotBlank()) { "toast without text" }
+        toasts += text
+    }
+
+    override fun vibrate(pattern: Vibration) {
+        vibrations += pattern
+    }
+
+    override fun menu(items: List<MenuItem>) {
+        require(items.size <= 10) { "at most 10 menu entries" }
+        require(items.all { it.text.toByteArray(Charsets.UTF_8).size in 1..32 }) { "menu text 1 to 32 bytes" }
+        menu = items
+    }
+
+    override fun buzz(notes: List<BuzzNote>) {
+        require(Permission.BUZZER)
+        require(notes.size in 1..48) { "1 to 48 notes" }
+        buzzes += notes
+    }
+
+    override fun timer(tag: String, ms: Long, repeat: Boolean) {
+        require(tag.isNotEmpty() && ms >= 0 && (!repeat || ms >= 50)) { "timer $tag $ms" }
+        timers[tag] = Pair(ms, repeat)
+    }
+
+    override fun cancelTimer(tag: String) {
+        timers.remove(tag)
+    }
+
+    override fun subscribe(sensor: Sensor, rate: Int) {
+        sensor.permission?.let { require(it) }
+        subscriptions += sensor
+    }
+
+    override fun unsubscribe(sensor: Sensor) {
+        subscriptions -= sensor
+    }
+
+    override fun audio(on: Boolean) {
+        require(Permission.MIC)
+        audioOn = on
+    }
+
+    override fun fetch(request: HttpRequest, onResult: (HttpResult) -> Unit) {
+        require(Permission.NETWORK)
+        require(request.url.startsWith("https://")) { "https only: ${request.url}" }
+        requests += Pair(request, onResult)
+    }
+
+    override fun log(message: String) {
+        logs += message
+    }
+
+    override fun close() {
+        closed = true
+    }
+
+    /** In-memory store with the 256 KiB limit of the real one. */
+    class MemoryStorage : AppStorage {
+        val values = LinkedHashMap<String, JsonElement>()
+
+        override fun get(key: String): JsonElement? = values[key]
+
+        override fun set(key: String, value: JsonElement) {
+            val next = LinkedHashMap(values)
+            if (value is JsonNull) next.remove(key) else next[key] = value
+            require(JsonObject(next).toString().toByteArray(Charsets.UTF_8).size <= AppStorage.MAX_BYTES) { "storage full" }
+            values.clear()
+            values.putAll(next)
+        }
+    }
+
+    companion object {
+        /**
+         * A context with the Baukasten pages of [app]'s manifest already defined, as the host loads
+         * them from `src/main/assets` before [AppEvent.Start], and the permissions the manifest asks for.
+         */
+        fun forApp(app: G2App): FakeAppContext {
+            val ui = FakeAppContext(app.manifest.permissions)
+            app.manifest.ui?.let { path ->
+                // Unit tests run in the module directory.
+                ui.definePages(BaukastenProject.parse(File("src/main/assets", path).readText()))
+            }
+            return ui
+        }
+    }
+}
+
+/** The text of a heading, text, button or toggle, or the label of a value or progress block. */
+fun Page.textOf(blockId: String): String = when (val b = block(blockId)) {
+    is Block.Heading -> b.text
+    is Block.Text -> b.text
+    is Block.Button -> b.text
+    is Block.Toggle -> b.text
+    is Block.Value -> b.text
+    is Block.Progress -> b.text
+    else -> throw AssertionError("$blockId has no text: $b")
+}
+
+/** The shown value of a value block. */
+fun Page.valueOf(blockId: String): String = (block(blockId) as? Block.Value)?.value ?: throw AssertionError("$blockId is no value block")
+
+/** The rows of a list block. */
+fun Page.itemsOf(blockId: String): List<ListItem> = (block(blockId) as? Block.List)?.items ?: throw AssertionError("$blockId is no list")

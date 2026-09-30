@@ -94,7 +94,7 @@ exportieren und als `ui.json` mitliefern.
   Projekt** – Seiten und Bausteine teilen einen Namensraum, genau wie im Baukasten (dessen `normalize`
   benennt Doppelte um). Apps sprechen Bausteine über diese Kennungen an; deshalb bekommen sie im
   Baukasten lesbare Namen (M0).
-- `name` steht in der Kopfzeile.
+- `name` steht in der Kopfzeile hinter dem App-Namen („Einkauf · Liste“), wenn er sich von ihm unterscheidet.
 - `statusBar: true` → App-Fläche 576 × 260 unter der Kopfzeile; `false` → Vollbild 576 × 288.
 - `notes` wird nicht angezeigt (Beschreibung aus dem Baukasten, was die Seite tun soll).
 - Bausteine stehen untereinander in der gegebenen Reihenfolge. Es gibt keine freie Positionierung.
@@ -115,7 +115,8 @@ Alle Bausteine haben `id` und `type`.
 | `divider` | – | Linie 2 px, 6 px Abstand oben und unten | nein |
 | `image` | `src`, `w`, `h`, `align`, `bleed` | Bild, auf 16 Stufen gerundet | nein |
 
-Allgemeine Maße: Seitenrand links/rechts 16 px, Abstand zwischen Bausteinen 8 px.
+Allgemeine Maße: Seitenrand links/rechts 16 px, Abstand zwischen Bausteinen 8 px, Innenabstand oben und
+unten 8 px (ein randloses Bild als erster Baustein beginnt ganz oben).
 
 **Graustufen:** 0–15. Der Kern der Uhr rundet 8-Bit-Grau mit `min(15, (v + 8) >> 4)` auf Stufen
 (`BmpUtil.kt`); eine Stufe wird also mit Grauwert **Stufe × 16** gezeichnet (Stufe 15 = 255). Verwendet:
@@ -247,7 +248,7 @@ Zwei Eingabearten, im Manifest gewählt:
 
 | Eingabe | `pointer` | `gestures` |
 |---|---|---|
-| Uhr: Finger ziehen | Zeiger bewegen | Wischen (Richtung); nach rechts = Zurück |
+| Uhr: Finger ziehen | Zeiger bewegen (über den Rand hinaus: Seite scrollen) | Wischen: Finger nach oben = `scrollDown`, nach unten = `scrollUp`, links = `swipeLeft`, rechts = Zurück |
 | Uhr: Doppeltippen | Klick unter Zeiger | `doubleClick` |
 | Uhr: Tippen | – (Zeiger-Ruhe) | `click` |
 | Uhr: lang drücken | – | `longPress` |

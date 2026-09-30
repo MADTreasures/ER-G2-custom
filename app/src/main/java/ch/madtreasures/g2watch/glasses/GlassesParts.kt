@@ -40,6 +40,9 @@ interface GlassesSession {
     /** Holds (true) or releases the wake lock that keeps the watch running for the glasses. */
     fun setScreenOn(on: Boolean)
 
+    /** Switches the glasses' wear detector on and asks for the current state (reported via onWearState). */
+    fun enableWearDetection()
+
     /** Finishes frame records that never completed; call every few seconds. */
     fun sweepFrameTimings()
 
@@ -106,6 +109,8 @@ class FaceclawParts(context: Context) : GlassesParts {
             override fun stopListening() = core.setListener(null)
 
             override fun setScreenOn(on: Boolean) = core.setG2ScreenOn(on)
+
+            override fun enableWearDetection() = core.enableWearDetectionAndRequestState()
 
             override fun sweepFrameTimings() {
                 timings.sweepTimedOut()

@@ -26,6 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.TimeText
+import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.glasses.FirmwareInstall
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
@@ -64,6 +65,7 @@ class MainActivity : ComponentActivity() {
         val scanner = app.scanner
         val state by glasses.state.collectAsStateWithLifecycle()
         val speed by desktop.speed.collectAsStateWithLifecycle()
+        val inputMode by app.apps.inputMode.collectAsStateWithLifecycle()
         var permissionTick by remember { mutableIntStateOf(0) }
         val missing = remember(permissionTick) { missingPermissions() }
         var screen by rememberSaveable { mutableStateOf(Screen.DEVICES) }
@@ -191,6 +193,8 @@ class MainActivity : ComponentActivity() {
                 onSpeed = { desktop.setSpeed(it) },
                 onClick = { desktop.click() },
                 onOpenSettings = { settingsReturn = Screen.TOUCHPAD; screen = Screen.SETTINGS },
+                gestureMode = inputMode == InputMode.GESTURES,
+                onGesture = { app.input.onWatchGesture(it) },
             )
 
             Screen.SETTINGS -> {

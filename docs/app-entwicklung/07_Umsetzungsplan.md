@@ -35,6 +35,9 @@ Kennungen doppelt → Hinweis statt Absturz.
 
 ## M1 – App-Host auf der Uhr, erste Uhr-Apps
 
+**Stand:** erledigt in v0.4.0 (nicht auf Hardware erprobt). Was dabei von 03 abweicht oder dazukam, steht
+dort in §9.
+
 **Ziel:** Auf der Brille gibt es „Apps“, darin Stoppuhr und Einkaufsliste, bedienbar mit Zeiger und Bügel.
 
 - Alles aus [03 §5](03_Uhr-Apps.md#5-plattform-der-app-host-zu-bauen-in-m1): Modell + JSON, `AppHost`,

@@ -3,6 +3,8 @@ package ch.madtreasures.g2watch.glasses
 import ch.madtreasures.g2watch.FakeDisplay
 import ch.madtreasures.g2watch.FakeScheduler
 import ch.madtreasures.g2watch.FakeText
+import ch.madtreasures.g2watch.apps.host.GlassesStatus
+import ch.madtreasures.g2watch.apps.host.InputRouter
 import ch.madtreasures.g2watch.desktop.AppId
 import ch.madtreasures.g2watch.desktop.DesktopController
 import com.faceclaw.app.BleProtocol
@@ -67,6 +69,12 @@ class GlassesConnectionTest {
 
         override fun setScreenOn(on: Boolean) {
             screenOn = on
+        }
+
+        var wearDetection = 0
+
+        override fun enableWearDetection() {
+            wearDetection++
         }
 
         override fun sweepFrameTimings() = Unit
@@ -481,5 +489,45 @@ class GlassesConnectionTest {
     private companion object {
         const val RIGHT = "AA:BB:CC:DD:EE:01"
         const val LEFT = "AA:BB:CC:DD:EE:02"
+    }
+
+    @Test
+    fun `once connected the wear detector is switched on`() {
+        val session = connected()
+        assertEquals(1, session.wearDetection)
+    }
+
+    @Test
+    fun `input and status of the glasses go to the listener`() {
+        val statuses = mutableListOf<GlassesStatus>()
+        val listener = object : GlassesListener {
+            override fun onInput(kind: String?, eventType: Int, eventSource: Int, ringTick: Long, ringType: Int) =
+                InputRouter.translate(kind, eventType, eventSource)
+
+            override fun onStatus(status: GlassesStatus) {
+                statuses += status
+            }
+        }
+        val own = GlassesConnection(desktop, parts, main, worker, clockMs = { clock }, listener = listener)
+        own.connect("G2 Test", RIGHT, LEFT)
+        settle()
+        probe.listener!!.onResult("2.3.0.24", "2.3.0.24", CURRENT)
+        settle()
+        advance(2_000)
+        val session = parts.sessions.last()
+        session.listener!!.onStateChange("connected", "Connected.")
+        session.listener!!.onBatteryState(81, 0, -1, -1)
+        session.listener!!.onWearState(true)
+        settle()
+        assertEquals(GlassesStatus(connected = true, battery = 81, charging = false, wearing = true), statuses.last())
+
+        // A swipe on a temple arrives without a side.
+        session.listener!!.onRingEvent("text-click", "", BleProtocol.EVENT_SCROLL_BOTTOM, 0, 0, 0, -1L, 0, 0, 0)
+        settle()
+        assertEquals("Wisch zurück (Brille)", own.state.value.lastInput)
+
+        own.disconnect()
+        settle()
+        assertEquals(GlassesStatus(), statuses.last())
     }
 }

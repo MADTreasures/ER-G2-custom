@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.TimeSource
+import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.glasses.GlassesState
 import ch.madtreasures.g2watch.glasses.Stage
 import org.junit.Assert.assertEquals
@@ -69,6 +71,8 @@ class TouchpadScreenTest {
     }
 
     private var glasses by mutableStateOf(connected)
+    private var gestureMode by mutableStateOf(false)
+    private val gestures = mutableListOf<GestureKind>()
 
     private fun show(state: GlassesState = connected) {
         glasses = state
@@ -81,6 +85,8 @@ class TouchpadScreenTest {
                     onClick = { clicks++ },
                     onOpenSettings = { settings++ },
                     timeSource = FixedTime,
+                    gestureMode = gestureMode,
+                    onGesture = { gestures += it },
                 )
             }
         }
@@ -327,5 +333,66 @@ class TouchpadScreenTest {
     private object FixedTime : TimeSource {
         @Composable
         override fun currentTime(): String = "14:05"
+    }
+
+    // --- Gesture mode (apps with input "gestures") -----------------------------------------------
+
+    private fun showGestures() {
+        gestureMode = true
+        show()
+    }
+
+    @Test
+    fun `in gesture mode swipes are gestures, not pointer moves`() {
+        showGestures()
+        compose.onNodeWithTag(GESTURES_TAG).assertIsDisplayed()
+        fun swipe(dx: Float, dy: Float) = compose.onRoot().performTouchInput {
+            down(finger)
+            repeat(4) { moveBy(Offset(dx / 4, dy / 4)) }
+            up()
+        }
+        swipe(120f, 0f)
+        swipe(-120f, 0f)
+        swipe(0f, -120f)
+        swipe(0f, 120f)
+        compose.waitForIdle()
+        assertEquals(
+            listOf(GestureKind.SWIPE_RIGHT, GestureKind.SWIPE_LEFT, GestureKind.SCROLL_DOWN, GestureKind.SCROLL_UP),
+            gestures,
+        )
+        assertEquals(Offset.Zero, moved)
+    }
+
+    @Test
+    fun `in gesture mode a tap waits for a second one, two taps are a double click`() {
+        showStill()
+        gestureMode = true
+        compose.mainClock.advanceTimeByFrame()
+        compose.onRoot().performTouchInput { click(finger) }
+        compose.mainClock.advanceTimeBy(200)
+        assertTrue(gestures.isEmpty())
+        compose.mainClock.advanceTimeBy(400)
+        assertEquals(listOf(GestureKind.CLICK), gestures)
+        gestures.clear()
+        compose.onRoot().performTouchInput { doubleClick(finger) }
+        compose.mainClock.advanceTimeBy(600)
+        assertEquals(listOf(GestureKind.DOUBLE_CLICK), gestures)
+        assertEquals(0, clicks)
+    }
+
+    @Test
+    fun `in gesture mode holding is a long press with its release, and the gear still opens the settings`() {
+        showStill()
+        gestureMode = true
+        compose.mainClock.advanceTimeByFrame()
+        compose.onRoot().performTouchInput { down(finger) }
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(listOf(GestureKind.LONG_PRESS), gestures)
+        compose.onRoot().performTouchInput { up() }
+        compose.mainClock.advanceTimeByFrame()
+        assertEquals(listOf(GestureKind.LONG_PRESS, GestureKind.LONG_PRESS_RELEASE), gestures)
+        compose.onRoot().performTouchInput { down(gear().center) }
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals(1, settings)
     }
 }

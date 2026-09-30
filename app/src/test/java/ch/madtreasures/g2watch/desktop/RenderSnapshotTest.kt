@@ -67,15 +67,6 @@ class RenderSnapshotTest {
         moveTo(tile(AppId.CLOCK).x + 60, tile(AppId.CLOCK).y + 40)
         save("desktop-start")
 
-        moveTo(tile(AppId.POINTER).x + 60, tile(AppId.POINTER).y + 40)
-        controller.click()
-        scheduler.runPending()
-        val faster = controller.layout.buttons(AppId.POINTER).first { it.first == ButtonId.FASTER }.second
-        moveTo(faster.x + 40, faster.y + 15)
-        save("desktop-zeiger")
-        controller.back()
-        scheduler.runPending()
-
         fun button(app: AppId, id: ButtonId) = controller.layout.buttons(app).first { it.first == id }.second
 
         moveTo(tile(AppId.COUNTER).x + 60, tile(AppId.COUNTER).y + 40)
