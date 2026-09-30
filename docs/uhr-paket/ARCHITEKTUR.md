@@ -2,7 +2,9 @@
 > Firmware. Inzwischen ist der Weg zum Aufspielen eingebaut (`WatchFirmwareInstaller`, siehe
 > [`../FIRMWARE.md`](../FIRMWARE.md)), `NoFlashingTest` ist durch `FlashingBoundaryTest` ersetzt und die
 > App verlangt genau Faceclaw-Firmware **Revision 35** (Faceclaw 0.8.0) statt „34 oder neuer“.
-> Alles zu Maus, Touchpad und Einstellungen gilt weiter.
+> Alles zu Maus, Touchpad und Einstellungen gilt weiter. Seit **0.4.0** ersetzt die Kachel „Apps“
+> (Starter für Apps, [README](../../README.md#apps-auf-der-brille)) das Fenster „Zeiger“; Tempo und
+> „Zeiger zentrieren“ stehen in den Einstellungen der Uhr.
 
 # G2 Watch – Architektur
 
@@ -15,8 +17,8 @@ Die App baut auf [Faceclaw](https://github.com/jimrandomh/faceclaw) auf (Jim Bab
 | ![Desktop mit Kacheln](../bilder/desktop-start.png) | ![Fenster Uhr](../bilder/desktop-uhr.png) |
 | **Fenster „Notiz“** | **Fenster „Zähler“** (3× auf „+“ geklickt) |
 | ![Fenster Notiz](../bilder/desktop-notiz.png) | ![Fenster Zähler](../bilder/desktop-zaehler.png) |
-| **Fenster „Zeiger“** | **Fenster „Info“** |
-| ![Fenster Zeiger](../bilder/desktop-zeiger.png) | ![Fenster Info](../bilder/desktop-info.png) |
+| **Kachel „Apps“: Starter** (seit 0.4.0, statt „Zeiger“) | **Fenster „Info“** |
+| ![Starter](../bilder/apps-starter.png) | ![Fenster Info](../bilder/desktop-info.png) |
 | **Fenster „Hilfe“** | |
 | ![Fenster Hilfe](../bilder/desktop-hilfe.png) | |
 

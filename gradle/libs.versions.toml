@@ -13,6 +13,8 @@ junit = "4.13.2"
 junitJupiter = "6.1.3"
 robolectric = "4.17"
 composeUiTest = "1.12.1"
+# GeckoView for the M2 probe (tools/gecko-probe) only, from maven.mozilla.org; one artifact per ABI.
+geckoview = "157.0.20260924084938"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -28,6 +30,9 @@ junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "composeUiTest" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "composeUiTest" }
+geckoview-armeabi-v7a = { group = "org.mozilla.geckoview", name = "geckoview-armeabi-v7a", version.ref = "geckoview" }
+geckoview-arm64-v8a = { group = "org.mozilla.geckoview", name = "geckoview-arm64-v8a", version.ref = "geckoview" }
+geckoview-x86x64 = { group = "org.mozilla.geckoview", name = "geckoview-x86_64", version.ref = "geckoview" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

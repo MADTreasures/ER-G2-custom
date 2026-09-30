@@ -19,7 +19,8 @@
 
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- Downloads Even's stock firmware (4.5 MB) from Even's CDN; nothing else goes online. -->
+    <!-- Downloads Even's stock firmware (4.5 MB) from Even's CDN, and serves the HTTPS requests of
+         watch apps the wearer gave the permission "Internet" (apps/host/AppHttp.kt). -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application

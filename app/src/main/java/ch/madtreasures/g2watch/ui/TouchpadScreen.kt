@@ -58,6 +58,8 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.TimeSource
 import androidx.wear.compose.material3.TimeTextDefaults
+import ch.madtreasures.g2watch.apps.GestureKind
+import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.desktop.PointerMotion
 import ch.madtreasures.g2watch.glasses.GlassesState
 import kotlinx.coroutines.CoroutineScope
@@ -66,7 +68,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.sin
 
 /**
@@ -79,6 +83,9 @@ import kotlin.math.sin
  * Only while a finger touches the face, a dark glass disc with a glowing blue rim sits under it and
  * follows it; the moment the finger lifts, the disc is gone. When the touch is the second of a
  * double tap, the rim lights up brightly: lifting now clicks.
+ *
+ * For an app in gesture mode ([mode] = [InputMode.GESTURES], 02 §7) the face reports gestures
+ * instead of moving a pointer: swipes in four directions, tap, double tap, long press and release.
  */
 @Composable
 fun TouchpadScreen(
@@ -88,6 +95,8 @@ fun TouchpadScreen(
     onSpeed: (Float) -> Unit,
     onClick: () -> Unit,
     onOpenSettings: () -> Unit,
+    mode: InputMode = InputMode.POINTER,
+    onGesture: (GestureKind) -> Unit = {},
     timeSource: TimeSource = TimeTextDefaults.rememberTimeSource(TimeTextDefaults.timeFormat()),
 ) {
     val haptics = LocalHapticFeedback.current
@@ -98,6 +107,7 @@ fun TouchpadScreen(
     val setSpeed by rememberUpdatedState(onSpeed)
     val click by rememberUpdatedState(onClick)
     val openSettings by rememberUpdatedState(onOpenSettings)
+    val gesture by rememberUpdatedState(onGesture)
     var lastTapAt by remember { mutableLongStateOf(NO_TAP) }
     // Whether the touch now down came soon enough after a tap to click when it lifts.
     var clicking by remember { mutableStateOf(false) }
@@ -129,7 +139,33 @@ fun TouchpadScreen(
                 }
                 .focusRequester(focusRequester)
                 .focusable()
-                .pointerInput(Unit) {
+                .pointerInput(mode) {
+                    if (mode == InputMode.GESTURES) {
+                        gesturePad(
+                            onDown = { position ->
+                                val onGear = gear.contains(position)
+                                feedback.down(position, onGear = onGear, clicking = false)
+                                onGear
+                            },
+                            onPosition = { feedback.follow(it) },
+                            onUp = { feedback.up() },
+                            onGearHeld = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                openSettings()
+                            },
+                            onGesture = { kind ->
+                                haptics.performHapticFeedback(
+                                    when (kind) {
+                                        GestureKind.LONG_PRESS -> HapticFeedbackType.LongPress
+                                        GestureKind.CLICK, GestureKind.DOUBLE_CLICK -> HapticFeedbackType.Confirm
+                                        else -> HapticFeedbackType.SegmentTick
+                                    },
+                                )
+                                gesture(kind)
+                            },
+                        )
+                        return@pointerInput
+                    }
                     relativeTouchpad(
                         onDown = { position, timeMs ->
                             val onGear = gear.contains(position)
@@ -189,6 +225,8 @@ fun TouchpadScreen(
                 )
                 if (speedShownAt != 0L) {
                     Text(String.format(Locale.GERMANY, "Tempo %.1f×", speed), fontSize = 14.sp, color = Color.White)
+                } else if (mode == InputMode.GESTURES) {
+                    Text("Gesten: wischen, tippen", fontSize = 13.sp, color = Color.White)
                 }
             }
             TouchFeedbackLayer(feedback, Modifier.fillMaxSize())
@@ -459,6 +497,108 @@ internal val RIM_TOP = Color(0xFFA3BFEE)
 internal val RIM_BOTTOM = Color(0xFFD8E7FF)
 private val INNER_EDGE = Color(0xFF7F99C6)
 private val HALO = Color(0xFF4C8DFF)
+
+/**
+ * The face as a gesture pad (02 §7, gesture mode): a stroke longer than [SWIPE_MIN] is a swipe
+ * (finger up = `scrollDown`, the next item, like a phone list; right = the host's Back), a short
+ * touch a tap, two taps within [DOUBLE_TAP_MS] a double tap, and resting [LONG_PRESS_MS] a long
+ * press whose lifting reports the release. A tap waits for a possible second one before it counts.
+ * Holding the gear still opens the settings.
+ */
+private suspend fun PointerInputScope.gesturePad(
+    onDown: (position: Offset) -> Boolean,
+    onPosition: (position: Offset) -> Unit,
+    onUp: () -> Unit,
+    onGearHeld: () -> Unit,
+    onGesture: (GestureKind) -> Unit,
+) {
+    val slop = viewConfiguration.touchSlop
+    val swipeMin = SWIPE_MIN.toPx()
+    awaitPointerEventScope {
+        var tapPending = false
+        fun flushTap() {
+            if (tapPending) {
+                tapPending = false
+                onGesture(GestureKind.CLICK)
+            }
+        }
+        while (true) {
+            val down = if (tapPending) {
+                withTimeoutOrNull(DOUBLE_TAP_MS) { awaitFirstDown(requireUnconsumed = false) }
+            } else {
+                awaitFirstDown(requireUnconsumed = false)
+            }
+            if (down == null) {
+                flushTap()
+                continue
+            }
+            down.consume()
+            val onGear = onDown(down.position)
+            val start = down.position
+            var last = start
+            var travelled = 0f
+            var held = false
+            var upTime = down.uptimeMillis
+            try {
+                while (true) {
+                    val event = if (!held && travelled <= slop) {
+                        withTimeoutOrNull((LONG_PRESS_MS - (upTime - down.uptimeMillis)).coerceAtLeast(1L)) { awaitPointerEvent() }
+                    } else {
+                        awaitPointerEvent()
+                    }
+                    if (event == null) {
+                        held = true
+                        if (onGear) {
+                            onGearHeld()
+                        } else {
+                            flushTap()
+                            onGesture(GestureKind.LONG_PRESS)
+                        }
+                        continue
+                    }
+                    val change = event.changes.firstOrNull { it.id == down.id }
+                    if (change == null || !change.pressed) {
+                        upTime = change?.uptimeMillis ?: upTime
+                        break
+                    }
+                    upTime = change.uptimeMillis
+                    last = change.position
+                    travelled = max(travelled, (last - start).getDistance())
+                    onPosition(last)
+                    event.changes.forEach { it.consume() }
+                }
+            } finally {
+                onUp()
+            }
+            when {
+                held -> if (!onGear) onGesture(GestureKind.LONG_PRESS_RELEASE)
+                travelled > swipeMin -> {
+                    flushTap()
+                    val d = last - start
+                    onGesture(
+                        if (abs(d.x) > abs(d.y)) {
+                            if (d.x > 0) GestureKind.SWIPE_RIGHT else GestureKind.SWIPE_LEFT
+                        } else {
+                            if (d.y < 0) GestureKind.SCROLL_DOWN else GestureKind.SCROLL_UP
+                        },
+                    )
+                }
+                !onGear && travelled <= slop && upTime - down.uptimeMillis <= TAP_MAX_MS -> {
+                    if (tapPending) {
+                        tapPending = false
+                        onGesture(GestureKind.DOUBLE_CLICK)
+                    } else {
+                        tapPending = true
+                    }
+                }
+                else -> flushTap()
+            }
+        }
+    }
+}
+
+/** A stroke at least this long is a swipe in gesture mode. */
+private val SWIPE_MIN = 36.dp
 
 /**
  * Relative pointer tracking, from G2 Direct. Only deltas between successive events of the same

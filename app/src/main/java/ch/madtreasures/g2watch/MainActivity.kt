@@ -64,6 +64,7 @@ class MainActivity : ComponentActivity() {
         val scanner = app.scanner
         val state by glasses.state.collectAsStateWithLifecycle()
         val speed by desktop.speed.collectAsStateWithLifecycle()
+        val touchMode by desktop.touchMode.collectAsStateWithLifecycle()
         var permissionTick by remember { mutableIntStateOf(0) }
         val missing = remember(permissionTick) { missingPermissions() }
         var screen by rememberSaveable { mutableStateOf(Screen.DEVICES) }
@@ -191,6 +192,8 @@ class MainActivity : ComponentActivity() {
                 onSpeed = { desktop.setSpeed(it) },
                 onClick = { desktop.click() },
                 onOpenSettings = { settingsReturn = Screen.TOUCHPAD; screen = Screen.SETTINGS },
+                mode = touchMode,
+                onGesture = { desktop.watchGesture(it) },
             )
 
             Screen.SETTINGS -> {
@@ -200,7 +203,7 @@ class MainActivity : ComponentActivity() {
                     speed = speed,
                     describeFirmware = firmware::describe,
                     onBack = { screen = settingsReturn },
-                    onCloseWindow = { desktop.back(); screen = Screen.TOUCHPAD },
+                    onCloseWindow = { desktop.closeWindow(); screen = Screen.TOUCHPAD },
                     onCenter = { desktop.centerPointer(); screen = Screen.TOUCHPAD },
                     onSpeed = { desktop.setSpeed(it) },
                     onConnect = { screen = Screen.DEVICES },

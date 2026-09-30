@@ -5,8 +5,8 @@ import androidx.annotation.MainThread
 import ch.madtreasures.g2watch.MainScheduler
 import ch.madtreasures.g2watch.Scheduler
 import ch.madtreasures.g2watch.ThreadScheduler
+import ch.madtreasures.g2watch.apps.host.InputRouter
 import ch.madtreasures.g2watch.desktop.DesktopController
-import com.faceclaw.app.BleProtocol
 import com.faceclaw.app.FaceclawBleCommunicatorListener
 import com.faceclaw.app.FaceclawDeviceInfoProbeListener
 import com.faceclaw.app.FrameTimingsCore
@@ -65,6 +65,9 @@ class GlassesConnection internal constructor(
     private var framesSent = 0L
     private var lastMetricsAtMs = 0L
     private val recentTransmitMs = ArrayDeque<Int>()
+
+    /** Temple and ring events to gestures (03 §5.1), with the ring's duplicates dropped. */
+    private val input = InputRouter()
 
     private class Target(val title: String, val right: String, val left: String?)
 
@@ -207,6 +210,7 @@ class GlassesConnection internal constructor(
         }
         val a = Active(session)
         active = a
+        input.reset()
         scheduleSweep(a)
         desktop.attach(session.display)
         session.start(SessionListener(gen))
@@ -262,7 +266,12 @@ class GlassesConnection internal constructor(
                 // Keeps the watch CPU awake while the glasses show the desktop. Not while they
                 // charge in the case or are out of reach: retrying can go on for hours, and the
                 // watch wakes up often enough on its own to reconnect.
-                Stage.CONNECTED -> active?.session?.setScreenOn(true)
+                Stage.CONNECTED -> active?.let { a ->
+                    a.session.setScreenOn(true)
+                    // "connected" also comes on each arm's link before the session is ready; the
+                    // wear detector (for "getragen", 03 §5.2) can only be set once it is.
+                    worker.post { if (!a.closed && a.session.isReady()) a.session.enableWearDetection() }
+                }
                 Stage.CHARGING, Stage.RECONNECTING -> active?.session?.setScreenOn(false)
                 else -> Unit
             }
@@ -291,22 +300,10 @@ class GlassesConnection internal constructor(
             ringAux: Int,
             ringSpeed: Int,
         ) {
-            if (!current || kind != "sys-event") return
-            val source = when (eventSource) {
-                BleProtocol.EVENT_SOURCE_GLASSES_R -> "rechter Bügel"
-                BleProtocol.EVENT_SOURCE_GLASSES_L -> "linker Bügel"
-                BleProtocol.EVENT_SOURCE_RING -> "Ring"
-                else -> "Brille"
-            }
-            val gesture = when (eventType) {
-                BleProtocol.EVENT_CLICK -> "Tipp".also { desktop.click() }
-                BleProtocol.EVENT_DOUBLE_CLICK -> "Doppeltipp".also { desktop.back() }
-                BleProtocol.EVENT_SCROLL_TOP -> "Wisch vor"
-                BleProtocol.EVENT_SCROLL_BOTTOM -> "Wisch zurück"
-                BleProtocol.EVENT_RING_LONG_PRESS -> "Halten"
-                else -> return
-            }
-            setState(_state.value.copy(lastInput = "$gesture ($source)"))
+            if (!current) return
+            val gesture = input.translate(kind, eventType, eventSource, ringTick, ringType) ?: return
+            desktop.glassesGesture(gesture)
+            setState(_state.value.copy(lastInput = gesture.label))
         }
 
         override fun onBatteryState(headsetBattery: Int, headsetCharging: Int, ringBattery: Int, ringCharging: Int) {

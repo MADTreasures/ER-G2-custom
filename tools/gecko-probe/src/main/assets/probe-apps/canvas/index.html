@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Canvas</title></head>
+<body>
+<canvas id="c" width="288" height="144"></canvas>
+<script src="../common/even.js"></script>
+<script>
+  // Test app 2 (05 §5.1): draws into a canvas and sends the picture as 4-bit gray, the way an Even
+  // Hub app sends image containers (updateImageRawData).
+  const t0 = performance.now();
+  const canvas = document.getElementById("c");
+  const g = canvas.getContext("2d");
+  const sky = g.createLinearGradient(0, 0, 0, 144);
+  sky.addColorStop(0, "#102040");
+  sky.addColorStop(1, "#f0c080");
+  g.fillStyle = sky;
+  g.fillRect(0, 0, 288, 144);
+  g.fillStyle = "#fff0c0";
+  g.beginPath();
+  g.arc(210, 45, 22, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = "#304030";
+  g.beginPath();
+  g.moveTo(0, 144); g.lineTo(0, 100); g.lineTo(70, 70); g.lineTo(150, 105); g.lineTo(230, 80); g.lineTo(288, 100); g.lineTo(288, 144);
+  g.fill();
+  g.fillStyle = "#ffffff";
+  g.font = "bold 20px sans-serif";
+  g.fillText("Canvas", 16, 30);
+  const drawnMs = performance.now() - t0;
+
+  const pixels = g.getImageData(0, 0, 288, 144).data;
+  const packed = new Uint8Array(288 * 144 / 2);
+  for (let i = 0; i < 288 * 144; i++) {
+    const y = 0.2126 * pixels[i * 4] + 0.7152 * pixels[i * 4 + 1] + 0.0722 * pixels[i * 4 + 2];
+    const level = Math.min(15, (Math.round(y) + 8) >> 4);
+    packed[i >> 1] |= (i & 1) ? level : level << 4;
+  }
+  let binary = "";
+  for (let i = 0; i < packed.length; i++) binary += String.fromCharCode(packed[i]);
+  const encodedMs = performance.now() - t0;
+  even.call("updateImageRawData", { containerID: 2, width: 288, height: 144, format: "gray4", data: btoa(binary) })
+    .then((result) => even.call("probeReport", { app: "canvas", drawnMs, encodedMs, result }));
+</script>
+</body>
+</html>

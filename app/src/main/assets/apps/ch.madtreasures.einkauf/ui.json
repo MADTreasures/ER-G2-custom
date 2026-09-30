@@ -1,0 +1,90 @@
+{
+  "format": "g2-baukasten@1",
+  "name": "Einkauf",
+  "start": "p_liste",
+  "updatedAt": "2026-09-30T08:00:00.000Z",
+  "pages": [
+    {
+      "id": "p_liste",
+      "name": "Einkauf",
+      "statusBar": true,
+      "notes": "Liste abhaken. Die Liste bleibt auf der Uhr gespeichert.",
+      "blocks": [
+        {
+          "id": "offen",
+          "type": "value",
+          "text": "Offen",
+          "value": "5"
+        },
+        {
+          "id": "items",
+          "type": "list",
+          "style": "checks",
+          "items": [
+            {
+              "text": "Milch",
+              "done": false
+            },
+            {
+              "text": "Brot",
+              "done": false
+            },
+            {
+              "text": "Äpfel",
+              "done": false
+            },
+            {
+              "text": "Kaffee",
+              "done": false
+            },
+            {
+              "text": "Tomaten",
+              "done": false
+            }
+          ]
+        },
+        {
+          "id": "leeren",
+          "type": "button",
+          "text": "Erledigte löschen",
+          "target": null,
+          "action": "entfernt abgehakte Einträge"
+        },
+        {
+          "id": "zur_hilfe",
+          "type": "button",
+          "text": "Hilfe",
+          "target": "p_hilfe",
+          "action": ""
+        }
+      ]
+    },
+    {
+      "id": "p_hilfe",
+      "name": "Hilfe",
+      "statusBar": true,
+      "notes": "Kurze Bedienhilfe.",
+      "blocks": [
+        {
+          "id": "hilfe_text",
+          "type": "text",
+          "text": "Zeiger auf einen Eintrag, Doppeltipp auf der Uhr hakt ab. Mit dem Bügel: wischen wählt, tippen hakt ab.",
+          "align": "left"
+        },
+        {
+          "id": "hilfe_menue",
+          "type": "text",
+          "text": "Tippen und halten öffnet das Menü mit „Beispiel-Liste“.",
+          "align": "left"
+        },
+        {
+          "id": "hilfe_zurueck",
+          "type": "button",
+          "text": "Zurück",
+          "target": "@back",
+          "action": ""
+        }
+      ]
+    }
+  ]
+}

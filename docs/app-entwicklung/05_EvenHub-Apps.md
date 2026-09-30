@@ -191,10 +191,10 @@ Quelle: `right` → 1, `ring` und `watch` → 2, `left` → 3.
 
 | Punkt | Festlegung |
 |---|---|
-| Bibliothek | pro Architektur `org.mozilla.geckoview:geckoview-armeabi-v7a` bzw. `-arm64-v8a` (für den Emulator `-x86_64`), Version 156 oder neuer, von `maven.mozilla.org` (MPL-2.0, minSdk 26). Nicht `geckoview` (alle Architekturen, 242 MB). |
-| Repository | `settings.gradle.kts` erlaubt heute nur Google und Maven Central (`FAIL_ON_PROJECT_REPOS`); dort `maven("https://maven.mozilla.org/maven2/")` mit Inhaltsfilter `includeGroup("org.mozilla.geckoview")` ergänzen |
-| Architektur | Pixel Watch 3 und 4 laufen mit 32-Bit-Apps (`armeabi-v7a`); für die Watch 5 vorher mit `adb shell getprop ro.product.cpu.abilist` prüfen und die APK mit `abiFilters` darauf beschränken |
-| Größe | Download ≈ 85–90 MB je Architektur; installiert ≈ 150 MB (32 Bit) bis 190 MB (64 Bit), weil `.so`-Dateien unkomprimiert liegen; ob `useLegacyPackaging` das verbessert, entscheidet M3 nach Messung |
+| Bibliothek | pro Architektur `org.mozilla.geckoview:geckoview-armeabi-v7a` bzw. `-arm64-v8a` (für den Emulator `-x86_64`), von `maven.mozilla.org` (MPL-2.0). Nicht `geckoview` (alle Architekturen, 242 MB). **Festgelegt: 157.0.20260924084938** (`geckoview` im Versionskatalog). Sie verlangt `compileSdk` **37.1** (`compileSdk = 37` + `compileSdkMinor = 1`, SDK-Paket `platforms;android-37.1`); `targetSdk` bleibt 37. |
+| Repository | steht in `settings.gradle.kts`: `maven("https://maven.mozilla.org/maven2/")` mit Inhaltsfilter `includeGroup("org.mozilla.geckoview")` (M2) |
+| Architektur | Pixel Watch 3 und 4 laufen mit 32-Bit-Apps (`armeabi-v7a`); für die Watch 5 vorher mit `adb shell getprop ro.product.cpu.abilist` prüfen und die APK mit `abiFilters` darauf beschränken (der Gecko-Test hat dafür je Architektur eine Variante) |
+| Größe | `libxul.so` allein: 116 MB (armeabi-v7a, schon ohne Symbole). Gecko-Test-APK mit komprimierten Bibliotheken (`useLegacyPackaging = true`): 117 MB (armv7) bzw. 120 MB (arm64); unkomprimiert 190 MB. Installiert kommen die entpackten Bibliotheken dazu. Was auf der Uhr tatsächlich belegt ist, zeigt *Einstellungen → Apps* nach der Installation (M2). |
 | Speicher | Uhr: 3 GB RAM. GeckoView braucht geschätzt 150–300 MB; **messen** (M2) |
 | Prozesse | GeckoView startet eigene Dienst-Prozesse (`:socket`, `:gpu`, `:media`, Inhalts-Prozesse). `G2WatchApp.onCreate` darf seine Arbeit (Desktop, Verbindung) nur im Hauptprozess tun (Prozessname prüfen). Laufzeit mit `fissionEnabled(false)`, `extensionsProcessEnabled(false)`. |
 | Sitzung | eine `GeckoSession` je App, **ohne sichtbare Ansicht**, `contextId` = `package_id`; `setActive(true)` und `setPriorityHint(PRIORITY_HIGH)`, im Vordergrund-Dienst mit laufender Benachrichtigung; sonst bremst Gecko Timer inaktiver Seiten bis auf 15 Minuten. Zusätzlich wie bei Faceclaw ein Timer-Ersatz im Brücken-Skript, den die Uhr antreibt (`__g2Tick`). |
@@ -215,6 +215,57 @@ Bevor die ganze Laufzeit gebaut wird, prüft eine Test-APK auf der Pixel Watch 5
 **Weiter mit GeckoView**, wenn: Kaltstart ≲ 5 s, Speicher ≲ 300 MB, kein Abbruch durch das System in
 30 Minuten, Timer weichen < 20 % ab, Akku vertretbar (Richtwert: < 8 % pro Stunde bei laufender App).
 Sonst: Handy als Standard-Ort (§6), GeckoView nur für ausgewählte Apps oder gar nicht.
+
+### 5.2 Die Test-APK „Gecko-Test“
+
+Gebaut in M2 als eigenes Modul `tools/gecko-probe/` (Gradle-Projekt `:gecko-probe`, App-ID
+`ch.madtreasures.g2watch.geckoprobe`), damit die Uhr-App nicht um GeckoView wächst, solange nichts
+entschieden ist. **Nicht auf Hardware erprobt**: kompiliert, Lint sauber, Einheitstests für Server, Brücke,
+Auswertung und Layout; ob GeckoView auf der Uhr startet, zeigt erst der erste Lauf dort.
+
+| Variante | für |
+|---|---|
+| `armv7Release` | Uhr mit 32-Bit-Apps (`abilist` beginnt mit `armeabi-v7a`) |
+| `arm64Release` | Uhr mit 64-Bit-Apps (`abilist` beginnt mit `arm64-v8a`) |
+| `x86Debug` | nur Emulator |
+
+Gemessen wird mit der **Release-Variante** (mit dem Debug-Schlüssel signiert, installiert sich direkt): Eine
+debugbare App läuft langsamer und braucht mehr Speicher. Aufbau:
+
+- `GeckoLab` – die Messungen im Hauptprozess: `GeckoRuntime` mit `fissionEnabled(false)`,
+  `extensionsProcessEnabled(false)`, `isolatedProcessEnabled(false)` (damit die Speicher aller Prozesse
+  lesbar sind), `displayDensityOverride(1.5)` (576 Pixel = 384 CSS-Pixel, Seiten ordnen sich wie auf einem
+  kleinen Handy an). Je Test-App eine `GeckoSession` ohne sichtbare Ansicht, `setActive(true)`,
+  `PRIORITY_HIGH`.
+- `ProbeService` – Vordergrund-Dienst (`specialUse`) mit Wake-Lock, solange ein Test läuft: so wie später die
+  Uhr-App die Brillenverbindung hält. Die Timer-Messung „Bildschirm aus“ gilt also für diesen Fall.
+- Brücke als eingebaute Erweiterung (`assets/probe-bridge/`, `ensureBuiltIn`): Das Content-Script
+  (`document_start`) setzt `window.flutter_inappwebview.callHandler` und ruft
+  `window._listenEvenAppMessage` auf, wie Evens Handy-App; die Nachrichten laufen über
+  `connectNative("g2probe")` zu `ProbeBridge` in Kotlin, als JSON-Text in `{ "json": "…" }`: GeckoView
+  überträgt Port-Nachrichten als `GeckoBundle`, und das kann keine verschachtelten oder gemischten Arrays
+  (das Seiten-Layout besteht daraus, Daten von Even-Hub-Apps können sie enthalten). Das gilt später genauso
+  für die EvenHub-Brücke (M3).
+- `AssetServer` – kleiner HTTP-Server auf `127.0.0.1` (nur GET/HEAD, kein `..`) für die Test-Apps aus
+  `assets/probe-apps/`: `text` (Container anlegen, Ereignis-Echo), `canvas` (288 × 144 Canvas → 4 Bit →
+  `updateImageRawData`), `vue-wasm` (Vue 3.5, MIT, und ein WebAssembly-Modul, das fib(30) rechnet),
+  `timer` (100-ms-Intervall, meldet alle 5 s), `render` (Testseite mit Foto, hellen und dunklen Flächen).
+
+Die Tests auf der Uhr, der Reihe nach:
+
+| Knopf | Dauer | Misst |
+|---|---|---|
+| 1 · Schnelltest | ≈ 1 min | Engine-Start, Kaltstart bis zum ersten Aufruf der Text-App, Rundlauf der Brücke, die drei Test-Apps, Speicher (PSS aller Prozesse der App aus `/proc/<pid>/smaps_rollup`; `getProcessMemoryInfo` nur als Ersatz, weil Android es nur alle 5 min auffrischt), Prozessliste |
+| 2 · Timer-Test | 4 min | 2 min mit Bildschirm an, Vibration, 2 min mit Bildschirm aus (Handgelenk senken); Abweichung vom 100-ms-Takt und längste Lücke |
+| 3 · Dauertest | 30 min | Text- und Timer-App laufen; Abstürze (`onCrash`, `onKill`, Engine-Ende), Speicherspitze, Akku pro Stunde (Ladezähler, feiner als ganze Prozent) |
+| 4 · Seite rendern | ≈ 10 s | der Bildweg des Browsers (M7): GeckoView zeichnet die Testseite in eine unsichtbare Fläche (`ImageReader` 576 × 260, `GeckoDisplay.capturePixels`), das Content-Script meldet Textzeilen, Bilder und Hintergründe, `web-raster` macht daraus das Brillenbild (§10) |
+| 5 · Wikipedia rendern | ≈ 10 s | dasselbe mit `https://de.m.wikipedia.org/wiki/Brille` (braucht Internet) |
+
+Die Uhr zeigt jeden Wert mit ✓ (Ziel erreicht), ~ (knapp) oder ✗ und darunter eine **Empfehlung** nach
+§5.1. „Bericht“ (unterer Rand) schreibt alles nach
+`/sdcard/Android/data/ch.madtreasures.g2watch.geckoprobe/files/g2-gecko-bericht.txt`; die Seiten-Tests legen
+dort `render-seite.png` (was GeckoView gezeichnet hat) und `render-brille.png` (was die Brille zeigen würde)
+ab. Holen mit `adb pull`. Eintragen in [quellen/E-m2-messwerte.md](quellen/E-m2-messwerte.md).
 
 ## 6. Engine auf dem Handy: „G2 Handy“
 
@@ -300,6 +351,10 @@ möchte, kann das mit Faceclaw auf dem Handy tun, auf eigene Verantwortung.
 - **Faceclaws EvenHub-Code** (GPL-3.0) als Vorlage: die übertragenen Kotlin-Dateien stehen unter GPL-3.0,
   mit Herkunftsvermerk wie `faceclaw-core/UPSTREAM.md`. Das passt zum Repo, das Faceclaws Kern schon enthält.
 - **SDK-Typen** (`index.d.ts`): MIT.
+- **Gecko-Test (M2):** enthält GeckoView (MPL-2.0; Quelltext: https://hg.mozilla.org/mozilla-central und
+  https://github.com/mozilla-firefox/firefox) und Vue 3.5 (MIT, Lizenztext neben `vue.global.prod.js` in
+  `tools/gecko-probe/src/main/assets/probe-apps/vue-wasm/`). Die Test-APK ist nur zum Messen, nicht zum
+  Weitergeben gedacht.
 
 ## 9. Tests
 
@@ -317,3 +372,35 @@ möchte, kann das mit Faceclaw auf dem Handy tun, auf eigene Verantwortung.
 Mit GeckoView auf der Uhr wird auch ein **Web-Browser für die Brille** möglich: GeckoView zeichnet eine Seite
 in eine unsichtbare Fläche, die Uhr schickt das Bild (in Graustufen) an die Brille, und der Zeiger auf dem
 Uhr-Touchpad klickt und scrollt. Das ist ein eigener Meilenstein nach der EvenHub-Laufzeit ([07](07_Umsetzungsplan.md)).
+
+### 10.1 Seiten ins Brillen-Raster wandeln (`web-raster`, gebaut)
+
+Eine Web-Seite ist fürs Papier gemacht: dunkle Schrift auf hellem Grund. Auf der Brille leuchtet Hell und
+Schwarz ist durchsichtig – eins zu eins übernommen wäre die Seite eine leuchtende Fläche mit Löchern als
+Schrift. Das Modul `web-raster` (reines Kotlin, ohne Android) macht daraus ein Bild, wie es die Even-Apps
+„Photos“ und „G2 Agent Cam“ zeigen: Inhalte leuchten grün, der Grund bleibt durchsichtig, und **Text ist
+immer lesbar**.
+
+Eingabe (`PageCapture`): die Pixel der Seite (ARGB, wie `Bitmap.getPixels`) und, wenn vorhanden, was das DOM
+weiß: Textzeilen mit Farbe (`TextRun`), Bilder (`<img>`, `<video>`, `<canvas>`, Hintergrundbilder) und Flächen
+mit Hintergrundfarbe (`Surface`). Im Gecko-Test liefert das Content-Script diese Angaben (`collectLayout`,
+CSS-Pixel → `LayoutParser`). Ausgabe: 576 Pixel breit, 16 Stufen, dazu ein Bericht.
+
+| Regel | Umsetzung (`GlassesRasterizer`, Werte in `RasterOptions`) |
+|---|---|
+| Grund wird durchsichtig | Hintergrund je Stelle schätzen (häufigste Helligkeit in 24 × 24 Pixeln, oder die Farbe der kleinsten DOM-Fläche darunter) und abziehen: weiße und dunkle Seiten verlieren ihren Grund gleichermaßen; kleine Unterschiede (< 28 von 255, Schatten, Kartenränder) bleiben dunkel |
+| Bilder bleiben positiv | Bilder behalten Hell und Dunkel, je Bild auf 2–98 % gestreckt, mal 0,85, mit Floyd–Steinberg auf die 16 Stufen gebracht |
+| Text immer voll lesbar | jede Textzeile wird aus ihren Pixeln neu gezeichnet: Glyphen in voller Helligkeit (Stufe 15), auch blaue Links und graue Bildunterschriften |
+| Text auf unruhigem Grund → **negativ** | wäre der Grund um eine Zeile auf der Brille hell oder unruhig (Text auf einem Foto: Mittel > 70 oder Streuung > 40 von 255), bekommt die Zeile eine helle Platte (Stufe 12) mit dunkel ausgesparten Buchstaben |
+| **Überladenes Fenster → negativ** | nehmen Bilder (mit ihrer ganzen Fläche, auch dunkle) und leuchtende Flächen mehr als 35 % des Fensters ein, wird **aller** Text negativ gesetzt, und helle Bilder werden auf ein Mittel von 80 gedämpft, damit die Platten sich abheben |
+
+Die Bilder in `docs/bilder/raster-*.png` zeigen die vier Fälle (erzeugt von `RasterSnapshotTest` aus
+Java2D-Testseiten, nicht von einem Browser):
+
+| Heller Artikel | Dunkle Seite | Text auf Foto | Überladen |
+|---|---|---|---|
+| ![hell](../bilder/raster-hell.png) | ![dunkel](../bilder/raster-dunkel.png) | ![Text auf Bild](../bilder/raster-text-auf-bild.png) | ![überladen](../bilder/raster-ueberladen.png) |
+
+Die Grenzwerte sind Annahmen und werden nachjustiert, sobald echte Seiten auf der echten Brille zu sehen sind
+(Gecko-Test „Seite rendern“ liefert dafür `render-brille.png`). Was M7 noch fehlt, steht in
+[07 M7](07_Umsetzungsplan.md#m7--web-browser-auf-der-brille-wenn-m2-geckoview-ja-ergibt).

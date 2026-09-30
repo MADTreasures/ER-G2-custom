@@ -69,6 +69,17 @@ class GlassesConnectionTest {
             screenOn = on
         }
 
+        var ready = false
+        var wearDetectionEnabled = 0
+        var wearEnabledOnWorker = false
+
+        override fun isReady(): Boolean = ready
+
+        override fun enableWearDetection() {
+            wearDetectionEnabled++
+            wearEnabledOnWorker = worker.inTask && !main.inTask
+        }
+
         override fun sweepFrameTimings() = Unit
 
         override fun close() {
@@ -481,5 +492,36 @@ class GlassesConnectionTest {
     private companion object {
         const val RIGHT = "AA:BB:CC:DD:EE:01"
         const val LEFT = "AA:BB:CC:DD:EE:02"
+    }
+
+    @Test
+    fun `the wear detector is switched on once the session is ready`() {
+        checkWith(CURRENT)
+        advance(2_000)
+        val session = parts.sessions.single()
+        // The first "connected" comes with an arm's link, before the session is ready.
+        session.listener!!.onStateChange("connected", "Connected.")
+        settle()
+        assertEquals(0, session.wearDetectionEnabled)
+        session.ready = true
+        session.listener!!.onStateChange("connected", "Connected.")
+        settle()
+        assertEquals(1, session.wearDetectionEnabled)
+        assertTrue(session.wearEnabledOnWorker)
+        session.listener!!.onWearState(true)
+        settle()
+        assertEquals(true, state.wearing)
+    }
+
+    @Test
+    fun `temple swipes arrive as gestures, no longer dropped`() {
+        val session = connected()
+        // Swipes on a temple come as text events without a side (03 §5.1).
+        session.listener!!.onRingEvent("text-click", "dashboard", BleProtocol.EVENT_SCROLL_TOP, 0, 0, 0, -1L, 0, 0, 0)
+        settle()
+        assertEquals("Wisch vor (Brille)", state.lastInput)
+        session.listener!!.onRingEvent("sys-event", "", BleProtocol.EVENT_DOUBLE_CLICK, BleProtocol.EVENT_SOURCE_GLASSES_L, 0, 0, -1L, 0, 0, 0)
+        settle()
+        assertEquals("Doppeltipp (linker Bügel)", state.lastInput)
     }
 }

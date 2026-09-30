@@ -83,7 +83,7 @@ Pixel außerhalb des Bildschirms zählen als dunkel. Weil jedes Pixel für sich 
 
 **Fingerabdruck:** Er lautet `pointer:` plus ein 64-Bit-FNV-1a-Hash über die Zeigerpixel. Ändern sich die Pixel, ändert sich der Fingerabdruck. Die Position gehört zur Geometrie der Fläche.
 
-**Bewegung:** `PointerMotion.toGlasses` rechnet die Fingerbewegung in Brillenpixel um. Die Formel lautet `dp × 2,6 × Tempo × Beschleunigung`. Die Beschleunigung ist `0,55 + Geschwindigkeit × 1,2`, begrenzt auf 0,55 bis 2,6. Das Tempo liegt zwischen 0,3 und 4 und lässt sich über die Krone, das Menü oder das Fenster „Zeiger“ einstellen. Der Zeiger bleibt im sichtbaren Streifen: 640 × 288 Pixel, bei y = 96 bis 383.
+**Bewegung:** `PointerMotion.toGlasses` rechnet die Fingerbewegung in Brillenpixel um. Die Formel lautet `dp × 2,6 × Tempo × Beschleunigung`. Die Beschleunigung ist `0,55 + Geschwindigkeit × 1,2`, begrenzt auf 0,55 bis 2,6. Das Tempo liegt zwischen 0,3 und 4 und lässt sich über die Krone, das Menü oder (bis 0.3.0) das Fenster „Zeiger“ einstellen; seit 0.4.0 steht es in den Einstellungen der Uhr. Der Zeiger bleibt im sichtbaren Streifen: 640 × 288 Pixel, bei y = 96 bis 383.
 
 **Bekannte Grenze:** Desktop und Zeiger gehen als zwei Sendungen raus. Dazwischen kann für ein Bild die neue Oberfläche mit dem alten Zeiger entstehen. Mit Faceclaws Kern wird dieses Zwischenbild meist schon vor dem Senden vom nächsten ersetzt.
 
@@ -342,7 +342,7 @@ interface FirmwareInstaller {
 
 | Einstellung | Wozu | Mit Custom-Firmware (Faceclaws Kanal) | Empfehlung |
 |---|---|---|---|
-| **Tempo** 0,3–4× (Krone, Einstellungen, Fenster „Zeiger“) | Wie weit der Zeiger pro Fingerweg fährt | Bleibt sinnvoll. Es geht um die Bedienung, nicht um die Übertragung. Mit Custom-Firmware sitzt der Zeiger pixelgenau und bewegt sich bis zu 30-mal pro Sekunde, da hilft ein gutes Tempo für feines Zielen noch mehr. | behalten; den Startwert 1,0 nach dem Hardwaretest nachjustieren |
+| **Tempo** 0,3–4× (Krone, Einstellungen; bis 0.3.0 auch Fenster „Zeiger“) | Wie weit der Zeiger pro Fingerweg fährt | Bleibt sinnvoll. Es geht um die Bedienung, nicht um die Übertragung. Mit Custom-Firmware sitzt der Zeiger pixelgenau und bewegt sich bis zu 30-mal pro Sekunde, da hilft ein gutes Tempo für feines Zielen noch mehr. | behalten; den Startwert 1,0 nach dem Hardwaretest nachjustieren |
 | **Beschleunigung** 0,55–2,6 | Langsam = präzise, schnell = weite Wege | Unabhängig von der Firmware | behalten, fest eingebaut |
 | **Parallel 1/2/3/4/6/8** („eins bis acht“ aus G2 Direct) | Wie viele Text-Updates gleichzeitig unterwegs sind. Das war nötig, weil die Original-Firmware jedes Text-Update erst nach etwa 140 ms bestätigt. | Nicht sinnvoll. Faceclaws Transport schickt bereits bis zu drei Nachrichten gleichzeitig (`ConnectionOptions.WINDOW_SIZE = 3`). Dieses Fenster ist auf die Firmware abgestimmt: Zwischenspeicher der Firmware, Ring für 16 Frame-IDs, Bestätigung p99 63 ms, Wiederholung nach 500 ms. Veraltete Bilder verwirft der Kern ohnehin, gesendet wird immer das neueste. Eine Einstellung dafür bringt bestenfalls nichts und kann schlimmstenfalls die Puffer der Firmware überfahren. | weglassen; in G2 Watch gibt es sie nicht |
 | **Zeigertakt** 33 ms (`POINTER_INTERVAL_MS`) | Höchstens etwa 30 Zeigerbilder pro Sekunde | Die Custom-Firmware schafft etwa 41 KiB/s. Eine Zeigerbewegung kostet nur zwei kleine Rechtecke. | interne Konstante, nach Messung auf Hardware ggf. auf 16–25 ms senken |

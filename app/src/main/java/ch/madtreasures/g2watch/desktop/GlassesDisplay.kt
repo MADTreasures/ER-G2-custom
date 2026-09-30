@@ -13,6 +13,12 @@ interface GlassesDisplay {
      * compositor treats an unchanged fingerprint with unchanged geometry as "nothing to send".
      */
     fun submit(id: String, pixels: ByteArray, width: Int, height: Int, fingerprint: String)
+
+    /**
+     * Shows or hides surface [id] (configured before). A hidden surface keeps its pixels but is left
+     * out of the picture; the change is drawn at once.
+     */
+    fun setSurfaceVisible(id: String, visible: Boolean)
 }
 
 /** Draws text into a [GrayRaster]; Android's font renderer on the watch, a stub in tests. */

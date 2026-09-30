@@ -22,4 +22,6 @@ class CoreDisplay(private val core: GlassesSessionCore, private val timings: Fra
         val frameId = timings.startFrame("g2watch:$id")
         core.submitSurfaceFrame(ArrayByteReader(pixels), id, 0, 0, width, height, fingerprint, 0, frameId, null)
     }
+
+    override fun setSurfaceVisible(id: String, visible: Boolean) = core.setSurfaceVisible(id, visible)
 }

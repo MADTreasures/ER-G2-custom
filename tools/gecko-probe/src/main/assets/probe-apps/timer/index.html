@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Timer</title></head>
+<body>
+<p>Timer</p>
+<script src="../common/even.js"></script>
+<script>
+  // Timer test (05 §5.1): a 100 ms interval, as Even Hub apps use for animation and polling. Every
+  // 5 s it reports how regular it was; the watch notes whether its screen was on meanwhile.
+  const INTERVAL = 100;
+  let last = performance.now();
+  let count = 0;
+  let sum = 0;
+  let maxGap = 0;
+  let late = 0;
+  let windowStart = last;
+  setInterval(() => {
+    const now = performance.now();
+    const gap = now - last;
+    last = now;
+    count++;
+    sum += gap;
+    maxGap = Math.max(maxGap, gap);
+    if (gap > INTERVAL * 1.5) late++;
+    if (now - windowStart >= 5000) {
+      even.call("timerReport", { count, meanMs: sum / count, maxGapMs: maxGap, late, spanMs: now - windowStart });
+      count = 0; sum = 0; maxGap = 0; late = 0; windowStart = now;
+    }
+  }, INTERVAL);
+</script>
+</body>
+</html>

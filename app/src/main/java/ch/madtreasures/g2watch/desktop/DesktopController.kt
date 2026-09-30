@@ -2,6 +2,13 @@ package ch.madtreasures.g2watch.desktop
 
 import ch.madtreasures.g2watch.Scheduler
 import ch.madtreasures.g2watch.ThreadScheduler
+import ch.madtreasures.g2watch.apps.GestureKind
+import ch.madtreasures.g2watch.apps.InputMode
+import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.host.AppFrame
+import ch.madtreasures.g2watch.apps.host.AppHost
+import ch.madtreasures.g2watch.apps.host.AppScreen
+import ch.madtreasures.g2watch.apps.host.GlassesInput
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,13 +41,17 @@ class DesktopFrame(
  * pixels, so Faceclaw's planner sends just the few pixel rows around the old and new position.
  * Pointer frames are coalesced to at most one per [POINTER_INTERVAL_MS]; the desktop is
  * re-rendered only when something on it changed, and the pointer is redrawn against it at once.
+ *
+ * The "Apps" tile hands the window area to the [AppHost] (03 §5): its pictures arrive as
+ * [AppFrame]s ([showApps]), and pointer, clicks, Back and gestures go to it while it is open. In
+ * gesture mode the pointer is hidden and the watch touchpad reports gestures instead.
  */
 class DesktopController(
     private val text: TextPainter,
     private val scheduler: Scheduler = ThreadScheduler("G2Watch-desktop"),
     private val nowMs: () -> Long = { System.nanoTime() / 1_000_000L },
     private val now: () -> LocalDateTime = { LocalDateTime.now() },
-) {
+) : AppScreen {
     val layout = DesktopLayout.centered()
 
     private val desktop = Desktop(layout)
@@ -59,6 +70,8 @@ class DesktopController(
     private var sentPointerFingerprint: String? = null
     private var sentPointerX = 0
     private var sentPointerY = 0
+    private var pointerShown = true
+    private var apps: AppHost? = null
 
     private val _frame = MutableStateFlow(
         DesktopFrame(layout.band, ByteArray(layout.band.w * layout.band.h), 0, pointer.x, pointer.y, pointerPixels),
@@ -69,11 +82,22 @@ class DesktopController(
 
     private val _speed = MutableStateFlow(1f)
 
-    /** Pointer speed factor, adjustable with the crown and in the "Zeiger" window. */
+    /** Pointer speed factor, adjustable with the crown and in the watch settings. */
     val speed: StateFlow<Float> = _speed.asStateFlow()
+
+    private val _touchMode = MutableStateFlow(InputMode.POINTER)
+
+    /** What the watch touchpad is now: a pointer, or gestures for an app in gesture mode. */
+    val touchMode: StateFlow<InputMode> = _touchMode.asStateFlow()
 
     init {
         scheduler.post { flushDesktop() }
+    }
+
+    /** The app host behind the "Apps" tile; it draws through [showApps]. */
+    fun connectApps(host: AppHost) = scheduler.post {
+        apps = host
+        host.screen = this
     }
 
     /** Starts mirroring to [display]; configures both surfaces and sends the current picture. */
@@ -81,6 +105,7 @@ class DesktopController(
         this.display = display
         display.configureSurface(DESKTOP, 0, 0, DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT, DESKTOP_Z, colorKey = false)
         configurePointer(display)
+        if (!pointerShown) display.setSurfaceVisible(POINTER, false)
         sentDesktopFingerprint = null
         sentPointerFingerprint = null
         desktopDirty = true
@@ -100,28 +125,96 @@ class DesktopController(
     }
 
     /** A click at the pointer. */
-    fun click() = scheduler.post {
-        when (desktop.click(pointer.x, pointer.y)) {
-            ClickEffect.NONE -> return@post
-            ClickEffect.REDRAW -> Unit
-            ClickEffect.SLOWER -> applySpeed(_speed.value - SPEED_STEP)
-            ClickEffect.FASTER -> applySpeed(_speed.value + SPEED_STEP)
-            ClickEffect.CENTER_POINTER -> {
-                pointer.center()
-                renderPointer()
-                publishPointer()
-                schedulePointerFlush()
+    fun click() = scheduler.post { clickAtPointer() }
+
+    private fun clickAtPointer() {
+        if (desktop.appsOpen) {
+            val host = apps ?: return
+            when (desktop.hitTest(pointer.x, pointer.y)) {
+                Target.AppBack -> host.back()
+                Target.AppMenu -> host.openMenu()
+                Target.AppArea -> desktop.appArea.let { host.click(pointer.x - it.x, pointer.y - it.y) }
+                else -> Unit
             }
+            return
+        }
+        when (desktop.click(pointer.x, pointer.y)) {
+            ClickEffect.NONE -> return
+            ClickEffect.REDRAW -> Unit
+            ClickEffect.OPEN_APPS -> apps?.open()
         }
         desktop.updateHover(pointer.x, pointer.y)
         invalidate()
     }
 
-    /** Closes the open window. */
-    fun back() = scheduler.post {
+    /** Back: closes the open window; in the apps it goes to the app host (previous page, launcher, desktop). */
+    fun back() = scheduler.post { backNow() }
+
+    private fun backNow() {
+        if (desktop.appsOpen) {
+            apps?.back()
+            return
+        }
         if (desktop.back()) {
             desktop.updateHover(pointer.x, pointer.y)
             invalidate()
+        }
+    }
+
+    /** "Fenster schließen" in the watch settings: closes a window, or leaves the apps altogether. */
+    fun closeWindow() = scheduler.post {
+        if (desktop.appsOpen) apps?.leave() else backNow()
+    }
+
+    /**
+     * A gesture from a temple or the ring (03 §5.1). The apps get every gesture; the desktop itself
+     * knows tap (click at the pointer) and double tap (close the window).
+     */
+    fun glassesGesture(input: GlassesInput) = scheduler.post {
+        val host = apps
+        if (desktop.appsOpen && host != null) {
+            host.gesture(input.gesture, input.source)
+            return@post
+        }
+        when (input.gesture) {
+            GestureKind.CLICK -> clickAtPointer()
+            GestureKind.DOUBLE_CLICK -> backNow()
+            else -> Unit
+        }
+    }
+
+    /** A gesture of the watch touchpad in gesture mode ([touchMode]); only apps use those. */
+    fun watchGesture(kind: GestureKind) = scheduler.post {
+        if (desktop.appsOpen) apps?.gesture(kind, InputSource.WATCH)
+    }
+
+    // --- AppScreen, called on the app thread --------------------------------------------------------
+
+    override fun showApps(frame: AppFrame) = scheduler.post {
+        if (!desktop.appsOpen) return@post
+        desktop.appFrame = frame
+        setPointerShown(frame.input == InputMode.POINTER)
+        desktop.updateHover(pointer.x, pointer.y)
+        invalidate()
+    }
+
+    override fun closeApps() = scheduler.post {
+        desktop.closeApps()
+        setPointerShown(true)
+        desktop.updateHover(pointer.x, pointer.y)
+        invalidate()
+    }
+
+    /** Shows or hides the pointer surface, and switches the watch touchpad along. */
+    private fun setPointerShown(shown: Boolean) {
+        _touchMode.value = if (shown) InputMode.POINTER else InputMode.GESTURES
+        if (shown == pointerShown) return
+        pointerShown = shown
+        val d = display ?: return
+        d.setSurfaceVisible(POINTER, shown)
+        if (shown) {
+            sentPointerFingerprint = null
+            sendPointer(d)
         }
     }
 
@@ -150,16 +243,12 @@ class DesktopController(
     }
 
     private fun applySpeed(value: Float) {
-        val v = value.coerceIn(PointerMotion.MIN_SPEED, PointerMotion.MAX_SPEED)
-        _speed.value = v
-        if (desktop.status.speed != v) {
-            desktop.status = desktop.status.copy(speed = v)
-            invalidate()
-        }
+        _speed.value = value.coerceIn(PointerMotion.MIN_SPEED, PointerMotion.MAX_SPEED)
     }
 
     private fun afterPointerMoved() {
         if (desktop.updateHover(pointer.x, pointer.y)) invalidate()
+        if (desktop.appsOpen) desktop.appArea.let { apps?.pointerAt(pointer.x - it.x, pointer.y - it.y) }
         renderPointer()
         publishPointer()
         schedulePointerFlush()
@@ -209,8 +298,9 @@ class DesktopController(
         sendPointer(d)
     }
 
-    /** Sends the pointer unless the glasses already show it like this, at this position. */
+    /** Sends the pointer unless the glasses already show it like this, at this position (or it is hidden). */
     private fun sendPointer(d: GlassesDisplay) {
+        if (!pointerShown) return
         val fingerprint = PointerSprite.fingerprint(pointerPixels)
         if (fingerprint == sentPointerFingerprint && pointer.x == sentPointerX && pointer.y == sentPointerY) return
         configurePointer(d)

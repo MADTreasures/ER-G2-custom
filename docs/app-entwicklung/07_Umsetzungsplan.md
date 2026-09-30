@@ -49,6 +49,13 @@ Kennungen doppelt → Hinweis statt Absturz.
 Zeiger, randloses Bild), Tests der Beispiel-Apps mit `FakeAppContext`; neue Bilder `docs/bilder/apps-*.png`;
 `FlashingBoundaryTest` grün; README-Abschnitt „Apps“.
 
+**Stand: gebaut (v0.4.0), nicht auf Hardware erprobt.** Tests: `AppHostTest`, `InputRouterTest`,
+`PageRendererTest`, `AppsSnapshotTest` (Bilder `docs/bilder/apps-*.png`), `AppsOnDesktopTest`, `AppJsonTest`,
+`AppHttpTest`, Tests der Beispiel-Apps. Abweichungen vom Plan, im Kapitel 03 nachgetragen: kein eigenes
+`Hit.kt` (Trefferprüfung in `PageLayout`), der Thread „G2Watch-apps“ ist ein `ThreadScheduler` in `AppHost`
+statt einer eigenen `AppThread`-Datei; die Kachel „Zeiger“ ist entfallen (Tempo und Zentrieren stehen in
+den Einstellungen der Uhr), „Info“ bleibt.
+
 ## M2 – GeckoView auf der Uhr: Machbarkeitstest
 
 **Ziel:** Messen, ob die Browser-Engine auf der Pixel Watch 5 gut genug läuft. Das geht nur auf der echten
@@ -64,6 +71,13 @@ Uhr; der Chat baut die Test-APK, **du** installierst sie und liest die Werte ab.
 
 **Abnahme:** APK für die richtige Architektur, Anleitung zum Installieren, Messwerte eingetragen,
 Entscheidung dokumentiert. Ohne echte Messwerte ist M2 nicht fertig.
+
+**Stand: Test-APK gebaut, Messwerte fehlen.** Modul `tools/gecko-probe/` („Gecko-Test“, Varianten
+`armv7Release`/`arm64Release`), Beschreibung in [05 §5.2](05_EvenHub-Apps.md#52-die-test-apk-gecko-test),
+Anleitung im README, Vorlage für die Werte in [quellen/E-m2-messwerte.md](quellen/E-m2-messwerte.md).
+Zusätzlich zum Plan misst sie den Bildweg des Browsers (M7): „Seite rendern“ zeichnet eine Seite in eine
+unsichtbare Fläche und wandelt sie mit `web-raster` ins Brillenbild. Die APK braucht zum Kompilieren die
+Plattform 37.1 (GeckoView 157).
 
 ## M3 – EvenHub-Laufzeit auf der Uhr
 
@@ -146,6 +160,15 @@ Akkuverbrauch der Sensoren, damit man es auf Hardware prüfen kann.
 - Lesemodus (Reader View) als Standard, weil er auf 576 × 260 besser lesbar ist.
 
 **Abnahme:** Snapshot-Tests des Bildwegs; Messung von Speicher und Akku auf der echten Uhr.
+
+**Schon gebaut (Vorarbeit):** das Modul `web-raster` – Seite → Brillen-Raster mit durchsichtigem Grund,
+positiven Bildern, Text in voller Helligkeit und automatisch negativem Text auf unruhigem Grund oder in
+überladenen Fenstern ([05 §10.1](05_EvenHub-Apps.md#101-seiten-ins-brillen-raster-wandeln-web-raster-gebaut)),
+mit Tests und Bildern `docs/bilder/raster-*.png`. Der Gecko-Test (M2) nutzt es schon auf der Uhr. Für M7 fehlt
+noch: die Browser-App im App-Host (interne Sitzung nach 03 §5.2, Bild über `setRaster` in einen randlosen
+Bild-Baustein), Scrollen der Seite unter dem Fenster, Zeiger → Touch-Ereignisse, Adresse und Lesezeichen,
+nur geänderte Bereiche senden, Lesemodus, und die Grenzwerte des Rasters an echten Seiten auf der echten
+Brille nachjustieren.
 
 ## Danach (Ideen, nicht geplant)
 

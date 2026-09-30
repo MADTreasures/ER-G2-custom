@@ -1,16 +1,22 @@
 package ch.madtreasures.g2watch.desktop
 
-import java.util.Locale
+import ch.madtreasures.g2watch.apps.render.PageLayout
+import ch.madtreasures.g2watch.apps.render.Shapes
 
 /**
  * Paints the desktop into a 640×480 gray raster. Lit pixels are what the wearer sees and what
- * costs power, so the look is outlines and text on black rather than filled areas.
+ * costs power, so the look is outlines and text on black rather than filled areas. While the apps
+ * are open, the header shows "‹" and the page name, and the app host's picture fills the app area.
  */
 class DesktopRenderer(private val text: TextPainter) {
 
     fun render(desktop: Desktop, target: GrayRaster) {
         target.clear()
         val layout = desktop.layout
+        if (desktop.appsOpen) {
+            drawApps(desktop, target)
+            return
+        }
         drawTopBar(desktop.status, layout, target)
         val open = desktop.openApp
         if (open == null) {
@@ -27,10 +33,42 @@ class DesktopRenderer(private val text: TextPainter) {
         target.fillRect(bar.x, bar.bottom - 1, bar.w, 1, DIM)
         val y = bar.y + (bar.h - text.lineHeight(SMALL)) / 2
         text.draw(target, "G2 Watch", bar.x + 12, y, SMALL, TEXT, bold = true)
+        drawClockAndBatteries(status, bar, y, target)
+    }
+
+    private fun drawClockAndBatteries(status: DesktopStatus, bar: Rect, y: Int, target: GrayRaster) {
         centered(target, status.time, Rect(bar.x, y, bar.w, bar.h), SMALL, TEXT, bold = true)
         val batteries = "Uhr ${percent(status.watchBattery)}   Brille ${percent(status.glassesBattery)}" +
             if (status.glassesCharging) " +" else ""
         text.draw(target, batteries, bar.right - 12 - text.measure(batteries, SMALL), y, SMALL, TEXT)
+    }
+
+    /** The header of the apps ("‹", page name, clock, batteries) and the app host's picture. */
+    private fun drawApps(desktop: Desktop, target: GrayRaster) {
+        val layout = desktop.layout
+        val frame = desktop.appFrame
+        if (frame == null || !frame.fullscreen) {
+            val bar = layout.topBar
+            target.fillRect(bar.x, bar.bottom - 1, bar.w, 1, DIM)
+            val y = bar.y + (bar.h - text.lineHeight(SMALL)) / 2
+            val back = layout.appBack
+            val backHovered = desktop.hover == Target.AppBack
+            val cx = back.x + 20f
+            val cy = back.y + back.h / 2f
+            Shapes.polyline(target, floatArrayOf(cx + 4f, cy - 7f, cx - 3f, cy, cx + 4f, cy + 7f), if (backHovered) 3f else 2.2f, if (backHovered) BRIGHT else TEXT)
+            val titleBox = layout.appTitle
+            val title = PageLayout.ellipsize(text, frame?.title ?: AppId.APPS.title, SMALL, true, titleBox.w - 8)
+            val titleHovered = desktop.hover == Target.AppMenu
+            text.draw(target, title, titleBox.x, y, SMALL, if (titleHovered) BRIGHT else TEXT, bold = true)
+            if (titleHovered) target.fillRect(titleBox.x, bar.bottom - 5, text.measure(title, SMALL, true), 2, BRIGHT)
+            drawClockAndBatteries(desktop.status, bar, y, target)
+        }
+        if (frame == null) return
+        val area = desktop.appArea
+        val src = frame.pixels
+        for (row in 0 until minOf(src.height, area.h)) {
+            System.arraycopy(src.pixels, row * src.width, target.pixels, (area.y + row) * target.width + area.x, minOf(src.width, area.w))
+        }
     }
 
     private fun drawWindow(desktop: Desktop, app: AppId, target: GrayRaster) {
@@ -57,10 +95,7 @@ class DesktopRenderer(private val text: TextPainter) {
                 "Hier entstehen später Notizen per Diktat.",
             )
             AppId.COUNTER -> centered(target, desktop.counter.toString(), Rect(body.x, body.y + 10, body.w, 80), 64, BRIGHT, bold = true)
-            AppId.POINTER -> {
-                val speed = String.format(Locale.GERMANY, "Tempo %.1f×", status.speed)
-                centered(target, speed, Rect(body.x, body.y + 20, body.w, 60), 40, BRIGHT, bold = true)
-            }
+            AppId.APPS -> Unit
             AppId.INFO -> lines(
                 target, body,
                 "Verbindung: ${status.connection}",
@@ -72,9 +107,9 @@ class DesktopRenderer(private val text: TextPainter) {
                 target, body,
                 "Finger auf der Uhr: Zeiger bewegen",
                 "Doppeltipp auf der Uhr: Klick",
-                "Finger auf der Uhr halten: Menü",
+                "Zahnrad auf der Uhr halten: Einstellungen",
                 "Tipp auf den Bügel: Klick",
-                "Doppeltipp auf den Bügel: Fenster zu",
+                "Doppeltipp auf den Bügel: zurück",
             )
         }
         for ((id, rect) in layout.buttons(app)) {

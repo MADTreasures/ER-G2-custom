@@ -19,17 +19,31 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # 37.1 only for the Gecko test APK: GeckoView 157 must be compiled against it.
       - name: Android SDK packages
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;36.0.0" > /dev/null
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "platforms;android-37.1" "build-tools;36.0.0" > /dev/null
 
       - name: Tests and debug APK
-        run: ./gradlew --no-daemon :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
+        run: ./gradlew --no-daemon :firmware-image:test :faceclaw-core:testAndroidHostTest :web-raster:test :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: g2watch-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      # M2: the GeckoView measuring APK, one per CPU architecture of the watch (about 120 MB each).
+      - name: Gecko test APKs
+        run: ./gradlew --no-daemon :gecko-probe:testArmv7DebugUnitTest :gecko-probe:lintArmv7Release :gecko-probe:assembleArmv7Release :gecko-probe:assembleArm64Release
+
+      - name: Upload Gecko test APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: g2-gecko-test-apks
+          retention-days: 14
+          path: |
+            tools/gecko-probe/build/outputs/apk/armv7/release/gecko-probe-armv7-release.apk
+            tools/gecko-probe/build/outputs/apk/arm64/release/gecko-probe-arm64-release.apk
 
       - name: Upload reports
         if: always()

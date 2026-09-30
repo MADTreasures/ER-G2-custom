@@ -9,8 +9,11 @@
    Seiten aus dem [G2 Baukasten](../../designer/README.md) („⋯“ → „Für den Chat kopieren“) können mit
    dazu, müssen aber nicht.
 3. Am Ende öffnet der Chat einen **Pull Request**. Diesen auf GitHub zusammenführen („Merge“), damit der
-   nächste Chat auf der neuen App aufbaut. Der erste Chat baut dabei auch den App-Host der Uhr (M1) –
-   einmalig, danach geht jede App direkt.
+   nächste Chat auf der neuen App aufbaut. Den App-Host der Uhr (M1) gibt es seit G2 Watch 0.4.0; jede
+   Uhr-App geht direkt.
+4. Für Apps, die GeckoView brauchen (Even-Hub-Apps auf der Uhr, der Browser): erst den **Gecko-Test**
+   (M2, [README](../../README.md#gecko-test-m2-auf-die-uhr-bringen-und-messen)) auf der Uhr laufen lassen
+   und seinen Bericht `g2-gecko-bericht.txt` mit in den Chat geben.
 
 ## Der Text
 
@@ -53,12 +56,13 @@ denselben Text und schreibt nach „Meine App:“ stattdessen eine Zeile aus die
 | Meilenstein | Zeile |
 |---|---|
 | M0 | Keine App – setze M0 um (Baukasten an die App-Fläche anpassen, Kennungen, Bild-Baustein, Knopf „Zurück“) und veröffentliche den Baukasten unter derselben Adresse neu. |
-| M1 | Keine App – setze M1 um: App-Host auf der Uhr nach 03 §5 mit Stoppuhr und Einkaufsliste. |
-| M2 | Keine App – setze M2 um: Test-APK mit GeckoView nach 05 §5.1. Sag mir genau, wie ich sie installiere und welche Werte ich dir zurückmelde. |
+| M1 | (erledigt in 0.4.0) Keine App – setze M1 um: App-Host auf der Uhr nach 03 §5 mit Stoppuhr und Einkaufsliste. |
+| M2 | (Test-APK gebaut in 0.4.0) Keine App – setze M2 um: Test-APK mit GeckoView nach 05 §5.1. Sag mir genau, wie ich sie installiere und welche Werte ich dir zurückmelde. |
+| M2 auswerten | Keine App – hier ist der Bericht des Gecko-Tests (unten eingefügt): trag die Werte in quellen/E-m2-messwerte.md ein, entscheide nach 05 §5.1 und zieh 00, 05 und 07 nach. |
 | M3 | Keine App – setze M3 um: EvenHub-Laufzeit auf der Uhr nach 05 §4–§5 mit Test-App für alle Methoden. |
 | M4 | Keine App – setze M4 um: Handy-App „G2 Handy“ nach 05 §6 und 06 §1. |
 | M5 | Keine App – setze M5 um: Protokoll g2-remote@1, g2-host mit Web-Seite, Rechner-Client und Kopplung, Beispiel-Apps echo, pc-status, notizen. |
 | M6 | Keine App – setze M6 um: Sensoren, Mikrofon (LC3), Summer und Standort bis zu den Apps, Beispiele „Diktat“ und „Kompass“. |
-| M7 | Keine App – setze M7 um: Web-Browser auf der Brille nach 05 §10. |
+| M7 | Keine App – setze M7 um: Web-Browser auf der Brille nach 05 §10 und 07 M7 (`web-raster` ist schon da; nur nach „GeckoView ja“ aus M2, Bericht unten eingefügt). |
 
 In claude.ai kann Claude einen Entwurf auch direkt aus dem Baukasten lesen („Schau dir meinen Baukasten an“).

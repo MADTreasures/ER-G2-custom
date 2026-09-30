@@ -27,11 +27,6 @@ class DesktopControllerTest {
         return Pair(r.x + r.w / 2, r.y + r.h / 2)
     }
 
-    private fun buttonCenter(app: AppId, id: ButtonId): Pair<Int, Int> {
-        val r = controller.layout.buttons(app).first { it.first == id }.second
-        return Pair(r.x + r.w / 2, r.y + r.h / 2)
-    }
-
     /** Moves the pointer onto ([x], [y]) and lets the pointer throttle pass. */
     private fun moveTo(x: Int, y: Int) {
         val frame = controller.frame.value
@@ -209,7 +204,7 @@ class DesktopControllerTest {
     }
 
     @Test
-    fun `speed stays in range and the pointer window changes it`() {
+    fun `speed stays in range and the pointer can be centred`() {
         controller.setSpeed(10f)
         scheduler.runPending()
         assertEquals(PointerMotion.MAX_SPEED, controller.speed.value)
@@ -217,20 +212,8 @@ class DesktopControllerTest {
         scheduler.runPending()
         assertEquals(PointerMotion.MIN_SPEED, controller.speed.value)
 
-        controller.setSpeed(1f)
-        val (tx, ty) = tileCenter(AppId.POINTER)
-        moveTo(tx, ty)
-        controller.click()
-        scheduler.runPending()
-        val (fx, fy) = buttonCenter(AppId.POINTER, ButtonId.FASTER)
-        moveTo(fx, fy)
-        controller.click()
-        scheduler.runPending()
-        assertEquals(1.2f, controller.speed.value, 0.001f)
-
-        val (cx, cy) = buttonCenter(AppId.POINTER, ButtonId.CENTER)
-        moveTo(cx, cy)
-        controller.click()
+        moveTo(100, 150)
+        controller.centerPointer()
         scheduler.runPending()
         assertEquals(320, controller.frame.value.pointerX)
         assertEquals(240, controller.frame.value.pointerY)

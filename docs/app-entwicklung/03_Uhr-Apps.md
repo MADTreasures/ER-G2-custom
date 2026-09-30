@@ -3,8 +3,9 @@
 Uhr-Apps sind kleine Kotlin-Klassen, die fest in die G2-Watch-App eingebaut werden. Sie laufen auch
 ohne Rechner und ohne Netz. Für alles Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 
-**Stand:** Der App-Host auf der Uhr existiert noch nicht (Meilenstein M1). Dieses Kapitel beschreibt
-erst, was eine App-Entwicklerin schreibt (§1–§4), dann, was M1 an der Plattform bauen muss (§5–§8).
+**Stand (v0.4.0):** Der App-Host ist gebaut (Meilenstein M1) und mit simulierter Brille getestet, **nicht auf
+Hardware erprobt**. Eingebaut sind die Beispiel-Apps Stoppuhr und Einkaufsliste. Dieses Kapitel beschreibt
+erst, was eine App-Entwicklerin schreibt (§1–§4), dann die Plattform, wie M1 sie gebaut hat (§5–§8).
 
 ## 1. Eine Uhr-App schreiben
 
@@ -74,10 +75,14 @@ class StopwatchApp(private val clock: () -> Long = System::currentTimeMillis) : 
 }
 ```
 
-Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`):
+(Vereinfacht; die eingebaute Fassung in `apps/builtin/stopwatch/StopwatchApp.kt` zeigt laufend „1:05“ und
+angehalten „1:05,4“ und heißt nach dem Anhalten „Weiter“.)
+
+Eintragen in die Liste der eingebauten Apps (`apps/AppRegistry.kt`), als Lambdas, weil ein Konstruktor mit
+Vorgabewerten (hier `clock`) als Funktionsreferenz kein `() -> G2App` ist:
 
 ```kotlin
-val builtInApps: List<() -> G2App> = listOf(::StopwatchApp, ::ShoppingListApp)
+val builtInApps: List<() -> G2App> = listOf({ StopwatchApp() }, { ShoppingListApp() })
 ```
 
 Seiten aus dem Baukasten statt aus Code: den Export nach `app/src/main/assets/apps/<app-id>/ui.json`
@@ -89,9 +94,10 @@ ruft dann nur noch `show(...)` oder `patch(...)` auf.
 Alle Typen, die eine App braucht, liegen direkt im Paket `ch.madtreasures.g2watch.apps`
 (`G2App`, `AppContext`, `AppManifest`, `AppEvent`, `Page`, `Block`, `PatchBuilder`, …). Die
 Unterpakete `host/`, `render/`, `launcher/` sind intern. Die Typen entsprechen den JSON-Formen in
-[02 §4 und §6](02_App-Modell.md#4-oberfläche-seiten-und-bausteine). Für JSON gibt es eigene Serializer
-(kotlinx.serialization, `JsonContentPolymorphicSerializer`, der nach `kind` und bei Sensoren nach `sensor`
-unterscheidet), weil mehrere Kotlin-Klassen auf `kind: "sensor"` abgebildet werden.
+[02 §4 und §6](02_App-Modell.md#4-oberfläche-seiten-und-bausteine). Das JSON übersetzt `AppJson` von Hand auf dem
+JSON-Baum von kotlinx.serialization (`JsonElement`), weil mehrere Kotlin-Klassen auf `kind: "sensor"` abgebildet
+werden und ankommende Seiten so nachsichtig ergänzt werden wie im Baukasten (`BaukastenProject.normalize`);
+`AppEventSerializer` und `AppCommandSerializer` machen daraus Serializer für `Json.encodeToString` usw.
 
 ```kotlin
 interface G2App {
@@ -181,7 +187,7 @@ Threads und GeckoView-Prozesse, [05](05_EvenHub-Apps.md)).
 
 ---
 
-## 5. Plattform: der App-Host (zu bauen in M1)
+## 5. Plattform: der App-Host (gebaut in M1)
 
 ```
 Touchpad / Bügel / Ring ──▶ InputRouter ──▶ AppHost (Thread „G2Watch-apps“) ──▶ G2App.onEvent
@@ -193,37 +199,40 @@ Touchpad / Bügel / Ring ──▶ InputRouter ──▶ AppHost (Thread „G2Wa
                      DesktopController (Thread „G2Watch-desktop“) ──▶ CoreDisplay ──▶ Brille
 ```
 
-Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
+Die Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 
 | Datei | Aufgabe |
 |---|---|
-| `Page.kt`, `Block.kt`, `BaukastenProject.kt` | Seitenmodell, JSON, `normalize` wie im Baukasten (Stand nach M0: projektweit eindeutige Kennungen, `@back` bleibt erhalten) |
+| `Page.kt`, `BaukastenProject.kt` | Seitenmodell mit allen Bausteinen (auch `image`), `normalize` wie im Baukasten, aber `@back` bleibt stehen; fehlende oder doppelte Kennungen bekommen mit Warnung eine neue (`b_1`, `p_2`, …) |
 | `AppEvent.kt`, `AppCommand.kt`, `AppJson.kt` | Ereignisse und Befehle, JSON-Codec (auch für das Protokoll in M5) |
-| `G2App.kt`, `AppContext.kt`, `AppManifest.kt` | die Schnittstelle aus §2 |
-| `host/AppHost.kt` | Sitzungen starten/stoppen, `start` + `visible`, Verlauf (Zurück), Fokus, Timer, Zeitmessung (50/500 ms), Berechtigungsabfrage, App-Menü |
-| `host/AppThread.kt` | ein Thread für alle Apps (`Scheduler`-Schnittstelle wie `ThreadScheduler`) |
+| `G2App.kt`, `AppContext.kt`, `AppManifest.kt` | die Schnittstelle aus §2 (Manifest mit Prüfung von Kennung, Name, Version) |
+| `host/AppHost.kt` | Sitzungen, `start` + `visible`, Verlauf (Zurück), Fokus, Timer, Zeitmessung (50/500 ms), Berechtigungsabfrage, App-Menü, Starter, Zeichnen höchstens alle 200 ms; läuft auf dem Thread „G2Watch-apps“ (`ThreadScheduler`, in Tests `FakeScheduler`) |
+| `host/Session.kt`, `host/HostContext.kt`, `host/PageCommands.kt` | Zustand einer Sitzung, `AppContext` des Hosts, Prüfung jedes Befehls (unbekannte Seite oder Kennung, falsche Werte → Fehler statt Absturz) |
+| `host/InternalApp.kt` | Anschlüsse für interne Sitzungen und EvenHub (§5.2) |
+| `host/AppPlatform.kt`, `host/AndroidAppPlatform.kt` | was der Host von Android braucht (Assets, Speicher je App, Vibration, HTTPS, Bilder dekodieren); in Tests ein Fake |
+| `host/AppHttp.kt` | `fetch`: nur `https://`, 10 s, 1 MB |
 | `host/InputRouter.kt` | Gesten von Uhr und Brille nach §5.1 in Zeiger, Fokus oder `gesture`-Ereignisse |
-| `render/PageRenderer.kt` | Seite + Zustand (Fokus, Scroll, Zeiger) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine) |
-| `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
-| `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende markiert |
+| `render/PageLayout.kt`, `render/PageRenderer.kt`, `render/Shapes.kt` | Seite + Zustand (Fokus, Scroll) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine); `PageLayout` kennt auch, welcher Baustein unter dem Zeiger liegt |
+| `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende mit „läuft“ markiert |
 | `AppRegistry.kt` | eingebaute Apps (§1) |
-| `builtin/…` | Beispiel-Apps: Stoppuhr, Einkaufsliste |
+| `builtin/…` | Beispiel-Apps: Stoppuhr, Einkaufsliste (Seiten aus `assets/apps/ch.madtreasures.einkauf/ui.json`) |
 
 Einbau in den bestehenden Desktop (`desktop/`):
-- Neue Kachel **„Apps“** (`AppId.APPS`) öffnet den Starter. Die Kachelreihe hat 6 Plätze (3 × 2):
-  „Zeiger“ und „Info“ wandern in die Einstellungen der Uhr oder in den Starter, damit „Apps“ Platz hat.
-- Solange eine App offen ist, zeichnet `DesktopRenderer` die Kopfzeile (mit „‹“ und App-Name) und
-  übernimmt für die App-Fläche das Raster aus `PageRenderer`.
+- Kachel **„Apps“** (`AppId.APPS`) öffnet den Starter. Die Kachel „Zeiger“ ist dafür entfallen; Tempo und
+  „Zeiger zentrieren“ stehen in den Einstellungen der Uhr. „Info“ bleibt.
+- Solange eine App offen ist, zeichnet `DesktopRenderer` die Kopfzeile: „‹“ (zurück), den **Namen der
+  Seite** (antippen öffnet das App-Menü), Uhrzeit und Akkus; die App-Fläche kommt aus `PageRenderer`.
 - Zeiger: im Modus `pointer` bleibt er die eigene Fläche „pointer“, im Modus `gestures` wird er
-  ausgeblendet. `setSurfaceVisible` gibt es bisher nur an `GlassesSessionCore`; die Schnittstelle
-  `GlassesDisplay` (mit `CoreDisplay` und den Test-Fakes) bekommt dafür eine neue Methode.
-- `TouchpadScreen` bekommt einen Gesten-Modus (Wischen in 4 Richtungen, Tippen, Doppeltippen, langes
-  Drücken), den der AppHost ein- und ausschaltet.
+  ausgeblendet (`GlassesDisplay.setSurfaceVisible`, neu). Bleibt der Zeiger 0,6 s am oberen oder unteren Rand
+  (24 px) einer langen Seite, rollt sie weiter, danach alle 0,9 s.
+- `TouchpadScreen` hat einen Gesten-Modus, den der AppHost nach `input` der App ein- und ausschaltet:
+  Wischen ab 36 dp (Finger nach oben = `scrollDown`, wie eine Seite nach oben schieben; links/rechts =
+  `swipeLeft`/`swipeRight`), Tippen, Doppeltippen (400 ms), langes Drücken (0,9 s) mit Loslassen.
 
 ### 5.1 Gesten der Brille
 
-`GlassesConnection.onRingEvent(kind, eventType, source)` bekommt heute alle Eingaben, lässt aber alles
-außer `kind == "sys-event"` fallen. Der `InputRouter` übernimmt stattdessen diese Tabelle (nach
+`GlassesConnection.onRingEvent(kind, eventType, source)` gibt alle Eingaben an den `InputRouter`
+(`translate(kind, eventType, eventSource, ringTick, ringType)`), der diese Tabelle umsetzt (nach
 wissen/03 §2.11.2, der Übersetzung in Faceclaw):
 
 | `kind` | Code | Geste | `source` |
@@ -238,8 +247,10 @@ wissen/03 §2.11.2, der Übersetzung in Faceclaw):
 | `display-wake` | 12 | `headUp` | – |
 
 Ring-Ereignisse kommen doppelt vor (über die Brille und direkt). Faceclaw entfernt Doppelte in einem
-Fenster von 100 Ticks (wissen/03 §2.11.3); der `InputRouter` macht es ebenso. Kopf-Heben meldet die
-Firmware nur, solange eine Faceclaw-Seite angezeigt wird.
+Fenster von 100 Ticks (wissen/03 §2.11.3); der `InputRouter` macht es ebenso (Typ 8 und 10 gehen immer
+durch, Typ 127 wird verworfen, rückt aber die Uhr vor). Das Loslassen nach `shortThenLongPress` gehört zu
+dieser Geste und wird wie in Faceclaw verworfen. Kopf-Heben meldet die Firmware nur, solange eine
+Faceclaw-Seite angezeigt wird.
 
 ### 5.2 EvenHub-Sitzungen im App-Host
 
@@ -250,7 +261,7 @@ Even-Hub-Apps sind keine `G2App`. Der App-Host bekommt dafür in M1 schon die An
 | `EvenHubRegistry` | Liste der installierten Even-Hub-Apps (Name, Version, Ort Uhr/Handy, Rechte) für den Starter; in M1 leer |
 | Sitzungsart „intern“ | wie der Starter: vom Host verwaltet, eigener Lebenszyklus, Start-Zeitlimit einstellbar (EvenHub: 20 s mit Seite „Startet …“) |
 | `setRaster(blockId, raster)` | intern: schreibt ein fertiges Graustufen-Raster in einen randlosen Bild-Baustein, ohne PNG und ohne 48-KiB-Grenze |
-| Brillen-Status | Akku, Laden, „getragen“ der Brille als beobachtbarer Wert. Akku und Laden stehen heute schon in `GlassesState`; „getragen“ braucht `enableWearDetectionAndRequestState()`, das die Uhr-App bisher nicht aufruft. |
+| Brillen-Status | Akku, Laden, „getragen“ der Brille als beobachtbarer Wert (`AppHost.glasses`, `GlassesStatus`). Die Uhr-App ruft nach dem Verbinden `enableWearDetectionAndRequestState()` auf, sobald die Sitzung bereit ist. |
 | App-Menü-Einträge | eine interne Sitzung kann eigene Einträge setzen und bekommt die Auswahl zurück |
 
 ## 6. Sensoren, Mikrofon, Summer (M6)
@@ -284,8 +295,9 @@ abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).
   app.onEvent(AppEvent.Click("p_main", "startstop"), ui)
   assertEquals("Stopp", ui.page("p_main").textOf("startstop"))
   ```
-- `PageRendererSnapshotTest`: jede Bausteinart, lange Seiten mit Scroll, Fokus, Zeiger, randloses Bild;
-  Bilder nach `docs/bilder/apps-*.png` mit `-PsnapshotDir` (wie `WatchSnapshotTest`).
+- `PageRendererTest` (Maße, Fokus, Scroll) und `AppsSnapshotTest`: jede Bausteinart, lange Seiten mit
+  Scroll, Fokus, Starter, App-Menü, Berechtigungsfrage, randloses Bild; Bilder nach `docs/bilder/apps-*.png`
+  mit `-PsnapshotDir` (wie `WatchSnapshotTest`).
 - `AppHostTest` mit `FakeScheduler`: `start` gefolgt von `visible`, Zurück auf der ersten Seite schließt,
   500-ms-Grenze beendet, Timer ruhen im Hintergrund ohne `BACKGROUND`, Berechtigung verweigert → Fehler statt
   Stille, App-Menü „Apps“ verdeckt die App und der Starter holt sie zurück.

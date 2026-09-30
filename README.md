@@ -6,10 +6,17 @@ von Faceclaw. Ein Handy braucht es dafür nicht. Die Uhr-Oberfläche mit Touchpa
 Einstellungen stammt aus dem Uhr-Paket (`G2Watch_Uhr-UI_und_Maus`) und läuft auf der Brille, sobald
 die Custom-Firmware drauf ist.
 
+Seit **0.4.0** gibt es auf der Brille **Apps** (Stoppuhr, Einkaufsliste; eigene nach
+[`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)), dazu die Vorarbeit für einen
+**Web-Browser auf der Brille**: das Modul `web-raster`, das Web-Seiten ins Brillenbild wandelt und Text immer
+lesbar hält, und die Test-APK **„Gecko-Test“**, die misst, ob die Browser-Engine GeckoView auf der Uhr
+gut genug läuft.
+
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.3.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
-> gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher.
+> **Ehrlicher Stand (v0.4.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
+> gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Der
+> Gecko-Test ist gebaut, aber noch auf keiner Uhr gelaufen.
 
 ## Was aufgespielt werden kann
 
@@ -53,6 +60,82 @@ die Brille auch mit der Faceclaw-Handy-App verwendbar, ohne hin und her zu flash
 **Zurück zur Original-Firmware** geht auf demselben Weg (Einstellungen → *Original-Firmware*),
 solange die Brille startet und sich verbinden lässt. Die Seite **Risiken & Rückweg** in den
 Einstellungen fasst zusammen, was schiefgehen kann ([Recherche](docs/RECHERCHE_FIRMWARE.md)).
+
+## Apps auf der Brille
+
+Auf dem Desktop der Brille öffnet die Kachel **„Apps“** den Starter. Darin stehen die eingebauten Apps;
+laufende sind mit „läuft“ markiert. Die Kachel „Zeiger“ gibt es nicht mehr: Tempo und „Zeiger
+zentrieren“ stehen in den Einstellungen der Uhr (Zahnrad halten).
+
+| Kachel „Apps“ | Starter | Stoppuhr | Einkaufsliste |
+|---|---|---|---|
+| ![Apps-Kachel](docs/bilder/apps-kachel.png) | ![Starter](docs/bilder/apps-starter.png) | ![Stoppuhr](docs/bilder/apps-stoppuhr.png) | ![Einkaufsliste](docs/bilder/apps-einkauf.png) |
+| **App-Menü** | **Berechtigung** | **alle Bausteine** | **Bild randlos** |
+| ![App-Menü](docs/bilder/apps-menue.png) | ![Berechtigung](docs/bilder/apps-berechtigung.png) | ![Bausteine](docs/bilder/apps-bausteine.png) | ![Bild](docs/bilder/apps-bild-randlos.png) |
+
+Bedienung in einer App:
+
+| Eingabe | Wirkung |
+|---|---|
+| Zeiger (Uhr-Touchpad) auf ein Element, klicken | wie auf dem Desktop; Zeiger 0,6 s am oberen oder unteren Rand → die Seite rollt |
+| „‹“ in der Kopfzeile | zurück; auf der ersten Seite endet die App und der Starter erscheint (dort führt „‹“ zum Desktop) |
+| Seitenname in der Kopfzeile | App-Menü: **Apps** (zum Starter, die App läuft weiter), **Zurück**, **Schließen** und Einträge der App |
+| Bügel oder Ring: wischen | markiertes Element vor/zurück, die Seite rollt mit |
+| Bügel oder Ring: tippen | markiertes Element auslösen |
+| Bügel oder Ring: doppelt tippen | zurück |
+| Bügel oder Ring: tippen, dann halten | App-Menü |
+
+Apps im Gesten-Modus (Manifest `input: gestures`) blenden den Zeiger aus; die Uhr wird dann zur
+Gestenfläche (wischen, tippen, doppelt tippen, halten; nach rechts wischen = zurück). Wie man eigene Apps
+schreibt: [03_Uhr-Apps.md](docs/app-entwicklung/03_Uhr-Apps.md).
+
+## Web-Seiten fürs Brillenbild (Vorarbeit für den Browser)
+
+Das Modul [`web-raster/`](web-raster) wandelt eine gezeichnete Web-Seite in das Bild der Brille, so wie die
+Even-Apps „Photos“ und „G2 Agent Cam“ Inhalte zeigen: Der Grund der Seite wird durchsichtig (egal ob weiß
+oder dunkel), Bilder bleiben Bilder, und **Text wird immer in voller Helligkeit neu gezeichnet**. Steht Text
+auf einem Foto oder unruhigem Grund, oder ist das Fenster mit Bildern und hellen Flächen **überladen**, wird
+der Text **negativ**: dunkle Buchstaben in einer hellen Platte.
+
+| Heller Artikel | Dunkle Seite | Text auf Foto | Überladen → Text negativ |
+|---|---|---|---|
+| ![hell](docs/bilder/raster-hell.png) | ![dunkel](docs/bilder/raster-dunkel.png) | ![Text auf Bild](docs/bilder/raster-text-auf-bild.png) | ![überladen](docs/bilder/raster-ueberladen.png) |
+
+Links jeweils die Test-Seite, rechts das Brillenbild. Die Regeln und Grenzwerte stehen in
+[05 §10.1](docs/app-entwicklung/05_EvenHub-Apps.md#101-seiten-ins-brillen-raster-wandeln-web-raster-gebaut).
+Der Browser selbst (Meilenstein M7) kommt, wenn der Gecko-Test zeigt, dass GeckoView auf der Uhr taugt.
+
+## Gecko-Test (M2) auf die Uhr bringen und messen
+
+Wear OS hat keinen Browser-Kern. Ob Mozillas **GeckoView** auf der Uhr schnell, sparsam und stabil genug
+ist, kann nur die echte Uhr zeigen. Dafür gibt es die eigene kleine App **„Gecko-Test“**
+([`tools/gecko-probe/`](tools/gecko-probe), [05 §5.2](docs/app-entwicklung/05_EvenHub-Apps.md#52-die-test-apk-gecko-test)).
+Sie ist getrennt von G2 Watch, damit die Uhr-App nicht um ≈ 120 MB wächst, solange nichts entschieden ist.
+
+1. **Architektur der Uhr** feststellen (Uhr per WLAN-Debugging verbunden, siehe unten):
+   ```sh
+   adb shell getprop ro.product.cpu.abilist
+   ```
+   Beginnt die Antwort mit `armeabi-v7a` → Variante **armv7Release**; mit `arm64-v8a` → **arm64Release**.
+2. **Android Studio:** *Build → Select Build Variant…*, beim Modul **gecko-probe** die Variante aus Schritt 1
+   wählen. Oben die Konfiguration **gecko-probe** und die Uhr wählen, **▶ Run**. Das erste Mal lädt Gradle
+   GeckoView (≈ 90 MB). GeckoView verlangt die Android-Plattform **API 37.1**; fehlt sie, bietet Android
+   Studio die Installation an (sonst *Tools → SDK Manager → SDK Platforms*, *Show Package Details*, API 37.1
+   ankreuzen). Die APK ist ≈ 120 MB groß; über WLAN dauert das Installieren ein paar Minuten.
+   Ohne Android Studio: Artefakt `g2-gecko-test-apks` aus GitHub Actions laden und
+   `adb install -r gecko-probe-armv7-release.apk` (bzw. `-arm64-`).
+3. **Auf der Uhr** „Gecko-Test“ öffnen, die Mitteilungen erlauben, und die Tests der Reihe nach starten:
+   **1 · Schnelltest** (≈ 1 min) → **2 · Timer-Test** (4 min; nach der Vibration das Handgelenk senken, bis
+   es wieder vibriert) → **3 · Dauertest** (30 min Uhr normal tragen, nicht laden) → **4 · Seite rendern** →
+   **5 · Wikipedia rendern** (braucht Internet). Den **Schnelltest als Erstes nach dem Öffnen** der App
+   laufen lassen, sonst gibt es keinen Kaltstart-Wert.
+4. **Bericht** (Knopf am unteren Rand) speichern und holen:
+   ```sh
+   adb pull /sdcard/Android/data/ch.madtreasures.g2watch.geckoprobe/files/ .
+   ```
+   Darin `g2-gecko-bericht.txt` (alle Werte mit ✓/~/✗ und einer Empfehlung) sowie `render-seite.png` und
+   `render-brille.png`. Den Bericht in den nächsten Chat geben oder in
+   [`quellen/E-m2-messwerte.md`](docs/app-entwicklung/quellen/E-m2-messwerte.md) eintragen.
 
 ## Wie die Uhr aufspielt – und was sie absichert
 
@@ -112,10 +195,12 @@ dieses Projekts noch nicht):
 3. Oben die Konfiguration **app** und die Uhr als Gerät wählen, **▶ Run**: Android Studio baut die App,
    installiert sie auf der Uhr und startet sie.
 
-**Selbst bauen auf der Kommandozeile** (JDK 17 oder neuer, Android SDK mit Plattform 37):
+**Selbst bauen auf der Kommandozeile** (JDK 17 oder neuer, Android SDK mit Plattform 37; für den Gecko-Test
+zusätzlich 37.1):
 
 ```sh
-./gradlew :app:assembleDebug        # → app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:assembleDebug                 # → app/build/outputs/apk/debug/app-debug.apk
+./gradlew :gecko-probe:assembleArmv7Release  # → tools/gecko-probe/build/outputs/apk/armv7/release/
 ```
 
 **Uhr ohne Internet:** Evens Image selbst laden und auf die Uhr legen; die App nimmt jede `.bin`-Datei
@@ -139,6 +224,8 @@ die Uhr offline ist.
 | [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket) und das Firmware-Paket `ch.madtreasures.g2watch.firmware` |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
+| [`web-raster/`](web-raster) | Reines Kotlin ohne Android: gezeichnete Web-Seite → Brillenbild mit lesbarem, bei Bedarf negativem Text (Vorarbeit für den Browser, M7) |
+| [`tools/gecko-probe/`](tools/gecko-probe) | Test-APK „Gecko-Test“ (M2): misst GeckoView auf der Uhr; eigene App, nicht Teil von G2 Watch |
 | [`tools/cfw_bauen.py`](tools/cfw_bauen.py) | Baut und prüft Faceclaw/35 auf dem PC (Python, ohne Flashen) |
 | [`designer/`](designer), [`designs/`](designs) | G2 Baukasten: Brillen-Seiten aus Bausteinen zusammenstellen (Web-App), und ein Beispiel |
 | [`docs/app-entwicklung/`](docs/app-entwicklung/00_LIES_MICH.md) | **Spezifikation für Apps**: Uhr-Apps, Even-Hub-Apps auf der Uhr (GeckoView) oder dem Handy, Rechner-Apps, Umsetzungsplan und Texte für neue Chats |
@@ -147,11 +234,12 @@ die Uhr offline ist.
 ## Testen
 
 ```sh
-./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
+./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :web-raster:test :app:testDebugUnitTest
+./gradlew :gecko-probe:testArmv7DebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 187 Tests grün (21 Bild-Tests werden ohne `-PsnapshotDir`
-übersprungen), Lint ohne Fehler. Die wichtigsten:
+Stand dieses Commits: 15 + 184 + 16 + 258 + 25 Tests grün (23 Bild-Tests werden ohne `-PsnapshotDir`
+übersprungen, 2 brauchen Evens Image), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:
   Aufspielen beider Ziele, jedes Abbruchkriterium (Ablehnen, Lautlos, Akku, MTU, neuere Firmware,
@@ -164,4 +252,6 @@ Stand dieses Commits: 15 + 184 + 187 Tests grün (21 Bild-Tests werden ohne `-Ps
   `RealImageTest` baut Faceclaw/35 bitgenau nach; `RealImageTransferTest` schickt das komplette echte
   Image (≈ 1.130 Blöcke pro Glas) durch Faceclaws Flasher an die simulierte Brille und vergleicht, was
   ankommt.
-- Bilder der Uhr neu erzeugen: `./gradlew :app:testDebugUnitTest --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
+- **`AppHostTest`** – der App-Host mit simulierter Uhr: Starten, Zurück, Timer, Zeitgrenzen, Berechtigungen,
+  App-Menü, Fokus und Scrollen; **`GlassesRasterizerTest`** – Grund, Bilder, lesbarer und negativer Text.
+- Bilder neu erzeugen: `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
