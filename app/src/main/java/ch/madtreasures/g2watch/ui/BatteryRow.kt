@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +26,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -75,6 +77,21 @@ fun BatteryRow(watch: WatchBattery, glasses: GlassesState) {
     val current = glasses.stage == Stage.CONNECTED || glasses.stage == Stage.CHARGING
     BatteryRow(watch, glasses.battery.takeIf { current }, glasses.charging.takeIf { current })
 }
+
+/**
+ * The firmware of the connected glasses under the battery row: its name ("Faceclaw/35") and what the
+ * left and the right temple each report. Nothing while not connected or not read yet.
+ */
+@Composable
+fun FirmwareRow(glasses: GlassesState) {
+    val firmware = glasses.firmware?.takeIf { glasses.stage == Stage.CONNECTED } ?: return
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.testTag(FIRMWARE_ROW_TAG)) {
+        Text(firmware.name, fontSize = 12.sp, color = Color.White)
+        Text(firmware.temples, fontSize = 11.sp, color = Color(0xFFB0B0B8))
+    }
+}
+
+internal const val FIRMWARE_ROW_TAG = "firmware-row"
 
 /** "⌚ 76 %   👓 81 %" with drawn icons, watch and glasses alike in white. */
 @Composable

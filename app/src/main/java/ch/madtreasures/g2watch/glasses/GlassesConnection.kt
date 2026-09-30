@@ -48,9 +48,11 @@ class GlassesConnection internal constructor(
     private val clockMs: () -> Long = { System.nanoTime() / 1_000_000L },
     /** Gets every tap, swipe and hold of temples and ring, and the glasses' status: the app host. */
     private val listener: GlassesListener = GlassesListener.desktopOnly(desktop),
+    /** Also gets every protocol line, with its time: on the watch Logcat and, if switched on, [ProtocolFile]. */
+    private val protocol: (String) -> Unit = {},
 ) {
-    constructor(context: Context, desktop: DesktopController, listener: GlassesListener) :
-        this(desktop, FaceclawParts(context), MainScheduler(), ThreadScheduler("G2Watch-connection"), listener = listener)
+    constructor(context: Context, desktop: DesktopController, listener: GlassesListener, protocol: (String) -> Unit = {}) :
+        this(desktop, FaceclawParts(context), MainScheduler(), ThreadScheduler("G2Watch-connection"), listener = listener, protocol = protocol)
 
     private val _state = MutableStateFlow(GlassesState())
     val state: StateFlow<GlassesState> = _state.asStateFlow()
@@ -437,6 +439,7 @@ class GlassesConnection internal constructor(
     private fun log(line: String) {
         val stamped = LocalTime.now().format(TIME) + " " + line
         _log.update { (it + stamped).takeLast(LOG_LINES) }
+        protocol(stamped)
     }
 
     private companion object {

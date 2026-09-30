@@ -217,6 +217,7 @@ fun TouchpadScreen(
             ) {
                 Text(timeSource.currentTime(), fontSize = 52.sp, fontWeight = FontWeight.Medium, color = Color.White)
                 BatteryRow(watchBattery, glasses)
+                FirmwareRow(glasses)
                 Spacer(Modifier.height(8.dp))
                 GearButton(
                     feedback,

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Typeface
 import android.os.BatteryManager
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import ch.madtreasures.g2watch.apps.builtInApps
@@ -29,6 +30,7 @@ import ch.madtreasures.g2watch.firmware.WatchFirmwareInstaller
 import ch.madtreasures.g2watch.glasses.FirmwareInstaller
 import ch.madtreasures.g2watch.glasses.GlassesConnection
 import ch.madtreasures.g2watch.glasses.GlassesListener
+import ch.madtreasures.g2watch.glasses.ProtocolFile
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -94,9 +96,25 @@ class G2WatchApp : Application() {
 
                 override fun onStatus(status: GlassesStatus) = apps.updateGlasses(status)
             },
+            protocol = { line ->
+                // Android Studio → Logcat, filter "tag:G2Watch"; the file only when switched on.
+                Log.i(LOG_TAG, line)
+                protocolFile.append(line)
+            },
         )
     }
     val scanner: G2Scanner by lazy { G2Scanner(this) }
+
+    /** The protocol as a file for Android Studio's Device Explorer; optional, off until switched on. */
+    val protocolFile: ProtocolFile by lazy {
+        ProtocolFile(getExternalFilesDir("protokoll")).also { it.enabled = prefs.getBoolean(PROTOCOL_FILE, false) }
+    }
+
+    /** Settings → "Protokoll als Datei": on writes what the protocol already holds, then every new line. */
+    fun setProtocolFile(on: Boolean) {
+        prefs.edit { putBoolean(PROTOCOL_FILE, on) }
+        if (on) protocolFile.start(glasses.log.value) else protocolFile.enabled = false
+    }
 
     /**
      * Puts the original or the custom firmware on the last chosen glasses. Only the confirm page
@@ -161,5 +179,13 @@ class G2WatchApp : Application() {
             IntentFilter(Intent.ACTION_BATTERY_CHANGED),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+    }
+
+    private companion object {
+        /** Tag of the protocol lines in Logcat. */
+        const val LOG_TAG = "G2Watch"
+
+        /** Preference: protocol also as a file (Settings → "Protokoll als Datei"). */
+        const val PROTOCOL_FILE = "protocolFile"
     }
 }

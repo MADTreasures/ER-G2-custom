@@ -42,6 +42,18 @@ data class FirmwareVerdict(
     val message: String?,
 ) {
     val compatible: Boolean get() = kind == FirmwareKind.COMPATIBLE
+
+    /** The firmware by name, e.g. "Faceclaw/35" or "Original". */
+    val name: String
+        get() = when (extension) {
+            is FirmwareExtension.Faceclaw -> "Faceclaw/${extension.revision}"
+            is FirmwareExtension.LegacyFaceclaw -> "alte Faceclaw"
+            is FirmwareExtension.Other -> extension.text
+            FirmwareExtension.Stock -> if (leftVersion.isEmpty() && rightVersion.isEmpty()) "unbekannt" else "Original"
+        }
+
+    /** What each temple reports as its (base) version, e.g. "Links 2.3.0.24 · Rechts 2.3.0.24". */
+    val temples: String get() = "Links ${leftVersion.ifEmpty { "?" }} · Rechts ${rightVersion.ifEmpty { "?" }}"
 }
 
 /**

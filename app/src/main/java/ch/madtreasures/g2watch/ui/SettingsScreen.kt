@@ -2,6 +2,10 @@ package ch.madtreasures.g2watch.ui
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -32,10 +36,15 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,7 +53,6 @@ import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
-import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.ListHeader
@@ -52,6 +60,7 @@ import androidx.wear.compose.material3.ListSubHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.SwitchButton
 import androidx.wear.compose.material3.Text
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.glasses.FirmwareInstall
@@ -62,6 +71,7 @@ import ch.madtreasures.g2watch.glasses.TransferStats
 import ch.madtreasures.g2watch.glasses.title
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.PI
 
 /**
  * The settings, opened by holding the gear on the touchpad (or from the status page when the
@@ -85,6 +95,8 @@ fun SettingsScreen(
     onRisks: () -> Unit = {},
     onApps: () -> Unit = {},
     appsSummary: String? = null,
+    protocolFile: Boolean = false,
+    onProtocolFile: (Boolean) -> Unit = {},
 ) {
     val listState = rememberScalingLazyListState()
     val watchBattery = rememberWatchBattery()
@@ -111,7 +123,12 @@ fun SettingsScreen(
             item { TransferPanel(state.transfer, state.framesSent) }
 
             item { ListSubHeader { Text("Firmware") } }
-            item { CenterText("Auf der Brille: " + (state.firmware?.summary ?: "noch nicht gelesen"), size = 12) }
+            item {
+                CenterText(
+                    state.firmware?.let { "Auf der Brille: ${it.name}\n${it.temples}" } ?: "Auf der Brille: noch nicht gelesen",
+                    size = 12,
+                )
+            }
             items(FirmwareTarget.entries) { target ->
                 FilledTonalButton(
                     onClick = { onFirmware(target) },
@@ -162,7 +179,17 @@ fun SettingsScreen(
                     FilledTonalButton(onClick = onConnect, modifier = Modifier.fillMaxWidth()) { Text("Brille verbinden") }
                 }
             }
+            item { ListSubHeader { Text("Protokoll") } }
             item { OutlinedButton(onClick = onLog, modifier = Modifier.fillMaxWidth()) { Text("Protokoll") } }
+            item {
+                SwitchButton(
+                    checked = protocolFile,
+                    onCheckedChange = onProtocolFile,
+                    modifier = Modifier.fillMaxWidth().testTag(PROTOCOL_FILE_TAG),
+                    label = { Text("Als Datei speichern") },
+                    secondaryLabel = { Text(if (protocolFile) "an · für Android Studio" else "aus", fontSize = 11.sp) },
+                )
+            }
         }
     }
 }
@@ -274,17 +301,7 @@ fun FirmwareProgressScreen(install: FirmwareInstall, onClose: () -> Unit) {
             when (install) {
                 is FirmwareInstall.Running -> {
                     item { ListHeader { Text(install.title) } }
-                    item {
-                        Box(contentAlignment = Alignment.Center) {
-                            val percent = install.percent
-                            if (percent != null) {
-                                CircularProgressIndicator(progress = { percent / 100f }, modifier = Modifier.size(64.dp))
-                                Text("$percent %", fontSize = 14.sp, color = Color.White)
-                            } else {
-                                CircularProgressIndicator(modifier = Modifier.size(64.dp))
-                            }
-                        }
-                    }
+                    item { ProgressRing(install.percent) }
                     item { CenterText(install.step, size = 13) }
                     item {
                         CenterText("Nicht abbrechen, die Uhr in der Nähe der Brille lassen.", color = WarnOrange, size = 12)
@@ -318,6 +335,59 @@ fun FirmwareProgressScreen(install: FirmwareInstall, onClose: () -> Unit) {
             content = content,
         )
     }
+}
+
+/**
+ * The progress of a transfer: a closed grey ring, and on it a blue arc that grows with [percent] from the
+ * top clockwise, so the ring is closed only at 100 %. The arc's round ends are accounted for, so what is
+ * blue is exactly [percent] of the ring. Without a number (preparing), a short blue arc circles instead.
+ */
+@Composable
+internal fun ProgressRing(percent: Int?) {
+    val fraction = percent?.let { (it / 100f).coerceIn(0f, 1f) }
+    val shown by animateFloatAsState(fraction ?: 0f, tween(400), label = "progress")
+    val spin = rememberInfiniteTransition(label = "spin")
+    val turn by spin.animateFloat(0f, 360f, infiniteRepeatable(tween(1200, easing = LinearEasing)), label = "turn")
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(RING_SIZE + 8.dp)
+            .testTag(PROGRESS_RING_TAG)
+            .semantics { if (fraction != null) progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f) },
+    ) {
+        Canvas(Modifier.size(RING_SIZE)) {
+            val stroke = RING_STROKE.toPx()
+            val topLeft = Offset(stroke / 2, stroke / 2)
+            val arc = Size(size.width - stroke, size.height - stroke)
+            drawArc(RING_TRACK, 0f, 360f, useCenter = false, topLeft = topLeft, size = arc, style = Stroke(stroke))
+            // Degrees one round end adds to an arc; both ends together add this much.
+            val cap = (stroke / (arc.width / 2)) * (180f / PI.toFloat())
+            if (fraction == null) {
+                drawArc(RING_BLUE, turn - 90f, 70f, false, topLeft, arc, style = Stroke(stroke, cap = StrokeCap.Round))
+            } else if (shown > 0f) {
+                val sweep = progressSweep(shown, cap)
+                val full = sweep >= 360f
+                drawArc(
+                    RING_BLUE, if (full) -90f else -90f + cap / 2, sweep, false, topLeft, arc,
+                    style = Stroke(stroke, cap = if (full) StrokeCap.Butt else StrokeCap.Round),
+                )
+            }
+        }
+        if (percent != null) {
+            Text("$percent %", fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+        }
+    }
+}
+
+/**
+ * Degrees to draw for [fraction] of a ring whose arc has round ends, each adding half of [capDegrees]:
+ * the visible arc is then exactly [fraction] of the ring, and closed only at 1.
+ */
+internal fun progressSweep(fraction: Float, capDegrees: Float): Float = when {
+    fraction >= 1f -> 360f
+    fraction <= 0f -> 0f
+    else -> (360f * fraction - capDegrees).coerceAtLeast(0f)
 }
 
 /**
@@ -377,6 +447,13 @@ internal const val HOLD_CONFIRM_MS = 2_000
 internal const val HOLD_TO_CONFIRM_TAG = "hold-to-confirm"
 internal const val RISKS_TAG = "firmware-risks"
 internal const val APPS_TAG = "settings-apps"
+internal const val PROTOCOL_FILE_TAG = "settings-protocol-file"
+internal const val PROGRESS_RING_TAG = "progress-ring"
+
+private val RING_SIZE = 96.dp
+private val RING_STROKE = 9.dp
+private val RING_TRACK = Color(0xFF3A3A40)
+private val RING_BLUE = Color(0xFF4C8DFF)
 
 /**
  * What the wearer should know before a transfer, in the order it matters. Worded after the

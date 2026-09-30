@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
         val packages = app.packages
         val installedApps by packages.installed.collectAsStateWithLifecycle()
         val waitingApps by packages.waiting.collectAsStateWithLifecycle()
+        var protocolFileOn by remember { mutableStateOf(app.protocolFile.enabled) }
         val install by firmware.progress.collectAsStateWithLifecycle()
 
         val permissionLauncher = rememberLauncherForActivityResult(
@@ -259,6 +260,8 @@ class MainActivity : ComponentActivity() {
                     onRisks = { risksReturn = Screen.SETTINGS; screen = Screen.RISKS },
                     onApps = { screen = Screen.APPS },
                     appsSummary = appsSummary(installedApps.size, waitingApps.size),
+                    protocolFile = protocolFileOn,
+                    onProtocolFile = { on -> app.setProtocolFile(on); protocolFileOn = on },
                 )
             }
 
@@ -322,7 +325,7 @@ class MainActivity : ComponentActivity() {
             Screen.LOG -> {
                 val lines by glasses.log.collectAsStateWithLifecycle()
                 BackHandler { screen = logReturn }
-                LogScreen(lines = lines, onBack = { screen = logReturn })
+                LogScreen(lines = lines, onBack = { screen = logReturn }, fileEnabled = protocolFileOn)
             }
         }
     }

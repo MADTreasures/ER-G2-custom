@@ -11,6 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.wear.compose.material3.MaterialTheme
@@ -196,6 +197,35 @@ class SettingsScreenTest {
         show { FirmwareProgressScreen(FirmwareInstall.Running(FirmwareTarget.CUSTOM, "Übertrage Firmware …", 42)) {} }
         compose.onNodeWithText("42 %").assertExists()
         compose.onNodeWithText("OK").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the ring is as full as the transfer, closed only at 100 percent`() {
+        show { FirmwareProgressScreen(FirmwareInstall.Running(FirmwareTarget.CUSTOM, "Rechtes Glas: Teil 6 von 6 …", 59)) {} }
+        val info = compose.onNodeWithTag(PROGRESS_RING_TAG).fetchSemanticsNode().config[SemanticsProperties.ProgressBarRangeInfo]
+        assertEquals(0.59f, info.current, 0.001f)
+
+        // Round ends add to the arc; the sweep leaves room for them, so the ring closes only at 1.
+        val cap = 10f
+        assertEquals(0f, progressSweep(0f, cap), 0f)
+        assertEquals(360f * 0.59f - cap, progressSweep(0.59f, cap), 0.01f)
+        assertTrue(progressSweep(0.99f, cap) + cap < 360f)
+        assertEquals(360f, progressSweep(1f, cap), 0f)
+        assertEquals("a tiny share draws only the round ends", 0f, progressSweep(0.01f, cap), 0f)
+    }
+
+    @Test
+    fun `the protocol file is switched on and off in the settings`() {
+        val switched = mutableListOf<Boolean>()
+        show {
+            SettingsScreen(
+                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {}, {},
+                protocolFile = false, onProtocolFile = { switched += it },
+            )
+        }
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasTestTag(PROTOCOL_FILE_TAG))
+        compose.onNodeWithText("Als Datei speichern").performClick()
+        assertEquals(listOf(true), switched)
     }
 
     @Test

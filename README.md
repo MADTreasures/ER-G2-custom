@@ -14,8 +14,10 @@ gut genug läuft.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.7.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
-> gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
+> **Ehrlicher Stand (v0.7.1):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
+> Custom-Firmware**: Pixel Watch 5 und G2, linkes Glas im ersten Anlauf; beim rechten brach der erste Anlauf
+> ab, nach dem angezeigten Weg (Brille laden, neu starten, erneut aufspielen) klappte es. Alles andere läuft
+> bisher nur gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
 > 0.4.0 gibt es den **App-Host** – eigene Apps auf der Brille, mit Starter und App-Menü
 > ([Apps auf der Brille](#apps-auf-der-brille)). Seit 0.5.0 die App **YouTube** – Videos suchen und
 > als Graustufen-Raster auf der Brille ansehen, alles auf der Uhr ([YouTube auf der Brille](#youtube-auf-der-brille)).
@@ -64,6 +66,18 @@ die Brille auch mit der Faceclaw-Handy-App verwendbar, ohne hin und her zu flash
    „Beide Gläser melden Faceclaw/35“. Mit **OK** verbindet sie sich neu – mit Custom-Firmware startet
    dann das Touchpad mit dem Maus-Zeiger auf der Brille. Die Even-App auf dem Handy muss danach
    eventuell neu mit der Brille gekoppelt werden.
+
+Verbunden zeigt die Uhr unter dem Akku, welche Firmware die Brille hat und was jeder Bügel meldet
+(z. B. „Faceclaw/35“, „Links 2.3.0.24 · Rechts 2.3.0.24“); dasselbe steht in den Einstellungen unter
+*Firmware*. Während des Aufspielens füllt sich ein blauer Ring auf grauem Grund genau mit dem Fortschritt
+und ist erst bei 100 % geschlossen.
+
+**Protokoll von der Uhr holen:** *Einstellungen → Protokoll → Als Datei speichern* einschalten (aus ist
+die Voreinstellung). Dann schreibt die Uhr das Protokoll, samt allem, was es beim Einschalten schon
+enthielt, nach `Android/data/ch.madtreasures.g2watch/files/protokoll/protokoll.txt` (höchstens etwa 1 MB,
+ältere Zeilen in `protokoll-alt.txt`). Holen: Android Studio *Device Explorer* → Uhr → diesen Ordner →
+Rechtsklick → *Save As*, oder `adb pull /sdcard/Android/data/ch.madtreasures.g2watch/files/protokoll/ .`.
+Ist die Uhr mit Android Studio verbunden, stehen dieselben Zeilen auch in *Logcat* (Filter `tag:G2Watch`).
 
 **Zurück zur Original-Firmware** geht auf demselben Weg (Einstellungen → *Original-Firmware*),
 solange die Brille startet und sich verbinden lässt. Die Seite **Risiken & Rückweg** in den

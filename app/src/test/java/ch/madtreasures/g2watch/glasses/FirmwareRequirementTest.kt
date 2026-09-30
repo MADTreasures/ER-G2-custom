@@ -109,6 +109,17 @@ class FirmwareRequirementTest {
     }
 
     @Test
+    fun `name and the version of each temple, for the watch screen`() {
+        val custom = check("Faceclaw/$required", "2.3.0.24", "2.3.0.24")
+        assertEquals("Faceclaw/$required", custom.name)
+        assertEquals("Links 2.3.0.24 · Rechts 2.3.0.24", custom.temples)
+        // A mixed state after an interrupted transfer shows as such.
+        assertEquals("Links 2.3.0.24 · Rechts ?", check("Faceclaw/$required", "2.3.0.24", "").temples)
+        assertEquals("Original", check("").name)
+        assertEquals("unbekannt", check("", "", "").name)
+    }
+
+    @Test
     fun `summary names revision and base`() {
         assertEquals("Faceclaw/$required · Basis 2.3.0.24", check("Faceclaw/$required", "2.3.0.24", "2.3.0.24").summary)
     }

@@ -66,7 +66,7 @@ Weitere Video-Apps können denselben Befehl `video` nutzen.
 
 | Teil | Stand | Wo |
 |---|---|---|
-| Firmware aufspielen, Verbindung, Maus-Desktop auf der Brille | **fertig** (v0.3.0, nicht auf Hardware erprobt) | `app/`, [FIRMWARE.md](../FIRMWARE.md) |
+| Firmware aufspielen, Verbindung, Maus-Desktop auf der Brille | **fertig** (v0.3.0). **Custom-Firmware auf echter Uhr und Brille aufgespielt** (rechtes Glas erst im zweiten Anlauf, der Rückweg aus der Fehlermeldung hat funktioniert); das Übrige nicht auf Hardware erprobt | `app/`, [FIRMWARE.md](../FIRMWARE.md) |
 | G2 Baukasten (Seiten entwerfen) | **fertig**, braucht kleine Erweiterungen (M0) | `designer/` |
 | App-Modell, Seitenformat, Ereignisse | **spezifiziert** hier | [02](02_App-Modell.md) |
 | App-Host auf der Uhr, Uhr-Apps (Starter, App-Menü) | **fertig** (M1, v0.4.0 aus Pull Request #2, nicht auf Hardware erprobt). Aus Pull Request #1, der den Host ein zweites Mal baute, sind nur die M2-Teile übernommen (v0.7.0). Die Beispiele Stoppuhr und Einkaufsliste sind entfernt (v0.7.0) | [03](03_Uhr-Apps.md), `app/…/apps/` |

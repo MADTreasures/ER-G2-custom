@@ -29,6 +29,7 @@ import ch.madtreasures.g2watch.G2WatchApp
 import ch.madtreasures.g2watch.ble.G2Pair
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.GlassesState
+import ch.madtreasures.g2watch.glasses.ProtocolFile
 import ch.madtreasures.g2watch.glasses.Stage
 
 val OkGreen = Color(0xFF7CFFA0)
@@ -235,7 +236,7 @@ fun StatusScreen(
                 }
             }
             if (state.detail.isNotEmpty()) item { CenterText(state.detail, size = 13) }
-            state.firmware?.let { item { CenterText("Firmware: ${it.summary}", color = MaterialTheme.colorScheme.onSurfaceVariant, size = 12) } }
+            state.firmware?.let { item { CenterText("Firmware: ${it.name}\n${it.temples}", color = MaterialTheme.colorScheme.onSurfaceVariant, size = 12) } }
             if (state.stage == Stage.INCOMPATIBLE) {
                 val newer = state.firmware?.let { v -> FirmwareRequirement.isNewerThanBase(v.leftVersion) || FirmwareRequirement.isNewerThanBase(v.rightVersion) } == true
                 item {
@@ -277,7 +278,7 @@ fun StatusScreen(
 // ---------------------------------------------------------------------------------------------
 
 @Composable
-fun LogScreen(lines: List<String>, onBack: () -> Unit) {
+fun LogScreen(lines: List<String>, onBack: () -> Unit, fileEnabled: Boolean = false) {
     val listState = rememberScalingLazyListState()
     ScreenScaffold(
         scrollState = listState,
@@ -285,6 +286,13 @@ fun LogScreen(lines: List<String>, onBack: () -> Unit) {
     ) { padding ->
         ScalingLazyColumn(state = listState, contentPadding = padding, modifier = Modifier.fillMaxWidth()) {
             item { ListHeader { Text("Protokoll") } }
+            item {
+                CenterText(
+                    if (fileEnabled) "Wird auch als Datei gespeichert: ${ProtocolFile.PATH} (Android Studio: Device Explorer)"
+                    else "Als Datei speichern: Einstellungen → Protokoll → Als Datei speichern",
+                    size = 10,
+                )
+            }
             if (lines.isEmpty()) item { CenterText("Noch keine Einträge.") }
             // Newest first: the interesting part is at the top without scrolling.
             items(lines.asReversed()) { line ->

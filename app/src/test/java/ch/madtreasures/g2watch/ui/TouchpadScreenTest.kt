@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.TimeSource
 import ch.madtreasures.g2watch.apps.GestureKind
+import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.GlassesState
 import ch.madtreasures.g2watch.glasses.Stage
 import org.junit.Assert.assertEquals
@@ -143,6 +144,16 @@ class TouchpadScreenTest {
             compose.onNodeWithText("81 %", substring = true).assertDoesNotExist()
             compose.onNodeWithText("– %").assertIsDisplayed()
         }
+    }
+
+    @Test
+    fun `connected glasses show their firmware and each temple's version`() {
+        show(connected.copy(firmware = FirmwareRequirement.check("2.3.0.24", "2.3.0.24", "Faceclaw/${FirmwareRequirement.REQUIRED_REVISION}")))
+        compose.onNodeWithText("Faceclaw/${FirmwareRequirement.REQUIRED_REVISION}").assertIsDisplayed()
+        compose.onNodeWithText("Links 2.3.0.24 · Rechts 2.3.0.24").assertIsDisplayed()
+        glasses = glasses.copy(stage = Stage.RECONNECTING)
+        compose.waitForIdle()
+        compose.onNodeWithTag(FIRMWARE_ROW_TAG).assertDoesNotExist()
     }
 
     @Test

@@ -79,7 +79,15 @@ Image-Prüfung und das Patch-Set (`firmware-image`), die hier bitgenau gegen das
 | „Die Übertragung war abgeschlossen; die Kontrolle danach wurde unterbrochen. …“ | Beide Gläser haben alles angenommen, nur die Kontrolle fehlt: neu verbinden |
 
 Die App wiederholt nie selbst. Jeder Schritt steht mit Uhrzeit im **Protokoll** (Einstellungen →
-Protokoll), Zeilen mit „Firmware:“ stammen vom Auftrag.
+Protokoll), Zeilen mit „Firmware:“ stammen vom Auftrag. Mit *Einstellungen → Protokoll → Als Datei
+speichern* landet es auch in `Android/data/ch.madtreasures.g2watch/files/protokoll/protokoll.txt` (für
+Android Studio, Device Explorer); am besten vor dem Aufspielen einschalten, dann ist ein Abbruch
+nachlesbar.
+
+**Auf echter Hardware (Pixel Watch 5, G2):** Custom-Firmware aufgespielt; links im ersten Anlauf, rechts
+brach der erste Anlauf ab („Welche Firmware die Brille jetzt startet, ist unklar …“). Nach Laden, Neustart
+(5× tippen) und erneutem Aufspielen hatte auch das rechte Glas Faceclaw/35. Die Ursache des Abbruchs ist
+offen (damals gab es noch keine Protokoll-Datei).
 
 ## 5. Revision wechseln (z. B. auf eine künftige Faceclaw/36)
 
