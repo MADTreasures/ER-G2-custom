@@ -72,8 +72,8 @@ Eingabe, kein Rechenknecht (Akku).
 | Mikrofon, IMU, Kompass, Standort zu den Apps | **zu bauen** (M6) | [07](07_Umsetzungsplan.md) |
 | Web-Browser auf der Brille | **Idee** (M7) | [05 §10](05_EvenHub-Apps.md#10-und-ein-richtiger-browser-auf-der-brille) |
 
-Die Reihenfolge und die Abnahmekriterien stehen im [Umsetzungsplan](07_Umsetzungsplan.md), fertige
-Aufträge für neue Chats in [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md).
+Die Reihenfolge und die Abnahmekriterien stehen im [Umsetzungsplan](07_Umsetzungsplan.md),
+der Text für neue Chats in [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md).
 
 ## Inhalt
 
@@ -86,7 +86,7 @@ Aufträge für neue Chats in [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen
 | [05_EvenHub-Apps.md](05_EvenHub-Apps.md) | Even-Hub-Apps: Aufbau, EvenHub-Laufzeit, GeckoView auf der Uhr, Ausweichweg Handy, Installation, Lizenzen |
 | [06_App-Verwaltung.md](06_App-Verwaltung.md) | Apps installieren: „G2 Handy“ für Even-Hub-Apps, Web-Seite von `g2-host` für Rechner-Apps |
 | [07_Umsetzungsplan.md](07_Umsetzungsplan.md) | Meilensteine M0–M7 mit Abnahme |
-| [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md) | Texte zum Einfügen in einen neuen Chat |
+| [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md) | Der Text zum Einfügen in einen neuen Chat |
 | [quellen/](quellen/) | Recherche-Notizen (Faceclaw, offizielle Even-Hub-Doku, Browser auf der Uhr) mit Quellenangaben |
 
 ## Harte Regeln für alle Chats
