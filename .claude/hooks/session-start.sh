@@ -1,8 +1,9 @@
 #!/bin/bash
 # SessionStart hook for Claude Code on the web: prepares a fresh cloud container so that
 # ./gradlew can build and test the project (see README "Selbst bauen auf der Kommandozeile").
-#  1. Android SDK with the packages the build needs (as in .github/workflows/build.yml, plus
-#     platform-tools, which AGP would otherwise download in every new session), and local.properties.
+#  1. Android SDK with the packages the build needs (as in .github/workflows/build.yml, 37.1 for the
+#     Gecko test APK), plus platform-tools, which AGP would otherwise download in every new session,
+#     and local.properties.
 #  2. A local caching proxy for Maven Central (maven-central-proxy.py), because Maven Central
 #     answers shared cloud containers with HTTP 429; a Gradle init script routes Central through it.
 #  3. The Gradle distribution and build plugins, so the container cache already holds them.
@@ -21,7 +22,7 @@ PROXY_CACHE="$HOME/.cache/maven-central-proxy"
 
 CMDLINE_TOOLS_ZIP=commandlinetools-linux-16111833_latest.zip
 CMDLINE_TOOLS_SHA1=e025545c62a8e64c7559119566a569fb1dec5f60
-SDK_PACKAGES=("platforms;android-37.0" "build-tools;36.0.0" "platform-tools")
+SDK_PACKAGES=("platforms;android-37.0" "platforms;android-37.1" "build-tools;36.0.0" "platform-tools")
 
 log() { echo "[session-start] $*" >&2; }
 

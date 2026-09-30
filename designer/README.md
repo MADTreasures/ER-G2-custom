@@ -51,6 +51,13 @@ Jeder Baustein hat eine `id` und einen `type`:
 Beim Import werden fehlende Felder ergänzt, unbekannte Bausteine weggelassen und Verweise auf
 fehlende Seiten entfernt. Ein Beispiel liegt in [`../designs/beispiel.json`](../designs/beispiel.json).
 
+**Auf der Uhr (G2 Watch ab 0.4.0):** Der App-Host liest dieses Format als Oberfläche einer Uhr-App
+(im App-Paket unter `packages/<name>/src/main/assets/apps/<app-id>/ui.json`, [03 §1](../docs/app-entwicklung/03_Uhr-Apps.md#1-eine-uhr-app-schreiben),
+[09](../docs/app-entwicklung/09_App-Pakete.md)).
+Er kennt schon zwei Ergänzungen, die der Baukasten erst mit M0 bekommt: den Baustein `image` (`src` als
+PNG-Daten-URL, `w`, `h`, `align`, `bleed`) und das Knopf-Ziel `"@back"` (zurück). Der Baukasten selbst
+entfernt beim Import heute noch beides.
+
 ## Entwicklung
 
 `baukasten.html` ist die Quelle (so wird sie als Artifact veröffentlicht, ohne `<html>`-Gerüst);

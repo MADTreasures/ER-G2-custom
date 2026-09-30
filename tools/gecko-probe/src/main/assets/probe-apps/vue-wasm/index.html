@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Vue + WebAssembly</title></head>
+<body>
+<div id="app">{{ title }}: <span v-for="n in values" :key="n.n">{{ n.n }}→{{ n.fib }} </span></div>
+<script src="../common/even.js"></script>
+<script src="vue.global.prod.js"></script>
+<script>
+  // Test app 3 (05 §5.1): a Vue 3 app (as many Even Hub apps are built) that computes with
+  // WebAssembly. The module exports fib(n) and was assembled by hand (82 bytes).
+  const t0 = performance.now();
+  const WASM = "0061736d0100000001060160017f017f030201000707010366696200000a33013101037f4100210141012102024003402000450d01200120026a21032002210120032102200041016b21000c000b0b20010b";
+  const bytes = new Uint8Array(WASM.match(/../g).map((h) => parseInt(h, 16)));
+  WebAssembly.instantiate(bytes).then(({ instance }) => {
+    const fib = instance.exports.fib;
+    const wasmMs = performance.now() - t0;
+    Vue.createApp({
+      data() {
+        return { title: "Fibonacci", values: [5, 10, 20, 30].map((n) => ({ n, fib: fib(n) })) };
+      },
+      mounted() {
+        even.call("probeReport", { app: "vue-wasm", vue: Vue.version, wasmMs, mountedMs: performance.now() - t0, fib30: fib(30) });
+      },
+    }).mount("#app");
+  }).catch((e) => even.call("probeReport", { app: "vue-wasm", error: String(e) }));
+</script>
+</body>
+</html>

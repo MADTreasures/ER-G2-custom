@@ -69,16 +69,17 @@ Weitere Video-Apps können denselben Befehl `video` nutzen.
 | Firmware aufspielen, Verbindung, Maus-Desktop auf der Brille | **fertig** (v0.3.0, nicht auf Hardware erprobt) | `app/`, [FIRMWARE.md](../FIRMWARE.md) |
 | G2 Baukasten (Seiten entwerfen) | **fertig**, braucht kleine Erweiterungen (M0) | `designer/` |
 | App-Modell, Seitenformat, Ereignisse | **spezifiziert** hier | [02](02_App-Modell.md) |
-| App-Host auf der Uhr, Uhr-Apps (Starter, App-Menü) | **fertig** (M1, v0.4.0 aus Pull Request #2, nicht auf Hardware erprobt). Pull Request #1 baute den Host ein zweites Mal: von dort nur noch M2 übernehmen, M1 nicht noch einmal bauen. Stoppuhr und Einkaufsliste sind App-Pakete (Vorlagen), nicht fest eingebaut | [03](03_Uhr-Apps.md), `app/…/apps/` |
+| App-Host auf der Uhr, Uhr-Apps (Starter, App-Menü) | **fertig** (M1, v0.4.0 aus Pull Request #2, nicht auf Hardware erprobt). Aus Pull Request #1, der den Host ein zweites Mal baute, sind nur die M2-Teile übernommen (v0.7.0). Stoppuhr und Einkaufsliste sind App-Pakete (Vorlagen), nicht fest eingebaut | [03](03_Uhr-Apps.md), `app/…/apps/` |
 | **App-Pakete** (`.g2app`): eigene Apps getrennt von der Uhr-App installieren, Seite „Apps“ auf der Uhr | **fertig** (v0.6.0, nicht auf Hardware erprobt). Pakete: YouTube, Stoppuhr, Einkauf; keine App mehr fest eingebaut | [09](09_App-Pakete.md), `packages/`, `app-api/` |
-| Texteingabe auf der Uhr, Video auf der Brille, App **YouTube** | **fertig** (v0.5.0, seit v0.7.0 als App-Paket; nicht auf Hardware erprobt; YouTube-Wiedergabe ungeprüft) | [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050), `app/…/apps/video/`, `app/…/apps/builtin/youtube/` |
+| Texteingabe auf der Uhr, Video auf der Brille, App **YouTube** | **fertig** (v0.5.0, seit v0.7.0 als App-Paket; nicht auf Hardware erprobt; YouTube-Wiedergabe ungeprüft) | [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050), `app/…/apps/video/`, `packages/youtube/` |
 | Emoji in allen Texten auf der Brille (Schwarz-Weiß-Schrift Noto Emoji statt Kleckse) | **fertig** (v0.5.2, nicht auf Hardware erprobt) | [03 §11](03_Uhr-Apps.md#11-emoji-v052), `app/…/desktop/AndroidTextPainter.kt`, `EmojiText.kt` |
-| GeckoView auf der Uhr: Machbarkeitstest | **Test-APK gebaut** im offenen Pull Request #1, **auf der Uhr zu messen** (M2) | [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview) |
+| GeckoView auf der Uhr: Machbarkeitstest | **Test-APK „Gecko-Test“ gebaut** (M2, seit v0.7.0 im Standard-Branch); **die Messwerte von der echten Uhr fehlen noch** | `tools/gecko-probe/`, [05 §5.2](05_EvenHub-Apps.md#52-die-test-apk-gecko-test), [Messwerte](quellen/E-m2-messwerte.md) |
 | EvenHub-Laufzeit auf der Uhr | **zu bauen** (M3) | [05](05_EvenHub-Apps.md) |
 | Handy-App „G2 Handy“ (Ausweich-Engine, Apps installieren) | **zu bauen** (M4) | [05 §6–§7](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy), [06](06_App-Verwaltung.md) |
 | Rechner-Apps: `g2-host`, Protokoll `g2-remote@1`, Web-Verwaltung | **zu bauen** (M5) | [04](04_Rechner-Apps_und_Protokoll.md), [06](06_App-Verwaltung.md) |
 | Mikrofon, IMU, Kompass, Standort zu den Apps | **zu bauen** (M6) | [07](07_Umsetzungsplan.md) |
-| Web-Browser auf der Brille | **Idee** (M7) | [05 §10](05_EvenHub-Apps.md#10-und-ein-richtiger-browser-auf-der-brille) |
+| Web-Browser auf der Brille: Seiten ins Brillen-Raster wandeln, Text immer lesbar (automatisch negativ) | **fertig** als Modul `web-raster` (Tests mit Testseiten); im Gecko-Test auf der Uhr ausprobierbar | `web-raster/`, [05 §10](05_EvenHub-Apps.md#10-und-ein-richtiger-browser-auf-der-brille) |
+| Web-Browser auf der Brille: Browser-App selbst | **zu bauen** (M7, nach dem Ergebnis von M2) | [07 M7](07_Umsetzungsplan.md#m7--web-browser-auf-der-brille-wenn-m2-geckoview-ja-ergibt) |
 
 Die Reihenfolge und die Abnahmekriterien stehen im [Umsetzungsplan](07_Umsetzungsplan.md),
 die Texte für neue Chats in [08_Prompt_fuer_neuen_Chat.md](08_Prompt_fuer_neuen_Chat.md).

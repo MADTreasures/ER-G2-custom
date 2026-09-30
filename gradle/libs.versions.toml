@@ -19,6 +19,8 @@ wearInput = "1.2.0"
 newpipeExtractor = "v0.26.5"
 # D8 for app packages (docs/app-entwicklung/09), the R8 line of AGP 9.4.
 r8 = "9.4.28"
+# GeckoView for the M2 probe (tools/gecko-probe) only, from maven.mozilla.org; one artifact per ABI.
+geckoview = "157.0.20260924084938"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -39,6 +41,9 @@ media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls
 wear-input = { group = "androidx.wear", name = "wear-input", version.ref = "wearInput" }
 newpipe-extractor = { group = "com.github.teamnewpipe", name = "NewPipeExtractor", version.ref = "newpipeExtractor" }
 r8 = { group = "com.android.tools", name = "r8", version.ref = "r8" }
+geckoview-armeabi-v7a = { group = "org.mozilla.geckoview", name = "geckoview-armeabi-v7a", version.ref = "geckoview" }
+geckoview-arm64-v8a = { group = "org.mozilla.geckoview", name = "geckoview-arm64-v8a", version.ref = "geckoview" }
+geckoview-x86x64 = { group = "org.mozilla.geckoview", name = "geckoview-x86_64", version.ref = "geckoview" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

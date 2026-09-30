@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Text</title></head>
+<body>
+<p id="status">Text-App</p>
+<script src="../common/even.js"></script>
+<script>
+  // Test app 1 (05 §5.1): text only. Creates a text container, waits for a click from the watch
+  // and answers it; the watch measures the round trip.
+  const started = performance.now();
+  even.on((message) => {
+    if (message.method === "evenHubEvent") {
+      even.call("textContainerUpgrade", { containerID: 1, content: "Klick erhalten", echo: message.data && message.data.token });
+    }
+  });
+  even.call("createStartUpPageContainer", {
+    containerTotalNum: 1,
+    textObject: [{ containerID: 1, containerName: "status", content: "Hallo von der Uhr", isEventCapture: 1 }],
+  }).then((result) => {
+    document.getElementById("status").textContent = "Container: " + result;
+    return even.call("probeReport", { app: "text", scriptMs: started, result });
+  });
+</script>
+</body>
+</html>
