@@ -1,4 +1,4 @@
-package ch.madtreasures.g2watch.apps.builtin.youtube
+package ch.madtreasures.youtube
 
 import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.Block
@@ -11,9 +11,9 @@ import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
 import ch.madtreasures.g2watch.apps.VideoState
-import ch.madtreasures.g2watch.apps.builtin.youtube.YouTubeApp.Companion.PICTURE
-import ch.madtreasures.g2watch.apps.builtin.youtube.YouTubeApp.Companion.STATUS
-import ch.madtreasures.g2watch.apps.builtin.youtube.YouTubeApp.Companion.VIDEO
+import ch.madtreasures.youtube.YouTubeApp.Companion.PICTURE
+import ch.madtreasures.youtube.YouTubeApp.Companion.STATUS
+import ch.madtreasures.youtube.YouTubeApp.Companion.VIDEO
 import ch.madtreasures.g2watch.apps.textOf
 import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals

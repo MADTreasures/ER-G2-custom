@@ -50,7 +50,7 @@ soll. In v0.5.2 kamen Emoji in allen Texten dazu (03 §11).
   EvenHub-Sitzungen nach 03 §5.2 (noch ohne Inhalt).
 - kotlinx.serialization im Modul `app` (Plugin und Bibliothek stehen schon im Versionskatalog).
 - Beispiel-Apps `StopwatchApp` und `ShoppingListApp`, seit v0.6.0 als App-Pakete in `packages/` (M1b).
-  Sie stehen nicht in `AppRegistry`: Der Starter zeigt nur installierte und fest eingebaute Apps, ohne
+  Sie stehen nicht in `AppRegistry`: Der Starter zeigt nur installierte Apps, ohne
   Apps den Hinweis „Noch keine Apps“.
 - Berechtigungsabfrage auf der Brille (Seite mit „Erlauben“/„Ablehnen“).
 
@@ -72,7 +72,8 @@ nicht testbar).
   `DexPackageLoader`, `AppPackages` (Ordner für neue Apps, Listen), Seite „Apps“ in den Einstellungen; der
   App-Host listet installierte Apps im Starter, lädt ihre Seiten aus dem Paket und beendet sie beim
   Entfernen oder Aktualisieren.
-- Stoppuhr und Einkauf als Vorlagen-Pakete; CI-Artefakt `g2-apps` mit allen Paketen.
+- Stoppuhr und Einkauf als Vorlagen-Pakete; CI-Artefakt `g2-apps` mit allen Paketen. In v0.7.0 wurde auch
+  YouTube ein Paket; `builtInApps` ist leer.
 
 **Abnahme:** `PackageArchiveTest`, `PackageStoreTest`, `InstalledPackagesTest` (die echt gebauten Pakete
 im echten App-Host), `AppsScreenTest`, `PackageManifestTest`, erweiterter `AppsBoundaryTest`; Bild

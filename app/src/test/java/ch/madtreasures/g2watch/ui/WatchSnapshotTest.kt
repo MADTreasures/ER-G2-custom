@@ -196,8 +196,8 @@ class WatchSnapshotTest {
         fun pkg(id: String, name: String) = PackageManifest(1, "$id.App", AppManifest(id, name, "1.0.0"))
         AppsScreen(
             waiting = listOf(WaitingPackage(File("stoppuhr.g2app"), pkg("ch.madtreasures.stoppuhr", "Stoppuhr"), null)),
-            installed = listOf(pkg("ch.madtreasures.einkauf", "Einkauf")),
-            builtIn = listOf("YouTube"),
+            installed = listOf(pkg("ch.madtreasures.einkauf", "Einkauf"), pkg("ch.madtreasures.youtube", "YouTube")),
+            builtIn = emptyList(),
             message = null,
             busy = false,
             inboxPath = null,

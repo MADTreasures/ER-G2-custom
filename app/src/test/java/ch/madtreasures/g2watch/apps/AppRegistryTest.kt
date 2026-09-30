@@ -18,7 +18,7 @@ class AppRegistryTest {
     }
 
     @Test
-    fun `only real apps are built in, the examples are app packages`() {
-        assertEquals(listOf("YouTube"), builtInApps.map { it().manifest.name })
+    fun `no app is built in, every app is an app package`() {
+        assertEquals(emptyList<String>(), builtInApps.map { it().manifest.name })
     }
 }

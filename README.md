@@ -8,14 +8,15 @@ die Custom-Firmware drauf ist.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.6.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
+> **Ehrlicher Stand (v0.7.0):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
 > gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
 > 0.4.0 gibt es den **App-Host** – eigene Apps auf der Brille, mit Starter und App-Menü
 > ([Apps auf der Brille](#apps-auf-der-brille)). Seit 0.5.0 die App **YouTube** – Videos suchen und
 > als Graustufen-Raster auf der Brille ansehen, alles auf der Uhr ([YouTube auf der Brille](#youtube-auf-der-brille)).
 > Neu in 0.5.2: [Emoji](#emoji) erscheinen in allen Texten als Strichzeichnung statt als Kleckse.
 > Neu in 0.6.0: **App-Pakete** – eigene Apps als Datei auf die Uhr legen und dort installieren, ohne die
-> Uhr-App neu zu bauen ([Eigene Apps installieren](#eigene-apps-installieren)).
+> Uhr-App neu zu bauen ([Eigene Apps installieren](#eigene-apps-installieren)). Seit 0.7.0 ist auch YouTube
+> ein solches Paket; die Uhr-App selbst bringt keine App mehr mit.
 
 ## Was aufgespielt werden kann
 
@@ -65,9 +66,9 @@ Einstellungen fasst zusammen, was schiefgehen kann ([Recherche](docs/RECHERCHE_F
 Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
 [`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)): Apps beschreiben ihre Oberfläche als
 Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
-verteilt die Eingaben. Fest eingebaut ist seit 0.5.0 die App **YouTube** (übernächster Abschnitt). Die
-Beispiele **Stoppuhr** und **Einkauf** (Einkaufsliste zum Abhaken, Seite aus dem Baukasten) sind App-Pakete:
-Im Starter stehen sie erst, wenn man sie installiert ([Eigene Apps installieren](#eigene-apps-installieren)).
+verteilt die Eingaben. Alle Apps sind App-Pakete: **YouTube** ([YouTube auf der Brille](#youtube-auf-der-brille))
+und die Beispiele **Stoppuhr** und **Einkauf** (Einkaufsliste zum Abhaken, Seite aus dem Baukasten). Im
+Starter stehen sie, sobald man sie installiert hat ([Eigene Apps installieren](#eigene-apps-installieren)).
 
 | Starter | Einkauf (App-Paket, per Bügel abgehakt) | App-Menü |
 |---|---|---|
@@ -140,11 +141,13 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
-zweimal antippen. Zum Ausprobieren gibt es die Pakete **Stoppuhr** und **Einkauf**.
+zweimal antippen. Fertige Pakete: **YouTube**, **Stoppuhr** und **Einkauf**.
 
 ## YouTube auf der Brille
 
-Die App **YouTube** (seit 0.5.0) läuft **ganz auf der Uhr**, ohne Handy und ohne Rechner: Sie sucht auf
+Die App **YouTube** (seit 0.5.0, seit 0.7.0 als App-Paket `ch.madtreasures.youtube-1.0.0.g2app`, zu
+installieren wie in [Eigene Apps installieren](#eigene-apps-installieren)) läuft **ganz auf der Uhr**, ohne
+Handy und ohne Rechner: Sie sucht auf
 YouTube, lädt das Video über WLAN oder LTE, dekodiert es und rechnet jedes Bild in das Raster der Brille
 um – Graustufen in Grün, wie bei „G2 Agent Cam“ im Even Hub, nur mit Videos. Wie das gebaut ist, steht in
 [03 §10](docs/app-entwicklung/03_Uhr-Apps.md#10-video-auf-der-brille-v050).

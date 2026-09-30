@@ -1,8 +1,8 @@
 # 03 – Uhr-Apps (Kotlin, auf der Pixel Watch)
 
 Uhr-Apps sind kleine Kotlin-Klassen. Seit v0.6.0 kommt jede eigene App als **App-Paket** (`.g2app`) auf
-die Uhr und wird dort installiert, ohne die Uhr-App neu zu bauen ([09](09_App-Pakete.md)); fest in die
-Uhr-App eingebaut ist nur noch YouTube. Uhr-Apps laufen auch ohne Rechner und ohne Netz. Für alles
+die Uhr und wird dort installiert, ohne die Uhr-App neu zu bauen ([09](09_App-Pakete.md)); seit v0.7.0
+auch YouTube, fest eingebaut ist keine App mehr. Uhr-Apps laufen auch ohne Rechner und ohne Netz. Für alles
 Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 
 **Stand:** Der App-Host ist gebaut (M1, v0.4.0, aus Pull Request #2; Pull Request #1 enthält einen zweiten,
@@ -90,8 +90,8 @@ Seiten aus dem Baukasten statt aus Code: den Export nach `packages/<name>/src/ma
 legen und im Manifest `ui = "apps/<app-id>/ui.json"` setzen. Der Host lädt die Datei aus dem Paket vor
 `Start`; die App ruft dann nur noch `show(...)` oder `patch(...)` auf.
 
-Fest in die Uhr-App (`apps/AppRegistry.kt`, `builtInApps`) kommen nur Apps, die zur Plattform gehören;
-zurzeit YouTube. Neue Apps nie dort eintragen.
+Fest in die Uhr-App (`apps/AppRegistry.kt`, `builtInApps`) kämen nur Apps, die zur Plattform gehören;
+die Liste ist leer. Neue Apps nie dort eintragen.
 
 ## 2. Die Schnittstelle
 
@@ -221,8 +221,7 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 | `render/PageRenderer.kt` | Seite + Zustand (Fokus, Scroll, Zeiger) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine) |
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
 | `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende markiert |
-| `AppRegistry.kt` | fest eingebaute Apps (§1), zurzeit nur YouTube |
-| `builtin/…` | die fest eingebauten Apps |
+| `AppRegistry.kt` | fest eingebaute Apps (§1), zurzeit keine |
 | `packages/…` | App-Pakete prüfen, installieren, entfernen und laden ([09](09_App-Pakete.md)) |
 
 Seit v0.6.0 liegen die Schnittstellen-Dateien (`Page.kt` … `AppManifest.kt`) im Modul `app-api/`.
@@ -372,7 +371,7 @@ YouTubeApp (G2App) ── video(block, Play) ──────────▶ A
 | `video/NewPipeCatalog.kt` | YouTube-Suche und Stream-Adressen mit NewPipeExtractor (GPL-3.0) |
 | `video/ExoVideoPlayer.kt`, `GlFrameGrabber.kt`, `GooglevideoDataSource.kt`, `FastNetwork.kt`, `AndroidVideoEngine.kt` | Wiedergabe auf der Uhr (Android, nicht auf Hardware erprobt) |
 | `host/TextPrompts.kt` | Texteingabe: Frage des Hosts → `MainActivity` (Wear-OS-`RemoteInput`: Tastatur, Sprache, Vorschläge) → Antwort |
-| `builtin/youtube/YouTubeApp.kt` | die App: Start, Suche, Treffer, Verlauf, Video, Profile, Ton; Titel mit ihren Emoji (§11) |
+| `packages/youtube/…/YouTubeApp.kt` | die App (seit v0.7.0 ein App-Paket): Start, Suche, Treffer, Verlauf, Video, Profile, Ton; Titel mit ihren Emoji (§11) |
 
 **Vom Video zum Raster** (`FrameConverter`, je Bild):
 

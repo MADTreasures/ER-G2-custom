@@ -17,8 +17,7 @@ import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.einkauf.ShoppingListApp
 import ch.madtreasures.stoppuhr.StopwatchApp
-import ch.madtreasures.g2watch.apps.builtin.youtube.YouTubeApp
-import ch.madtreasures.g2watch.apps.builtInApps
+import ch.madtreasures.youtube.YouTubeApp
 import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
@@ -156,9 +155,9 @@ class PageRendererSnapshotTest {
 
     @Test
     fun launcher() {
-        // The real launcher: the built-in apps only (the examples are test apps), YouTube running.
+        // The launcher with the YouTube package installed and running.
         ports.answers["$youtubeId@1.0.0"] = setOf(Permission.NETWORK)
-        val host = host(*builtInApps.toTypedArray())
+        val host = host({ YouTubeApp() })
         host.launch("watch:$youtubeId")
         settle()
         host.openLauncher()

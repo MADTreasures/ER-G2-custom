@@ -1,4 +1,4 @@
-package ch.madtreasures.g2watch.apps.builtin.youtube
+package ch.madtreasures.youtube
 
 import ch.madtreasures.g2watch.apps.Align
 import ch.madtreasures.g2watch.apps.AppContext
@@ -32,7 +32,8 @@ import java.text.BreakIterator
  * pick a hit with pointer or temple, and the watch decodes the video and shows it as a grey raster. On
  * the video page the temple works like a remote: tap = pause/play, swipe = 10 s back or on, double tap =
  * back to the list; a long press switches the profile (Stabil 1, Ausgewogen 2, Schnell 4 pictures a
- * second). "Testbild" plays the watch's own test video, without internet.
+ * second). "Testbild" plays the watch's own test video, without internet. An app package (09): the
+ * watch app does search, streaming and decoding, this class only the pages and the remote control.
  */
 class YouTubeApp : G2App {
 

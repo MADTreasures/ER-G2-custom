@@ -63,7 +63,8 @@ packages/<name>/
 
 Jeder Ordner in `packages/` mit einer `build.gradle.kts` ist automatisch ein Paket; die gemeinsame
 Bau-Logik steht in der `build.gradle.kts` im Hauptordner. Vorlagen: [`packages/stoppuhr`](../../packages/stoppuhr)
-(nur Code) und [`packages/einkauf`](../../packages/einkauf) (Code und Seiten aus dem Baukasten).
+(nur Code), [`packages/einkauf`](../../packages/einkauf) (Code und Seiten aus dem Baukasten) und
+[`packages/youtube`](../../packages/youtube) (Video über die Schnittstelle).
 
 ```sh
 ./gradlew :packages:einkauf:g2app   # → packages/einkauf/build/g2app/ch.madtreasures.einkauf-1.0.0.g2app
@@ -89,7 +90,7 @@ bricht er ab. Dann übersetzt D8 (die Version aus AGP 9.4) den Code nach DEX, un
 - `when (event)` immer mit `else -> Unit`: Neue Schnittstellen-Versionen bringen neue Ereignisse.
 - Die `id` bleibt für immer gleich: An ihr hängen der Speicher der App und die Berechtigungen.
 - Bei jeder Änderung `version` erhöhen. Eine neue Version fragt die Berechtigungen neu ab.
-- Eine `id`, die eine fest eingebaute App schon hat (zurzeit nur YouTube), nimmt die Uhr nicht an.
+- Eine `id`, die eine fest eingebaute App schon hat, nimmt die Uhr nicht an (zurzeit gibt es keine).
 
 ## 4. Auf die Uhr bringen und installieren
 
@@ -157,5 +158,5 @@ Uhr-App nicht gibt, endet nur diese App („ist abgestürzt“), der App-Host l�
 - Eine eingebaute App wird zum Paket, indem ihr Ordner von `app/src/main/java/…/apps/builtin/<name>/` nach
   `packages/<name>/src/main/kotlin/` wandert (eigenes Kotlin-Paket, z. B. `ch.madtreasures.youtube`), ihr
   Eintrag aus `builtInApps` verschwindet und ihre Tests nach `packages/<name>/src/test/kotlin/` ziehen. Das
-  geht, solange sie nur die Schnittstelle benutzt; bei YouTube ist das so, die Video-Wiedergabe bleibt Teil
-  der Uhr-App.
+  geht, solange sie nur die Schnittstelle benutzt. So ist YouTube in v0.7.0 zum Paket geworden
+  ([`packages/youtube`](../../packages/youtube)); Suche, Streams und Dekodieren bleiben Teil der Uhr-App.
