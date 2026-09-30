@@ -11,7 +11,7 @@
 3. Am Ende öffnet der Chat einen **Pull Request**. Diesen auf GitHub zusammenführen („Merge“), damit der
    nächste Chat auf der neuen App aufbaut. **Erst zusammenführen, dann den nächsten Chat starten** –
    sonst baut jeder Chat die fehlenden Plattform-Teile (etwa den App-Host, M1) von neuem. Der App-Host (M1)
-   ist seit v0.4.0 da, seit v0.5.0 auch Texteingabe auf der Uhr und Videos (03 §10).
+   ist seit v0.4.0 da, seit v0.5.0 auch Texteingabe auf der Uhr und Videos (03 §10), seit v0.5.2 Emoji (03 §11).
 
 ## Der Text
 

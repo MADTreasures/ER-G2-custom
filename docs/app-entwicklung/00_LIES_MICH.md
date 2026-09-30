@@ -71,6 +71,7 @@ Weitere Video-Apps können denselben Befehl `video` nutzen.
 | App-Modell, Seitenformat, Ereignisse | **spezifiziert** hier | [02](02_App-Modell.md) |
 | App-Host auf der Uhr, Uhr-Apps (Starter, App-Menü) | **fertig** (M1, v0.4.0 aus Pull Request #2, nicht auf Hardware erprobt). Pull Request #1 baute den Host ein zweites Mal: von dort nur noch M2 übernehmen, M1 nicht noch einmal bauen. Stoppuhr und Einkaufsliste sind nur Test-Apps | [03](03_Uhr-Apps.md), `app/…/apps/` |
 | Texteingabe auf der Uhr, Video auf der Brille, App **YouTube** | **fertig** (v0.5.0, nicht auf Hardware erprobt; YouTube-Wiedergabe ungeprüft) | [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050), `app/…/apps/video/`, `app/…/apps/builtin/youtube/` |
+| Emoji in allen Texten auf der Brille (Schwarz-Weiß-Schrift Noto Emoji statt Kleckse) | **fertig** (v0.5.2, nicht auf Hardware erprobt) | [03 §11](03_Uhr-Apps.md#11-emoji-v052), `app/…/desktop/AndroidTextPainter.kt`, `EmojiText.kt` |
 | GeckoView auf der Uhr: Machbarkeitstest | **Test-APK gebaut** im offenen Pull Request #1, **auf der Uhr zu messen** (M2) | [05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview) |
 | EvenHub-Laufzeit auf der Uhr | **zu bauen** (M3) | [05](05_EvenHub-Apps.md) |
 | Handy-App „G2 Handy“ (Ausweich-Engine, Apps installieren) | **zu bauen** (M4) | [05 §6–§7](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy), [06](06_App-Verwaltung.md) |

@@ -8,12 +8,12 @@ die Custom-Firmware drauf ist.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.5.1):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
+> **Ehrlicher Stand (v0.5.2):** Nichts davon ist auf echter Uhr und Brille erprobt. Alle Tests laufen
 > gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
 > 0.4.0 gibt es den **App-Host** – eigene Apps auf der Brille, mit Starter und App-Menü
 > ([Apps auf der Brille](#apps-auf-der-brille)). Neu in 0.5.0: die App **YouTube** – Videos suchen und
 > als Graustufen-Raster auf der Brille ansehen, alles auf der Uhr ([YouTube auf der Brille](#youtube-auf-der-brille)).
-> 0.5.1 zeigt Video-Titel ohne Emoji (die Brille könnte sie nur als Kleckse zeichnen).
+> Neu in 0.5.2: [Emoji](#emoji) erscheinen in allen Texten als Strichzeichnung statt als Kleckse.
 
 ## Was aufgespielt werden kann
 
@@ -100,6 +100,20 @@ Eine eigene Uhr-App ist eine kleine Kotlin-Klasse unter
 [`app/src/main/java/ch/madtreasures/g2watch/apps/`](app/src/main/java/ch/madtreasures/g2watch/apps); wie das
 geht, steht in [03 – Uhr-Apps](docs/app-entwicklung/03_Uhr-Apps.md). Apps berühren nie den Firmware-Pfad
 (`AppsBoundaryTest`, `FlashingBoundaryTest`).
+
+### Emoji
+
+![Emoji auf der Brille](docs/bilder/apps-emoji.png)
+
+Die Uhr zeichnet jeden Text selbst als Pixel. Androids Emoji sind Farbbilder, und davon blieb in den
+16 Grünstufen der Brille nur der Umriss – ein gefüllter Klecks. Seit 0.5.2 bringt die App deshalb eine
+Schwarz-Weiß-Emoji-Schrift mit: [Noto Emoji](https://fonts.google.com/noto/specimen/Noto+Emoji) von Google
+(SIL Open Font License 1.1; mit Lizenztext in `app/src/main/assets/fonts/`; die APK wird 1,3 MB größer, geladen
+belegt die Schrift 2 MB Speicher).
+Emoji erscheinen damit in allen Apps als Strichzeichnung – in Video-Titeln, Knöpfen, Listen und Meldungen –,
+fett in Überschriften. Flaggen werden zu Kästchen mit Länderkürzel, Hautfarben sind nicht zu sehen, farbige
+Herzen sind schraffiert. „…“ und Zeilenumbruch schneiden nie ein Emoji entzwei. Emoji ab Unicode 16 (2024)
+kennt die Schrift noch nicht; sie bleiben Kleckse. Details: [03 §11](docs/app-entwicklung/03_Uhr-Apps.md#11-emoji-v052).
 
 ## YouTube auf der Brille
 
@@ -263,7 +277,7 @@ die Uhr offline ist.
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 352 Tests grün (34 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 365 Tests grün (35 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:

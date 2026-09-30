@@ -5,9 +5,9 @@ ohne Rechner und ohne Netz. Für alles Rechenintensive: [Rechner-Apps](04_Rechne
 
 **Stand:** Der App-Host ist gebaut (M1, v0.4.0, aus Pull Request #2; Pull Request #1 enthält einen zweiten,
 der nicht zusätzlich übernommen wird), dazu seit v0.5.0 Texteingabe auf der Uhr und Video auf der Brille mit
-der App YouTube (§10); nichts davon ist auf Hardware erprobt. Dieses Kapitel beschreibt erst, was eine
-App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was bei der Umsetzung dazukam oder anders
-wurde als ursprünglich geplant, steht in §9 und §10.
+der App YouTube (§10), seit v0.5.2 Emoji in allen Texten (§11); nichts davon ist auf Hardware erprobt.
+Dieses Kapitel beschreibt erst, was eine App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was
+bei der Umsetzung dazukam oder anders wurde als ursprünglich geplant, steht in §9 bis §11.
 
 ## 1. Eine Uhr-App schreiben
 
@@ -367,7 +367,7 @@ YouTubeApp (G2App) ── video(block, Play) ──────────▶ A
 | `video/NewPipeCatalog.kt` | YouTube-Suche und Stream-Adressen mit NewPipeExtractor (GPL-3.0) |
 | `video/ExoVideoPlayer.kt`, `GlFrameGrabber.kt`, `GooglevideoDataSource.kt`, `FastNetwork.kt`, `AndroidVideoEngine.kt` | Wiedergabe auf der Uhr (Android, nicht auf Hardware erprobt) |
 | `host/TextPrompts.kt` | Texteingabe: Frage des Hosts → `MainActivity` (Wear-OS-`RemoteInput`: Tastatur, Sprache, Vorschläge) → Antwort |
-| `builtin/youtube/YouTubeApp.kt` | die App: Start, Suche, Treffer, Verlauf, Video, Profile, Ton; Titel ohne Emoji (v0.5.1: die Schrift hat keine, und Farb-Emoji werden in 16 Stufen zu Klecksen) |
+| `builtin/youtube/YouTubeApp.kt` | die App: Start, Suche, Treffer, Verlauf, Video, Profile, Ton; Titel mit ihren Emoji (§11) |
 
 **Vom Video zum Raster** (`FrameConverter`, je Bild):
 
@@ -435,3 +435,33 @@ Auflösen sind einmal mit echtem Netz gegen YouTube probiert (20 Treffer; 144p H
 WLAN/LTE-Anforderung, Tastatur/Sprache, Akku. Ob YouTube die Videos an die Uhr ausliefert, ist offen: In der
 Testumgebung antworteten YouTubes Videoserver mit 403, weil sie die Adresse an die IP binden und die
 Umgebung YouTube und die Videoserver über verschiedene Adressen erreicht.
+
+## 11. Emoji (v0.5.2)
+
+Apps dürfen in jedem Text Emoji verwenden – Titel, Knöpfe, Listen, Meldungen. Die Uhr zeichnet sie als
+**Strichzeichnung** in der Farbe des Textes, auch fett in Überschriften und im Fokus:
+
+![Emoji auf der Brille](../bilder/apps-emoji.png)
+
+**Warum eine eigene Schrift:** Die Uhr zeichnet Text als Deckungsmaske (wie viel jedes Pixel von der Schrift
+bedeckt ist) und färbt sie mit der Graustufe des Textes. Androids Emoji sind Farbbilder; von ihnen bleibt in
+der Maske nur der Umriss – ein gefüllter Klecks. Deshalb bringt die App **Noto Emoji** mit, Googles
+Schwarz-Weiß-Emoji-Schrift (SIL Open Font License 1.1; `app/src/main/assets/fonts/NotoEmoji.ttf` mit
+`NotoEmoji-OFL.txt`; 1,3 MB in der APK, 2 MB im Speicher; eine variable Schrift: Gewicht 400, fett 700).
+
+| Datei (`app/…/g2watch/`) | Aufgabe |
+|---|---|
+| `desktop/EmojiText.kt` | findet Emoji wie ein Handy: ein Zeichen samt Hautfarbe, Verbindern (ZWJ), Flaggenhälften und Tastenkappe, das als Bild gemeint ist (Unicode-Eigenschaft *Emoji_Presentation*, Emoji ab U+1F000, oder ein angehängtes U+FE0F). Ein schlichtes ❤, ☀, ©, Ziffern und alles mit U+FE0E bleiben Text. |
+| `desktop/AndroidTextPainter.kt` | zeichnet und misst Text und Emoji abschnittweise (Text mit der Systemschrift, Emoji mit Noto Emoji) auf einer Grundlinie. Emoji verlieren dabei ihr U+FE0F – sonst nähme Android für ☺️ oder 1️⃣ wieder die Farbschrift. Text ohne Emoji wird genau wie vorher gezeichnet. |
+| `G2WatchApp.kt` | lädt die Schrift einmal (`AndroidTextPainter.emojiFont(assets)`) für beide Textmaler |
+| `apps/render/PageLayout.kt` (`TextFit`) | Zeilenumbruch und „…“ schneiden nur zwischen ganzen Zeichen (`BreakIterator`): kein halbes Emoji, keine halbe Flagge, kein abgetrennter Akzent |
+
+**Grenzen:** Flaggen erscheinen als Kästchen mit Länderkürzel (🇨🇭 → „CH“), Hautfarben sind nicht zu sehen,
+farbige Herzen sind schraffiert. Emoji ab Unicode 16 (2024) kennt die Schrift noch nicht; sie bleiben Kleckse.
+Text und Emoji stehen von links nach rechts in Schreibreihenfolge – für Arabisch oder Hebräisch mit Emoji
+stimmt die Reihenfolge nicht.
+
+**Tests (ohne Hardware):** `AndroidTextPainterTest` (Text ohne Emoji pixelgleich wie vorher; ein Emoji ist
+eine Strichzeichnung, kein Klecks – auch mit U+FE0F; Familie, Flagge, Hautfarbe und Tastenkappe sind je ein
+Bild; Emoji passen in die Zeile; fett ist kräftiger), `EmojiTextTest`, `TextFitTest`, `YouTubeAppTest`,
+Bilder `apps-emoji.png` und `apps-youtube-*.png`. **Nicht erprobt:** auf der echten Uhr und Brille.

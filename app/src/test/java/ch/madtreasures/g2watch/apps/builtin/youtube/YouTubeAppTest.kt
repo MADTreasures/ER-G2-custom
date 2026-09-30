@@ -271,21 +271,29 @@ class YouTubeAppTest {
     }
 
     @Test
-    fun `titles show without emoji, which the glasses can only draw as blobs`() {
-        assertEquals("These CATS are too FUNNY! | New Cat Videos", YouTubeApp.plain("These CATS are too FUNNY! 🤣 | New Cat Videos"))
-        assertEquals("Funniest Cats and Dogs Clips 2025 Try Not To Laugh", YouTubeApp.plain("Funniest Cats and Dogs Clips 2025😼🐶Try Not To Laugh😜"))
-        assertEquals("Liebe", YouTubeApp.plain("❤️ Liebe ⭐"))
-        assertEquals("Schweiz", YouTubeApp.plain("🇨🇭 Schweiz"))
-        assertEquals("Familie", YouTubeApp.plain("👨‍👩‍👧 Familie"))
-        assertEquals("Grüße – „Test“ · 1:02 | ß", YouTubeApp.plain("Grüße – „Test“ · 1:02 | ß"))
-        assertEquals("Ohne Titel", YouTubeApp.title(VideoItem("https://x", "🔥🔥🔥")))
-
+    fun `titles keep their emoji, and shortening never cuts one in half`() {
         started()
         click(YouTubeApp.START, YouTubeApp.SEARCH)
-        send(AppEvent.TextInput(YouTubeApp.ASK_SEARCH, "katzen"))
-        ui.answerSearch(VideoSearchResult(listOf(VideoItem("https://www.youtube.com/watch?v=c", "Katzen 😂 TOP 10", "Tiere 🐾", durationS = 60))))
-        assertEquals("Katzen TOP 10", ui.page(YouTubeApp.RESULTS).textOf("v0"))
-        assertEquals("Tiere · 1:00", ui.page(YouTubeApp.RESULTS).textOf("vi0"))
+        send(AppEvent.TextInput(YouTubeApp.ASK_SEARCH, "katzen 😹"))
+        ui.answerSearch(
+            VideoSearchResult(
+                listOf(
+                    VideoItem("https://www.youtube.com/watch?v=c", "Katzen 😂 TOP 10", "Tiere 🐾", durationS = 60),
+                    VideoItem("https://www.youtube.com/watch?v=d", " "),
+                ),
+            ),
+        )
+        val results = ui.page(YouTubeApp.RESULTS)
+        assertEquals("„katzen 😹“", results.textOf(YouTubeApp.RESULTS_TITLE))
+        assertEquals("Katzen 😂 TOP 10", results.textOf("v0"))
+        assertEquals("Tiere 🐾 · 1:00", results.textOf("vi0"))
+        assertEquals("Ohne Titel", results.textOf("v1"))
+
+        // "…" goes before an emoji, never between its halves or joiners.
+        assertEquals("Hallo…", YouTubeApp.shorten("Hallo 😂😂", 8))
+        assertEquals("Hallo 😂…", YouTubeApp.shorten("Hallo 😂😂", 9))
+        assertEquals("Wir…", YouTubeApp.shorten("Wir 👨‍👩‍👧 im Urlaub", 10))
+        assertEquals("Grüezi 🇨🇭…", YouTubeApp.shorten("Grüezi 🇨🇭🇨🇭", 12))
     }
 
     @Test

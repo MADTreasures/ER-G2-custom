@@ -25,6 +25,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import java.text.BreakIterator
 
 /**
  * YouTube on the glasses, entirely on the watch (03 §10): search by keyboard or voice on the watch,
@@ -174,7 +175,7 @@ class YouTubeApp : G2App {
     }
 
     private fun resultsPage(blocks: List<Block>, query: String = "") =
-        Page(RESULTS, "Treffer", listOf(Block.Heading(RESULTS_TITLE, if (query.isEmpty()) "Treffer" else "„${shorten(plain(query), 30)}“")) + blocks)
+        Page(RESULTS, "Treffer", listOf(Block.Heading(RESULTS_TITLE, if (query.isEmpty()) "Treffer" else "„${shorten(query, 30)}“")) + blocks)
 
     // --- History --------------------------------------------------------------------------------
 
@@ -370,7 +371,7 @@ class YouTubeApp : G2App {
         /** "Kanal · 4:56 · 1,2 Mio. Aufrufe", short enough for one line. */
         fun info(v: VideoItem): String {
             val parts = ArrayList<String>()
-            plain(v.channel).takeIf { it.isNotEmpty() }?.let { parts += shorten(it, 24) }
+            if (v.channel.isNotBlank()) parts += shorten(v.channel, 24)
             parts += if (v.live) "live" else if (v.durationS > 0) clock(v.durationS * 1000) else ""
             if (v.views >= 0) parts += views(v.views)
             return parts.filter { it.isNotEmpty() }.joinToString(" · ")
@@ -395,35 +396,16 @@ class YouTubeApp : G2App {
         /** Tenths as German decimal: 12 → "1,2", 30 → "3". */
         private fun decimal(tenths: Long): String = if (tenths % 10 == 0L) "${tenths / 10}" else "${tenths / 10},${tenths % 10}"
 
-        fun shorten(s: String, max: Int): String = if (s.length <= max) s else s.take(max - 1).trimEnd() + "…"
-
-        /** The title to show; "Ohne Titel" when nothing is left of it. */
-        fun title(v: VideoItem): String = plain(v.title).ifEmpty { "Ohne Titel" }
-
-        /**
-         * [s] without emoji and other pictographs, which YouTube titles love and the glasses can only show as
-         * grey blobs (the font has no glyphs for them, a colour emoji becomes a smudge in 16 levels). Where one
-         * stood between words, a space remains.
-         */
-        fun plain(s: String): String {
-            val out = StringBuilder(s.length)
-            var i = 0
-            while (i < s.length) {
-                val cp = s.codePointAt(i)
-                i += Character.charCount(cp)
-                if (pictograph(cp)) out.append(' ') else out.appendCodePoint(cp)
-            }
-            return out.toString().replace(WHITESPACE, " ").trim()
+        /** [s] cut to at most [max] chars with "…", between user-perceived characters (an emoji stays whole). */
+        fun shorten(s: String, max: Int): String {
+            if (s.length <= max) return s
+            val clusters = BreakIterator.getCharacterInstance()
+            clusters.setText(s)
+            val end = clusters.preceding(max).coerceAtLeast(0)
+            return s.substring(0, end).trimEnd() + "…"
         }
 
-        private val WHITESPACE = Regex("\\s+")
-
-        private fun pictograph(cp: Int): Boolean =
-            cp in 0x1F000..0x1FAFF || // emoji, pictographs, flags (regional indicators), playing cards, …
-                cp in 0x2600..0x27BF || // miscellaneous symbols and dingbats (☀ ★ ✅ ❤ …)
-                cp in 0x2B00..0x2BFF || // arrows and symbols (⭐ ⬆ …)
-                cp in 0x2300..0x23FF || // technical symbols used as emoji (⌚ ⏰ ⏩ …)
-                cp in 0xE0000..0xE007F || // tag characters of flag sequences
-                cp == 0x200D || cp == 0xFE0F || cp == 0xFE0E || cp == 0x20E3 // joiners, variation selectors, keycaps
+        /** The title to show; "Ohne Titel" when YouTube has none. */
+        fun title(v: VideoItem): String = v.title.ifBlank { "Ohne Titel" }
     }
 }

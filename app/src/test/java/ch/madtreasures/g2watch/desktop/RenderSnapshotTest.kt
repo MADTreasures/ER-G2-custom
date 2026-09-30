@@ -6,6 +6,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.awt.image.BufferedImage
@@ -34,7 +35,7 @@ class RenderSnapshotTest {
         val scheduler = FakeScheduler()
         val display = FakeDisplay()
         val controller = DesktopController(
-            AndroidTextPainter(),
+            AndroidTextPainter(AndroidTextPainter.emojiFont(RuntimeEnvironment.getApplication().assets)),
             scheduler,
             nowMs = { scheduler.now },
             now = { LocalDateTime.of(2026, 9, 25, 14, 5) },

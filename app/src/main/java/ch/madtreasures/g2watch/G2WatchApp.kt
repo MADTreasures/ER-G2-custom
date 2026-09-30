@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Typeface
 import android.os.BatteryManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
@@ -29,7 +30,10 @@ import ch.madtreasures.g2watch.glasses.GlassesListener
  * recreation and keep running behind the foreground service while the watch display is off.
  */
 class G2WatchApp : Application() {
-    val desktop: DesktopController by lazy { DesktopController(AndroidTextPainter()).also { it.startClock() } }
+    /** The black-and-white emoji font of both text painters; loaded once, it is 2 MB. */
+    private val emojiFont: Typeface? by lazy { AndroidTextPainter.emojiFont(assets) }
+
+    val desktop: DesktopController by lazy { DesktopController(AndroidTextPainter(emojiFont)).also { it.startClock() } }
 
     /** Text questions of the apps, answered on the watch screen (keyboard or voice). */
     val textPrompts = TextPrompts()
@@ -40,7 +44,7 @@ class G2WatchApp : Application() {
         AppHost(
             scheduler = AppThread.scheduler(),
             screen = desktop,
-            text = AndroidTextPainter(),
+            text = AndroidTextPainter(emojiFont),
             ports = AndroidHostPorts(this, textPrompts) { line -> main.post { glasses.note(line) } },
         ).also { desktop.connectApps(it) }
     }

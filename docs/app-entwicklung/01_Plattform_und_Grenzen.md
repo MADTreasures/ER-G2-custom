@@ -17,7 +17,7 @@ von uns.
 | App-Fläche Vollbild | 576 × 288 bei (32, 96) | Ohne Kopfzeile (`statusBar: false`); so groß ist auch Evens Entwickler-Leinwand. |
 | Farben | 16 Graustufen, grün | Stufe 0 = aus = durchsichtig. Helle Flächen blenden, große helle Flächen vermeiden. |
 | Tiefe | Versatz je Glas −128 … 127 px | Faceclaw nutzt 2–4 px für Hervorhebungen, −2 für die Kopfzeile. Sparsam einsetzen. |
-| Schrift | frei, weil die Uhr Text als Pixel zeichnet | Umlaute und Sonderzeichen gehen. Unter 16 px ist Text schlecht lesbar. |
+| Schrift | frei, weil die Uhr Text als Pixel zeichnet | Umlaute und Sonderzeichen gehen, seit v0.5.2 auch Emoji (als Strichzeichnung, [03 §11](03_Uhr-Apps.md#11-emoji-v052)). Unter 16 px ist Text schlecht lesbar. |
 
 ### Übertragung Uhr → Brille (Bluetooth LE)
 
