@@ -271,6 +271,32 @@ class YouTubeAppTest {
     }
 
     @Test
+    fun `titles keep their emoji, and shortening never cuts one in half`() {
+        started()
+        click(YouTubeApp.START, YouTubeApp.SEARCH)
+        send(AppEvent.TextInput(YouTubeApp.ASK_SEARCH, "katzen 😹"))
+        ui.answerSearch(
+            VideoSearchResult(
+                listOf(
+                    VideoItem("https://www.youtube.com/watch?v=c", "Katzen 😂 TOP 10", "Tiere 🐾", durationS = 60),
+                    VideoItem("https://www.youtube.com/watch?v=d", " "),
+                ),
+            ),
+        )
+        val results = ui.page(YouTubeApp.RESULTS)
+        assertEquals("„katzen 😹“", results.textOf(YouTubeApp.RESULTS_TITLE))
+        assertEquals("Katzen 😂 TOP 10", results.textOf("v0"))
+        assertEquals("Tiere 🐾 · 1:00", results.textOf("vi0"))
+        assertEquals("Ohne Titel", results.textOf("v1"))
+
+        // "…" goes before an emoji, never between its halves or joiners.
+        assertEquals("Hallo…", YouTubeApp.shorten("Hallo 😂😂", 8))
+        assertEquals("Hallo 😂…", YouTubeApp.shorten("Hallo 😂😂", 9))
+        assertEquals("Wir…", YouTubeApp.shorten("Wir 👨‍👩‍👧 im Urlaub", 10))
+        assertEquals("Grüezi 🇨🇭…", YouTubeApp.shorten("Grüezi 🇨🇭🇨🇭", 12))
+    }
+
+    @Test
     fun `numbers read the German way`() {
         assertEquals("0:07", YouTubeApp.clock(7_000))
         assertEquals("1:02:03", YouTubeApp.clock(3_723_000))

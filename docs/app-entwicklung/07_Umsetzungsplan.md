@@ -42,7 +42,7 @@ zweites Mal (dazu Webseiten-Raster und GeckoView-Test aus M2): von dort nur noch
 M1 noch einmal. Stoppuhr und Einkaufsliste sind seit v0.6.0 App-Pakete (M1b). Was von 03 abweicht oder
 dazukam, steht dort in §9. Außer der Reihe kam in v0.5.0 für die App YouTube dazu: Texteingabe auf der Uhr,
 Eingabeart je Seite und die Video-Wiedergabe auf der Uhr (03 §10) – statt M5, weil alles auf der Uhr laufen
-soll.
+soll. In v0.5.2 kamen Emoji in allen Texten dazu (03 §11).
 
 - Alles aus [03 §5](03_Uhr-Apps.md#5-plattform-der-app-host-zu-bauen-in-m1): Modell + JSON, `AppHost`,
   `PageRenderer`, Starter (`launcher/Launcher.kt`), App-Menü, `InputRouter` nach 03 §5.1, `AppRegistry`,

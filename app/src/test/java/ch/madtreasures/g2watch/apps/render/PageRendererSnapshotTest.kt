@@ -44,6 +44,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.awt.image.BufferedImage
@@ -69,6 +70,7 @@ import kotlin.math.sin
 @Config(sdk = [35], application = android.app.Application::class)
 class PageRendererSnapshotTest {
     private val dir = System.getProperty("snapshotDir")
+    private val emojiFont = AndroidTextPainter.emojiFont(RuntimeEnvironment.getApplication().assets)
     private val scheduler = FakeScheduler()
     private val display = FakeDisplay()
     private val ports = FakePorts()
@@ -78,7 +80,7 @@ class PageRendererSnapshotTest {
     @Before
     fun setUp() {
         assumeTrue("no -PsnapshotDir", !dir.isNullOrBlank())
-        desktop = DesktopController(AndroidTextPainter(), scheduler, nowMs = { scheduler.now }, now = { LocalDateTime.of(2026, 9, 25, 14, 5) })
+        desktop = DesktopController(AndroidTextPainter(emojiFont), scheduler, nowMs = { scheduler.now }, now = { LocalDateTime.of(2026, 9, 25, 14, 5) })
         desktop.startClock()
         desktop.updateStatus { it.copy(watchBattery = 76, glassesBattery = 81, connection = "Verbunden") }
         desktop.attach(display)
@@ -88,7 +90,7 @@ class PageRendererSnapshotTest {
     }
 
     private fun host(vararg apps: () -> G2App) = AppHost(
-        scheduler, desktop, AndroidTextPainter(), ports, apps.toList(), nowMs = { scheduler.now }, nanoTime = { scheduler.now * 1_000_000L },
+        scheduler, desktop, AndroidTextPainter(emojiFont), ports, apps.toList(), nowMs = { scheduler.now }, nanoTime = { scheduler.now * 1_000_000L },
     ).also { desktop.connectApps(it) }
 
     private fun settle() {
@@ -111,7 +113,7 @@ class PageRendererSnapshotTest {
 
     /** Puts the pointer on block [id] of [page], shown below the header. */
     private fun pointerOn(page: Page, id: String, row: Int = -1, dx: Int = 40) {
-        val rect = PageLayout.of(page, AndroidTextPainter()).focusables.first { it.target == FocusTarget(id, row) }.rect
+        val rect = PageLayout.of(page, AndroidTextPainter(emojiFont)).focusables.first { it.target == FocusTarget(id, row) }.rect
         val area = desktop.layout.appArea(!page.statusBar)
         pointerTo(area.x + rect.x + dx, area.y + rect.y + rect.h / 2)
     }
@@ -209,6 +211,25 @@ class PageRendererSnapshotTest {
     }
 
     @Test
+    fun emoji() {
+        val page = Page(
+            "p_emoji", "Emoji",
+            listOf(
+                Block.Heading("titel", "Emoji 😀 👍 🎉"),
+                Block.Text("text", "Titel und Nachrichten zeigen Emoji als Strichzeichnung: ❤️ 🔥 ✨ 🐱 🚂 ☀️ 🌧️ ⚽"),
+                Block.Button("knopf", "Grüezi 🇨🇭 👨‍👩‍👧 1️⃣ ⭐⭐⭐"),
+                Block.List("punkte", listOf(ListItem("Kaffee ☕"), ListItem("Zug 🚆 um 7:12"), ListItem("Geburtstag 🎂")), ListStyle.BULLETS),
+                Block.Toggle("schalter", "Nicht stören 🔕", on = true),
+            ),
+        )
+        val host = host(demo(page))
+        host.launch("watch:ch.madtreasures.demo")
+        settle()
+        pointerOn(page, "knopf", dx = 380)
+        save("apps-emoji")
+    }
+
+    @Test
     fun permissionQuestion() {
         val host = host(demo(blocksPage, setOf(Permission.MIC, Permission.LOCATION)))
         host.launch("watch:ch.madtreasures.demo")
@@ -233,8 +254,8 @@ class PageRendererSnapshotTest {
 
     /** Made-up hits (no real videos in the repo). */
     private val hits = listOf(
-        VideoItem("https://www.youtube.com/watch?v=aaaaaaaaaaa", "Alpenpanorama im Zeitraffer", "Bergwelt", durationS = 296, views = 1_234_567),
-        VideoItem("https://www.youtube.com/watch?v=bbbbbbbbbbb", "Zugfahrt über den Albula", "Schienenfans", durationS = 3_725, views = 48_210),
+        VideoItem("https://www.youtube.com/watch?v=aaaaaaaaaaa", "Alpenpanorama im Zeitraffer 🏔️", "Bergwelt", durationS = 296, views = 1_234_567),
+        VideoItem("https://www.youtube.com/watch?v=bbbbbbbbbbb", "Zugfahrt über den Albula 🚂 mit Blick 🤩", "Schienenfans", durationS = 3_725, views = 48_210),
         VideoItem("https://www.youtube.com/watch?v=ccccccccccc", "Sonnenaufgang am See", "Naturkanal", durationS = 61, views = 950),
         VideoItem("https://www.youtube.com/watch?v=ddddddddddd", "Wetter live", "Webcam", live = true),
     )

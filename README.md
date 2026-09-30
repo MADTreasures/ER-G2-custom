@@ -13,6 +13,7 @@ die Custom-Firmware drauf ist.
 > 0.4.0 gibt es den **App-Host** – eigene Apps auf der Brille, mit Starter und App-Menü
 > ([Apps auf der Brille](#apps-auf-der-brille)). Seit 0.5.0 die App **YouTube** – Videos suchen und
 > als Graustufen-Raster auf der Brille ansehen, alles auf der Uhr ([YouTube auf der Brille](#youtube-auf-der-brille)).
+> Neu in 0.5.2: [Emoji](#emoji) erscheinen in allen Texten als Strichzeichnung statt als Kleckse.
 > Neu in 0.6.0: **App-Pakete** – eigene Apps als Datei auf die Uhr legen und dort installieren, ohne die
 > Uhr-App neu zu bauen ([Eigene Apps installieren](#eigene-apps-installieren)).
 
@@ -101,6 +102,20 @@ Eine eigene Uhr-App ist eine kleine Kotlin-Klasse in einem eigenen Ordner unter 
 und kommt als App-Paket auf die Uhr (nächster Abschnitt); wie man sie schreibt, steht in
 [03 – Uhr-Apps](docs/app-entwicklung/03_Uhr-Apps.md). Apps berühren nie den Firmware-Pfad
 (`AppsBoundaryTest`, `FlashingBoundaryTest`).
+
+### Emoji
+
+![Emoji auf der Brille](docs/bilder/apps-emoji.png)
+
+Die Uhr zeichnet jeden Text selbst als Pixel. Androids Emoji sind Farbbilder, und davon blieb in den
+16 Grünstufen der Brille nur der Umriss – ein gefüllter Klecks. Seit 0.5.2 bringt die App deshalb eine
+Schwarz-Weiß-Emoji-Schrift mit: [Noto Emoji](https://fonts.google.com/noto/specimen/Noto+Emoji) von Google
+(SIL Open Font License 1.1; mit Lizenztext in `app/src/main/assets/fonts/`; die APK wird 1,3 MB größer, geladen
+belegt die Schrift 2 MB Speicher).
+Emoji erscheinen damit in allen Apps als Strichzeichnung – in Video-Titeln, Knöpfen, Listen und Meldungen –,
+fett in Überschriften. Flaggen werden zu Kästchen mit Länderkürzel, Hautfarben sind nicht zu sehen, farbige
+Herzen sind schraffiert. „…“ und Zeilenumbruch schneiden nie ein Emoji entzwei. Emoji ab Unicode 16 (2024)
+kennt die Schrift noch nicht; sie bleiben Kleckse. Details: [03 §11](docs/app-entwicklung/03_Uhr-Apps.md#11-emoji-v052).
 
 ## Eigene Apps installieren
 
@@ -291,7 +306,7 @@ die Uhr offline ist.
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :app-api:test :app:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 4 + 368 Tests grün (35 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: TESTCOUNTS Tests grün (35 Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`), Lint ohne Fehler. Die wichtigsten:
 
 - **`FirmwareJobTest`** – der ganze Ablauf mit Faceclaws echten Abläufen gegen eine simulierte Brille:

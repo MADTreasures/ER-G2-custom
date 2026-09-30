@@ -25,6 +25,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
+import java.text.BreakIterator
 
 /**
  * YouTube on the glasses, entirely on the watch (03 §10): search by keyboard or voice on the watch,
@@ -168,7 +169,7 @@ class YouTubeApp : G2App {
         val blocks = when {
             !result.ok -> listOf(Block.Text(RESULTS_STATUS, "Suche ging nicht: ${result.error}"), Block.Button(AGAIN, "Nochmal suchen"))
             hits.isEmpty() -> listOf(Block.Text(RESULTS_STATUS, "Nichts gefunden."), Block.Button(AGAIN, "Anders suchen"))
-            else -> hits.flatMapIndexed { i, v -> listOf(Block.Button("$HIT$i", v.title.ifBlank { "Ohne Titel" }), Block.Text("$HIT_INFO$i", info(v))) }
+            else -> hits.flatMapIndexed { i, v -> listOf(Block.Button("$HIT$i", title(v)), Block.Text("$HIT_INFO$i", info(v))) }
         }
         ui.definePages(listOf(resultsPage(blocks, query)))
     }
@@ -185,7 +186,7 @@ class YouTubeApp : G2App {
             blocks += Block.Text(HISTORY_EMPTY, "Noch nichts angesehen.")
         } else {
             history.forEachIndexed { i, v ->
-                blocks += Block.Button("$SEEN$i", v.title.ifBlank { "Ohne Titel" })
+                blocks += Block.Button("$SEEN$i", title(v))
                 blocks += Block.Text("$SEEN_INFO$i", info(v))
             }
             blocks += Block.Button(CLEAR_HISTORY, "Verlauf löschen")
@@ -240,7 +241,7 @@ class YouTubeApp : G2App {
         state = e.state
         val line = when (e.state) {
             VideoState.LOADING -> "Lädt … Tippen = Pause, Wischen = ±10 s"
-            VideoState.PLAYING -> shorten(item.title, 42)
+            VideoState.PLAYING -> shorten(title(item), 42)
             VideoState.PAUSED -> "Pause ${time()} – tippen: weiter"
             VideoState.BUFFERING -> "Lädt nach … ${time()}"
             VideoState.ENDED -> "Ende – tippen: nochmal"
@@ -395,6 +396,16 @@ class YouTubeApp : G2App {
         /** Tenths as German decimal: 12 → "1,2", 30 → "3". */
         private fun decimal(tenths: Long): String = if (tenths % 10 == 0L) "${tenths / 10}" else "${tenths / 10},${tenths % 10}"
 
-        fun shorten(s: String, max: Int): String = if (s.length <= max) s else s.take(max - 1).trimEnd() + "…"
+        /** [s] cut to at most [max] chars with "…", between user-perceived characters (an emoji stays whole). */
+        fun shorten(s: String, max: Int): String {
+            if (s.length <= max) return s
+            val clusters = BreakIterator.getCharacterInstance()
+            clusters.setText(s)
+            val end = clusters.preceding(max).coerceAtLeast(0)
+            return s.substring(0, end).trimEnd() + "…"
+        }
+
+        /** The title to show; "Ohne Titel" when YouTube has none. */
+        fun title(v: VideoItem): String = v.title.ifBlank { "Ohne Titel" }
     }
 }

@@ -22,7 +22,8 @@ Seit G2 Watch 0.4.0 öffnet die Kachel **„Apps“** den Starter des App-Hosts 
 [README](../../README.md#apps-auf-der-brille)); das frühere Fenster „Zeiger“ ist entfallen – Tempo und
 Zentrieren gibt es an der Krone und in den Einstellungen der Uhr. Seit 0.5.0 gehört die App YouTube dazu
 ([README](../../README.md#youtube-auf-der-brille)); fragt eine App nach Text, öffnet die Uhr über jedem
-Bildschirm ihre Tastatur mit Spracheingabe.
+Bildschirm ihre Tastatur mit Spracheingabe. Seit 0.5.2 erscheinen Emoji in allen Texten als Strichzeichnung
+([README](../../README.md#emoji)).
 
 Die Bilder zeigen das 640×480-Bild, das die App an die Brille schicken würde, in den 16 Grüntönen des Displays. Grün leuchtet; Schwarz leuchtet nicht und ist auf der Brille durchsichtig. Ein heller, dicker Rahmen markiert das Element unter dem Zeiger. Erzeugt hat die Bilder der eigene Renderer der App mit Androids Schrift, nicht die Brille (siehe [Bilder neu erzeugen](#bilder-neu-erzeugen)).
 
@@ -71,7 +72,7 @@ Nicht übernommen ist Faceclaws Oberfläche: rund 88 000 Zeilen TypeScript für 
 | Paket | Klassen | Aufgabe |
 |---|---|---|
 | `glasses` | `GlassesConnection`, `FirmwareRequirement`, `GlassesParts`/`FaceclawParts`, `WearSessionHost`, `CoreDisplay`, `GlassesService`, `GlassesState`, `FirmwareInstaller` | Verbindung zur Brille: erst prüfen, dann Sitzung. Übersetzt Faceclaws Ereignisse (Status, Akku, Tipps am Bügel, Übertragungszeiten) für App und Desktop. `FirmwareInstaller` ist die Schnittstelle zum Aufspielen. |
-| `desktop` | `Desktop`, `DesktopRenderer`, `DesktopController`, `Pointer`, `GrayRaster`, `AndroidTextPainter`, `GlassesDisplay` | Der Desktop: Layout, Kacheln, Fenster, Knöpfe, Zeiger. Zeichnet in ein 8-Bit-Graubild und reicht es an Faceclaws Compositor weiter. |
+| `desktop` | `Desktop`, `DesktopRenderer`, `DesktopController`, `Pointer`, `GrayRaster`, `AndroidTextPainter`, `EmojiText`, `GlassesDisplay` | Der Desktop: Layout, Kacheln, Fenster, Knöpfe, Zeiger. Zeichnet in ein 8-Bit-Graubild und reicht es an Faceclaws Compositor weiter. Emoji zeichnet `AndroidTextPainter` seit 0.5.2 mit der Schwarz-Weiß-Schrift Noto Emoji aus den Assets. |
 | `ui` | `TouchpadScreen`, `SettingsScreen`, `Screens`, `BatteryRow` | Die Uhr-Oberfläche mit Wear Compose Material 3: Touchpad mit Uhrzeit, Akkus, Zahnrad und Glasscheibe; Einstellungen mit Log, Firmware, Zeiger und Verbindung; dazu Geräte, Status und Protokoll |
 | `ble` | `G2Scanner`, `G2Devices` | Suche nach den Bügeln, aus G2 Direct übernommen |
 | Wurzel | `G2WatchApp`, `MainActivity`, `Scheduler` | Hält Desktop und Verbindung für den ganzen Prozess, Navigation |
@@ -204,7 +205,7 @@ Stand 27.09.2026: Alle Tests sind grün. Lint meldet eine Warnung (`allowBackup`
 | `NoFlashingTest` | App-Code benutzt keine Flash-Abläufe |
 | `DesktopTest`, `DesktopControllerTest` | Layout im sichtbaren Streifen, Klicks, modale Fenster, gebündelte Zeigerbilder, Neuzeichnen nur bei Änderungen. Der Zeiger wird mit derselben Bewegung negativ und zieht ohne Wartezeit nach, wenn sich das Bild unter ihm ändert. |
 | `PointerTest`, `GrayRasterTest` | Zeigerbewegung, Grenzen, Sprite, Negativ pixelweise ab halber Helligkeit, Zeichnen, Fingerabdruck |
-| `AndroidTextPainterTest` | echte Schriftdarstellung (Robolectric, native Grafik) |
+| `AndroidTextPainterTest`, `EmojiTextTest` | echte Schriftdarstellung (Robolectric, native Grafik); Emoji als Strichzeichnung statt Klecks, Text ohne Emoji pixelgleich wie ohne Emoji-Schrift |
 | `TouchpadScreenTest` | Die Uhr wird gerendert und mit echten Touch-Gesten bedient (Robolectric). **Anzeige:** Uhrzeit und Akkus oben, das Zahnrad mittig darunter; kein Brillen-Akku ohne Verbindung, der Blitz beim Laden; nirgends Grün wie auf der Brille. **Gesten:** Bewegen und Doppeltipp wirken. Das Zahnrad öffnet nach 0,9 s Halten die Einstellungen, der Ring füllt sich; Tippen darauf tut nichts, Halten anderswo hält den Zeiger nicht auf. **Scheibe:** deckendes blaues Glas mit hellem Rand, folgt dem Finger, ist nach dem Abheben sofort weg; bei der zweiten Berührung eines Doppeltipps leuchten Rand und Schein heller, mit Bewegung gibt es keinen Klick. |
 | `SettingsScreenTest` | Log mit letzter Zeit, Durchschnitt, Spanne, Balken und Bildzahl. Die Firmware-Knöpfe zeigen, was eingerichtet ist, und geben die Wahl weiter. Unter 2 s Halten wird nichts gesendet, bei 2 s genau einmal, und der Randknopf bricht ab. Während der Übertragung gibt es kein „OK“ (Robolectric). |
 | `FirmwareInstallerTest` | `TransferStats` behält die letzten 30 Werte; `NotSetUpInstaller` bietet nichts an und überträgt nichts |

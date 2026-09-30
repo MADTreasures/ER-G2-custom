@@ -7,6 +7,7 @@ import ch.madtreasures.g2watch.apps.ListStyle
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.desktop.Rect
 import ch.madtreasures.g2watch.desktop.TextPainter
+import java.text.BreakIterator
 
 /** Sizes of the page layout in pixels of the app area (02 §4.2). */
 object PageMetrics {
@@ -156,13 +157,16 @@ object TextFit {
                     continue
                 }
                 if (line.isNotEmpty()) out += line
-                // A single word that does not fit: cut it into pieces that do.
+                // A single word that does not fit: cut it into pieces that do. One character that is
+                // wider than the line gets a line of its own.
                 var rest = word
-                while (rest.isNotEmpty() && text.measure(rest, size, bold) > max) {
-                    var n = rest.length - 1
-                    while (n > 1 && text.measure(rest.take(n), size, bold) > max) n--
-                    out += rest.take(n)
-                    rest = rest.drop(n)
+                while (text.measure(rest, size, bold) > max) {
+                    val cuts = cuts(rest)
+                    if (cuts.size <= 2) break
+                    var n = cuts.size - 2
+                    while (n > 1 && text.measure(rest.substring(0, cuts[n]), size, bold) > max) n--
+                    out += rest.substring(0, cuts[n])
+                    rest = rest.substring(cuts[n])
                 }
                 line = rest
             }
@@ -175,12 +179,30 @@ object TextFit {
     fun ellipsize(text: TextPainter, s: String, size: Int, bold: Boolean, max: Int): String {
         if (max <= 0) return ""
         if (text.measure(s, size, bold) <= max) return s
+        val cuts = cuts(s)
         var lo = 0
-        var hi = s.length
+        var hi = cuts.size - 1
         while (lo < hi) {
             val mid = (lo + hi + 1) / 2
-            if (text.measure(s.take(mid) + "…", size, bold) <= max) lo = mid else hi = mid - 1
+            if (text.measure(s.substring(0, cuts[mid]) + "…", size, bold) <= max) lo = mid else hi = mid - 1
         }
-        return if (lo > 0) s.take(lo).trimEnd() + "…" else ""
+        return if (lo > 0) s.substring(0, cuts[lo]).trimEnd() + "…" else ""
+    }
+
+    /**
+     * Where [s] may be cut, from 0 to its length: between user-perceived characters, so an emoji
+     * with its joiners, skin tone or flag half, or a letter with its accent, stays whole.
+     */
+    fun cuts(s: String): IntArray {
+        val clusters = BreakIterator.getCharacterInstance()
+        clusters.setText(s)
+        val out = IntArray(s.length + 1)
+        var n = 0
+        var at = clusters.first()
+        while (at != BreakIterator.DONE) {
+            out[n++] = at
+            at = clusters.next()
+        }
+        return out.copyOf(n)
     }
 }

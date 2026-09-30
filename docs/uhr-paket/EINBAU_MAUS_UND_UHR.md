@@ -42,7 +42,7 @@ Die Bilder stammen aus dem eigenen Renderer der App und aus Robolectric. Wo ein 
 | `desktop/GrayRaster.kt` | 8-Bit-Graubild mit Zeichenfunktionen und FNV-1a-Hash | – | unverändert |
 | `desktop/GlassesDisplay.kt` | Schnittstelle `GlassesDisplay` (Flächen konfigurieren, Inhalt senden) und `TextPainter` | – | unverändert |
 | `desktop/DesktopController.kt` | Hält Desktop und Zeiger auf einem eigenen Thread. Bündelt Zeigerbilder und zieht den Zeiger nach, wenn sich das Bild ändert. `frame` liefert das zuletzt gezeichnete Bild, nur für Tests und Werkzeuge. | alles oben, `Scheduler.kt` | unverändert oder als Vorlage |
-| `desktop/Desktop.kt`, `DesktopRenderer.kt`, `AndroidTextPainter.kt` | Der Beispiel-Desktop: Kacheln, Fenster, Knöpfe, Schrift | Android-Grafik | optional, durch eigene Inhalte ersetzbar |
+| `desktop/Desktop.kt`, `DesktopRenderer.kt`, `AndroidTextPainter.kt`, `EmojiText.kt` | Der Beispiel-Desktop: Kacheln, Fenster, Knöpfe, Schrift; Emoji mit `assets/fonts/NotoEmoji.ttf` (SIL OFL 1.1, Lizenz daneben) | Android-Grafik | optional, durch eigene Inhalte ersetzbar; ohne die Schrift zeichnet Android Emoji als Klecks |
 | `Scheduler.kt` | `Scheduler`, `ThreadScheduler`, `MainScheduler` | – | unverändert |
 | `glasses/CoreDisplay.kt` | `GlassesDisplay` über Faceclaws `GlassesSessionCore` | Faceclaw-Kern | nur mit Faceclaw-Kern |
 | `glasses/GlassesState.kt` | Was die Uhr über die Brille zeigt, dazu `TransferStats`: die Übertragungszeiten der letzten 30 Bilder | `FirmwareRequirement.kt` | unverändert |
@@ -94,7 +94,7 @@ Pixel außerhalb des Bildschirms zählen als dunkel. Weil jedes Pixel für sich 
 1. **Dateien kopieren:** alles aus Abschnitt 1, was du brauchst, dazu `glasses/CoreDisplay.kt`. Die Paketnamen passt du an.
 2. **Controller anlegen:** einmal pro Prozess, zum Beispiel in der `Application`:
    ```kotlin
-   val desktop = DesktopController(AndroidTextPainter()).also { it.startClock() }
+   val desktop = DesktopController(AndroidTextPainter(AndroidTextPainter.emojiFont(assets))).also { it.startClock() }
    val firmware: FirmwareInstaller = NotSetUpInstaller()   // bis das Firmware-Projekt seinen Weg anschließt
    ```
 3. **Mit der Sitzung verbinden:** In genau dieser Reihenfolge, wie Faceclaw es auch macht:
@@ -398,7 +398,7 @@ Dieser Text lässt sich so in den anderen Chat kopieren. Er liegt auch der ZIP-D
 >    - `glasses/GlassesState.kt`, `glasses/FirmwareInstaller.kt`
 >    - `ui/TouchpadScreen.kt`, `ui/SettingsScreen.kt`, `ui/BatteryRow.kt`, dazu aus `ui/Screens.kt` `CenterText` und die Farben
 >
->    Den Beispiel-Desktop (`Desktop.kt`, `DesktopRenderer.kt`, `AndroidTextPainter.kt`) übernimmst du nur, wenn hier noch kein eigener Inhalt existiert.
+>    Den Beispiel-Desktop (`Desktop.kt`, `DesktopRenderer.kt`, `AndroidTextPainter.kt`, `EmojiText.kt`, dazu `assets/fonts/NotoEmoji*`) übernimmst du nur, wenn hier noch kein eigener Inhalt existiert.
 > 2. Implementiere `GlassesDisplay` für den Transport dieses Projekts, nach Abschnitt 3 oder 4 der Anleitung.
 > 3. Verdrahte `TouchpadScreen`, `SettingsScreen`, `FirmwareConfirmScreen` und `FirmwareProgressScreen` wie in Abschnitt 3, Schritt 4. Die Bügel-Tipps gehen an `click()` und `back()`. Die Übertragungszeiten füllst du wie in Schritt 7.
 > 4. Auf der Uhr stehen oben die Uhrzeit (52 sp) und der Akku von Uhr und Brille, weiß; die Brille nur, solange sie verbunden ist oder lädt. Darunter mittig das Zahnrad, das nur bei 900 ms Halten die Einstellungen öffnet.
