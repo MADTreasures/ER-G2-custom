@@ -1,8 +1,9 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
-// M2 (07_Umsetzungsplan): a small separate APK that measures GeckoView on the real watch. One
-// flavour per CPU architecture, because GeckoView ships one artifact per ABI (~90 MB each):
-// armv7 for a 32-bit watch userspace (Pixel Watch 3/4), arm64 for 64-bit, x86 for the emulator.
+// M2 (07_Umsetzungsplan): a small separate APK that measures GeckoView on the real watch. Built only
+// for armeabi-v7a: the Pixel Watch 5 runs 32-bit apps (Android Studio: "Device supports armeabi-v7a,
+// armeabi"), and GeckoView ships one artifact per ABI (~90 MB each). With a single ABI and release as
+// the default build type, Android Studio installs the measuring build without choosing a variant.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -21,33 +22,15 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         buildConfigField("String", "GECKOVIEW_VERSION", "\"${libs.versions.geckoview.get()}\"")
-    }
-
-    flavorDimensions += "abi"
-    productFlavors {
-        create("armv7") {
-            dimension = "abi"
-            // The Pixel Watch 5 runs 32-bit apps: Android Studio reported "Device supports armeabi-v7a, armeabi".
-            isDefault = true
-            ndk { abiFilters += "armeabi-v7a" }
-            buildConfigField("String", "APK_ABI", "\"armeabi-v7a\"")
-        }
-        create("arm64") {
-            dimension = "abi"
-            ndk { abiFilters += "arm64-v8a" }
-            buildConfigField("String", "APK_ABI", "\"arm64-v8a\"")
-        }
-        create("x86") {
-            dimension = "abi"
-            ndk { abiFilters += "x86_64" }
-            buildConfigField("String", "APK_ABI", "\"x86_64\"")
-        }
+        buildConfigField("String", "APK_ABI", "\"armeabi-v7a\"")
+        ndk { abiFilters += "armeabi-v7a" }
     }
 
     buildTypes {
         // Measure with the release variant: a debuggable app runs slower and needs more memory.
         // It is signed with the debug key so Android Studio can install it without a keystore.
         release {
+            isDefault = true
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -97,9 +80,7 @@ tasks.withType<Test>().configureEach {
 
 dependencies {
     implementation(project(":web-raster"))
-    "armv7Implementation"(libs.geckoview.armeabi.v7a)
-    "arm64Implementation"(libs.geckoview.arm64.v8a)
-    "x86Implementation"(libs.geckoview.x86x64)
+    implementation(libs.geckoview.armeabi.v7a)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

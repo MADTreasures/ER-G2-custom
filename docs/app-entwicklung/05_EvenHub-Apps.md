@@ -193,8 +193,8 @@ Quelle: `right` → 1, `ring` und `watch` → 2, `left` → 3.
 |---|---|
 | Bibliothek | pro Architektur `org.mozilla.geckoview:geckoview-armeabi-v7a` bzw. `-arm64-v8a` (für den Emulator `-x86_64`), von `maven.mozilla.org` (MPL-2.0). Nicht `geckoview` (alle Architekturen, 242 MB). **Festgelegt: 157.0.20260924084938** (`geckoview` im Versionskatalog). Sie verlangt `compileSdk` **37.1** (`compileSdk = 37` + `compileSdkMinor = 1`, SDK-Paket `platforms;android-37.1`); `targetSdk` bleibt 37. |
 | Repository | steht in `settings.gradle.kts`: `maven("https://maven.mozilla.org/maven2/")` mit Inhaltsfilter `includeGroup("org.mozilla.geckoview")` (M2) |
-| Architektur | Pixel Watch 3, 4 und 5 laufen mit 32-Bit-Apps (`armeabi-v7a`; für die Watch 5 bestätigt); bei anderen Uhren vorher mit `adb shell getprop ro.product.cpu.abilist` prüfen und die APK mit `abiFilters` darauf beschränken (der Gecko-Test hat dafür je Architektur eine Variante) |
-| Größe | `libxul.so` allein: 116 MB (armeabi-v7a, schon ohne Symbole). Gecko-Test-APK mit komprimierten Bibliotheken (`useLegacyPackaging = true`): 117 MB (armv7) bzw. 120 MB (arm64); unkomprimiert 190 MB. Installiert kommen die entpackten Bibliotheken dazu. Was auf der Uhr tatsächlich belegt ist, zeigt *Einstellungen → Apps* nach der Installation (M2). |
+| Architektur | Pixel Watch 3, 4 und 5 laufen mit 32-Bit-Apps (`armeabi-v7a`; für die Watch 5 bestätigt); die APK mit `abiFilters` darauf beschränken (der Gecko-Test ist nur für `armeabi-v7a` gebaut; für eine andere Uhr mit `adb shell getprop ro.product.cpu.abilist` prüfen und das Filter ändern) |
+| Größe | `libxul.so` allein: 116 MB (armeabi-v7a, schon ohne Symbole). Gecko-Test-APK mit komprimierten Bibliotheken (`useLegacyPackaging = true`): 117 MB (armv7; arm64 wären 120 MB); unkomprimiert 190 MB. Installiert kommen die entpackten Bibliotheken dazu. Was auf der Uhr tatsächlich belegt ist, zeigt *Einstellungen → Apps* nach der Installation (M2). |
 | Speicher | Uhr: 3 GB RAM. GeckoView braucht geschätzt 150–300 MB; **messen** (M2) |
 | Prozesse | GeckoView startet eigene Dienst-Prozesse (`:socket`, `:gpu`, `:media`, Inhalts-Prozesse). `G2WatchApp.onCreate` darf seine Arbeit (Desktop, Verbindung) nur im Hauptprozess tun (Prozessname prüfen). Laufzeit mit `fissionEnabled(false)`, `extensionsProcessEnabled(false)`. |
 | Sitzung | eine `GeckoSession` je App, **ohne sichtbare Ansicht**, `contextId` = `package_id`; `setActive(true)` und `setPriorityHint(PRIORITY_HIGH)`, im Vordergrund-Dienst mit laufender Benachrichtigung; sonst bremst Gecko Timer inaktiver Seiten bis auf 15 Minuten. Zusätzlich wie bei Faceclaw ein Timer-Ersatz im Brücken-Skript, den die Uhr antreibt (`__g2Tick`). |
@@ -223,13 +223,8 @@ Gebaut in M2 als eigenes Modul `tools/gecko-probe/` (Gradle-Projekt `:gecko-prob
 entschieden ist. **Nicht auf Hardware erprobt**: kompiliert, Lint sauber, Einheitstests für Server, Brücke,
 Auswertung und Layout; ob GeckoView auf der Uhr startet, zeigt erst der erste Lauf dort.
 
-| Variante | für |
-|---|---|
-| `armv7Release` | Uhr mit 32-Bit-Apps (`abilist` beginnt mit `armeabi-v7a`), **die Pixel Watch 5**; Standard-Variante |
-| `arm64Release` | Uhr mit 64-Bit-Apps (`abilist` beginnt mit `arm64-v8a`) |
-| `x86Debug` | nur Emulator |
-
-Gemessen wird mit der **Release-Variante** (mit dem Debug-Schlüssel signiert, installiert sich direkt): Eine
+Gebaut nur für `armeabi-v7a`, die Architektur der Pixel Watch 5; eine Variante zum Auswählen gibt es nicht.
+Gemessen wird mit der **Release-Variante**, die in Android Studio voreingestellt ist (mit dem Debug-Schlüssel signiert, installiert sich direkt): Eine
 debugbare App läuft langsamer und braucht mehr Speicher. Aufbau:
 
 - `GeckoLab` – die Messungen im Hauptprozess: `GeckoRuntime` mit `fissionEnabled(false)`,

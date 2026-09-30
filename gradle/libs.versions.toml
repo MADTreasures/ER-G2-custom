@@ -42,8 +42,6 @@ wear-input = { group = "androidx.wear", name = "wear-input", version.ref = "wear
 newpipe-extractor = { group = "com.github.teamnewpipe", name = "NewPipeExtractor", version.ref = "newpipeExtractor" }
 r8 = { group = "com.android.tools", name = "r8", version.ref = "r8" }
 geckoview-armeabi-v7a = { group = "org.mozilla.geckoview", name = "geckoview-armeabi-v7a", version.ref = "geckoview" }
-geckoview-arm64-v8a = { group = "org.mozilla.geckoview", name = "geckoview-arm64-v8a", version.ref = "geckoview" }
-geckoview-x86x64 = { group = "org.mozilla.geckoview", name = "geckoview-x86_64", version.ref = "geckoview" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

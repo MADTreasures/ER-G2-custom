@@ -38,18 +38,16 @@ jobs:
           name: g2-apps
           path: build/g2app/*.g2app
 
-      # M2: the GeckoView measuring APK, one per CPU architecture of the watch (about 120 MB each).
-      - name: Gecko test APKs
-        run: ./gradlew --no-daemon :gecko-probe:testArmv7DebugUnitTest :gecko-probe:lintArmv7Release :gecko-probe:assembleArmv7Release :gecko-probe:assembleArm64Release
+      # M2: the GeckoView measuring APK for the Pixel Watch 5 (armeabi-v7a, about 117 MB).
+      - name: Gecko test APK
+        run: ./gradlew --no-daemon :gecko-probe:testDebugUnitTest :gecko-probe:lintRelease :gecko-probe:assembleRelease
 
-      - name: Upload Gecko test APKs
+      - name: Upload Gecko test APK
         uses: actions/upload-artifact@v4
         with:
-          name: g2-gecko-test-apks
+          name: g2-gecko-test-apk
           retention-days: 14
-          path: |
-            tools/gecko-probe/build/outputs/apk/armv7/release/gecko-probe-armv7-release.apk
-            tools/gecko-probe/build/outputs/apk/arm64/release/gecko-probe-arm64-release.apk
+          path: tools/gecko-probe/build/outputs/apk/release/gecko-probe-release.apk
 
       - name: Upload reports
         if: always()

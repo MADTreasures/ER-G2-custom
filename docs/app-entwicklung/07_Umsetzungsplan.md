@@ -94,8 +94,8 @@ Uhr; der Chat baut die Test-APK, **du** installierst sie und liest die Werte ab.
 **Abnahme:** APK für die richtige Architektur, Anleitung zum Installieren, Messwerte eingetragen,
 Entscheidung dokumentiert. Ohne echte Messwerte ist M2 nicht fertig.
 
-**Stand: Test-APK gebaut, Messwerte fehlen.** Modul `tools/gecko-probe/` („Gecko-Test“, Varianten
-`armv7Release`/`arm64Release`), Beschreibung in [05 §5.2](05_EvenHub-Apps.md#52-die-test-apk-gecko-test),
+**Stand: Test-APK gebaut, Messwerte fehlen.** Modul `tools/gecko-probe/` („Gecko-Test“, nur `armeabi-v7a`,
+Release voreingestellt), Beschreibung in [05 §5.2](05_EvenHub-Apps.md#52-die-test-apk-gecko-test),
 Anleitung im README, Vorlage für die Werte in [quellen/E-m2-messwerte.md](quellen/E-m2-messwerte.md).
 Zusätzlich zum Plan misst sie den Bildweg des Browsers (M7): „Seite rendern“ zeichnet eine Seite in eine
 unsichtbare Fläche und wandelt sie mit `web-raster` ins Brillenbild. Die APK braucht zum Kompilieren die

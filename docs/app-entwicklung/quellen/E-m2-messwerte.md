@@ -11,7 +11,7 @@ setzt die Entscheidung unten; erst dann ist M2 fertig.
 |---|---|
 | Modell, API (Zeile „Gerät“) | |
 | `ro.product.cpu.abilist` (Zeile „ABI“) | |
-| APK-Variante (armv7Release / arm64Release) | |
+| APK-Variante (release, armeabi-v7a) | |
 | RAM gesamt / frei | |
 | System-WebView vorhanden | |
 | GeckoView-Version | 157.0.20260924084938 |

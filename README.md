@@ -240,23 +240,22 @@ ist, kann nur die echte Uhr zeigen. Dafür gibt es die eigene kleine App **„Ge
 ([`tools/gecko-probe/`](tools/gecko-probe), [05 §5.2](docs/app-entwicklung/05_EvenHub-Apps.md#52-die-test-apk-gecko-test)).
 Sie ist getrennt von G2 Watch, damit die Uhr-App nicht um ≈ 120 MB wächst, solange nichts entschieden ist.
 
-1. **Architektur der Uhr:** Die Pixel Watch 5 läuft mit **32-Bit-Apps** (`armeabi-v7a`; Android Studio meldet
-   „Device supports armeabi-v7a, armeabi“). Also Variante **armv7Release**. Bei einer anderen Uhr prüfen mit
-   `adb shell getprop ro.product.cpu.abilist` (beginnt die Antwort mit `arm64-v8a` → **arm64Release**).
-2. **Android Studio:** *Build → Select Build Variant…*, beim Modul **gecko-probe** die Variante aus Schritt 1
-   wählen (Standard ist armv7). Meldet Android Studio „APK only supports arm64-v8a“, ist noch die
-   arm64-Variante gewählt: *Cancel* und dort auf **armv7Release** umstellen. Oben die Konfiguration **gecko-probe** und die Uhr wählen, **▶ Run**. Das erste Mal lädt Gradle
-   GeckoView (≈ 90 MB). GeckoView verlangt die Android-Plattform **API 37.1**; fehlt sie, bietet Android
+1. **Android Studio:** oben die Konfiguration **gecko-probe** und die Uhr wählen, **▶ Run**. Nichts weiter
+   einstellen: Der Gecko-Test ist fest für die Pixel Watch 5 gebaut (32-Bit-Apps, `armeabi-v7a`; Android
+   Studio meldet dort „Device supports armeabi-v7a, armeabi“) und installiert gleich die Mess-Fassung
+   (Release). Das erste Mal lädt Gradle GeckoView (≈ 90 MB). GeckoView verlangt die Android-Plattform **API 37.1**; fehlt sie, bietet Android
    Studio die Installation an (sonst *Tools → SDK Manager → SDK Platforms*, *Show Package Details*, API 37.1
    ankreuzen). Die APK ist ≈ 120 MB groß; über WLAN dauert das Installieren ein paar Minuten.
-   Ohne Android Studio: Artefakt `g2-gecko-test-apks` aus GitHub Actions laden und
-   `adb install -r gecko-probe-armv7-release.apk` (bzw. `-arm64-`).
-3. **Auf der Uhr** „Gecko-Test“ öffnen, die Mitteilungen erlauben, und die Tests der Reihe nach starten:
+   Ohne Android Studio: Artefakt `g2-gecko-test-apk` aus GitHub Actions laden und
+   `adb install -r gecko-probe-release.apk`.
+2. **Auf der Uhr** „Gecko-Test“ öffnen, die Mitteilungen erlauben, und die Tests der Reihe nach starten:
    **1 · Schnelltest** (≈ 1 min) → **2 · Timer-Test** (4 min; nach der Vibration das Handgelenk senken, bis
    es wieder vibriert) → **3 · Dauertest** (30 min Uhr normal tragen, nicht laden) → **4 · Seite rendern** →
    **5 · Wikipedia rendern** (braucht Internet). Den **Schnelltest als Erstes nach dem Öffnen** der App
    laufen lassen, sonst gibt es keinen Kaltstart-Wert.
-4. Ganz nach unten scrollen, **Bericht** antippen (Knopf am unteren Rand) und am Rechner holen:
+3. Ganz nach unten scrollen, **Bericht** antippen (Knopf am unteren Rand) und am Rechner holen: in Android
+   Studio *Device Explorer* → Uhr → `sdcard/Android/data/ch.madtreasures.g2watch.geckoprobe/files/` →
+   Rechtsklick → *Save As*. Oder:
    ```sh
    adb pull /sdcard/Android/data/ch.madtreasures.g2watch.geckoprobe/files/ .
    ```
@@ -369,7 +368,7 @@ die Uhr offline ist.
 
 ```sh
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :web-raster:test :app-api:test :app:testDebugUnitTest
-./gradlew :gecko-probe:testArmv7DebugUnitTest
+./gradlew :gecko-probe:testDebugUnitTest
 ```
 
 Stand dieses Commits: 15 + 184 + 27 + 4 + 374 Tests grün, dazu 30 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
