@@ -33,6 +33,15 @@ class AppJsonTest {
         AppEvent.TextInput("suche", null),
         AppEvent.Video("bild", VideoState.PLAYING, 12_000, 245_000),
         AppEvent.Video("bild", VideoState.ERROR, 0, 0, "Keine Verbindung"),
+        AppEvent.Web("seite", WebState.LOADING, "https://www.srf.ch/news", progress = 40),
+        AppEvent.Web(
+            "seite", WebState.READY, "https://de.m.wikipedia.org/wiki/Brille", "Brille – Wikipedia", 100,
+            canBack = true, canForward = false, reader = true, readable = true,
+            field = WebField("Wikipedia durchsuchen", "Brillen", password = false, multiline = false),
+        ),
+        AppEvent.Web("seite", WebState.ERROR, "https://nirgends.example", message = "Adresse nicht gefunden"),
+        AppEvent.ImageClick("p_seite", "seite", 120, 80),
+        AppEvent.ImageScroll("p_seite", "seite", -195),
     )
 
     @Test
@@ -129,6 +138,17 @@ class AppJsonTest {
         AppCommand.Video("bild", VideoAction.Seek(90_000)),
         AppCommand.Video("bild", VideoAction.Profile(VideoProfile.STABLE)),
         AppCommand.Video("bild", VideoAction.Stop),
+        AppCommand.Web("seite", WebAction.Open("https://www.srf.ch/news", reader = true)),
+        AppCommand.Web("seite", WebAction.Open("http://example.org/")),
+        AppCommand.Web("seite", WebAction.Back),
+        AppCommand.Web("seite", WebAction.Forward),
+        AppCommand.Web("seite", WebAction.Reload),
+        AppCommand.Web("seite", WebAction.Scroll(-195)),
+        AppCommand.Web("seite", WebAction.Tap(120, 80)),
+        AppCommand.Web("seite", WebAction.Type("Katzen im Schnee", enter = false)),
+        AppCommand.Web("seite", WebAction.Reader(false)),
+        AppCommand.Web("seite", WebAction.Contrast(WebContrast.HALO)),
+        AppCommand.Web("seite", WebAction.Stop),
         AppCommand.Close,
     )
 
@@ -159,6 +179,37 @@ class AppJsonTest {
             json("""{ "c": "video", "block": "bild", "action": "seek", "position": 90000 }"""),
             AppJson.encodeCommand(AppCommand.Video("bild", VideoAction.Seek(90_000))),
         )
+    }
+
+    @Test
+    fun `web pages read as written in the app model chapter`() {
+        // 02 §6: the event and the command of interface version 2.
+        assertEquals(
+            json(
+                """{ "kind": "web", "block": "seite", "state": "ready", "url": "https://srf.ch/", "title": "SRF", "progress": 100,
+                     "back": true, "forward": false, "reader": false, "readable": true,
+                     "field": { "label": "Suche", "value": "", "password": false, "multiline": false }, "message": null }""",
+            ),
+            AppJson.encodeEvent(AppEvent.Web("seite", WebState.READY, "https://srf.ch/", "SRF", 100, canBack = true, readable = true, field = WebField("Suche"))),
+        )
+        assertEquals(
+            AppEvent.Web("seite", WebState.LOADING, "https://srf.ch/"),
+            AppJson.decodeEvent(json("""{ "kind": "web", "block": "seite", "state": "loading", "url": "https://srf.ch/" }""")),
+        )
+        assertEquals(json("""{ "kind": "imageClick", "page": "p", "block": "seite", "x": 3, "y": 4 }"""), AppJson.encodeEvent(AppEvent.ImageClick("p", "seite", 3, 4)))
+        assertEquals(AppEvent.ImageScroll("p", "seite", 195), AppJson.decodeEvent(json("""{ "kind": "imageScroll", "page": "p", "block": "seite", "dy": 195 }""")))
+        assertEquals(
+            AppCommand.Web("seite", WebAction.Type("Brille", enter = true)),
+            AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "type", "text": "Brille" }""")),
+        )
+        assertEquals(
+            json("""{ "c": "web", "block": "seite", "action": "open", "url": "https://srf.ch/", "reader": true }"""),
+            AppJson.encodeCommand(AppCommand.Web("seite", WebAction.Open("https://srf.ch/", reader = true))),
+        )
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "fliegen" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "tap", "x": 3 }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "contrast", "contrast": "neon" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "web", "block": "seite", "state": "schwebt", "url": "" }""")) }
     }
 
     @Test

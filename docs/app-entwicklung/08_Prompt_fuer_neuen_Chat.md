@@ -36,7 +36,8 @@ So gehst du vor:
 1. Wähl die Laufzeit nach 00 und begründe sie in einem Satz: normalerweise ein App-Paket für die Uhr;
    eine Rechner-App nur, wenn sie viel rechnet; Even-Hub-Apps laufen auf der Uhr oder dem Handy, nie auf
    dem Rechner.
-2. Bau die App als App-Paket nach 09 in packages/<name>/ (Vorlage: packages/youtube).
+2. Bau die App als App-Paket nach 09 in packages/<name>/ (Vorlage: packages/youtube; mit Web-Seite:
+   packages/browser).
    Die Uhr-App selbst (app/, app-api/, die Bau-Logik im Hauptordner) änderst du nicht.
 3. Braucht die App etwas, das die Schnittstelle nicht kann, oder einen Plattform-Teil, der noch fehlt
    (Rechner = M5, Mikrofon/Sensoren = M6 usw.), sag mir das zuerst: was genau fehlt und wie groß es ist.
@@ -85,13 +86,13 @@ Für einen Meilenstein aus dem [Umsetzungsplan](07_Umsetzungsplan.md) nach „Au
 | Meilenstein | Zeile |
 |---|---|
 | M0 | Setze M0 um (Baukasten an die App-Fläche anpassen, Kennungen, Bild-Baustein, Knopf „Zurück“) und veröffentliche den Baukasten unter derselben Adresse neu. |
-| M2 | Der Gecko-Test (tools/gecko-probe) ist gebaut und lief auf meiner Uhr; hier ist sein Bericht: <g2-gecko-bericht.txt einfügen>. Trag die Werte in quellen/E-m2-messwerte.md ein und entscheide nach 05 §5.1, ob GeckoView auf der Uhr taugt. |
+| M2 | Der Gecko-Test (tools/gecko-probe) ist gebaut und lief auf meiner Uhr; hier ist sein Bericht: <g2-gecko-bericht.txt einfügen>. Trag die Werte in quellen/E-m2-messwerte.md ein, entscheide nach 05 §5.1, ob GeckoView auf der Uhr taugt, und zieh den schon gebauten Browser nach, was davon abhängt (05 §10.2). |
 | M3 | Setze M3 um: EvenHub-Laufzeit auf der Uhr nach 05 §4–§5 mit Test-App für alle Methoden. |
 | M4 | Setze M4 um: Handy-App „G2 Handy“ nach 05 §6 und 06 §1. |
 | M5 | Setze M5 um: Protokoll g2-remote@1, g2-host mit Web-Seite, Rechner-Client und Kopplung, Beispiel-Apps echo, pc-status, notizen. |
 | M6 | Setze M6 um: Sensoren, Mikrofon (LC3), Summer und Standort bis zu den Apps, Beispiele „Diktat“ und „Kompass“. |
-| M7 | Setze M7 um: Web-Browser auf der Brille nach 05 §10 und 07 M7, mit dem Modul web-raster (nur wenn M2 „GeckoView ja“ ergab). |
+| M7 | Der Browser (M7, v0.8.0) lief auf meiner Uhr; das fiel auf: <Beobachtungen, Adressen, Protokollzeilen „Browser: …“>. Behebe es nach 05 §10.2 und 03 §12. |
 
 M1 (App-Host) und M1b (App-Pakete) sind fertig, von M2 die Test-APK (es fehlen die Messwerte der Uhr),
-von M7 die Vorarbeit `web-raster`. In claude.ai kann Claude einen Entwurf auch direkt aus dem
+M7 (Browser) ist gebaut, aber nicht auf Hardware erprobt. In claude.ai kann Claude einen Entwurf auch direkt aus dem
 Baukasten lesen („Schau dir meinen Baukasten an“).

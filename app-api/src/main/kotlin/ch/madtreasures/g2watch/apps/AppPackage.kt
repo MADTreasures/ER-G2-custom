@@ -15,8 +15,11 @@ object G2AppApi {
     /**
      * Raised with every change to [G2App], [AppContext], events, commands or pages. The watch app runs
      * packages built for this version or an older one: the interface only grows.
+     *
+     * 1: the first app packages (v0.6.0). 2: web pages in image blocks ([AppContext.web], [WebAction],
+     * [AppEvent.Web], [AppEvent.ImageClick], [AppEvent.ImageScroll]; v0.8.0).
      */
-    const val VERSION = 1
+    const val VERSION = 2
 }
 
 /** A broken or unsuitable app package; [message] is German and meant for the wearer. */

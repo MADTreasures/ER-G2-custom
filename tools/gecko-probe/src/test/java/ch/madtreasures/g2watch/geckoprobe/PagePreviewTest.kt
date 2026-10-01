@@ -3,6 +3,7 @@ package ch.madtreasures.g2watch.geckoprobe
 import ch.madtreasures.g2watch.webraster.Contrast
 import ch.madtreasures.g2watch.webraster.GlassesRaster
 import ch.madtreasures.g2watch.webraster.GlassesRasterizer
+import ch.madtreasures.g2watch.webraster.LayoutParser
 import ch.madtreasures.g2watch.webraster.Levels
 import ch.madtreasures.g2watch.webraster.RasterOptions
 import kotlinx.serialization.json.Json
@@ -27,7 +28,7 @@ import javax.imageio.ImageIO
  * `PREVIEW_STYLES=1` also `<page>-stile.png`: the three [Contrast] styles next to each other.
  * Skipped without the environment variable PREVIEW_DIR:
  *
- *     PREVIEW_DIR=/tmp/vorschau ./gradlew :gecko-probe:testArmv7DebugUnitTest --tests '*PagePreviewTest*'
+ *     PREVIEW_DIR=/tmp/vorschau ./gradlew :gecko-probe:testDebugUnitTest --tests '*PagePreviewTest*'
  */
 class PagePreviewTest {
     private val w = 576

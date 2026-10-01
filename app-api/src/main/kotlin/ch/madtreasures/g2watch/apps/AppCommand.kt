@@ -71,6 +71,11 @@ sealed interface AppCommand {
         override val name get() = "video"
     }
 
+    /** Opens, works or ends the web page in image block [block]; reported with [AppEvent.Web]. Since interface version 2. */
+    data class Web(val block: String, val action: WebAction) : AppCommand {
+        override val name get() = "web"
+    }
+
     data object Close : AppCommand {
         override val name get() = "close"
     }

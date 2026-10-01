@@ -16,6 +16,10 @@ import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.youtube.YouTubeApp
+import ch.madtreasures.browser.BrowserApp
+import ch.madtreasures.g2watch.apps.WebState
+import ch.madtreasures.g2watch.apps.web.SyntheticPage
+import ch.madtreasures.g2watch.apps.web.WebStatus
 import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
@@ -329,6 +333,52 @@ class PageRendererSnapshotTest {
         fake.listener.onState(VideoState.PLAYING, 12_500, TestPattern.DURATION_MS)
         settle()
         save("apps-youtube-testbild")
+    }
+
+    private val browserId = "ch.madtreasures.browser"
+
+    private fun browser(): AppHost {
+        ports.answers["$browserId@1.0.0"] = setOf(Permission.NETWORK)
+        val host = host({ BrowserApp() })
+        host.launch("watch:$browserId")
+        settle()
+        return host
+    }
+
+    /** An address from the watch; the fake engine then paints the made-up [page] as the browser would. */
+    private fun browserPage(page: SyntheticPage, title: String, reader: Boolean): AppHost {
+        val host = browser()
+        // "Adresse oder Suche" has the focus: a tap on the temple asks on the watch.
+        host.gesture(GestureKind.CLICK)
+        ports.questions.last().third("tagblatt.example")
+        settle()
+        val web = ports.web.pages.last()
+        web.listener.onFrame(page.raster())
+        web.listener.onState(WebStatus(WebState.READY, "https://tagblatt.example/", title, 100, reader = reader, readable = true))
+        settle()
+        return host
+    }
+
+    @Test
+    fun browserStart() {
+        val host = browser()
+        pointerOn(host.currentPageOf(browserId)!!, BrowserApp.ADDRESS, dx = 200)
+        save("apps-browser-start")
+    }
+
+    @Test
+    fun browserPage() {
+        browserPage(SyntheticPage.news(), "Tagblatt – Startseite", reader = false)
+        // The pointer on the headline, about to follow it.
+        val area = desktop.layout.appArea(false)
+        pointerTo(area.x + 250, area.y + 70)
+        save("apps-browser-seite")
+    }
+
+    @Test
+    fun browserReadingMode() {
+        browserPage(SyntheticPage.reading(), "Brille zeigt jetzt Web-Seiten", reader = true)
+        save("apps-browser-lesemodus")
     }
 
     /** The same picture in the three profiles, one above the other: Stabil, Ausgewogen, Schnell. */

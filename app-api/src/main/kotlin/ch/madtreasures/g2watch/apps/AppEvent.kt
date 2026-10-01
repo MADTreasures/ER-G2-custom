@@ -70,6 +70,44 @@ sealed interface AppEvent {
 
     /** A command was refused ([CommandException.code]). Only remote apps get this; watch apps see it in the log. */
     data class Error(val command: String, val code: String, val message: String) : AppEvent
+
+    /**
+     * The web page in image block [block] ([AppContext.web]) changed: it loads, is there or failed, has
+     * a new address or title, a text field got the cursor ([field]). Its pictures go into the block by
+     * themselves. Since interface version 2.
+     */
+    data class Web(
+        val block: String,
+        val state: WebState,
+        val url: String,
+        val title: String = "",
+        /** 0–100 while loading. */
+        val progress: Int = 0,
+        val canBack: Boolean = false,
+        val canForward: Boolean = false,
+        /** The page shows in reading mode. */
+        val reader: Boolean = false,
+        /** The page is an article that reading mode can show. */
+        val readable: Boolean = false,
+        /** The text field that has the cursor, or null. */
+        val field: WebField? = null,
+        /** Why the page failed ([WebState.ERROR]), or a note such as a link the watch cannot open (German). */
+        val message: String? = null,
+    ) : AppEvent
+
+    /**
+     * A click at ([x], [y]) on image block [block] of [page], in pixels of the block: a double tap on the
+     * watch with the pointer on the block, or a tap on a temple while the pointer is on it. Comes for
+     * blocks that show a web page. Since interface version 2.
+     */
+    data class ImageClick(val page: String, val block: String, val x: Int, val y: Int) : AppEvent
+
+    /**
+     * The wearer scrolls by [dy] pixels (positive: further down) over image block [block] of [page]
+     * where the page itself does not scroll: a temple swipe, or the pointer pushed past the top or
+     * bottom edge. Comes for blocks that show a web page. Since interface version 2.
+     */
+    data class ImageScroll(val page: String, val block: String, val dy: Int) : AppEvent
 }
 
 /** Gesture names as in 02 §6.1. */

@@ -1,8 +1,9 @@
 // Page preview (tools/page-preview): opens real web pages in headless Chromium in the glasses'
-// window (576 x 260 device pixels = 384 CSS px wide at 1.5x, as in the Gecko probe) with the
-// probe's own collectLayout() from content.js, and saves a screenshot and the layout per window.
+// window (576 x 260 device pixels = 384 CSS px wide at 1.5x, as in the Gecko probe) with the same
+// collectLayout() the watch's browser and the Gecko probe run (web-raster/src/main/js/page-layout.js),
+// and saves a screenshot and the layout per window.
 // Chromium stands in for GeckoView, which needs a watch or an emulator. Then:
-//   PREVIEW_DIR=<dir> ./gradlew :gecko-probe:testArmv7DebugUnitTest --tests '*PagePreviewTest*'
+//   PREVIEW_DIR=<dir> ./gradlew :gecko-probe:testDebugUnitTest --tests '*PagePreviewTest*'
 // turns them into glasses pictures with LayoutParser and web-raster (<dir>/views/*.png).
 //
 //   node tools/page-preview/capture.js <dir> [page id filter]
@@ -20,8 +21,8 @@ try {
 const { chromium } = playwright;
 const OUT = path.join(process.argv[2] || "page-preview", "raw");
 const only = process.argv[3];
-const content = fs.readFileSync(path.join(__dirname, "../gecko-probe/src/main/assets/probe-bridge/content.js"), "utf8");
-const layoutSrc = content.slice(content.indexOf("const MAX_TEXTS"));
+const pageLayout = fs.readFileSync(path.join(__dirname, "../../web-raster/src/main/js/page-layout.js"), "utf8");
+const layoutSrc = pageLayout.slice(pageLayout.indexOf("const MAX_TEXTS"));
 // GeckoView's user agent on the watch, so sites serve the same mobile layout.
 const UA = "Mozilla/5.0 (Android 17; Mobile; rv:157.0) Gecko/157.0 Firefox/157.0";
 const PAGES = [
@@ -34,8 +35,8 @@ const PAGES = [
   { id: "07-nasa", url: "https://www.nasa.gov/", scroll: [0, 900] },
   { id: "08-mdn", url: "https://developer.mozilla.org/de/docs/Web/HTML", scroll: [0, 700] },
 ];
-// The stage() function of content.js, run in the page, and two frames to get it painted.
-const stageSrc = content.slice(content.indexOf("const STAGE_CSS"), content.indexOf("// --- Layout for the render test"));
+// The stage() function of page-layout.js, run in the page, and two frames to get it painted.
+const stageSrc = pageLayout.slice(pageLayout.indexOf("const STAGE_CSS"), pageLayout.indexOf("// --- Layout -"));
 async function stage(page, name) {
   await page.evaluate(`(() => { ${stageSrc}\n const list = window.__g2stages || (window.__g2stages = []); ` +
     `if (${JSON.stringify(name)} === "restore") { while (list.length) list.pop().remove(); return; } ` +

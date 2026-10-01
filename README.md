@@ -6,15 +6,15 @@ von Faceclaw. Ein Handy braucht es dafür nicht. Die Uhr-Oberfläche mit Touchpa
 Einstellungen stammt aus dem Uhr-Paket (`G2Watch_Uhr-UI_und_Maus`) und läuft auf der Brille, sobald
 die Custom-Firmware drauf ist.
 
-Die Uhr-App ist außerdem die **Hauptapp für Apps auf der Brille**: Apps wie **YouTube** werden als eigene
-Pakete dazu installiert ([Eigene Apps installieren](#eigene-apps-installieren)). Dazu kommt die Vorarbeit für
-einen **Web-Browser auf der Brille**: das Modul `web-raster`, das Web-Seiten ins Brillenbild wandelt und Text
-immer lesbar hält, und die Test-APK **„Gecko-Test“**, die misst, ob die Browser-Engine GeckoView auf der Uhr
-gut genug läuft.
+Die Uhr-App ist außerdem die **Hauptapp für Apps auf der Brille**: Apps wie **YouTube** und der **Browser**
+werden als eigene Pakete dazu installiert ([Eigene Apps installieren](#eigene-apps-installieren)). Für den
+[Browser](#web-browser-auf-der-brille) bringt die Uhr-App die Browser-Engine **GeckoView** mit und wandelt
+Web-Seiten mit dem Modul `web-raster` ins Brillenbild, Text immer lesbar. Die Test-APK **„Gecko-Test“** misst,
+ob GeckoView auf der Uhr gut genug läuft.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.7.1):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
+> **Ehrlicher Stand (v0.8.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
 > Custom-Firmware**: Pixel Watch 5 und G2, linkes Glas im ersten Anlauf; beim rechten brach der erste Anlauf
 > ab, nach dem angezeigten Weg (Brille laden, neu starten, erneut aufspielen) klappte es. Alles andere läuft
 > bisher nur gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
@@ -26,7 +26,9 @@ gut genug läuft.
 > Uhr-App neu zu bauen ([Eigene Apps installieren](#eigene-apps-installieren)). Seit 0.7.0 ist auch YouTube
 > ein solches Paket; die Uhr-App selbst bringt keine App mehr mit.
 > Neu in 0.7.0: die **Vorarbeit für einen Browser** – Web-Seiten fürs Brillenbild und die Test-App
-> „Gecko-Test“ (M2); der Browser selbst ist noch nicht gebaut ([Web-Seiten fürs Brillenbild](#web-seiten-fürs-brillenbild-vorarbeit-für-den-browser)).
+> „Gecko-Test“ (M2). Neu in 0.8.0: der **[Browser](#web-browser-auf-der-brille)** selbst (M7) – GeckoView in
+> der Uhr-App, die Browser-Oberfläche als App-Paket. **Nicht auf Hardware erprobt**, und die Messwerte des
+> Gecko-Tests von der echten Uhr fehlen noch; was davon abhängt, steht im Browser-Abschnitt.
 
 ## Was aufgespielt werden kann
 
@@ -162,7 +164,8 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
-zweimal antippen. Fertiges Paket: **YouTube**.
+zweimal antippen. Fertige Pakete: **YouTube** und **Browser**. Pakete ab 0.8.0 (Schnittstelle 2) brauchen
+die Uhr-App 0.8.0 oder neuer; ältere Pakete laufen weiter.
 
 ## YouTube auf der Brille
 
@@ -228,7 +231,73 @@ dieselbe Umrechnung wie auf der Uhr.
   die Videoserver über verschiedene Adressen auf). Auf der Uhr ist es dieselbe Adresse – das ist das Erste,
   was auf echter Hardware zu prüfen ist.
 
-## Web-Seiten fürs Brillenbild (Vorarbeit für den Browser)
+## Web-Browser auf der Brille
+
+Die App **Browser** (seit 0.8.0, App-Paket `ch.madtreasures.browser-1.0.0.g2app`, zu installieren wie in
+[Eigene Apps installieren](#eigene-apps-installieren)) zeigt normale Web-Seiten auf der Brille, ganz auf der
+Uhr. Die Uhr-App lädt die Seite mit **GeckoView** (Mozillas Browser-Engine, die auch in Firefox steckt), zeichnet
+sie unsichtbar in der Größe der App-Fläche und wandelt sie mit `web-raster` ins Brillenbild: Der Grund wird
+durchsichtig, Fotos bleiben Bilder, **Text leuchtet immer in voller Helligkeit** (auf Fotos als dunkle
+Schrift mit hellem Umriss). Wie das gebaut ist: [05 §10](docs/app-entwicklung/05_EvenHub-Apps.md#10-und-ein-richtiger-browser-auf-der-brille).
+
+| Startseite | Eine Seite (der Zeiger tippt Links an) | Lesemodus |
+|---|---|---|
+| ![Start](docs/bilder/apps-browser-start.png) | ![Seite](docs/bilder/apps-browser-seite.png) | ![Lesemodus](docs/bilder/apps-browser-lesemodus.png) |
+
+Die Seiten in den Bildern sind erfunden und mit Java2D gezeichnet (keine fremden Inhalte im Repo), dann durch
+denselben Weg wie auf der Uhr: Layout-Bericht, Raster, App-Host, Desktop.
+
+**Bedienen:**
+
+- **Adresse oder Suche** → auf der Uhr erscheinen Tastatur und Spracheingabe (mit den letzten Eingaben als
+  Vorschlag). Eine Adresse (`srf.ch`, gesprochen auch „srf punkt ch“) öffnet die Seite, alles andere sucht bei
+  DuckDuckGo (Textfassung, ohne Cookie-Dialog).
+- **Lesezeichen** stehen auf der Startseite (zum Ausprobieren: Wikipedia, SRF News, DuckDuckGo) und im
+  App-Menü jeder Seite (Tippen-dann-Halten am Bügel oder Klick auf den App-Namen); dort auch *Lesezeichen
+  setzen/entfernen*, *Neu laden*, *Vorwärts*, *Lesemodus an/aus*, *Adresse eingeben*.
+- **Auf der Seite ist der Zeiger der Finger:** Doppeltippen auf der Uhr, oder Tippen am Bügel, während der
+  Zeiger auf der Seite steht, tippt dort an (Link, Knopf, Eingabefeld). **Scrollen:** am Bügel wischen (¾
+  Bildhöhe) oder den Zeiger oben/unten über den Rand schieben.
+- **Eingabefelder:** Tippt man ein Feld an, fragt die Uhr nach dem Text (Tastatur oder Sprache); Enter wird
+  gleich mitgeschickt, die Suche startet. Hat eine Seite ein Feld von sich aus ausgewählt, steht im App-Menü
+  *Text eingeben*.
+- **Zurück** (Doppeltippen am Bügel, „‹“ in der Kopfzeile) geht erst durch die besuchten Seiten zurück, dann
+  zur Startseite. **Verlauf:** die letzten 20 Seiten.
+- **Lesemodus** (Standard: an): Artikel erscheinen als reiner Text, groß und hell auf durchsichtigem Grund,
+  ohne Menüs und Werbung (Mozillas Readability, wie die Leseansicht von Firefox). In der Kopfzeile steht dann
+  📖. Seiten, die kein Artikel sind, zeigt der Browser normal.
+- **Schrift auf Bildern** (Startseite): Umriss (Standard), Leuchtschrift oder Platte – wie Text auf Fotos
+  abgesetzt wird.
+
+**Was die Uhr-App dafür mitbringt** (seit 0.8.0): GeckoView 157 nur für die 32-Bit-Architektur der Pixel
+Watch 5 (`armeabi-v7a`). Die Uhr-App wird dadurch **≈ 106 MB größer** (Debug-APK 136,6 statt 30,7 MB,
+gemessen): GeckoViews Bibliotheken und Daten ≈ 90 MB (komprimiert), dazu ≈ 16 MB Java-Code von GeckoView und
+dem, was es mitbringt (u. a. Google Play Services FIDO für Passkeys, SnakeYAML), der in der APK unkomprimiert
+liegt. Beim Installieren entpackt Android die Bibliotheken noch einmal: **≈ 137 MB** zusätzlich auf der Uhr.
+Sie braucht zum Bauen die Android-Plattform **API 37.1** (siehe [App auf die Uhr bringen](#app-auf-die-uhr-bringen)).
+Werbe- und Tracking-Blocker (Firefox' Standard-Schutz) und dunkles Design, wo Seiten eines haben, sind an;
+Seiten bekommen keinen Standort, keine Kamera, kein Mikrofon und keine Mitteilungen; Downloads, Links in
+andere Apps und Auswahllisten (`<select>`) gehen nicht.
+
+**Nicht auf Hardware erprobt.** Geprüft ist alles ohne Uhr: Host, Browser-App und der Weg vom Seitenbild
+zum Brillenbild mit Tests, das Inhalts-Skript in Chromium ([`bridge-check.js`](tools/page-preview/README.md)).
+Ob GeckoView auf der Uhr startet und wie gut es dort läuft, zeigt erst die Uhr. **Von den Messwerten des
+Gecko-Tests (M2), die noch fehlen, hängt ab:**
+
+| Messwert (Gecko-Test) | Was davon abhängt |
+|---|---|
+| Kaltstart | wie lange die erste Seite nach dem Öffnen braucht (die Engine startet erst mit der ersten Seite und bleibt dann) |
+| Speicher (alle Prozesse) | ob Wear OS die Uhr-App samt **Brillenverbindung** beendet, wenn der Speicher knapp wird – GeckoView läuft zum Teil im Prozess der Uhr-App |
+| Akku pro Stunde | wie lange man mit offenem Browser lesen kann (Engine, Funk, zwei Aufnahmen je Bild, Bluetooth) |
+| Timer bei Bildschirm aus | ob Seiten weiterarbeiten, wenn die Uhr dunkel ist (der Browser hält sie aktiv, solange er auf der Brille ist) |
+| Abbrüche im Dauertest | ob Seiten vom System beendet werden („Wear OS hat die Seite beendet“) |
+| „Seite rendern“ (Zeiten, Bilder) | wie schnell ein Brillenbild entsteht; ob die Aufnahme ohne Schrift und der Layout-Bericht auf der Uhr gelingen; ob die Grenzwerte von `web-raster` auf der echten Brille passen |
+
+Ungeprüft ist außerdem, ob GeckoView ohne sichtbare Ansicht Tipp-Ereignisse annimmt (so machen es GeckoViews
+eigene Tests) und ob Seiten mit strengen Regeln (CSP) die Stile des Lesemodus zulassen (die wichtigsten
+setzt das Skript deshalb zusätzlich direkt am Element).
+
+### Web-Seiten fürs Brillenbild
 
 Das Modul [`web-raster/`](web-raster) wandelt eine gezeichnete Web-Seite in das Bild der Brille, so wie die
 Even-Apps „Photos“ und „G2 Agent Cam“ Inhalte zeigen: Der Grund der Seite wird durchsichtig (egal ob weiß
@@ -245,14 +314,16 @@ dunkle Buchstaben mit einem schmalen hellen Umriss, das Bild bleibt rundherum si
 Links jeweils die Test-Seite, rechts das Brillenbild. Wie echte Seiten aussehen, zeigt die
 [Seiten-Vorschau](tools/page-preview/README.md) (Chromium statt GeckoView). Die Regeln und Grenzwerte stehen in
 [05 §10.1](docs/app-entwicklung/05_EvenHub-Apps.md#101-seiten-ins-brillen-raster-wandeln-web-raster-gebaut).
-Der Browser selbst (Meilenstein M7) kommt, wenn der Gecko-Test zeigt, dass GeckoView auf der Uhr taugt.
 
 ## Gecko-Test (M2) auf die Uhr bringen und messen
 
 Wear OS hat keinen Browser-Kern. Ob Mozillas **GeckoView** auf der Uhr schnell, sparsam und stabil genug
 ist, kann nur die echte Uhr zeigen. Dafür gibt es die eigene kleine App **„Gecko-Test“**
 ([`tools/gecko-probe/`](tools/gecko-probe), [05 §5.2](docs/app-entwicklung/05_EvenHub-Apps.md#52-die-test-apk-gecko-test)).
-Sie ist getrennt von G2 Watch, damit die Uhr-App nicht um ≈ 120 MB wächst, solange nichts entschieden ist.
+Sie ist getrennt von G2 Watch entstanden, als GeckoView noch nicht in der Uhr-App war, und bleibt das
+Messwerkzeug: Sie misst Kaltstart, Speicher, Timer, Akku und den Bildweg ohne den Rest der Uhr-App. Seit 0.8.0
+steckt dieselbe GeckoView-Version auch im Browser der Uhr-App; **was dort von den Werten abhängt**, steht in
+[Web-Browser auf der Brille](#web-browser-auf-der-brille).
 
 1. **Android Studio:** oben die Konfiguration **gecko-probe** und die Uhr wählen, **▶ Run**. Nichts weiter
    einstellen: Der Gecko-Test ist fest für die Pixel Watch 5 gebaut (32-Bit-Apps, `armeabi-v7a`; Android
@@ -326,21 +397,25 @@ adb install -r app-debug.apk
 **Mit Android Studio** (Quail 4 | 2026.1.4 oder neuer; ältere Versionen kennen das Android-Gradle-Plugin 9.4
 dieses Projekts noch nicht):
 
-1. Projektordner öffnen (*File → Open*). Beim ersten Öffnen lädt Gradle alle Abhängigkeiten; fehlt die
-   Android-Plattform API 37, bietet Android Studio die Installation an (sonst *Tools → SDK Manager*).
+1. Projektordner öffnen (*File → Open*). Beim ersten Öffnen lädt Gradle alle Abhängigkeiten (seit 0.8.0 auch
+   GeckoView, ≈ 90 MB); fehlen die Android-Plattformen API 37 und **37.1** (GeckoView verlangt 37.1), bietet
+   Android Studio die Installation an (sonst *Tools → SDK Manager → SDK Platforms*, *Show Package Details*).
 2. Uhr koppeln: Auf der Uhr die Entwickleroptionen freischalten (*Einstellungen → System → Info →
    Versionen*, 7× auf *Build-Nummer* tippen), dort *ADB-Debugging* und *Debugging über WLAN* einschalten.
    Uhr und Rechner im selben WLAN. In Android Studio in der Geräteauswahl *Pair Devices Using Wi-Fi →
    Pair using pairing code*; den Code zeigt die Uhr unter *Debugging über WLAN → Neues Gerät koppeln*.
 3. Oben die Konfiguration **app** und die Uhr als Gerät wählen, **▶ Run**: Android Studio baut die App,
-   installiert sie auf der Uhr und startet sie.
+   installiert sie auf der Uhr und startet sie. Seit 0.8.0 ist die APK ≈ 137 MB groß (GeckoView); über WLAN
+   dauert das Installieren ein paar Minuten. Die APK läuft nur auf Uhren mit `armeabi-v7a` (Pixel Watch 5);
+   für eine andere Uhr `adb shell getprop ro.product.cpu.abilist` prüfen und `abiFilters` sowie das
+   GeckoView-Artefakt in `app/build.gradle.kts` anpassen.
 
-**Selbst bauen auf der Kommandozeile** (JDK 17 oder neuer, Android SDK mit Plattform 37; für den Gecko-Test
-zusätzlich 37.1):
+**Selbst bauen auf der Kommandozeile** (JDK 17 oder neuer, Android SDK mit den Plattformen 37 und 37.1):
 
 ```sh
-./gradlew :app:assembleDebug                 # → app/build/outputs/apk/debug/app-debug.apk
-./gradlew :gecko-probe:assembleArmv7Release  # → tools/gecko-probe/build/outputs/apk/armv7/release/
+./gradlew :app:assembleDebug            # → app/build/outputs/apk/debug/app-debug.apk
+./gradlew :gecko-probe:assembleRelease  # → tools/gecko-probe/build/outputs/apk/release/
+./gradlew g2appPackages                 # alle App-Pakete → build/g2app/
 ```
 
 In Claude Code im Web richtet [.claude/hooks/session-start.sh](.claude/hooks/session-start.sh) das bei
@@ -365,14 +440,14 @@ die Uhr offline ist.
 
 | Modul | Inhalt |
 |---|---|
-| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der fest eingebauten App YouTube, der Video-Wiedergabe `apps/video` und der Installation von App-Paketen `apps/packages` |
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der Video-Wiedergabe `apps/video`, der Browser-Engine `apps/web` (GeckoView, Erweiterung in `assets/webbridge/`) und der Installation von App-Paketen `apps/packages` |
 | [`app-api/`](app-api) | Die Schnittstelle der Apps (`G2App`, `AppContext`, Ereignisse, Seiten), reines Kotlin; App-Pakete werden dagegen gebaut ([09](docs/app-entwicklung/09_App-Pakete.md)) |
-| [`packages/`](packages) | Ein Ordner je App-Paket, zurzeit [`youtube`](packages/youtube). `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
+| [`packages/`](packages) | Ein Ordner je App-Paket, zurzeit [`youtube`](packages/youtube) und [`browser`](packages/browser). `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
-| [`web-raster/`](web-raster) | Reines Kotlin ohne Android: gezeichnete Web-Seite → Brillenbild mit lesbarem, bei Bedarf negativem Text (Vorarbeit für den Browser, M7) |
+| [`web-raster/`](web-raster) | Reines Kotlin ohne Android: gezeichnete Web-Seite → Brillenbild mit lesbarem, bei Bedarf negativem Text; dazu `LayoutParser` und das Layout-Skript `src/main/js/page-layout.js`, das Browser und Gecko-Test in der Seite ausführen |
 | [`tools/gecko-probe/`](tools/gecko-probe) | Test-APK „Gecko-Test“ (M2): misst GeckoView auf der Uhr; eigene App, nicht Teil von G2 Watch |
-| [`tools/page-preview/`](tools/page-preview/README.md) | Seiten-Vorschau: echte Web-Seiten in Chromium im Brillenfenster öffnen und daneben das Brillenbild zeigen (zum Prüfen von `web-raster`) |
+| [`tools/page-preview/`](tools/page-preview/README.md) | Seiten-Vorschau: echte Web-Seiten in Chromium im Brillenfenster öffnen und daneben das Brillenbild zeigen (zum Prüfen von `web-raster`); `bridge-check.js` prüft das Inhalts-Skript des Browsers |
 | [`tools/cfw_bauen.py`](tools/cfw_bauen.py) | Baut und prüft Faceclaw/35 auf dem PC (Python, ohne Flashen) |
 | [`designer/`](designer), [`designs/`](designs) | G2 Baukasten: Brillen-Seiten aus Bausteinen zusammenstellen (Web-App), und ein Beispiel |
 | [`docs/app-entwicklung/`](docs/app-entwicklung/00_LIES_MICH.md) | **Spezifikation für Apps**: Uhr-Apps, Even-Hub-Apps auf der Uhr (GeckoView) oder dem Handy, Rechner-Apps, Umsetzungsplan und Texte für neue Chats |
@@ -385,7 +460,7 @@ die Uhr offline ist.
 ./gradlew :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 27 + 4 + 374 Tests grün, dazu 30 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 4 + 421 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -405,6 +480,13 @@ Lint ohne Fehler. Die wichtigsten:
   alle 200 ms zeichnen, Timer ruhen verdeckt ohne `background`, 2-s- und 10-s-Regel, 50/500-ms-Regel,
   Absturz einer App, Berechtigungsfrage, App-Menü mit „Apps“ und Starter, Fokus per Bügel, Zeiger,
   Gesten-Modus, abgelehnte Befehle im Protokoll, interne Sitzungen (Anschlüsse für Even-Hub-Apps).
+- **`AppHostWebTest`** – Web-Seiten im Bild-Baustein: Öffnen in Größe des Bausteins, Bilder, Zustände,
+  Adressen und Berechtigung, Klicks (Uhr und Bügel) und Scrollen (Bügel, Zeiger über den Rand) als Ereignisse,
+  Zurück erst durch den Verlauf der Seite, Ruhen beim Verdecken und ohne Brille, Aktionen und Grenzen, Fehler.
+  **`CapturePlanTest`** (wann ein Bild entsteht), **`WebBridgeTest`** (Nachrichten an das Inhalts-Skript, Dateien
+  der Erweiterung), **`WebPictureTest`** (Seite → Brillenbild, Fehlerseite), **`BrowserAppTest`** (Adresse,
+  Suche, Klicks, Felder, Lesezeichen, Verlauf, Lesemodus, Hinweise). Das Inhalts-Skript selbst prüft
+  `node tools/page-preview/bridge-check.js` in Chromium (nicht in der CI).
 - **`AppHostVideoTest`** – Texteingabe (Antwort, Abbruch, ersetzte Frage, App endet), Videos (Bilder im
   Bild-Baustein, Zustände, Pause/Weiter/Springen/Profil/Stopp, Berechtigung, Pause beim Verdecken und ohne
   Brille), Eingabeart pro Seite, Video-Suche. **`YouTubeAppTest`** – Suche, Treffer, Gesten im Video,
@@ -418,6 +500,7 @@ Lint ohne Fehler. Die wichtigsten:
   **`PackageArchiveTest`**, **`PackageStoreTest`** (Prüfen, Installieren, Aktualisieren, Entfernen, Ordner
   für neue Apps), **`AppsScreenTest`**, in `app-api` **`PackageManifestTest`**; die Tests eines Pakets liegen in
   `packages/<name>/src/test` und laufen mit `:app:testDebugUnitTest`.
-- Bilder neu erzeugen (Uhr, Desktop, Apps und Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
-- **`GlassesRasterizerTest`** (web-raster) – Grund, Bilder, lesbarer und negativer Text; die Tests des
-  Gecko-Tests (`tools/gecko-probe`) prüfen Brücke, Auswertung und Bildschirm ohne Uhr.
+- Bilder neu erzeugen (Uhr, Desktop, Apps samt YouTube und Browser, Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
+- **`GlassesRasterizerTest`** (web-raster) – Grund, Bilder, lesbarer und negativer Text; **`LayoutParserTest`** –
+  der Layout-Bericht von `page-layout.js`; die Tests des Gecko-Tests (`tools/gecko-probe`) prüfen Brücke,
+  Auswertung und Bildschirm ohne Uhr.

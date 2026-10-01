@@ -19,7 +19,8 @@ wearInput = "1.2.0"
 newpipeExtractor = "v0.26.5"
 # D8 for app packages (docs/app-entwicklung/09), the R8 line of AGP 9.4.
 r8 = "9.4.28"
-# GeckoView for the M2 probe (tools/gecko-probe) only, from maven.mozilla.org; one artifact per ABI.
+# GeckoView for the browser of the watch app (M7) and the M2 probe (tools/gecko-probe), from
+# maven.mozilla.org; one artifact per ABI.
 geckoview = "157.0.20260924084938"
 
 [libraries]

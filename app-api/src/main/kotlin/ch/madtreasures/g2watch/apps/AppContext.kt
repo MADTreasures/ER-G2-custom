@@ -87,6 +87,17 @@ interface AppContext {
      */
     fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit)
 
+    /**
+     * Opens, works or ends a web page in image block [block] (05 §10, since interface version 2). The
+     * watch loads it in its browser engine, paints it at the block's size and turns it into the glasses'
+     * picture, which it writes into the block whenever the page changed; [AppEvent.Web] reports state,
+     * address and title. While a page is open, clicks and scrolling over the block reach the app as
+     * [AppEvent.ImageClick] and [AppEvent.ImageScroll], and back on its page first goes back in the
+     * page's own history. Addresses need [Permission.NETWORK]. While the app is hidden the page rests,
+     * and it ends with the app.
+     */
+    fun web(block: String, action: WebAction)
+
     /** A small store of this app, at most 256 KiB, kept across restarts. */
     val storage: AppStorage
 

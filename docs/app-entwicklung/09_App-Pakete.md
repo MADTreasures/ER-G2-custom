@@ -6,7 +6,8 @@ Uhr-App unter **Einstellungen → Apps installieren** installiert und stehen sof
 Die Uhr-App muss dafür weder neu gebaut noch neu installiert werden.
 
 Stand v0.6.0: fertig und mit Tests abgesichert, **nicht auf echter Uhr erprobt**. Nur das Laden des
-DEX-Codes auf der Uhr (`DexClassLoader`) lässt sich ohne Uhr nicht testen.
+DEX-Codes auf der Uhr (`DexClassLoader`) lässt sich ohne Uhr nicht testen. Seit v0.8.0 Schnittstelle
+Version 2 (§5) und das Paket Browser.
 
 ## 1. Wer macht was
 
@@ -34,7 +35,7 @@ Eine ZIP-Datei mit der Endung `.g2app`:
 ```json
 {
   "format": "g2app-paket@1",
-  "api": 1,
+  "api": 2,
   "main": "ch.madtreasures.youtube.YouTubeApp",
   "id": "ch.madtreasures.youtube",
   "name": "YouTube",
@@ -63,7 +64,8 @@ packages/<name>/
 
 Jeder Ordner in `packages/` mit einer `build.gradle.kts` ist automatisch ein Paket; die gemeinsame
 Bau-Logik steht in der `build.gradle.kts` im Hauptordner. Vorlage:
-[`packages/youtube`](../../packages/youtube) (Seiten aus Code, Texteingabe und Video über die Schnittstelle).
+[`packages/youtube`](../../packages/youtube) (Seiten aus Code, Texteingabe und Video über die Schnittstelle),
+[`packages/browser`](../../packages/browser) (Web-Seite im Bild-Baustein, Klicks und Scrollen darauf, Lesezeichen).
 
 ```sh
 ./gradlew :packages:youtube:g2app   # → packages/youtube/build/g2app/ch.madtreasures.youtube-1.0.0.g2app
@@ -124,11 +126,22 @@ Die DEX-Dateien sind schreibgeschützt, wie es Android ab Version 14 für gelade
 
 ## 5. Schnittstellen-Version
 
-`G2AppApi.VERSION` in [`app-api/`](../../app-api) ist zurzeit **1**. Jedes Paket merkt sich, gegen welche
+`G2AppApi.VERSION` in [`app-api/`](../../app-api) ist zurzeit **2**. Jedes Paket merkt sich, gegen welche
 Version es gebaut ist. Die Uhr-App führt Pakete mit dieser oder einer älteren Version aus.
 
+| Version | Uhr-App | Neu |
+|---|---|---|
+| 1 | 0.6.0 | die ersten App-Pakete |
+| 2 | 0.8.0 | Web-Seiten in Bild-Bausteinen: `AppContext.web`, `WebAction`, `WebState`, `WebField`, `WebContrast`, Ereignisse `AppEvent.Web`, `ImageClick`, `ImageScroll` (03 §12) |
+
+Ein Paket, das jetzt gebaut wird, trägt Version 2, auch wenn es nichts Neues benutzt (etwa YouTube): Es braucht
+dann die Uhr-App 0.8.0. Ein schon installiertes Paket mit Version 1 läuft weiter.
+
 Deshalb **wächst die Schnittstelle nur**: neue Befehle, Ereignisse, Bausteine oder Felder mit Vorgabewert
-kommen dazu, nichts wird umbenannt oder entfernt. Mit jeder Erweiterung steigt `VERSION` um eins. Ein Paket
+kommen dazu, nichts wird umbenannt oder entfernt. Vorsicht bei Feldern: Eine Klasse, die Pakete selbst
+anlegen (etwa `Block.Image`), bekommt kein neues Feld – ein Kotlin-Konstruktor mit einem Parameter mehr hat
+eine andere Signatur, und ältere Pakete fänden den alten nicht mehr. Version 2 kam deshalb nur mit neuen
+Klassen, einer neuen Methode und neuen Ereignissen aus. Mit jeder Erweiterung steigt `VERSION` um eins. Ein Paket
 für eine neuere Version lehnt die Uhr ab („braucht eine neuere Uhr-App“). Dann zuerst die Uhr-App
 aktualisieren.
 

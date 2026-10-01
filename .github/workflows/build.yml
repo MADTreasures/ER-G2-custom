@@ -19,7 +19,7 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # 37.1 only for the Gecko test APK: GeckoView 157 must be compiled against it.
+      # 37.1 for GeckoView 157 (browser of the watch app and the Gecko test APK), which must be compiled against it.
       - name: Android SDK packages
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "platforms;android-37.1" "build-tools;36.0.0" > /dev/null
 

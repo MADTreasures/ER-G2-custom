@@ -1,16 +1,12 @@
-package ch.madtreasures.g2watch.geckoprobe
+package ch.madtreasures.g2watch.webraster
 
-import ch.madtreasures.g2watch.webraster.Box
-import ch.madtreasures.g2watch.webraster.GlassesRasterizer
-import ch.madtreasures.g2watch.webraster.Surface
-import ch.madtreasures.g2watch.webraster.TextRun
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 class LayoutParserTest {
 

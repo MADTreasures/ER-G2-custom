@@ -14,10 +14,18 @@ import ch.madtreasures.g2watch.apps.assetFile
 import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
 import ch.madtreasures.g2watch.apps.VideoState
+import ch.madtreasures.g2watch.apps.WebContrast
+import ch.madtreasures.g2watch.apps.WebField
+import ch.madtreasures.g2watch.apps.WebState
 import ch.madtreasures.g2watch.apps.video.VideoEngine
 import ch.madtreasures.g2watch.apps.video.VideoListener
 import ch.madtreasures.g2watch.apps.video.VideoPlayer
 import ch.madtreasures.g2watch.apps.video.VideoRequest
+import ch.madtreasures.g2watch.apps.web.WebEngine
+import ch.madtreasures.g2watch.apps.web.WebListener
+import ch.madtreasures.g2watch.apps.web.WebPage
+import ch.madtreasures.g2watch.apps.web.WebRequest
+import ch.madtreasures.g2watch.apps.web.WebStatus
 import ch.madtreasures.g2watch.desktop.AppScreen
 import ch.madtreasures.g2watch.desktop.AppView
 import ch.madtreasures.g2watch.desktop.GrayRaster
@@ -105,6 +113,8 @@ class FakePorts : HostPorts {
     }
 
     override val video = FakeVideoEngine()
+
+    override val web = FakeWebEngine()
 }
 
 /** Records searches and players; a test drives a player through its [FakeVideoPlayer.listener]. */
@@ -148,6 +158,77 @@ class FakeVideoPlayer(val request: VideoRequest, val listener: VideoListener) : 
 
     fun state(state: VideoState, positionMs: Long = 0, durationMs: Long = 60_000, message: String? = null) =
         listener.onState(state, positionMs, durationMs, message)
+}
+
+/** Records the pages it opens; a test drives a page through its [FakeWebPage.listener]. */
+class FakeWebEngine : WebEngine {
+    val pages = mutableListOf<FakeWebPage>()
+
+    override fun open(request: WebRequest, listener: WebListener): WebPage = FakeWebPage(request, listener).also { pages += it }
+}
+
+/** A web page that only records what it is told. */
+class FakeWebPage(val request: WebRequest, val listener: WebListener) : WebPage {
+    val calls = mutableListOf<String>()
+    var active = true
+        private set
+    var released = false
+        private set
+
+    override fun open(url: String, reader: Boolean) {
+        calls += "open $url${if (reader) " reader" else ""}"
+    }
+
+    override fun back() {
+        calls += "back"
+    }
+
+    override fun forward() {
+        calls += "forward"
+    }
+
+    override fun reload() {
+        calls += "reload"
+    }
+
+    override fun scrollBy(dy: Int) {
+        calls += "scroll $dy"
+    }
+
+    override fun tap(x: Int, y: Int) {
+        calls += "tap $x $y"
+    }
+
+    override fun type(text: String, enter: Boolean) {
+        calls += "type $text${if (enter) " enter" else ""}"
+    }
+
+    override fun setReader(on: Boolean) {
+        calls += "reader $on"
+    }
+
+    override fun setContrast(contrast: WebContrast) {
+        calls += "contrast ${contrast.json}"
+    }
+
+    override fun setActive(active: Boolean) {
+        this.active = active
+        calls += "active $active"
+    }
+
+    override fun release() {
+        released = true
+        calls += "release"
+    }
+
+    fun state(
+        state: WebState,
+        url: String = request.url,
+        title: String = "",
+        canBack: Boolean = false,
+        field: WebField? = null,
+        message: String? = null,
+    ) = listener.onState(WebStatus(state, url, title, if (state == WebState.LOADING) 0 else 100, canBack, field = field, message = message))
 }
 
 /** An app for host tests: records its events and runs [handler] for each. */

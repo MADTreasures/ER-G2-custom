@@ -12,6 +12,8 @@ import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
 import ch.madtreasures.g2watch.apps.video.AndroidVideoEngine
 import ch.madtreasures.g2watch.apps.video.VideoEngine
+import ch.madtreasures.g2watch.apps.web.GeckoWebEngine
+import ch.madtreasures.g2watch.apps.web.WebEngine
 import ch.madtreasures.g2watch.desktop.GrayRaster
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -133,6 +135,9 @@ class AndroidHostPorts(
     override fun cancelText() = prompts.cancel()
 
     override val video: VideoEngine by lazy { AndroidVideoEngine(context, logSink) }
+
+    /** GeckoView starts only when an app opens its first web page. */
+    override val web: WebEngine by lazy { GeckoWebEngine(context, logSink) }
 
     private companion object {
         const val TIMEOUT_MS = 10_000

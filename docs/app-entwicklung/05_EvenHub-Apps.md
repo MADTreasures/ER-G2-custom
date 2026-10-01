@@ -193,10 +193,11 @@ Quelle: `right` → 1, `ring` und `watch` → 2, `left` → 3.
 |---|---|
 | Bibliothek | pro Architektur `org.mozilla.geckoview:geckoview-armeabi-v7a` bzw. `-arm64-v8a` (für den Emulator `-x86_64`), von `maven.mozilla.org` (MPL-2.0). Nicht `geckoview` (alle Architekturen, 242 MB). **Festgelegt: 157.0.20260924084938** (`geckoview` im Versionskatalog). Sie verlangt `compileSdk` **37.1** (`compileSdk = 37` + `compileSdkMinor = 1`, SDK-Paket `platforms;android-37.1`); `targetSdk` bleibt 37. |
 | Repository | steht in `settings.gradle.kts`: `maven("https://maven.mozilla.org/maven2/")` mit Inhaltsfilter `includeGroup("org.mozilla.geckoview")` (M2) |
+| In der Uhr-App | seit v0.8.0 für den Browser (§10.2): `implementation(libs.geckoview.armeabi.v7a)`, `abiFilters += "armeabi-v7a"`, `compileSdkMinor = 1`, komprimierte Bibliotheken (`useLegacyPackaging = true`). Die Laufzeit startet erst mit der ersten Web-Seite und bleibt bis zum Ende des Prozesses (GeckoView kann im selben Prozess keine zweite starten). |
 | Architektur | Pixel Watch 3, 4 und 5 laufen mit 32-Bit-Apps (`armeabi-v7a`; für die Watch 5 bestätigt); die APK mit `abiFilters` darauf beschränken (der Gecko-Test ist nur für `armeabi-v7a` gebaut; für eine andere Uhr mit `adb shell getprop ro.product.cpu.abilist` prüfen und das Filter ändern) |
-| Größe | `libxul.so` allein: 116 MB (armeabi-v7a, schon ohne Symbole). Gecko-Test-APK mit komprimierten Bibliotheken (`useLegacyPackaging = true`): 117 MB (armv7; arm64 wären 120 MB); unkomprimiert 190 MB. Installiert kommen die entpackten Bibliotheken dazu. Was auf der Uhr tatsächlich belegt ist, zeigt *Einstellungen → Apps* nach der Installation (M2). |
+| Größe | `libxul.so` allein: 116 MB (armeabi-v7a, schon ohne Symbole); alle Bibliotheken 136,5 MB, komprimiert in der APK 75 MB, dazu `omni.ja` 14,5 MB. Gecko-Test-APK mit komprimierten Bibliotheken (`useLegacyPackaging = true`): 117 MB (armv7; arm64 wären 120 MB); unkomprimiert 190 MB. **Uhr-App** (v0.8.0, Debug-APK, gemessen): 136,6 statt 30,7 MB – ≈ 90 MB Bibliotheken und Daten, ≈ 16 MB Java-Code von GeckoView und seinen Abhängigkeiten (u. a. Play Services FIDO, SnakeYAML). Installiert kommen die entpackten Bibliotheken dazu (≈ 137 MB). Was auf der Uhr tatsächlich belegt ist, zeigt *Einstellungen → Apps* nach der Installation. |
 | Speicher | Uhr: 3 GB RAM. GeckoView braucht geschätzt 150–300 MB; **messen** (M2) |
-| Prozesse | GeckoView startet eigene Dienst-Prozesse (`:socket`, `:gpu`, `:media`, Inhalts-Prozesse). `G2WatchApp.onCreate` darf seine Arbeit (Desktop, Verbindung) nur im Hauptprozess tun (Prozessname prüfen). Laufzeit mit `fissionEnabled(false)`, `extensionsProcessEnabled(false)`. |
+| Prozesse | GeckoView startet eigene Dienst-Prozesse (`:socket`, `:gpu`, `:media`, Inhalts-Prozesse). `G2WatchApp.onCreate` darf seine Arbeit (Desktop, Verbindung) nur im Hauptprozess tun (Prozessname prüfen; gebaut in v0.8.0: `isMainProcess`). Laufzeit mit `fissionEnabled(false)`, `extensionsProcessEnabled(false)`. Gecko selbst läuft zum Teil im Prozess der Uhr-App: Wird der Speicher knapp, trifft es die Uhr-App samt Brillenverbindung (M2 misst den Speicher). |
 | Sitzung | eine `GeckoSession` je App, **ohne sichtbare Ansicht**, `contextId` = `package_id`; `setActive(true)` und `setPriorityHint(PRIORITY_HIGH)`, im Vordergrund-Dienst mit laufender Benachrichtigung; sonst bremst Gecko Timer inaktiver Seiten bis auf 15 Minuten. Zusätzlich wie bei Faceclaw ein Timer-Ersatz im Brücken-Skript, den die Uhr antreibt (`__g2Tick`). |
 | Brücke | eingebaute WebExtension (`ensureBuiltIn("resource://android/assets/evenbridge/", …)`) mit Content-Script `run_at: document_start` für `http://127.0.0.1/*`. Das Skript definiert `window.flutter_inappwebview.callHandler` (über `wrappedJSObject`/`cloneInto`) und spricht über `browser.runtime.connectNative("evenhost")` mit Kotlin (`MessageDelegate`, `Port`); `webRequest` für die Netz-Freigabe. Skizze: `quellen/D` §2.7. |
 | Laden | `http://127.0.0.1:<Port der App>/<entrypoint>` vom `AssetServer` |
@@ -340,13 +341,17 @@ möchte, kann das mit Faceclaw auf dem Handy tun, auf eigene Verantwortung.
 
 ## 8. Lizenzen
 
-- **GeckoView:** MPL-2.0 (Datei-Copyleft). Eigene Dateien bleiben unsere; mit jeder weitergegebenen APK
+- **GeckoView** (seit v0.8.0 in der Uhr-App, für den Browser): MPL-2.0 (Datei-Copyleft). Quelltext:
+  https://hg.mozilla.org/mozilla-central und https://github.com/mozilla-firefox/firefox, Version
+  157.0.20260924084938. Eigene Dateien bleiben unsere; mit jeder weitergegebenen APK
   muss ein Hinweis stehen, wo es den Quelltext von GeckoView gibt. Die mitgelieferten LGPL/FFmpeg-Bibliotheken
   (`liblgpllibs.so`, `libmozavcodec.so`, `libmozavutil.so`) bleiben unverändert und austauschbar; ihre
   Hinweise kommen in die Lizenz-Seite der App.
 - **Faceclaws EvenHub-Code** (GPL-3.0) als Vorlage: die übertragenen Kotlin-Dateien stehen unter GPL-3.0,
   mit Herkunftsvermerk wie `faceclaw-core/UPSTREAM.md`. Das passt zum Repo, das Faceclaws Kern schon enthält.
 - **SDK-Typen** (`index.d.ts`): MIT.
+- **Readability** (Mozilla, `@mozilla/readability` 0.6.0) für den Lesemodus des Browsers: Apache-2.0,
+  unverändert mit Lizenz in `app/src/main/assets/webbridge/readability/`.
 - **Gecko-Test (M2):** enthält GeckoView (MPL-2.0; Quelltext: https://hg.mozilla.org/mozilla-central und
   https://github.com/mozilla-firefox/firefox) und Vue 3.5 (MIT, Lizenztext neben `vue.global.prod.js` in
   `tools/gecko-probe/src/main/assets/probe-apps/vue-wasm/`). Die Test-APK ist nur zum Messen, nicht zum
@@ -367,7 +372,8 @@ möchte, kann das mit Faceclaw auf dem Handy tun, auf eigene Verantwortung.
 
 Mit GeckoView auf der Uhr wird auch ein **Web-Browser für die Brille** möglich: GeckoView zeichnet eine Seite
 in eine unsichtbare Fläche, die Uhr schickt das Bild (in Graustufen) an die Brille, und der Zeiger auf dem
-Uhr-Touchpad klickt und scrollt. Das ist ein eigener Meilenstein nach der EvenHub-Laufzeit ([07](07_Umsetzungsplan.md)).
+Uhr-Touchpad klickt und scrollt. Geplant als eigener Meilenstein nach der EvenHub-Laufzeit ([07](07_Umsetzungsplan.md));
+**gebaut in v0.8.0** (§10.2), auf Wunsch schon vor den Messwerten von M2.
 
 ### 10.1 Seiten ins Brillen-Raster wandeln (`web-raster`, gebaut)
 
@@ -379,8 +385,9 @@ immer lesbar**.
 
 Eingabe (`PageCapture`): die Pixel der Seite (ARGB, wie `Bitmap.getPixels`) und, wenn vorhanden, was das DOM
 weiß: Textzeilen mit Farbe (`TextRun`), Bilder (`<img>`, `<video>`, `<canvas>`, SVG, Hintergrundbilder) und
-Flächen mit Hintergrundfarbe (`Surface`). Im Gecko-Test liefert das Content-Script diese Angaben
-(`collectLayout`, CSS-Pixel → `LayoutParser`), und zwar **nur, was wirklich zu sehen ist**: Bilder und Flächen
+Flächen mit Hintergrundfarbe (`Surface`). Im Browser und im Gecko-Test liefert das Layout-Skript
+`web-raster/src/main/js/page-layout.js` diese Angaben (`collectLayout`, CSS-Pixel → `LayoutParser` in
+`web-raster`; beide Android-Builds kopieren das Skript in ihre Erweiterung), und zwar **nur, was wirklich zu sehen ist**: Bilder und Flächen
 aus einer Malkarte (alle 8 CSS-Pixel das oberste Element, das etwas malt; `elementsFromPoint`), Text nur, wenn
 er nicht abgeschnitten (Menüs außerhalb, Beschriftungen für Screenreader) und nicht verdeckt ist (Dialoge).
 Ausgabe: 576 Pixel breit, 16 Stufen, dazu ein Bericht.
@@ -410,5 +417,41 @@ unsichtbare Menüs, Screenreader-Beschriftungen und Overlays im Layout, DOM-Farb
 (NASA), Balken hinter negativer Schrift (jetzt Umriss). Die Malkarte liest Hintergründe durch Bilder hindurch
 (eine weiße Kopfzeile bleibt eine Fläche um ihr Logo) und legt Bildkästen an die echten Kanten der Elemente. Die Grenzwerte bleiben Annahmen,
 bis echte Seiten auf der echten Brille zu sehen sind (Gecko-Test „Seite rendern“ liefert dafür
-`render-brille.png`). Was M7 noch fehlt, steht in
-[07 M7](07_Umsetzungsplan.md#m7--web-browser-auf-der-brille-wenn-m2-geckoview-ja-ergibt).
+`render-brille.png`; der Browser zeigt sie direkt).
+
+### 10.2 Die Browser-App (M7, gebaut in v0.8.0)
+
+**Aufteilung:** Die Engine gehört in die Uhr-App, weil ein App-Paket keine nativen Bibliotheken mitbringen
+kann; die Oberfläche ist ein App-Paket ([`packages/browser`](../../packages/browser), wie YouTube). Dazwischen
+liegt die Schnittstelle, um den Befehl `web` und die Ereignisse `web`, `imageClick`, `imageScroll` erweitert
+(Version 2, [02 §6](02_App-Modell.md#6-ereignisse-und-befehle), [09 §5](09_App-Pakete.md#5-schnittstellen-version)).
+Aufbau, Dateien und Tests der Uhr-App-Seite: [03 §12](03_Uhr-Apps.md#12-web-seiten-auf-der-brille-v080-m7).
+
+| Teil | Gebaut |
+|---|---|
+| Engine | `GeckoWebEngine`/`GeckoWebPage`: eine `GeckoSession` ohne Ansicht je Seite, Fläche (`ImageReader`) in Größe des Bild-Bausteins (576 × 260 im Browser), 1,5 Pixel je CSS-Pixel; Laufzeit wie im Gecko-Test, dazu dunkles Farbschema, Firefox' Standard-Schutz gegen Tracker und Werbenetze, keine Berechtigungen für Seiten |
+| Bildweg | doppelte Aufnahme (mit und ohne Schrift) + Layout → `web-raster` → Bild-Baustein; ein Bild entsteht nach Ereignissen (Laden, Tippen, Scrollen, Änderungen der Seite), nie öfter als alle 300 ms, Änderungen der Seite höchstens alle 2 s und nur bis 1 min nach der letzten Eingabe; gleiche Bilder werden nicht noch einmal geschickt, Faceclaws Kern schickt nur geänderte Streifen (01 §1) |
+| Zeiger → Tippen | Doppeltippen auf der Uhr oder Bügel-Tippen mit dem Zeiger auf der Seite → `imageClick` → `Tap` → Touch-Ereignis an GeckoViews `PanZoomController` |
+| Scrollen | Bügel-Wischen (¾ Bildhöhe), Zeiger über den Rand → `imageScroll` → `Scroll` → das Skript scrollt das Fenster oder die innere Box unter der Mitte |
+| Adresse | Tastatur oder Sprache der Uhr (`askText`); Host-Namen auch gesprochen („srf punkt ch“), sonst Suche bei DuckDuckGo (Textfassung) |
+| Eingabefelder | das Skript meldet das Feld mit dem Cursor (Beschriftung, Inhalt, Passwort, mehrzeilig); nach einem Tippen darauf fragt die Uhr nach dem Text, `Type` schreibt ihn hinein und drückt Enter |
+| Lesemodus | Standard an: Artikel (Mozillas Readability, Apache-2.0) als reiner Text, 18 CSS-Pixel, hell auf Schwarz; an/aus im App-Menü |
+| Lesezeichen, Verlauf | im Speicher der App (Lesezeichen auch im App-Menü), Verlauf der letzten 20 Seiten |
+| Zurück | erst durch den Verlauf der Seite (macht der Host), dann zur Startseite |
+
+**Nicht auf Hardware erprobt.** Was von den **Messwerten des Gecko-Tests (M2)** abhängt, die noch fehlen:
+
+| Messwert | Was davon abhängt |
+|---|---|
+| Kaltstart | Wartezeit bis zur ersten Seite; die Laufzeit startet mit der ersten Seite und bleibt bis zum Prozessende |
+| Speicher (PSS aller Prozesse) | ob Wear OS die Uhr-App beendet, wenn der Speicher knapp wird: Gecko läuft zum Teil **im Prozess der Uhr-App**, die auch die Brillenverbindung hält. Reicht er nicht, muss die Engine in einen eigenen Prozess (Bilder dann über Binder oder Shared Memory) |
+| Akku pro Stunde | wie lange man lesen kann; ob der Takt der Bilder (`CapturePlan`) gröber werden muss |
+| Timer bei Bildschirm aus | ob Seiten mit dunklem Uhr-Bildschirm weiterarbeiten (der Browser hält sie aktiv, solange er auf der Brille ist) |
+| Abbrüche im Dauertest | ob Seiten vom System beendet werden; der Browser meldet das und lädt beim nächsten Tippen neu |
+| „Seite rendern“ | wie lange ein Bild dauert (zwei Aufnahmen, Layout, Raster), ob Aufnahme ohne Schrift und Layout auf der Uhr gelingen, und die Grenzwerte von §10.1 auf der echten Brille |
+
+Ungeprüft ist außerdem: ob GeckoView ohne sichtbare Ansicht Touch-Ereignisse annimmt (GeckoViews eigene Tests
+tippen so), ob Seiten mit strenger Content-Security-Policy die Stile von Lesemodus und doppelter Aufnahme
+zulassen (die wichtigsten Stile des Lesemodus setzt das Skript zusätzlich direkt am Element), und Auswahllisten
+(`<select>`), die ohne Uhr-Dialog nicht gehen. Das Inhalts-Skript selbst ist in Chromium geprüft
+([`bridge-check.js`](../../tools/page-preview/README.md)).

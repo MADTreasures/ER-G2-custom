@@ -1,3 +1,4 @@
+import com.android.build.api.variant.ApplicationAndroidComponentsExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import java.util.Properties
@@ -127,6 +128,48 @@ subprojects {
         isPreserveFileTimestamps = false
         isReproducibleFileOrder = true
         doFirst { destinationDirectory.get().asFile.listFiles { f -> f.name.endsWith(".g2app") }?.forEach { it.delete() } }
+    }
+}
+
+// --- page-layout.js (web-raster) in the browser extensions -----------------------------------------
+// The script that reports a page's layout for the glasses lives once, in web-raster/src/main/js/. The
+// Android apps whose built-in extension runs it get a copy next to their content.js (generated assets).
+
+/** Copies web-raster's page-layout.js into `<extension>/` of the generated assets. */
+abstract class PageLayoutScript : DefaultTask() {
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val script: RegularFileProperty
+
+    @get:Input
+    abstract val extension: Property<String>
+
+    @get:OutputDirectory
+    abstract val output: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val root = output.get().asFile
+        root.deleteRecursively()
+        script.get().asFile.copyTo(root.resolve(extension.get()).resolve("page-layout.js"))
+    }
+}
+
+/** Android module → folder of its built-in extension in assets/. */
+val pageLayoutExtensions = mapOf(":app" to "webbridge", ":gecko-probe" to "probe-bridge")
+
+subprojects {
+    val extensionDir = pageLayoutExtensions[path] ?: return@subprojects
+    plugins.withId("com.android.application") {
+        val copy = tasks.register<PageLayoutScript>("pageLayoutScript") {
+            description = "Copies web-raster's page-layout.js into the assets of the browser extension."
+            script.set(rootProject.layout.projectDirectory.file("web-raster/src/main/js/page-layout.js"))
+            extension.set(extensionDir)
+            output.set(layout.buildDirectory.dir("generated/page-layout"))
+        }
+        extensions.configure<ApplicationAndroidComponentsExtension> {
+            onVariants { variant -> variant.sources.assets?.addGeneratedSourceDirectory(copy, PageLayoutScript::output) }
+        }
     }
 }
 

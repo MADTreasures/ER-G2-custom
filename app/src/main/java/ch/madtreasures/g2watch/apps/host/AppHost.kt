@@ -27,6 +27,8 @@ import ch.madtreasures.g2watch.apps.Vibration
 import ch.madtreasures.g2watch.apps.VideoAction
 import ch.madtreasures.g2watch.apps.VideoSearchResult
 import ch.madtreasures.g2watch.apps.VideoState
+import ch.madtreasures.g2watch.apps.WebAction
+import ch.madtreasures.g2watch.apps.WebState
 import ch.madtreasures.g2watch.apps.builtInApps
 import ch.madtreasures.g2watch.apps.launcher.LaunchEntry
 import ch.madtreasures.g2watch.apps.launcher.LaunchKind
@@ -42,6 +44,10 @@ import ch.madtreasures.g2watch.apps.render.hit
 import ch.madtreasures.g2watch.apps.video.VideoListener
 import ch.madtreasures.g2watch.apps.video.VideoPlayer
 import ch.madtreasures.g2watch.apps.video.VideoRequest
+import ch.madtreasures.g2watch.apps.web.WebListener
+import ch.madtreasures.g2watch.apps.web.WebPage
+import ch.madtreasures.g2watch.apps.web.WebRequest
+import ch.madtreasures.g2watch.apps.web.WebStatus
 import ch.madtreasures.g2watch.desktop.AppInput
 import ch.madtreasures.g2watch.desktop.AppScreen
 import ch.madtreasures.g2watch.desktop.AppView
@@ -53,6 +59,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonElement
 import java.util.Base64
+import kotlin.math.abs
 
 /** What the host shows and runs, for the watch UI and for tests. */
 data class HostState(
@@ -120,8 +127,12 @@ class AppHost(
     private var cachedLayout: PageLayout? = null
     private var question: TextQuestion? = null
 
-    /** The glasses went away while connected; videos wait until they are back. */
+    /** The glasses went away while connected; videos and web pages wait until they are back. */
     private var glassesGone = false
+
+    /** Pointer pushes past the edge over a web page, gathered for one [AppEvent.ImageScroll]. */
+    private var pushedScroll = 0
+    private var pushScheduled = false
 
     private val _inputMode = MutableStateFlow(InputMode.POINTER)
 
@@ -151,7 +162,12 @@ class AppHost(
     override fun clickAt(x: Int, y: Int) = scheduler.post {
         val scr = currentScreen() ?: return@post
         val layout = layoutOf(scr.page)
-        val target = layout.hit(x, y, scr.view.scroll)?.target ?: return@post
+        val target = layout.hit(x, y, scr.view.scroll)?.target
+        if (target == null) {
+            // A web page takes the click itself, at that spot (05 §10).
+            webAt(scr, x, y)?.let { (w, at) -> webClick(scr, w, at) }
+            return@post
+        }
         scr.view.focus = target
         scr.view.fresh = false
         activate(scr, target)
@@ -161,7 +177,11 @@ class AppHost(
         val scr = currentScreen() ?: return@post
         val layout = layoutOf(scr.page)
         val next = (scr.view.scroll + dy).coerceIn(0, layout.maxScroll)
-        if (next == scr.view.scroll) return@post
+        if (next == scr.view.scroll) {
+            // The page is at its end; a web page on it scrolls instead.
+            if (webOnPage(scr) != null) pushWebScroll(dy)
+            return@post
+        }
         scr.view.scroll = next
         hover()
         invalidate()
@@ -182,7 +202,7 @@ class AppHost(
         _glasses.value = status
         if (was.connected != status.connected) {
             glassesGone = !status.connected
-            visible?.let { syncVideos(it) }
+            visible?.let { syncMedia(it) }
         }
         for (s in sessions.values.toList()) {
             val internal = s.internal ?: continue
@@ -390,14 +410,14 @@ class AppHost(
             if (old.started && !old.ended) {
                 deliver(old, AppEvent.Hidden)
                 pauseTimers(old)
-                syncVideos(old)
+                syncMedia(old)
             }
         }
         visible = s
         s.visible = true
         if (s.started) {
             resumeTimers(s)
-            syncVideos(s)
+            syncMedia(s)
             deliver(s, AppEvent.Visible)
         }
         if (s.isLauncher) refreshLauncher()
@@ -417,6 +437,8 @@ class AppHost(
         s.timers.clear()
         s.videos.values.forEach { it.player.release() }
         s.videos.clear()
+        s.webs.values.forEach { it.page.release() }
+        s.webs.clear()
         if (question?.session === s) {
             question = null
             ports.cancelText()
@@ -582,6 +604,11 @@ class AppHost(
             stop(s)
             return
         }
+        // A web page on this page goes back in its own history first, like any browser (05 §10).
+        s.webs.values.firstOrNull { it.status?.canBack == true && page.block(it.block) != null }?.let {
+            it.page.back()
+            return
+        }
         val history = s.pages.historyIds
         deliver(s, AppEvent.Back(page.id))
         if (s.ended) return
@@ -619,6 +646,11 @@ class AppHost(
             GestureKind.SCROLL_DOWN -> moveFocus(scr, forward = true)
             GestureKind.SCROLL_UP -> moveFocus(scr, forward = false)
             GestureKind.CLICK -> {
+                // The pointer on a web page: the tap clicks the page there.
+                pointerWeb(scr)?.let { (w, at) ->
+                    webClick(scr, w, at)
+                    return
+                }
                 val layout = layoutOf(scr.page)
                 settle(layout, scr.view)
                 scr.view.focus?.let { activate(scr, it) }
@@ -631,8 +663,15 @@ class AppHost(
         }
     }
 
-    /** Moves the focus to the next or previous target; far apart targets are reached by scrolling first. */
+    /**
+     * Moves the focus to the next or previous target; far apart targets are reached by scrolling first.
+     * Over a web page, and where nothing else moves, the web page scrolls by three quarters of its height.
+     */
     private fun moveFocus(scr: Screen, forward: Boolean) {
+        pointerWeb(scr)?.let { (w, _) ->
+            webScroll(scr, w, forward)
+            return
+        }
         val layout = layoutOf(scr.page)
         val view = scr.view
         settle(layout, view)
@@ -658,7 +697,10 @@ class AppHost(
             }
         }
         val next = (view.scroll + if (forward) step else -step).coerceIn(0, layout.maxScroll)
-        if (next == view.scroll) return
+        if (next == view.scroll) {
+            webOnPage(scr)?.let { webScroll(scr, it, forward) }
+            return
+        }
         view.scroll = next
         // A target that left the view is nothing to tap any more.
         if (current != null && (current.rect.bottom <= next || current.rect.y >= next + layout.height)) view.focus = null
@@ -765,6 +807,7 @@ class AppHost(
             }
             is AppCommand.AskText -> askText(s, command)
             is AppCommand.Video -> video(s, command.block, command.action)
+            is AppCommand.Web -> web(s, command.block, command.action)
             AppCommand.Close -> scheduler.post { stop(s) }
         }
     }
@@ -1036,7 +1079,7 @@ class AppHost(
             throw CommandException.badValue("Video ließ sich nicht starten: ${e.message}")
         }
         s.videos[block] = v
-        if (!videoRuns(s)) {
+        if (!mediaRuns(s)) {
             v.held = true
             v.player.pause()
         }
@@ -1062,11 +1105,11 @@ class AppHost(
         deliver(s, AppEvent.Video(v.block, state, positionMs, durationMs, message))
     }
 
-    /** Videos play only while their app is on the glasses and the glasses are there (akku, data). */
-    private fun videoRuns(s: Session) = s.visible && !glassesGone
+    /** Videos play (and web pages work) only while their app is on the glasses and the glasses are there (akku, data). */
+    private fun mediaRuns(s: Session) = s.visible && !glassesGone
 
     private fun syncVideos(s: Session) {
-        val run = videoRuns(s)
+        val run = mediaRuns(s)
         for (v in s.videos.values) {
             if (!run && !v.held && !v.paused && v.state != VideoState.ENDED) {
                 v.held = true
@@ -1084,6 +1127,172 @@ class AppHost(
         ports.video.search(query.trim()) { result ->
             scheduler.post {
                 if (!s.ended) runApp(s, "videoSearch") { onResult(result) }
+            }
+        }
+    }
+
+    // --- Web pages ------------------------------------------------------------------------------
+
+    /** A web page in image block [block] (05 §10, M7), painted at [width] × [height]. */
+    private class ActiveWeb(val block: String, val width: Int, val height: Int) {
+        lateinit var page: WebPage
+
+        /** What the page last reported. */
+        var status: WebStatus? = null
+
+        /** Resting while its app is hidden or the glasses are gone. */
+        var held = false
+    }
+
+    private fun web(s: Session, block: String, action: WebAction) {
+        if (action is WebAction.Open) {
+            openWeb(s, block, action)
+            return
+        }
+        val w = s.webs[block] ?: throw CommandException.badValue("In „$block“ ist keine Web-Seite offen")
+        when (action) {
+            WebAction.Back -> w.page.back()
+            WebAction.Forward -> w.page.forward()
+            WebAction.Reload -> w.page.reload()
+            is WebAction.Scroll -> {
+                if (abs(action.dy) > MAX_WEB_SCROLL) throw CommandException.badValue("Höchstens $MAX_WEB_SCROLL Pixel auf einmal scrollen")
+                if (action.dy != 0) w.page.scrollBy(action.dy)
+            }
+            is WebAction.Tap -> {
+                if (action.x !in 0 until w.width || action.y !in 0 until w.height) {
+                    throw CommandException.badValue("Stelle (${action.x}, ${action.y}) liegt nicht auf „$block“ (${w.width} × ${w.height})")
+                }
+                w.page.tap(action.x, action.y)
+            }
+            is WebAction.Type -> {
+                if (action.text.length > MAX_WEB_TEXT) throw CommandException.badValue("Höchstens $MAX_WEB_TEXT Zeichen auf einmal")
+                w.page.type(action.text, action.enter)
+            }
+            is WebAction.Reader -> w.page.setReader(action.on)
+            is WebAction.Contrast -> w.page.setContrast(action.contrast)
+            WebAction.Stop -> s.webs.remove(block)?.page?.release()
+            is WebAction.Open -> Unit
+        }
+    }
+
+    private fun openWeb(s: Session, block: String, a: WebAction.Open) {
+        val image = s.pages.block(block) as? Block.Image
+            ?: throw CommandException.unknownBlock(block, s.pages.pageOf(block) ?: s.pages.current?.id ?: "?")
+        val url = a.url.trim()
+        if (!(url.startsWith("https://") || url.startsWith("http://")) || url.length > MAX_URL) {
+            throw CommandException.badValue("Web-Adresse muss mit https:// oder http:// beginnen, nicht „${url.take(40)}“")
+        }
+        requirePermission(s, Permission.NETWORK)
+        s.webs[block]?.let {
+            // The block shows a page already: the new one joins its history, as when typing an address.
+            it.page.open(url, a.reader)
+            return
+        }
+        if (image.w < MIN_WEB_W || image.h < MIN_WEB_H) {
+            throw CommandException.badValue("„$block“ ist zu klein für eine Web-Seite (mindestens $MIN_WEB_W × $MIN_WEB_H)")
+        }
+        // A new page starts on a black picture.
+        s.images[block] = GrayRaster(image.w, image.h)
+        if (s === visible) invalidate()
+        val w = ActiveWeb(block, image.w, image.h)
+        val listener = object : WebListener {
+            override fun onFrame(raster: GrayRaster) = scheduler.post { webFrame(s, w, raster) }
+
+            override fun onState(status: WebStatus) = scheduler.post { webState(s, w, status) }
+        }
+        w.page = try {
+            ports.web.open(WebRequest(url, image.w, image.h, a.reader), listener)
+        } catch (e: RuntimeException) {
+            throw CommandException.badValue("Web-Seite ließ sich nicht öffnen: ${e.message}")
+        }
+        s.webs[block] = w
+        if (!mediaRuns(s)) {
+            w.held = true
+            w.page.setActive(false)
+        }
+    }
+
+    private fun webFrame(s: Session, w: ActiveWeb, raster: GrayRaster) {
+        if (s.ended || s.webs[w.block] !== w) return
+        val image = s.pages.block(w.block) as? Block.Image ?: return
+        // The app made the block another size meanwhile: this picture no longer fits.
+        if (raster.width != image.w || raster.height != image.h) return
+        s.images[w.block] = raster
+        if (s === visible && s.pages.current?.block(w.block) != null) invalidate()
+    }
+
+    private fun webState(s: Session, w: ActiveWeb, status: WebStatus) {
+        if (s.ended || s.webs[w.block] !== w) return
+        w.status = status
+        if (status.state == WebState.ERROR) ports.log("${s.manifest.name}: Web-Seite in „${w.block}“ – ${status.message}")
+        deliver(
+            s,
+            AppEvent.Web(
+                w.block, status.state, status.url, status.title, status.progress, status.canBack, status.canForward,
+                status.reader, status.readable, status.field, status.message,
+            ),
+        )
+    }
+
+    /** The web page under ([x], [y]) of the app area, if any, and that point in the page's pixels. */
+    private fun webAt(scr: Screen, x: Int, y: Int): Pair<ActiveWeb, Pair<Int, Int>>? {
+        if (scr.host != null) return null
+        val s = scr.session ?: return null
+        if (s.webs.isEmpty()) return null
+        val layout = layoutOf(scr.page)
+        val py = y + scr.view.scroll
+        for (w in s.webs.values) {
+            val r = layout.box(w.block)?.rect ?: continue
+            if (r.contains(x, py)) return w to Pair(x - r.x, py - r.y)
+        }
+        return null
+    }
+
+    /** The web page under the pointer. */
+    private fun pointerWeb(scr: Screen): Pair<ActiveWeb, Pair<Int, Int>>? = pointer?.let { (x, y) -> webAt(scr, x, y) }
+
+    /** The first web page on the page on the glasses (no host page over it). */
+    private fun webOnPage(scr: Screen): ActiveWeb? {
+        if (scr.host != null) return null
+        return scr.session?.webs?.values?.firstOrNull { scr.page.block(it.block) != null }
+    }
+
+    private fun webClick(scr: Screen, w: ActiveWeb, at: Pair<Int, Int>) {
+        val s = scr.session ?: return
+        deliver(s, AppEvent.ImageClick(scr.page.id, w.block, at.first, at.second))
+    }
+
+    /** A temple swipe over a web page: three quarters of its height on or back. */
+    private fun webScroll(scr: Screen, w: ActiveWeb, forward: Boolean) {
+        val s = scr.session ?: return
+        val step = w.height * 3 / 4
+        deliver(s, AppEvent.ImageScroll(scr.page.id, w.block, if (forward) step else -step))
+    }
+
+    /** The pointer pushes past the edge over a web page: pushes are gathered for [PUSH_SCROLL_MS]. */
+    private fun pushWebScroll(dy: Int) {
+        pushedScroll += dy
+        if (pushScheduled) return
+        pushScheduled = true
+        scheduler.postDelayed(PUSH_SCROLL_MS) {
+            pushScheduled = false
+            val dyAll = pushedScroll
+            pushedScroll = 0
+            val scr = currentScreen() ?: return@postDelayed
+            val w = webOnPage(scr) ?: return@postDelayed
+            val s = scr.session ?: return@postDelayed
+            if (dyAll != 0) deliver(s, AppEvent.ImageScroll(scr.page.id, w.block, dyAll))
+        }
+    }
+
+    /** Videos play and web pages work only while their app is on the glasses and the glasses are there. */
+    private fun syncMedia(s: Session) {
+        syncVideos(s)
+        val run = mediaRuns(s)
+        for (w in s.webs.values) {
+            if (w.held == run) {
+                w.held = !run
+                w.page.setActive(run)
             }
         }
     }
@@ -1246,6 +1455,7 @@ class AppHost(
         val subscriptions = HashSet<Sensor>()
         val notedMissing = HashSet<String>()
         val videos = LinkedHashMap<String, ActiveVideo>()
+        val webs = LinkedHashMap<String, ActiveWeb>()
         var project: BaukastenProject? = null
         var granted: Set<Permission> = emptySet()
         var menu: List<MenuItem> = emptyList()
@@ -1309,6 +1519,8 @@ class AppHost(
         override fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit) =
             guarded("videoSearch") { videoSearch(s, query, onResult) }
 
+        override fun web(block: String, action: WebAction) = command(AppCommand.Web(block, action))
+
         override val storage: AppStorage = object : AppStorage {
             private val store by lazy { ports.storage(s.manifest.id) }
 
@@ -1359,6 +1571,16 @@ class AppHost(
         const val MAX_SUGGESTIONS = 5
         const val MAX_SUGGESTION = 40
         const val MAX_QUERY = 200
+
+        /** Limits of web pages (05 §10): address length, smallest block, text and scroll per command. */
+        const val MAX_URL = 2_000
+        const val MIN_WEB_W = 200
+        const val MIN_WEB_H = 100
+        const val MAX_WEB_TEXT = 2_000
+        const val MAX_WEB_SCROLL = 10_000
+
+        /** Pointer pushes over a web page are gathered this long into one scroll. */
+        const val PUSH_SCROLL_MS = 120L
 
         /** Shown on the glasses while the watch asks for text. */
         const val TEXT_HINT = "Bitte auf der Uhr eingeben"

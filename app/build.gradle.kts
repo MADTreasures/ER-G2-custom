@@ -14,14 +14,20 @@ plugins {
 android {
     namespace = "ch.madtreasures.g2watch"
     compileSdk = 37
+    // GeckoView 157 (the browser, 05 §5) is built against API 37.1 and requires it to compile.
+    compileSdkMinor = 1
 
     defaultConfig {
         applicationId = "ch.madtreasures.g2watch"
         // Wear OS 4 (API 33) and newer: Faceclaw's GATT code uses the API 33 write call.
         minSdk = 33
         targetSdk = 37
-        versionCode = 9
-        versionName = "0.7.1"
+        versionCode = 10
+        versionName = "0.8.0"
+        // GeckoView ships one native build per ABI (~90 MB each in the APK): only the Pixel Watch 5's,
+        // which runs 32-bit apps. For another watch: adb shell getprop ro.product.cpu.abilist, and
+        // change this and the geckoview artifact below (05 §5).
+        ndk { abiFilters += "armeabi-v7a" }
     }
 
     buildTypes {
@@ -34,6 +40,14 @@ android {
         }
     }
 
+    // GeckoView's libraries are 136 MB; compressed they take 75 MB of the APK, which matters when it goes
+    // to the watch over Wi-Fi debugging. Android unpacks them once when installing.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -41,6 +55,11 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    lint {
+        // A watch app with GeckoView for the watch's ABI only: ChromeOS devices are not a target.
+        disable += "ChromeOsAbiSupport"
     }
 
     testOptions {
@@ -62,6 +81,10 @@ dependencies {
     implementation(project(":app-api"))
     implementation(project(":faceclaw-android"))
     implementation(project(":firmware-image"))
+    // The browser (05 §10, M7): GeckoView paints pages, web-raster turns them into the glasses' picture.
+    // page-layout.js of web-raster goes into assets/webbridge/ (root build.gradle.kts).
+    implementation(project(":web-raster"))
+    implementation(libs.geckoview.armeabi.v7a)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

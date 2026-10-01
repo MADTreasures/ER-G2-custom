@@ -24,7 +24,7 @@ dependencyResolutionManagement {
                 includeGroup("com.github.TeamNewPipe")
             }
         }
-        // GeckoView (MPL-2.0) for the M2 probe; nothing else is taken from Mozilla's repository.
+        // GeckoView (MPL-2.0) for the browser and the M2 probe; nothing else is taken from Mozilla's repository.
         maven("https://maven.mozilla.org/maven2/") {
             content { includeGroup("org.mozilla.geckoview") }
         }

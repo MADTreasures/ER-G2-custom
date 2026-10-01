@@ -44,6 +44,9 @@ class FakeAppContext(
     /** Video commands in order: block → action. */
     val videos = mutableListOf<Pair<String, VideoAction>>()
 
+    /** Web commands in order: block → action. */
+    val webs = mutableListOf<Pair<String, WebAction>>()
+
     /** Searches the app made; answer them with [answerSearch]. */
     val searches = mutableListOf<Pair<String, (VideoSearchResult) -> Unit>>()
     var closed = false
@@ -63,6 +66,16 @@ class FakeAppContext(
 
     /** The last video command for [block]. */
     fun lastVideo(block: String): VideoAction? = videos.lastOrNull { it.first == block }?.second
+
+    /** The last web command for [block]. */
+    fun lastWeb(block: String): WebAction? = webs.lastOrNull { it.first == block }?.second
+
+    /** Whether a web page is open in [block]: opened and not stopped since. */
+    fun webOpen(block: String): Boolean {
+        val mine = webs.filter { it.first == block }.map { it.second }
+        val opened = mine.indexOfLast { it is WebAction.Open }
+        return opened >= 0 && mine.drop(opened).none { it == WebAction.Stop }
+    }
 
     private inline fun checked(block: () -> Unit) {
         try {
@@ -164,6 +177,26 @@ class FakeAppContext(
             require(videos.any { it.first == block && it.second is VideoAction.Play }) { "no video in $block" }
         }
         videos += Pair(block, action)
+    }
+
+    override fun web(block: String, action: WebAction) {
+        if (action is WebAction.Open) {
+            checked {
+                if (pages.block(block) !is Block.Image) throw CommandException.unknownBlock(block, pages.current?.id ?: "?")
+            }
+            if (!action.url.startsWith("https://") && !action.url.startsWith("http://")) {
+                throw IllegalArgumentException("${CommandException.BAD_VALUE}: web address ${action.url}")
+            }
+            require(Permission.NETWORK)
+        } else {
+            require(webOpen(block)) { "no web page in $block" }
+            if (action is WebAction.Type) require(action.text.length <= 2_000) { "at most 2000 characters" }
+            if (action is WebAction.Tap) {
+                val image = pages.block(block) as Block.Image
+                require(action.x in 0 until image.w && action.y in 0 until image.h) { "tap outside $block" }
+            }
+        }
+        webs += Pair(block, action)
     }
 
     override fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit) {

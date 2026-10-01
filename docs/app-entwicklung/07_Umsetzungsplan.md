@@ -92,7 +92,8 @@ Uhr; der Chat baut die Test-APK, **du** installierst sie und liest die Werte ab.
 - Ergebnis als Tabelle in `quellen/` und eine Entscheidung „GeckoView ja / nur für manche Apps / nein“.
 
 **Abnahme:** APK für die richtige Architektur, Anleitung zum Installieren, Messwerte eingetragen,
-Entscheidung dokumentiert. Ohne echte Messwerte ist M2 nicht fertig.
+Entscheidung dokumentiert. Ohne echte Messwerte ist M2 nicht fertig. (M7 ist auf Wunsch schon vorher gebaut;
+was dort von den Werten abhängt, steht in [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080).)
 
 **Stand: Test-APK gebaut, Messwerte fehlen.** Modul `tools/gecko-probe/` („Gecko-Test“, nur `armeabi-v7a`,
 Release voreingestellt), Beschreibung in [05 §5.2](05_EvenHub-Apps.md#52-die-test-apk-gecko-test),
@@ -183,14 +184,24 @@ Akkuverbrauch der Sensoren, damit man es auf Hardware prüfen kann.
 
 **Abnahme:** Snapshot-Tests des Bildwegs; Messung von Speicher und Akku auf der echten Uhr.
 
+**Stand: gebaut in v0.8.0, nicht auf Hardware erprobt** – auf Wunsch vor den Messwerten von M2, die weiter
+fehlen. Die Engine (GeckoView, nur `armeabi-v7a`) steckt in der Uhr-App (`app/…/apps/web/`), die Oberfläche ist
+das App-Paket [`packages/browser`](../../packages/browser); dazwischen die Schnittstelle Version 2 (Befehl `web`,
+Ereignisse `web`, `imageClick`, `imageScroll`). Abweichend vom Plan oben: keine interne Sitzung im App-Host,
+sondern ein Befehl für jede Uhr-App (wie `video`), damit die Oberfläche ein Paket sein kann; das Bild geht wie
+bei `setRaster` in einen randlosen Bild-Baustein. Gebaut: unsichtbare Fläche, doppelte Aufnahme und `web-raster`,
+Zeiger und Bügel → Touch und Scrollen, Adresse über Tastatur/Sprache, Lesezeichen, Verlauf, Lesemodus
+(Standard an), Eingabefelder, Zurück durch den Verlauf der Seite. „Nur geänderte Bereiche senden“ macht
+Faceclaws Kern; die Engine schickt ein gleiches Bild gar nicht erst. Abnahme: Bildweg und Browser mit Tests und
+Bildern `docs/bilder/apps-browser-*.png` ✓; **Speicher und Akku auf der echten Uhr: offen**, wie alles, was an
+den M2-Werten hängt (Liste in [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080)). Offen bleibt
+auch, die Grenzwerte des Rasters an echten Seiten auf der echten Brille nachzujustieren.
+
 **Schon gebaut (Vorarbeit):** das Modul `web-raster` – Seite → Brillen-Raster mit durchsichtigem Grund,
 positiven Fotos, Logos als Grafik, Text in voller Helligkeit und automatisch negativem Text (Umriss) auf unruhigem Grund oder in
 überladenen Fenstern ([05 §10.1](05_EvenHub-Apps.md#101-seiten-ins-brillen-raster-wandeln-web-raster-gebaut)),
-mit Tests und Bildern `docs/bilder/raster-*.png`. Der Gecko-Test (M2) nutzt es schon auf der Uhr. Für M7 fehlt
-noch: die Browser-App im App-Host (interne Sitzung nach 03 §5.2, Bild über `setRaster` in einen randlosen
-Bild-Baustein), Scrollen der Seite unter dem Fenster, Zeiger → Touch-Ereignisse, Adresse und Lesezeichen,
-nur geänderte Bereiche senden, Lesemodus, und die Grenzwerte des Rasters an echten Seiten auf der echten
-Brille nachjustieren.
+mit Tests und Bildern `docs/bilder/raster-*.png`. Der Gecko-Test (M2) nutzt es schon auf der Uhr, seit v0.8.0
+auch der Browser.
 
 ## Danach (Ideen, nicht geplant)
 

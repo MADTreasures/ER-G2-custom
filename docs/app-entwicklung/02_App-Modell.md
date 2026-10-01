@@ -139,6 +139,9 @@ umzustellen ist Meilenstein M0 ([07](07_Umsetzungsplan.md)).
   EvenHub-Laufzeit ganze Bilder.
 - Große Bilder kosten Übertragungszeit ([01 §1](01_Plattform_und_Grenzen.md#übertragung-uhr--brille-bluetooth-le));
   wo es geht, Bausteine bevorzugen.
+- Ein Bild-Baustein kann auch ein **Video** (Befehl `video`) oder eine **Web-Seite** (Befehl `web`, seit
+  Schnittstelle 2) zeigen; die Uhr schreibt die Bilder dann selbst hinein. Eine Web-Seite nimmt Klicks und
+  Scrollen an (§6.1 `imageClick`, `imageScroll`).
 
 **Rollen:** Ist der Inhalt höher als die App-Fläche, scrollt die Seite senkrecht. Der Host hält den
 fokussierten Baustein sichtbar und zeigt rechts einen 3 px schmalen Scroll-Balken.
@@ -151,7 +154,9 @@ fokussierten Baustein sichtbar und zeigt rechts einen 3 px schmalen Scroll-Balke
 - Ein `button` mit `target: "@back"` löst Zurück aus (unten) und schickt nur `back`, kein `click`.
 - **Zurück** führt zur vorigen Seite aus dem Verlauf der Sitzung; auf der ersten Seite schließt es die
   App (`stop`). Das garantiert der Host, eine App kann es nicht abschalten. Die App bekommt `back` vor
-  dem Seitenwechsel. Auslöser:
+  dem Seitenwechsel. Einzige Ausnahme: Zeigt die Seite eine **Web-Seite** (Befehl `web`) mit einer früheren
+  Seite in deren eigenem Verlauf, geht Zurück erst dorthin, wie in jedem Browser (der Host macht das selbst,
+  die App bekommt `web`, nicht `back`); hat sie keine mehr, gilt die Regel. Auslöser:
   - Doppeltippen an Bügel oder Ring (bei EvenHub-Apps nicht: dort gehört Doppeltippen der App),
   - der Pfeil „‹“ links in der Kopfzeile (mit dem Zeiger anklicken),
   - Wischen nach rechts auf der Uhr (im Modus `gestures`),
@@ -186,6 +191,10 @@ Gleiche JSON-Form in beiden Laufzeiten:
 { "kind": "menu",     "item": "sortieren" }
 { "kind": "text",     "tag": "suche", "text": "Katzen im Schnee" }
 { "kind": "video",    "block": "bild", "state": "playing", "position": 83000, "duration": 296000, "message": null }
+{ "kind": "web",      "block": "seite", "state": "ready", "url": "https://srf.ch/", "title": "SRF", "progress": 100,
+  "back": true, "forward": false, "reader": false, "readable": true, "field": null, "message": null }
+{ "kind": "imageClick",  "page": "p_seite", "block": "seite", "x": 120, "y": 80 }
+{ "kind": "imageScroll", "page": "p_seite", "block": "seite", "dy": 195 }
 { "kind": "error",    "command": "patch", "code": "unknown_block", "message": "…" }
 ```
 
@@ -205,6 +214,17 @@ Gleiche JSON-Form in beiden Laufzeiten:
 - `video` (seit v0.5.0): Zustand des Videos in einem Bild-Baustein: `loading`, `playing`, `paused`,
   `buffering`, `ended`, `error` (dann steht in `message` der Grund, deutsch). Kommt bei jedem Wechsel und
   während des Abspielens etwa einmal pro Sekunde mit `position`; `duration` 0 = unbekannt (live).
+- `web` (seit Schnittstelle 2): Zustand der Web-Seite in einem Bild-Baustein: `loading` (mit `progress`
+  0–100), `ready`, `error` (Grund in `message`). Dazu Adresse, Titel, ob es eine frühere (`back`) oder spätere
+  (`forward`) Seite gibt, ob der Lesemodus zeigt (`reader`) oder möglich ist (`readable`) und das Eingabefeld
+  mit dem Cursor (`field`: `{ "label", "value", "password", "multiline" }` oder `null`); `message` ohne
+  `error` ist ein Hinweis der Uhr (etwa ein Link, der eine andere App öffnen würde). Kommt bei jeder Änderung.
+- `imageClick` / `imageScroll` (seit Schnittstelle 2): Klick an einer Stelle bzw. Scrollen um `dy` Pixel
+  (positiv = weiter nach unten) über einem Bild-Baustein, der eine Web-Seite zeigt, in Pixeln des Bausteins.
+  `imageClick`: Doppeltippen auf der Uhr mit dem Zeiger auf dem Baustein, oder Tippen am Bügel, während der
+  Zeiger dort steht. `imageScroll`: Wischen am Bügel (¾ der Bausteinhöhe), wenn kein Fokus mehr weiterkommt
+  oder der Zeiger auf dem Baustein steht; der Zeiger über den Rand geschoben, wenn die Seite selbst nicht
+  mehr scrollt.
 - `error`: nur bei Rechner-Apps; die Uhr hat einen Befehl abgelehnt (§6.2 „Fehler“).
 - Unbekannte `kind`-Werte ignoriert eine App. So kann die Plattform neue Ereignisse ergänzen.
 
@@ -228,6 +248,7 @@ Gleiche JSON-Form in beiden Laufzeiten:
 | `storage.get` / `storage.set` | `key`, `value` (JSON) | kleiner Speicher je App (≤ 256 KiB gesamt) |
 | `askText` | `tag`, `prompt` (≤ 100 Zeichen), `suggestions` (≤ 5, je ≤ 40 Zeichen) | Tastatur/Spracheingabe auf der Uhr, auf der Brille der Hinweis „Bitte auf der Uhr eingeben“; Antwort als Ereignis `text` (seit v0.5.0) |
 | `video` | `block` (ein `image`), `action`: `play` (`src`, `profile` `stable`/`balanced`/`fast`, `sound`, `start` in ms), `pause`, `resume`, `seek` (`position`), `profile` (`profile`), `stop` | Video in einen Bild-Baustein; `src` ist eine Video-Seite (YouTube …), eine Video-Datei/HLS-Adresse (`https://`, Berechtigung `network`) oder `test:muster`. Zustand als Ereignis `video`. Details [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050) (seit v0.5.0) |
+| `web` | `block` (ein `image`), `action`: `open` (`url` `https://`/`http://`, `reader`), `back`, `forward`, `reload`, `scroll` (`dy`), `tap` (`x`, `y`), `type` (`text`, `enter`), `reader` (`on`), `contrast` (`outline`/`halo`/`plate`), `stop` | Web-Seite in einem Bild-Baustein (Berechtigung `network`): die Uhr lädt sie, zeichnet sie in der Größe des Bausteins und schreibt das Brillenbild hinein; Zustand als Ereignis `web`. `open` in einem Baustein mit Seite lädt die neue Adresse als nächste Seite ihres Verlaufs. Verdeckt ruht die Seite, mit der App endet sie. Details [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080) (seit Schnittstelle 2, v0.8.0) |
 | `close` | – | App beenden |
 
 `patch`-Felder je Baustein: `heading`/`text`: `text`, `align`; `button`: `text`, `target`;

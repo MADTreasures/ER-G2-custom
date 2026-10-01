@@ -41,11 +41,29 @@ setzt die Entscheidung unten; erst dann ist M2 fertig.
 | Seite rendern (Wikipedia): laden / aufnehmen / Layout / Raster, Textzeilen, negativ | |
 | Wie sieht `render-brille.png` aus? Text lesbar? Negativ, wo es sein soll? | |
 
+## Was der Browser (M7, seit v0.8.0 gebaut) davon braucht
+
+Der Browser ist auf Wunsch schon vor diesen Werten gebaut ([05 §10.2](../05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080)).
+Er läuft mit derselben GeckoView-Version, aber in der Uhr-App selbst. Beim Eintragen bitte mitdenken:
+
+| Wert | Für den Browser |
+|---|---|
+| Speicher (Spitze) | Gecko läuft zum Teil im Prozess der Uhr-App, die auch die Brillenverbindung hält. Knapp → Engine in einen eigenen Prozess verlegen |
+| Kaltstart | Wartezeit bis zur ersten Seite (die Engine startet mit der ersten Seite) |
+| Akku | Lesedauer; vielleicht gröberer Takt der Bilder (`CapturePlan`) |
+| Timer bei Bildschirm aus | ob Seiten mit dunklem Uhr-Bildschirm weiterarbeiten |
+| Dauertest-Abbrüche | ob Seiten vom System beendet werden |
+| Seite rendern: Zeiten, `render-brille.png` | wie lange ein Bild dauert; ob die Grenzwerte von `web-raster` auf der Brille passen |
+
+Wer den Browser auf der Uhr ausprobiert: Auffälligkeiten (lange Ladezeiten, Abstürze, „Wear OS hat die Seite
+beendet“, schlecht lesbare Seiten) mit Adresse hier notieren; das Protokoll der Uhr-App (Einstellungen →
+Protokoll) hat Zeilen „Browser: …“.
+
 ## Entscheidung
 
 - [ ] **GeckoView ja** – alle Kriterien erfüllt → M3 mit GeckoView auf der Uhr, M7 (Browser) möglich
 - [ ] **GeckoView nur für manche Apps** – Grenzwerte knapp verfehlt → Handy als Standard, GeckoView für ausgewählte Apps
-- [ ] **GeckoView nein** – Abstürze, Abbrüche oder zwei verfehlte Kriterien → Handy als Standard-Ort (05 §6), kein Browser auf der Uhr
+- [ ] **GeckoView nein** – Abstürze, Abbrüche oder zwei verfehlte Kriterien → Handy als Standard-Ort (05 §6), kein Browser auf der Uhr (dann GeckoView wieder aus der Uhr-App nehmen: `app/build.gradle.kts`, `apps/web/`, das Paket Browser)
 
 Die Test-APK schlägt die Entscheidung selbst vor (letzte Zeile „Empfehlung“); sie folgt der Regel in
 `ProbeResults.decision()`: ein Absturz, zwei ausgefallene Test-Apps oder ein Kaltstart über 10 s heißt „nein“,

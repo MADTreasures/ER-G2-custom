@@ -1,9 +1,5 @@
-package ch.madtreasures.g2watch.geckoprobe
+package ch.madtreasures.g2watch.webraster
 
-import ch.madtreasures.g2watch.webraster.Box
-import ch.madtreasures.g2watch.webraster.PageCapture
-import ch.madtreasures.g2watch.webraster.Surface
-import ch.madtreasures.g2watch.webraster.TextRun
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -11,9 +7,10 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlin.math.roundToInt
 
 /**
- * Turns the layout the content script reports (CSS pixels, CSS colours) and a captured picture
- * of the page into a [PageCapture] for web-raster. [textless] is the second capture with all text
- * transparent, when there is one.
+ * Turns the layout that `collectLayout()` of `src/main/js/page-layout.js` reports (CSS pixels, CSS
+ * colours) and a captured picture of the page into a [PageCapture]. [textless] is the second capture
+ * with all text transparent, when there is one. Used by the browser of the watch app and by the Gecko
+ * test.
  */
 object LayoutParser {
 

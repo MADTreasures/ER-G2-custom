@@ -10,6 +10,7 @@ import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
 import ch.madtreasures.g2watch.apps.video.VideoEngine
+import ch.madtreasures.g2watch.apps.web.WebEngine
 import ch.madtreasures.g2watch.desktop.GrayRaster
 
 /** What the app host needs from the platform: Android on the watch, fakes in tests. */
@@ -48,6 +49,9 @@ interface HostPorts {
 
     /** Searching and playing videos (03 §10). */
     val video: VideoEngine
+
+    /** Web pages in image blocks (05 §10, M7). */
+    val web: WebEngine
 }
 
 /** The glasses as apps may know them (03 §5.2). */

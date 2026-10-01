@@ -137,10 +137,16 @@ class G2WatchApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // GeckoView (the browser, 05 §5) starts its page, GPU and network processes with this class
+        // too; desktop, glasses connection and apps belong to the main process alone.
+        if (!isMainProcess) return
         followWatchBattery()
         // Connects itself to the desktop, so the "Apps" tile works from the first frame.
         apps
     }
+
+    /** False in GeckoView's own processes. */
+    val isMainProcess: Boolean get() = getProcessName() == packageName
 
     fun lastPair(): LastPair? {
         val right = prefs.getString("right", null) ?: return null

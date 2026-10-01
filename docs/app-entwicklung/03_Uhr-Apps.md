@@ -7,9 +7,10 @@ Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 
 **Stand:** Der App-Host ist gebaut (M1, v0.4.0, aus Pull Request #2; Pull Request #1 enthält einen zweiten,
 der nicht zusätzlich übernommen wird), dazu seit v0.5.0 Texteingabe auf der Uhr und Video auf der Brille mit
-der App YouTube (§10), seit v0.5.2 Emoji in allen Texten (§11); nichts davon ist auf Hardware erprobt.
+der App YouTube (§10), seit v0.5.2 Emoji in allen Texten (§11), seit v0.8.0 Web-Seiten in Bild-Bausteinen mit
+der App Browser (§12); nichts davon ist auf Hardware erprobt.
 Dieses Kapitel beschreibt erst, was eine App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was
-bei der Umsetzung dazukam oder anders wurde als ursprünglich geplant, steht in §9 bis §11.
+bei der Umsetzung dazukam oder anders wurde als ursprünglich geplant, steht in §9 bis §12.
 
 ## 1. Eine Uhr-App schreiben
 
@@ -141,6 +142,7 @@ interface AppContext {
     fun askText(tag: String, prompt: String, suggestions: List<String> = emptyList())  // v0.5.0: keyboard/voice on the watch → AppEvent.TextInput
     fun video(block: String, action: VideoAction)          // v0.5.0: Play(src, profile, sound, startMs), Pause, Resume, Seek, Profile, Stop → AppEvent.Video (§10)
     fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit)  // v0.5.0: YouTube search; needs Permission.NETWORK
+    fun web(block: String, action: WebAction)              // v0.8.0 (interface 2): Open(url, reader), Back, Forward, Reload, Scroll, Tap, Type, Reader, Contrast, Stop → AppEvent.Web (§12)
     val storage: AppStorage                                // get(key): JsonElement?, set(key, JsonElement); ≤ 256 KiB per app
     fun log(message: String)                               // goes to Settings → Protokoll
     fun close()
@@ -165,6 +167,9 @@ sealed interface AppEvent {
     class Audio(val pcm: ShortArray, val seq: Int) : AppEvent                              // 16 kHz mono, 50 ms
     data class TextInput(val tag: String, val text: String?) : AppEvent                    // v0.5.0, null = cancelled
     data class Video(val block: String, val state: VideoState, val positionMs: Long, val durationMs: Long, val message: String?) : AppEvent  // v0.5.0
+    data class Web(val block: String, val state: WebState, val url: String, val title: String, /* progress, canBack, canForward, reader, readable, field, message */) : AppEvent  // v0.8.0
+    data class ImageClick(val page: String, val block: String, val x: Int, val y: Int) : AppEvent   // v0.8.0, on a web page
+    data class ImageScroll(val page: String, val block: String, val dy: Int) : AppEvent            // v0.8.0, on a web page
 }
 ```
 
@@ -470,3 +475,73 @@ stimmt die Reihenfolge nicht.
 eine Strichzeichnung, kein Klecks – auch mit U+FE0F; Familie, Flagge, Hautfarbe und Tastenkappe sind je ein
 Bild; Emoji passen in die Zeile; fett ist kräftiger), `EmojiTextTest`, `TextFitTest`, `YouTubeAppTest`,
 Bilder `apps-emoji.png` und `apps-youtube-*.png`. **Nicht erprobt:** auf der echten Uhr und Brille.
+
+## 12. Web-Seiten auf der Brille (v0.8.0, M7)
+
+Gebaut für die App **Browser** ([`packages/browser`](../../packages/browser)), wie das Video als **Plattform-Teil**:
+Die Engine (GeckoView), das Aufnehmen und das Rastern gehören zur Uhr-App, weil ein App-Paket keine nativen
+Bibliotheken mitbringen kann; die App gibt nur Befehle (`web`) und bekommt Ereignisse. Damit kam die
+Schnittstellen-Version 2 ([09 §5](09_App-Pakete.md#5-schnittstellen-version)).
+
+```
+BrowserApp (G2App) ── web(block, Open/Tap/Scroll/Type …) ──▶ AppHost ──▶ WebEngine (HostPorts.web)
+     ◀── AppEvent.Web (Zustand, Adresse, Titel, Feld) ──────┤              GeckoWebEngine (eine GeckoRuntime)
+     ◀── AppEvent.ImageClick / ImageScroll (Zeiger, Bügel) ─┤               └─ GeckoWebPage je Seite (Hauptthread):
+     ◀── Brillenbild im image-Baustein (≤ alle 200 ms) ─────┘                  GeckoSession ohne Ansicht → ImageReader
+                                                                               CapturePlan: wann ein Bild entsteht
+                                                                               Erweiterung assets/webbridge/: Layout,
+                                                                                 Aufnahme ohne Schrift, Scrollen, Tippen,
+                                                                                 Felder, Lesemodus (Readability)
+                                                                               WebPicture: LayoutParser + web-raster
+                                                                                 (Thread „G2Watch-web“)
+```
+
+| Datei (`app/…/apps/`) | Aufgabe |
+|---|---|
+| `web/WebEngine.kt` | Anschluss des Hosts: `open(WebRequest, WebListener) → WebPage` (open, back, forward, reload, scrollBy, tap, type, setReader, setContrast, setActive, release) |
+| `web/CapturePlan.kt` | wann ein Bild entsteht (reines Kotlin, getestet): kurz nach Laden, Tippen, Scrollen; beim Laden alle 2,5 s; Änderungen der Seite höchstens alle 2 s und nur bis 1 min nach der letzten Eingabe; nie öfter als alle 300 ms, nie während die Seite ruht; im Lesemodus erst nach dessen Entscheidung |
+| `web/WebBridge.kt` | Nachrichten zwischen Engine und Inhalts-Skript (reines Kotlin, getestet), als JSON-Text in `{ "json": … }` wie im Gecko-Test |
+| `web/WebPicture.kt` | Aufnahme + Layout + Aufnahme ohne Schrift → Raster des Bausteins (`LayoutParser`, `GlassesRasterizer`); 1,5 Pixel je CSS-Pixel |
+| `web/WebErrors.kt` | deutsche Fehlertexte, dunkle Fehlerseite (`data:`), Links in andere Apps (`tel:`, `intent:` …) |
+| `web/GeckoWebEngine.kt`, `web/GeckoWebPage.kt` | GeckoView auf der Uhr (nicht auf Hardware erprobt) |
+| `assets/webbridge/` | eingebaute Erweiterung: `content.js`, Mozillas Readability (Apache-2.0), dazu beim Bauen `page-layout.js` aus `web-raster/src/main/js/` (Haupt-`build.gradle.kts`) |
+
+**Im Host:** `web(block, Open)` verlangt einen `image`-Baustein von mindestens 200 × 100 Pixeln und `network`;
+`http://` und `https://`, sonst nichts. Die Seite wird in der Größe des Bausteins gezeichnet (der Browser nimmt
+die ganze App-Fläche, 576 × 260, randlos). Ein neues `Open` im selben Baustein lädt die Adresse als nächste
+Seite ihres Verlaufs. Bilder gehen in den Baustein wie beim Video; eines in anderer Größe wird verworfen.
+- **Eingabe:** Der Baustein nimmt Klicks an: Doppeltippen auf der Uhr über ihm, oder Tippen am Bügel, während
+  der Zeiger auf ihm steht → `ImageClick` mit der Stelle in Pixeln des Bausteins. Bügel-Wischen mit dem Zeiger
+  auf dem Baustein, oder wenn kein Fokus weiterkommt und die Seite nicht mehr scrollt → `ImageScroll` um ¾ der
+  Bausteinhöhe. Den Zeiger über den Rand schieben → `ImageScroll` (je 120 ms gesammelt). Die App entscheidet,
+  was daraus wird; der Browser schickt `Tap` und `Scroll` an die Seite.
+- **Zurück** auf einer Seite mit Web-Seite, die eine frühere Seite hat: Der Host geht in deren Verlauf zurück
+  (die App bekommt das neue `Web`, kein `Back`); erst ohne frühere Seite gilt die Regel aus 02 §5.
+- **Ruhen:** Verdeckt die App ein anderer, oder ist die Brille weg, ruht die Seite (`setActive(false)`:
+  GeckoView drosselt sie, keine Bilder) und wacht danach mit einem frischen Bild auf. Mit der App endet sie.
+
+**In der Engine** (`GeckoWebPage`, alles auf dem Hauptthread): eine `GeckoSession` je Seite ohne sichtbare
+Ansicht, `ImageReader` in Größe des Bausteins als Fläche, `setActive`, `PRIORITY_HIGH` solange sie arbeitet.
+Ein Bild: Seite anhalten (`freeze`), Layout erfragen, `capturePixels`, Schrift durchsichtig (`hide-text`),
+noch einmal aufnehmen, zurückstellen, rastern; ein Bild gleich dem letzten wird nicht noch einmal geschickt
+(Faceclaws Kern schickt ohnehin nur geänderte Streifen, 01 §1). **Tippen** geht als Touch-Ereignis an
+GeckoViews `PanZoomController` (wie ein Finger, so testet GeckoView sich selbst), **Scrollen** und **Text** über
+das Skript (Fenster oder die innere Box unter der Mitte; Text über den eigenen Setter des Felds, dann `input`,
+`change` und Enter, notfalls `requestSubmit`). Der **Lesemodus** ersetzt die Seite durch den Artikel
+(Readability), 18 CSS-Pixel hell auf Schwarz; aus heißt neu laden. Laufzeit einmal je Prozess:
+`fissionEnabled(false)`, `extensionsProcessEnabled(false)`, dunkles Farbschema, Firefox' Standard-Schutz gegen
+Tracker und Werbenetze, Cookies je Seite getrennt, kein Zoomen bei Doppeltippen oder Feldern. Seiten bekommen
+keine Berechtigungen; Dialoge (`alert` …) schließen sich (ihr Text wird ein Hinweis), Verlassen ist immer
+erlaubt, Downloads und Links in andere Apps nicht, ein Link in ein neues Fenster öffnet in derselben Seite.
+`G2WatchApp` arbeitet nur im Hauptprozess: GeckoView startet mit derselben Klasse eigene Prozesse.
+
+**Tests (ohne Hardware):** `AppHostWebTest` (Öffnen, Bilder, Berechtigung und Grenzen, Klicks und Scrollen,
+Zurück durch den Verlauf, Ruhen, Aktionen, Fehler), `CapturePlanTest`, `WebBridgeTest` (auch: die Dateien der
+Erweiterung passen zu Engine und Manifest), `WebPictureTest` (Seite → Brillenbild, Fehlerseite), `AppJsonTest`,
+`BrowserAppTest`, `InstalledPackagesTest`, Bilder `apps-browser-*.png` (erfundene Seiten). Das Inhalts-Skript
+prüft [`tools/page-preview/bridge-check.js`](../../tools/page-preview/README.md) in Chromium (20 Prüfungen,
+nicht in der CI).
+
+**Nicht erprobt:** alles auf der echten Uhr – ob GeckoView dort startet, Tipp-Ereignisse ohne Ansicht annimmt,
+die Aufnahmen gelingen, wie schnell ein Bild entsteht, Speicher und Akku. Was davon an den Messwerten des
+Gecko-Tests (M2) hängt, steht in [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080).

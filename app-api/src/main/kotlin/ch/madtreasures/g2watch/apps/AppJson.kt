@@ -89,6 +89,19 @@ object AppJson {
             is AppEvent.Error -> {
                 put("kind", "error"); put("command", event.command); put("code", event.code); put("message", event.message)
             }
+            is AppEvent.Web -> {
+                put("kind", "web"); put("block", event.block); put("state", event.state.json)
+                put("url", event.url); put("title", event.title); put("progress", event.progress)
+                put("back", event.canBack); put("forward", event.canForward)
+                put("reader", event.reader); put("readable", event.readable)
+                put("field", event.field?.let(::encodeField) ?: JsonNull); put("message", event.message)
+            }
+            is AppEvent.ImageClick -> {
+                put("kind", "imageClick"); put("page", event.page); put("block", event.block); put("x", event.x); put("y", event.y)
+            }
+            is AppEvent.ImageScroll -> {
+                put("kind", "imageScroll"); put("page", event.page); put("block", event.block); put("dy", event.dy)
+            }
         }
     }
 
@@ -127,6 +140,21 @@ object AppJson {
             )
             "audio" -> bad("Audio kommt nie als JSON, sondern als Binärrahmen")
             "error" -> AppEvent.Error(string(o, "command"), string(o, "code"), string(o, "message"))
+            "web" -> AppEvent.Web(
+                string(o, "block"),
+                WebState.of(string(o, "state")) ?: bad("unbekannter Seitenzustand „${o["state"]}“"),
+                optString(o, "url") ?: "",
+                optString(o, "title") ?: "",
+                optInt(o, "progress") ?: 0,
+                optBool(o, "back") ?: false,
+                optBool(o, "forward") ?: false,
+                optBool(o, "reader") ?: false,
+                optBool(o, "readable") ?: false,
+                o["field"]?.takeIf { it !is JsonNull }?.let(::decodeField),
+                optString(o, "message"),
+            )
+            "imageClick" -> AppEvent.ImageClick(string(o, "page"), string(o, "block"), int(o, "x"), int(o, "y"))
+            "imageScroll" -> AppEvent.ImageScroll(string(o, "page"), string(o, "block"), int(o, "dy"))
             else -> null
         }
     }
@@ -182,6 +210,25 @@ object AppJson {
                     VideoAction.Pause, VideoAction.Resume, VideoAction.Stop -> Unit
                 }
             }
+            is AppCommand.Web -> {
+                put("block", command.block)
+                put("action", command.action.json)
+                when (val a = command.action) {
+                    is WebAction.Open -> {
+                        put("url", a.url); put("reader", a.reader)
+                    }
+                    is WebAction.Scroll -> put("dy", a.dy)
+                    is WebAction.Tap -> {
+                        put("x", a.x); put("y", a.y)
+                    }
+                    is WebAction.Type -> {
+                        put("text", a.text); put("enter", a.enter)
+                    }
+                    is WebAction.Reader -> put("on", a.on)
+                    is WebAction.Contrast -> put("contrast", a.contrast.json)
+                    WebAction.Back, WebAction.Forward, WebAction.Reload, WebAction.Stop -> Unit
+                }
+            }
             AppCommand.Close -> Unit
         }
     }
@@ -230,6 +277,7 @@ object AppJson {
                 optArray(o, "suggestions").map { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content ?: bad("Vorschläge müssen Texte sein") },
             )
             "video" -> AppCommand.Video(string(o, "block"), videoAction(o))
+            "web" -> AppCommand.Web(string(o, "block"), webAction(o))
             "close" -> AppCommand.Close
             else -> bad("unbekannter Befehl „$c“")
         }
@@ -331,6 +379,24 @@ object AppJson {
         else -> bad("Listeneintrag muss Text oder { text, done } sein")
     }
 
+    /** A text field of a web page (`field` of the event `web`). */
+    fun encodeField(field: WebField): JsonObject = buildJsonObject {
+        put("label", field.label)
+        put("value", field.value)
+        put("password", field.password)
+        put("multiline", field.multiline)
+    }
+
+    fun decodeField(element: JsonElement): WebField {
+        val o = obj(element, "Feld")
+        return WebField(
+            optString(o, "label") ?: "",
+            optString(o, "value") ?: "",
+            optBool(o, "password") ?: false,
+            optBool(o, "multiline") ?: false,
+        )
+    }
+
     // --- Helpers --------------------------------------------------------------------------------
 
     private fun bad(message: String): Nothing = throw CommandException.badValue(message)
@@ -404,6 +470,20 @@ object AppJson {
         "profile" -> VideoAction.Profile(profile(o))
         "stop" -> VideoAction.Stop
         else -> bad("unbekannte Videoaktion „$action“")
+    }
+
+    private fun webAction(o: JsonObject): WebAction = when (val action = string(o, "action")) {
+        "open" -> WebAction.Open(string(o, "url"), optBool(o, "reader") ?: false)
+        "back" -> WebAction.Back
+        "forward" -> WebAction.Forward
+        "reload" -> WebAction.Reload
+        "scroll" -> WebAction.Scroll(int(o, "dy"))
+        "tap" -> WebAction.Tap(int(o, "x"), int(o, "y"))
+        "type" -> WebAction.Type(optString(o, "text") ?: bad("„text“ fehlt"), optBool(o, "enter") ?: true)
+        "reader" -> WebAction.Reader(bool(o, "on"))
+        "contrast" -> WebAction.Contrast(WebContrast.of(string(o, "contrast")) ?: bad("unbekannter Kontrast „${o["contrast"]}“"))
+        "stop" -> WebAction.Stop
+        else -> bad("unbekannte Web-Aktion „$action“")
     }
 
     private fun sensor(o: JsonObject): Sensor =
