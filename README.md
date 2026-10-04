@@ -29,6 +29,8 @@ ob GeckoView auf der Uhr gut genug läuft.
 > „Gecko-Test“ (M2). Neu in 0.8.0: der **[Browser](#web-browser-auf-der-brille)** selbst (M7) – GeckoView in
 > der Uhr-App, die Browser-Oberfläche als App-Paket. **Nicht auf Hardware erprobt**, und die Messwerte des
 > Gecko-Tests von der echten Uhr fehlen noch; was davon abhängt, steht im Browser-Abschnitt.
+> 0.8.1: Das Projekt enthält nur noch die Uhr-App, Android Studio kann nichts anderes aufspielen; der
+> Gecko-Test ist ein eigenes Projekt ([Gecko-Test](#gecko-test-m2-auf-die-uhr-bringen-und-messen)).
 
 ## Was aufgespielt werden kann
 
@@ -325,8 +327,10 @@ Messwerkzeug: Sie misst Kaltstart, Speicher, Timer, Akku und den Bildweg ohne de
 steckt dieselbe GeckoView-Version auch im Browser der Uhr-App; **was dort von den Werten abhängt**, steht in
 [Web-Browser auf der Brille](#web-browser-auf-der-brille).
 
-1. **Android Studio:** oben die Konfiguration **gecko-probe** und die Uhr wählen, **▶ Run**. Nichts weiter
-   einstellen: Der Gecko-Test ist fest für die Pixel Watch 5 gebaut (32-Bit-Apps, `armeabi-v7a`; Android
+1. **Android Studio:** Der Gecko-Test ist ein eigenes Projekt, damit beim normalen Projekt nur G2 Watch
+   auf die Uhr kommt: dieselbe ZIP, aber in `gradle.properties` die Zeile `g2.geckoTest=true` (der Hauptchat
+   gibt sie dir fertig als `G2Watch-Gecko-Test-….zip`). Dieses Projekt enthält nur den Gecko-Test, nicht
+   G2 Watch. In einen eigenen Ordner entpacken, öffnen, die Uhr wählen, **▶ Run**. Nichts weiter einstellen: Der Gecko-Test ist fest für die Pixel Watch 5 gebaut (32-Bit-Apps, `armeabi-v7a`; Android
    Studio meldet dort „Device supports armeabi-v7a, armeabi“) und installiert gleich die Mess-Fassung
    (Release). Das erste Mal lädt Gradle GeckoView (≈ 90 MB). GeckoView verlangt die Android-Plattform **API 37.1**; fehlt sie, bietet Android
    Studio die Installation an (sonst *Tools → SDK Manager → SDK Platforms*, *Show Package Details*, API 37.1
@@ -404,7 +408,7 @@ dieses Projekts noch nicht):
    Versionen*, 7× auf *Build-Nummer* tippen), dort *ADB-Debugging* und *Debugging über WLAN* einschalten.
    Uhr und Rechner im selben WLAN. In Android Studio in der Geräteauswahl *Pair Devices Using Wi-Fi →
    Pair using pairing code*; den Code zeigt die Uhr unter *Debugging über WLAN → Neues Gerät koppeln*.
-3. Oben die Konfiguration **app** und die Uhr als Gerät wählen, **▶ Run**: Android Studio baut die App,
+3. Oben die Uhr als Gerät wählen, **▶ Run** (das Projekt enthält nur die Uhr-App, es gibt nichts anderes auszuwählen): Android Studio baut die App,
    installiert sie auf der Uhr und startet sie. Seit 0.8.0 ist die APK ≈ 137 MB groß (GeckoView); über WLAN
    dauert das Installieren ein paar Minuten. Die APK läuft nur auf Uhren mit `armeabi-v7a` (Pixel Watch 5);
    für eine andere Uhr `adb shell getprop ro.product.cpu.abilist` prüfen und `abiFilters` sowie das
@@ -414,7 +418,7 @@ dieses Projekts noch nicht):
 
 ```sh
 ./gradlew :app:assembleDebug            # → app/build/outputs/apk/debug/app-debug.apk
-./gradlew :gecko-probe:assembleRelease  # → tools/gecko-probe/build/outputs/apk/release/
+./gradlew -Pg2.geckoTest=true :gecko-probe:assembleRelease  # Gecko-Test → tools/gecko-probe/build/outputs/apk/release/
 ./gradlew g2appPackages                 # alle App-Pakete → build/g2app/
 ```
 
@@ -457,7 +461,7 @@ die Uhr offline ist.
 
 ```sh
 ./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :web-raster:test :app-api:test :app:testDebugUnitTest
-./gradlew :gecko-probe:testDebugUnitTest
+./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
 Stand dieses Commits: 15 + 184 + 32 + 4 + 421 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,

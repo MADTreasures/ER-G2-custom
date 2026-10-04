@@ -3,7 +3,7 @@
 // collectLayout() the watch's browser and the Gecko probe run (web-raster/src/main/js/page-layout.js),
 // and saves a screenshot and the layout per window.
 // Chromium stands in for GeckoView, which needs a watch or an emulator. Then:
-//   PREVIEW_DIR=<dir> ./gradlew :gecko-probe:testDebugUnitTest --tests '*PagePreviewTest*'
+//   PREVIEW_DIR=<dir> ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest --tests '*PagePreviewTest*'
 // turns them into glasses pictures with LayoutParser and web-raster (<dir>/views/*.png).
 //
 //   node tools/page-preview/capture.js <dir> [page id filter]

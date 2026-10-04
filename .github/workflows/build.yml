@@ -40,7 +40,7 @@ jobs:
 
       # M2: the GeckoView measuring APK for the Pixel Watch 5 (armeabi-v7a, about 117 MB).
       - name: Gecko test APK
-        run: ./gradlew --no-daemon :gecko-probe:testDebugUnitTest :gecko-probe:lintRelease :gecko-probe:assembleRelease
+        run: ./gradlew --no-daemon -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest :gecko-probe:lintRelease :gecko-probe:assembleRelease
 
       - name: Upload Gecko test APK
         uses: actions/upload-artifact@v4

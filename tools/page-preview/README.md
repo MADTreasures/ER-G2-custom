@@ -14,7 +14,7 @@ bleiben möglich.
 ```sh
 npm i -g playwright && npx playwright install chromium   # einmal
 node tools/page-preview/capture.js /tmp/vorschau          # Seiten aufnehmen → /tmp/vorschau/raw/
-PREVIEW_DIR=/tmp/vorschau ./gradlew :gecko-probe:testDebugUnitTest --tests '*PagePreviewTest*'
+PREVIEW_DIR=/tmp/vorschau ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest --tests '*PagePreviewTest*'
 # → /tmp/vorschau/views/<seite>.png: links die Seite, rechts die Brille
 # mit PREVIEW_STYLES=1 zusätzlich <seite>-stile.png: Umriss, Leuchtschrift mit Rand, Platte nebeneinander
 ```

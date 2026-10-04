@@ -36,11 +36,15 @@ include(":faceclaw-core")
 include(":faceclaw-android")
 include(":firmware-image")
 include(":web-raster")
-include(":app")
 include(":app-api")
-// M2: GeckoView feasibility probe, a separate APK so the watch app does not grow by ~90 MB.
-include(":gecko-probe")
-project(":gecko-probe").projectDir = file("tools/gecko-probe")
+// The project holds exactly one app to run, so Android Studio cannot install the wrong one: G2 Watch, or with
+// -Pg2.geckoTest=true (or that line in gradle.properties) the M2 GeckoView measuring app instead.
+if (providers.gradleProperty("g2.geckoTest").orNull == "true") {
+    include(":gecko-probe")
+    project(":gecko-probe").projectDir = file("tools/gecko-probe")
+} else {
+    include(":app")
+}
 
 // App packages (docs/app-entwicklung/09): every folder in packages/ with a build file is one app.
 file("packages").listFiles()

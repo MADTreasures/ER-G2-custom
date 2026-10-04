@@ -225,6 +225,8 @@ entschieden ist. **Nicht auf Hardware erprobt**: kompiliert, Lint sauber, Einhei
 Auswertung und Layout; ob GeckoView auf der Uhr startet, zeigt erst der erste Lauf dort.
 
 Gebaut nur für `armeabi-v7a`, die Architektur der Pixel Watch 5; eine Variante zum Auswählen gibt es nicht.
+Seit v0.8.1 gehört der Gecko-Test nur mit `g2.geckoTest=true` (in `gradle.properties` oder `-P`) zum
+Gradle-Projekt, und dann statt der Uhr-App: Ein Projekt enthält immer genau eine App zum Aufspielen.
 Gemessen wird mit der **Release-Variante**, die in Android Studio voreingestellt ist (mit dem Debug-Schlüssel signiert, installiert sich direkt): Eine
 debugbare App läuft langsamer und braucht mehr Speicher. Aufbau:
 
