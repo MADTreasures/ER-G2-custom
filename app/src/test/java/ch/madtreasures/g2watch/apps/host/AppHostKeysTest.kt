@@ -15,6 +15,7 @@ import ch.madtreasures.g2watch.apps.ListItem
 import ch.madtreasures.g2watch.apps.ListStyle
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Sensor
+import ch.madtreasures.g2watch.apps.launcher.Launcher
 import ch.madtreasures.g2watch.apps.render.FocusTarget
 import ch.madtreasures.g2watch.apps.render.PageLayout
 import ch.madtreasures.g2watch.input.KeyPress
@@ -75,9 +76,15 @@ class AppHostKeysTest {
         return created.last()
     }
 
-    private fun AppHost.press(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false, alt: Boolean = false) {
-        key(KeyPress(key, text, shift = shift, ctrl = ctrl, alt = alt))
+    private fun AppHost.press(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false, alt: Boolean = false, repeat: Boolean = false) {
+        key(KeyPress(key, text, shift = shift, ctrl = ctrl, alt = alt, repeat = repeat))
         settle()
+    }
+
+    /** A key held down: the press, then Android's repeats. */
+    private fun AppHost.hold(key: String, text: String = "", repeats: Int = 3) {
+        press(key, text)
+        repeat(repeats) { press(key, text, repeat = true) }
     }
 
     /** Types [s] as a keyboard would, one character per key. */
@@ -114,6 +121,19 @@ class AppHostKeysTest {
     }
 
     @Test
+    fun `the launcher works with the keys too`() {
+        val two: () -> G2App = { ScriptedApp(AppManifest("ch.test.zwei", "Zwei", "1.0.0"), twoPages).also { created += it } }
+        val host = host(app(), two)
+        host.openLauncher()
+        settle()
+        assertEquals(Launcher.PAGE, host.page)
+        host.press(Keys.ARROW_DOWN)
+        host.press(Keys.ENTER)
+        assertEquals("ch.test.zwei", host.state.value.visible)
+        assertEquals("a", host.page)
+    }
+
+    @Test
     fun `Escape, Backspace and Alt+Left go back, the menu key and F10 open the app menu`() {
         val host = host(app())
         val app = host.start()
@@ -140,6 +160,34 @@ class AppHostKeysTest {
         host.press(Keys.ESCAPE)
         assertEquals(AppEvent.Stop, app.events.last())
         assertTrue(app.events.none { it is AppEvent.Key })
+    }
+
+    @Test
+    fun `a held key repeats the moves, but back, the menu and a click happen once`() {
+        val host = host(app())
+        val app = host.start()
+        host.hold(Keys.ARROW_DOWN, repeats = 1)
+        assertEquals(FocusTarget("schalter"), host.focus)
+        host.hold(Keys.ARROW_UP, repeats = 1)
+        assertEquals(FocusTarget("zu_b"), host.focus)
+        // The menu key held: the menu opens and stays, it does not flicker.
+        host.hold(Keys.CONTEXT_MENU)
+        assertEquals("host.menu", host.page)
+        host.hold(Keys.ESCAPE)
+        assertEquals("a", host.page)
+        // Enter held on "Zu B": one page on. Escape or Backspace held there: one back, the app goes on.
+        host.hold(Keys.ENTER)
+        assertEquals("b", host.page)
+        host.hold(Keys.ESCAPE)
+        assertEquals("a", host.page)
+        host.press(Keys.ENTER)
+        host.hold(Keys.BACKSPACE)
+        assertEquals("a", host.page)
+        assertTrue(app.events.none { it == AppEvent.Stop })
+        // Enter held on "Klick": one click.
+        host.press(Keys.ARROW_DOWN)
+        host.hold(Keys.ENTER)
+        assertEquals(1, app.events.count { it == AppEvent.Click("a", "klick") })
     }
 
     @Test
@@ -217,6 +265,15 @@ class AppHostKeysTest {
             app.events.filterIsInstance<AppEvent.Gesture>().map { it.gesture },
         )
         assertTrue(app.events.filterIsInstance<AppEvent.Gesture>().all { it.source == InputSource.WATCH })
+        // Held, Space taps once (no pause, play, pause …), an arrow swipes on.
+        app.events.clear()
+        host.hold(Keys.SPACE, " ")
+        host.hold(Keys.MEDIA_PLAY_PAUSE)
+        host.hold(Keys.ARROW_RIGHT, repeats = 2)
+        assertEquals(
+            listOf(GestureKind.CLICK, GestureKind.CLICK) + List(3) { GestureKind.SCROLL_DOWN },
+            app.events.filterIsInstance<AppEvent.Gesture>().map { it.gesture },
+        )
         // A subscribing app gets the keys themselves; Escape still goes back.
         asApp { subscribe(Sensor.KEYS) }
         host.press(Keys.SPACE, " ")
@@ -235,6 +292,13 @@ class AppHostKeysTest {
         assertEquals(listOf(Pair(AppHost.DESKTOP_KEY_STEP, 0f), Pair(0f, -AppHost.DESKTOP_KEY_STEP_FAST)), screen.pointerMoves)
         assertEquals(1, screen.desktopClicks)
         assertEquals(1, screen.desktopBacks)
+        // Held, the arrows go on and Enter clicks once.
+        host.hold(Keys.ARROW_DOWN, repeats = 2)
+        host.hold(Keys.ENTER)
+        host.hold(Keys.ESCAPE)
+        assertEquals(5, screen.pointerMoves.size)
+        assertEquals(2, screen.desktopClicks)
+        assertEquals(2, screen.desktopBacks)
         assertTrue(screen.views.isEmpty())
         // The wheel does nothing there.
         host.wheel(3)
@@ -287,6 +351,37 @@ class AppHostKeysTest {
         assertEquals(AppEvent.TextInput("suche", "katze"), app.events.last())
         assertEquals("a", host.page)
         assertTrue(screen.last.title == "Eins")
+    }
+
+    @Test
+    fun `Enter held on the button that asks does not answer, Enter held to answer clicks nothing`() {
+        ports.hardwareKeyboard = true
+        val (host, app) = asking()
+        // Still held from the click that asked.
+        host.press(Keys.ENTER, repeat = true)
+        host.press(Keys.ESCAPE, repeat = true)
+        assertEquals(AppHost.EDITOR_KIND, host.page)
+        host.type("hund")
+        host.hold(Keys.ENTER)
+        assertEquals(AppEvent.TextInput("suche", "hund"), app.events.last())
+        // The repeats neither clicked "Klick" again nor asked anew.
+        assertEquals("a", host.page)
+        assertEquals(1, app.events.count { it is AppEvent.Click })
+    }
+
+    @Test
+    fun `a question that moves to the glasses takes back the watch's open one`() {
+        val (host, app) = asking()
+        assertEquals(1, ports.questions.size)
+        assertEquals(0, ports.textCancels)
+        // A keyboard comes; the app asks again.
+        ports.hardwareKeyboard = true
+        asApp { askText("zwei", "Noch eine") }
+        assertEquals(AppHost.EDITOR_KIND, host.page)
+        assertEquals(AppEvent.TextInput("suche", null), app.events.last())
+        // The watch no longer shows its input for the old question.
+        assertEquals(1, ports.textCancels)
+        assertEquals(1, ports.questions.size)
     }
 
     @Test

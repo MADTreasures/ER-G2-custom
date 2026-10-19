@@ -309,19 +309,30 @@ Tastatur, Maus ──▶ MainActivity (nur auf dem Touchpad, Brille verbunden; s
   ist, und nur von Geräten, die Android als von außen verbunden meldet; Lautstärke- und Ein-Taste bleiben beim
   System. Überall sonst (Einstellungen, Geräteliste) bedienen Tastatur und Maus die Uhr selbst, mit Compose'
   eigener Fokus-Steuerung. `android:configChanges="keyboard|keyboardHidden|navigation"` hält die Activity,
-  wenn eine Tastatur kommt oder geht.
+  wenn eine Tastatur kommt oder geht. Die Bedienung an der Uhr bleibt dabei, wie sie ist: Touchpad,
+  Doppeltippen, Zahnrad, Krone, Gesten-Modus und Bügel gehen unverändert, auch mit festgehaltenem Zeiger
+  (Android hält nur die Maus fest, Bildschirm und Krone nie); `HardwareEvents` nimmt nur Ereignisse mit der
+  Quelle Maus oder von außen verbundener Tastatur.
 - **Maus:** Ist eine Maus da, hält das Touchpad den Zeiger fest (`requestPointerCapture`, nach jedem
   Fokuswechsel neu): Android meldet dann die rohen Zählwerte der Maus und zeigt keinen eigenen Zeiger.
   Ohne Festhalten liest `HardwareEvents` die relativen Achsen `AXIS_RELATIVE_X/Y`, die auch am Rand der Uhr
   weiterlaufen. `PointerMotion.fromMouse` rechnet Zählwerte in Brillen-Pixel (0,5 Pixel je Zählwert, bei
   schneller Bewegung bis 2,4-mal mehr, mal Zeigertempo). Links = `DesktopController.click()` (also auch „‹“
   und App-Name in der Kopfzeile), rechts = App-Menü, Mitte und Zurück = zurück. Die Zurück-Taste meldet
-  Android zweimal (als Taste der Maus und als `KEYCODE_BACK`); die zweite Meldung innerhalb von 400 ms
-  zählt nicht. Das Rad scrollt die Seite um 48 Pixel je Raste, über einer Web-Seite gesammelt als
+  Android zweimal (als Taste der Maus und als `KEYCODE_BACK`, zur selben Zeit); von den beiden Meldungen
+  eines Drucks zählt eine (die andere innerhalb von 200 ms fällt weg), ein zweiter Druck gleich danach
+  zählt wieder. Mit Predictive Back (Standard für die Ziel-SDK der App ab Android 16) gibt das Fenster
+  `KEYCODE_BACK` den Zurück-Callbacks, bevor `dispatchKeyEvent` es sieht; das Touchpad hat keinen, G2 Watch
+  ginge in den Hintergrund. Deshalb hält `MouseBackGuard` einen `OnBackPressedCallback` bereit, nur solange
+  die Zurück-Taste der Maus gedrückt ist und 500 ms danach; er schluckt genau dieses Zurück. Die Zurück-Geste
+  der Uhr findet zu jeder anderen Zeit keinen und wirkt wie bisher. Das Rad scrollt die Seite um 48 Pixel je Raste, über einer Web-Seite gesammelt als
   `imageScroll` (wie der Zeiger über den Rand, 120 ms).
 - **Tastatur:** `AppHost.key` setzt die Tasten um wie in 02 §7. Für Apps mit `Sensor.KEYS` wird jede Taste ein
   `AppEvent.Key`, außer Esc, Alt+← und `BrowserBack` (zurück) und Menütaste und F10 (App-Menü) und solange eine
-  Seite des Hosts darüber liegt. Ein Abo gilt für die ganze Sitzung; eine App abonniert es deshalb nur auf
+  Seite des Hosts darüber liegt. Eine gehaltene Taste meldet Android wiederholt (`repeat`): Pfeile, Tab,
+  Leertaste und Bild↑/↓ wiederholen sich, zurück, App-Menü und Klick (Enter; auf Seiten mit Gesten auch
+  Leertaste und Play/Pause) gelten einmal je Druck, so flackert das Menü nicht, und Zurück läuft nicht aus
+  der App hinaus. Ein Abo gilt für die ganze Sitzung; eine App abonniert es deshalb nur auf
   den Seiten, die die Tasten selbst brauchen (Browser: die Web-Seite, YouTube: das Video), und bestellt es
   wieder ab, damit auf den Listen die Pfeile den Fokus bewegen.
 - **Belegung:** Ohne Auswahl tippt Android mit `Generic.kcm` (US). Wear OS hat keine Auswahl dafür. Gleicht die
@@ -332,7 +343,9 @@ Tastatur, Maus ──▶ MainActivity (nur auf dem Touchpad, Brille verbunden; s
   des Hosts auf der Brille (`host.text`): Frage, fett die Zeile mit Cursor „|“, die Vorschläge als Knöpfe,
   „Auf der Uhr eingeben“ und eine Zeile Hilfe. Die Tasten bearbeiten die Zeile (höchstens 500 Zeichen), Enter
   antwortet mit `AppEvent.TextInput`, Esc oder Zurück mit `null`. Nichts ist anfangs fokussiert, damit Enter
-  die Zeile schickt und nicht einen Vorschlag; Zeiger und Bügel erreichen die Knöpfe wie sonst.
+  die Zeile schickt und nicht einen Vorschlag; Zeiger und Bügel erreichen die Knöpfe wie sonst. Eine noch
+  gehaltene Taste (Enter auf dem Knopf, der gefragt hat) antwortet nicht. Stand die vorige Frage noch auf der
+  Uhr, nimmt die Uhr ihre Eingabe zurück.
   `AppContext.keyboard` sagt Apps, ob eine Tastatur da ist (der Browser fragt dann bei einem Feld nicht).
 - **Web-Seiten:** `WebAction.Key` und `WebAction.Insert` gehen an das Inhalts-Skript (`key`, `insert`): Es meldet
   der Seite `keydown`/`keyup` und tut, was ein Browser täte, wenn die Seite die Taste nicht selbst nimmt
@@ -346,12 +359,16 @@ Tastatur, Maus ──▶ MainActivity (nur auf dem Touchpad, Brille verbunden; s
   kann das nicht nachholen: HID über Bluetooth Classic ist nur für das System, der GATT-HID-Dienst ist für Apps
   gesperrt.
 - **Grenzen:** Nur mit G2 Watch im Vordergrund und eingeschaltetem Bildschirm (der bleibt an, solange die
-  Brille verbunden ist). Das Scrollen der Magic Mouse braucht den Linux-Treiber `hid-magicmouse`; ob der Kern
+  Brille verbunden ist). Die Zurück-Taste mancher Tastaturen (Browser-Zurück) gibt Android ab Version 16
+  vermutlich gar nicht der App, sondern dem System wie die Zurück-Geste der Uhr; vorher kündigt sie nichts
+  an, das die App abfangen könnte. Esc und Alt+← gehen immer. Das Scrollen der Magic Mouse braucht den Linux-Treiber `hid-magicmouse`; ob der Kern
   der Uhr ihn hat, ist offen (im GKI-Kern der Handys ist er drin).
 - **Auf der Uhr zu prüfen:** `adb shell dumpsys bluetooth_manager | grep -i -A3 hid` (HID-Host an?), Koppeln
   aus der App, `adb shell dumpsys input` nach dem Koppeln (Gerät `external`, Quellen, Belegung), Scrollen der
-  Magic Mouse, Festhalten des Zeigers, ob eine Taste die Uhr zur App weckt, GeckoViews Tastenweg.
-- **Tests:** `HardwareInputTest`, `HardwareEventsTest`, `AppHostKeysTest`, Fälle in `InputRouterTest`,
+  Magic Mouse, Festhalten des Zeigers, ob die Zurück-Taste der Maus G2 Watch vorne lässt, ob eine Taste die
+  Uhr zur App weckt, GeckoViews Tastenweg.
+- **Tests:** `HardwareInputTest`, `HardwareEventsTest` (auch: Touchpad, Krone und Knöpfe der Uhr bleiben bei
+  der Uhr), `MouseCaptureTest`, `MouseBackGuardTest`, `AppHostKeysTest`, Fälle in `InputRouterTest`,
   `PointerTest`, `DesktopControllerTest`, `AppHostWebTest`, `AppJsonTest`, `WebBridgeTest`, `SettingsScreenTest`,
   `TouchpadScreenTest`, `BrowserAppTest`, `YouTubeAppTest`; Bilder `uhr-tastatur-maus.png`,
   `uhr-touchpad-tastatur.png`, `apps-texteingabe.png`.

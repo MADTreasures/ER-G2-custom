@@ -230,10 +230,21 @@ class HardwareInputTest {
     }
 
     @Test
-    fun `the back button counts once although Android reports it twice`() {
-        assertTrue(input.mouseBack(1_000))
-        assertFalse(input.mouseBack(1_050))
-        assertTrue(input.mouseBack(1_000 + HardwareInput.BACK_TWICE_MS))
+    fun `the back button counts once although Android reports it twice, a quick second press again`() {
+        // One press: Android's Back key and the button, at the same time.
+        assertTrue(input.mouseBack(1_000, fromKey = true))
+        assertFalse(input.mouseBack(1_000, fromKey = false))
+        // A second press 150 ms later goes back once more.
+        assertTrue(input.mouseBack(1_150, fromKey = true))
+        assertFalse(input.mouseBack(1_150, fromKey = false))
+        // Also in the other order.
+        assertTrue(input.mouseBack(2_000, fromKey = false))
+        assertFalse(input.mouseBack(2_000, fromKey = true))
+        // Where only one of the two reports comes, every press counts.
+        assertTrue(input.mouseBack(3_000, fromKey = false))
+        assertTrue(input.mouseBack(3_100, fromKey = false))
+        // The other report long after is a press of its own.
+        assertTrue(input.mouseBack(3_100 + HardwareInput.BACK_TWICE_MS, fromKey = true))
     }
 
     @Test

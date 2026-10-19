@@ -55,6 +55,7 @@ class HardwareInput {
     private var buttons = 0
     private var wheelRest = 0f
     private var lastBackMs = Long.MIN_VALUE / 2
+    private var lastBackFromKey = false
     private var lastMoveMs = Long.MIN_VALUE / 2
 
     /**
@@ -132,12 +133,19 @@ class HardwareInput {
     }
 
     /**
-     * Whether a "back" of the mouse at [nowMs] should act: the back button reports itself twice, as a
-     * button and as Android's own Back key, so the second within [BACK_TWICE_MS] is dropped.
+     * Whether a "back" of the mouse at [nowMs] should act: one press of the back button reports itself
+     * twice, as a button and as Android's own Back key ([fromKey]), at the same time. The other report of
+     * the press that just acted, within [BACK_TWICE_MS], is dropped; a second press counts again, however
+     * quick.
      */
-    fun mouseBack(nowMs: Long): Boolean {
-        if (nowMs - lastBackMs < BACK_TWICE_MS) return false
+    fun mouseBack(nowMs: Long, fromKey: Boolean): Boolean {
+        if (fromKey != lastBackFromKey && nowMs - lastBackMs < BACK_TWICE_MS) {
+            // The press is complete: the next report starts a new one.
+            lastBackMs = Long.MIN_VALUE / 2
+            return false
+        }
         lastBackMs = nowMs
+        lastBackFromKey = fromKey
         return true
     }
 
@@ -149,7 +157,8 @@ class HardwareInput {
     }
 
     companion object {
-        const val BACK_TWICE_MS = 400L
+        /** How far apart the two reports of one press of the mouse's back button may be. */
+        const val BACK_TWICE_MS = 200L
 
         /** A move after a pause counts as slow: no acceleration from the time before. */
         const val MOVE_GAP_MS = 100L

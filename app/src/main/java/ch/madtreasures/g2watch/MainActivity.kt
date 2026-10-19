@@ -14,6 +14,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -42,6 +43,7 @@ import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.Stage
 import ch.madtreasures.g2watch.input.KeyLayout
+import ch.madtreasures.g2watch.input.MouseBackGuard
 import ch.madtreasures.g2watch.input.MouseCapture
 import ch.madtreasures.g2watch.ui.AppsScreen
 import ch.madtreasures.g2watch.ui.DevicesScreen
@@ -81,7 +83,21 @@ class MainActivity : ComponentActivity() {
     private var hardwareActive = false
 
     /** Pointer capture for the mouse on the touchpad. */
-    private val capture by lazy { MouseCapture { app.hardware.captured(it) } }
+    private val capture by lazy { MouseCapture { mouse(it, captured = true) } }
+
+    /** Swallows the one system back Android makes of the mouse's back button ([MouseBackGuard]). */
+    private val mouseBack: OnBackPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() = backGuard.used()
+    }
+
+    private val backGuard: MouseBackGuard by lazy { MouseBackGuard(MainScheduler()) { mouseBack.isEnabled = it } }
+
+    /** A mouse event for the glasses; true if it was taken. */
+    private fun mouse(ev: MotionEvent, captured: Boolean): Boolean {
+        val taken = if (captured) app.hardware.captured(ev) else app.hardware.motion(ev)
+        if (taken) backGuard.buttons(ev.buttonState)
+        return taken
+    }
 
     // androidx.core's ComponentActivity marks its dispatchKeyEvent as library-internal, so lint flags every
     // override; overriding the Activity's key dispatch is still the way to see keys before Compose does.
@@ -90,11 +106,11 @@ class MainActivity : ComponentActivity() {
         (hardwareActive && app.hardware.key(event)) || super.dispatchKeyEvent(event)
 
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean =
-        (hardwareActive && app.hardware.motion(ev)) || super.dispatchGenericMotionEvent(ev)
+        (hardwareActive && mouse(ev, captured = false)) || super.dispatchGenericMotionEvent(ev)
 
     /** A mouse's button presses and drags arrive as touches; on the touchpad they are the mouse's, not a finger's. */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean =
-        (hardwareActive && app.hardware.motion(ev)) || super.dispatchTouchEvent(ev)
+        (hardwareActive && mouse(ev, captured = false)) || super.dispatchTouchEvent(ev)
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
@@ -104,6 +120,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Added first, so every screen's own back handler comes before it; it is off unless armed.
+        onBackPressedDispatcher.addCallback(this, mouseBack)
         setContent {
             MaterialTheme {
                 AppScaffold(timeText = { TimeText() }) {

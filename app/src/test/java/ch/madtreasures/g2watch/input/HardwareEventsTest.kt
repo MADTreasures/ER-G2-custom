@@ -86,7 +86,7 @@ class HardwareEventsTest {
     ): MotionEvent {
         val properties = MotionEvent.PointerProperties().apply {
             id = 0
-            toolType = MotionEvent.TOOL_TYPE_MOUSE
+            toolType = if (source == InputDevice.SOURCE_MOUSE) MotionEvent.TOOL_TYPE_MOUSE else MotionEvent.TOOL_TYPE_FINGER
         }
         val coords = MotionEvent.PointerCoords().apply {
             this.x = x
@@ -129,6 +129,11 @@ class HardwareEventsTest {
         assertTrue(key(KeyEvent.KEYCODE_BACK, 0, KeyEvent.ACTION_UP))
         assertTrue(key(KeyEvent.KEYCODE_FORWARD, 0))
         assertEquals(listOf("back"), calls)
+        // Pressed again right away (the test clock stands still): a second back.
+        assertTrue(events.motion(mouseEvent(MotionEvent.ACTION_BUTTON_RELEASE)))
+        assertTrue(key(KeyEvent.KEYCODE_BACK, 0))
+        assertTrue(events.motion(mouseEvent(MotionEvent.ACTION_BUTTON_PRESS, MotionEvent.BUTTON_BACK)))
+        assertEquals(listOf("back", "back"), calls)
     }
 
     @Test
@@ -145,6 +150,35 @@ class HardwareEventsTest {
         assertEquals(listOf("move", "click", "menu", "wheel 1"), calls)
         // A finger on the watch is no mouse.
         assertFalse(events.motion(mouseEvent(MotionEvent.ACTION_DOWN, source = InputDevice.SOURCE_TOUCHSCREEN)))
+    }
+
+    @Test
+    fun `with a keyboard and a mouse there, the watch's own touchpad and crown stay the watch's`() {
+        mouse = true
+        // A finger on the touchpad: it moves, lifts, and taps twice (a click).
+        val finger = listOf(
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP, MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP,
+        )
+        for (action in finger) {
+            assertFalse(events.motion(mouseEvent(action, x = 200f, y = 220f, source = InputDevice.SOURCE_TOUCHSCREEN)))
+        }
+        // The crown (pointer speed).
+        assertFalse(events.motion(mouseEvent(MotionEvent.ACTION_SCROLL, vscroll = 1f, source = InputDevice.SOURCE_ROTARY_ENCODER)))
+        assertTrue(calls.isEmpty())
+        assertTrue(gestures.isEmpty())
+    }
+
+    @Test
+    fun `keys and touches from no device outside the watch are never taken`() {
+        // Android's own predicates: the watch's buttons, screen and crown are no external devices.
+        val own = HardwareEvents(InputRouter(sink) { gestures += it }, layout = { KeyLayout.AUTO })
+        val now = SystemClock.uptimeMillis()
+        assertFalse(own.key(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_STEM_PRIMARY, 0)))
+        assertFalse(own.key(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0)))
+        assertFalse(own.key(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER, 0)))
+        assertFalse(own.motion(mouseEvent(MotionEvent.ACTION_DOWN, source = InputDevice.SOURCE_TOUCHSCREEN)))
+        assertTrue(calls.isEmpty())
     }
 
     @Test

@@ -306,6 +306,8 @@ class YouTubeApp : G2App {
     /** A key of a Bluetooth keyboard on the video page, as on youtube.com. */
     private fun key(k: AppEvent.Key, ui: AppContext) {
         if (current == null || k.ctrl || k.alt || k.meta) return
+        // Held, only the jumps go on: Space pauses once, P and M switch once.
+        if (k.repeat && k.key !in SEEK_KEYS) return
         when (k.key) {
             Keys.SPACE, "k", "K", Keys.MEDIA_PLAY_PAUSE -> playPause(ui)
             Keys.MEDIA_PLAY -> if (state == VideoState.PAUSED || state == VideoState.ENDED) playPause(ui)
@@ -409,6 +411,10 @@ class YouTubeApp : G2App {
         const val LOADING_NOTE = "Lädt … Tippen = Pause, Wischen = ±10 s"
 
         const val SEEK_MS = 10_000L
+
+        /** Keys that jump in the video, and repeat while held. */
+        private val SEEK_KEYS = setOf("j", "J", "l", "L", Keys.ARROW_LEFT, Keys.ARROW_RIGHT, Keys.MEDIA_REWIND, Keys.MEDIA_FAST_FORWARD)
+
         const val MAX_HISTORY = 20
         const val MAX_QUERIES = 5
 

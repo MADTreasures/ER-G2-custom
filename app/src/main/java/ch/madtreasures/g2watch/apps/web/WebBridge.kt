@@ -156,6 +156,9 @@ object WebKeys {
     /** The key code of [key], or [KeyEvent.KEYCODE_UNKNOWN] for a character or a key the page has no use for. */
     fun keyCode(key: String): Int = CODES[key] ?: KeyEvent.KEYCODE_UNKNOWN
 
+    /** What [key] types as text: itself if it is one character, null for a name such as "F5" or "MediaPlayPause". */
+    fun text(key: String): String? = key.takeIf { it.isNotEmpty() && it.codePointCount(0, it.length) == 1 }
+
     /** The meta state of the modifiers, as a left key of each. */
     fun meta(shift: Boolean, ctrl: Boolean, alt: Boolean): Int =
         (if (shift) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0) or

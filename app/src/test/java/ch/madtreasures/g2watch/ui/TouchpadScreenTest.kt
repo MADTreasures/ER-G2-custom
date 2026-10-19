@@ -427,5 +427,9 @@ class TouchpadScreenTest {
         }
         compose.waitForIdle()
         assertTrue(moved.x > 0f)
+        // A double tap still clicks.
+        compose.onRoot().performTouchInput { doubleClick(finger) }
+        compose.waitForIdle()
+        assertEquals(1, clicks)
     }
 }

@@ -126,7 +126,7 @@ internal const val KEY_HELP =
     "Maus: links = Klick, rechts = App-Menü, Mitte oder Zurück-Taste = zurück, Rad = scrollen. " +
         "Tastatur: Pfeile und Tab = nächster Knopf, Enter = Klick, Esc oder Alt+← = zurück, " +
         "Menütaste oder F10 = App-Menü, Leertaste und Bild↑/↓ = scrollen. Fragt eine App nach Text, " +
-        "erscheint die Frage auf der Brille und du tippst dort."
+        "erscheint die Frage auf der Brille, getippt wird dort."
 
 internal const val INPUT_NOTE =
     "Noch nicht auf der Uhr geprüft: ob Wear OS Tastaturen und Mäuse überhaupt annimmt. Eingaben gehen nur, " +

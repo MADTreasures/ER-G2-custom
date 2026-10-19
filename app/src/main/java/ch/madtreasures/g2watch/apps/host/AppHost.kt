@@ -697,12 +697,14 @@ class AppHost(
             return
         }
         val scr = currentScreen() ?: return
-        // Back and the app menu stay the host's, whatever the app subscribed to (02 §5).
+        // Back and the app menu stay the host's, whatever the app subscribed to (02 §5); a held key acts
+        // once, so the menu does not flicker and back does not run on out of the app.
         if (isBack(k)) {
-            backNow()
+            if (!k.repeat) backNow()
             return
         }
         if (isMenu(k)) {
+            if (k.repeat) return
             if (overlay?.kind == MENU_KIND) overlay?.onBack?.invoke() else openMenuNow()
             return
         }
@@ -718,11 +720,12 @@ class AppHost(
             Keys.ARROW_DOWN, Keys.ARROW_RIGHT -> moveFocus(scr, forward = true)
             Keys.ARROW_UP, Keys.ARROW_LEFT -> moveFocus(scr, forward = false)
             Keys.TAB -> moveFocus(scr, forward = !k.shift)
-            Keys.ENTER -> clickFocus(scr)
+            // One click per press, like a tap on a temple; the arrows and the page keys repeat.
+            Keys.ENTER -> if (!k.repeat) clickFocus(scr)
             Keys.SPACE -> scrollPage(scr, forward = !k.shift)
             Keys.PAGE_DOWN -> scrollPage(scr, forward = true)
             Keys.PAGE_UP -> scrollPage(scr, forward = false)
-            Keys.BACKSPACE -> backNow()
+            Keys.BACKSPACE -> if (!k.repeat) backNow()
             else -> Unit
         }
     }
@@ -734,7 +737,7 @@ class AppHost(
     /** The context menu key and F10 (for keyboards without one). */
     private fun isMenu(k: KeyPress) = k.key == Keys.CONTEXT_MENU || k.key == Keys.F10
 
-    /** The bare desktop: the arrows move the pointer, Enter clicks, Escape closes the window. */
+    /** The bare desktop: the arrows move the pointer (also held), Enter clicks, Escape closes the window. */
     private fun desktopKey(k: KeyPress) {
         val step = if (k.shift) DESKTOP_KEY_STEP_FAST else DESKTOP_KEY_STEP
         when {
@@ -742,6 +745,7 @@ class AppHost(
             k.key == Keys.ARROW_RIGHT -> screen.movePointer(step, 0f)
             k.key == Keys.ARROW_UP -> screen.movePointer(0f, -step)
             k.key == Keys.ARROW_DOWN -> screen.movePointer(0f, step)
+            k.repeat -> Unit
             k.key == Keys.ENTER || k.key == Keys.SPACE -> screen.click()
             isBack(k) || k.key == Keys.BACKSPACE -> screen.back()
         }
@@ -750,9 +754,10 @@ class AppHost(
     /**
      * A page that takes gestures (a video) and did not subscribe to keys: the keys a remote has become
      * the watch's gestures. Space, Enter and play/pause tap; right, down and the page key down swipe on
-     * (`scrollDown`), left, up and page up back; Backspace goes back.
+     * (`scrollDown`), left, up and page up back; Backspace goes back. Held, only the swipes repeat.
      */
     private fun gestureKey(k: KeyPress) {
+        if (k.repeat && k.key in GESTURE_ONCE_KEYS) return
         val kind = when (k.key) {
             Keys.SPACE, Keys.ENTER, Keys.MEDIA_PLAY_PAUSE, Keys.MEDIA_PLAY, Keys.MEDIA_PAUSE -> GestureKind.CLICK
             Keys.ARROW_RIGHT, Keys.ARROW_DOWN, Keys.PAGE_DOWN, Keys.MEDIA_FAST_FORWARD -> GestureKind.SCROLL_DOWN
@@ -1137,12 +1142,20 @@ class AppHost(
             throw CommandException.badValue("Höchstens $MAX_SUGGESTIONS Vorschläge mit je 1 bis $MAX_SUGGESTION Zeichen")
         }
         // The open question, if any, is answered with "cancelled" – after this command, not inside it.
-        question?.let { old -> scheduler.post { deliver(old.session, AppEvent.TextInput(old.tag, null)) } }
+        val old = question
+        old?.let { scheduler.post { deliver(it.session, AppEvent.TextInput(it.tag, null)) } }
+        val oldOnWatch = old != null && editor == null
         if (editor != null) closeEditor()
         val q = TextQuestion(s, c.tag, c.prompt, c.suggestions)
         question = q
-        // With a Bluetooth keyboard the question shows on the glasses, and the wearer types there.
-        if (ports.hardwareKeyboard) openEditor(q) else askOnWatch(q)
+        // With a Bluetooth keyboard the question shows on the glasses, and the wearer types there; the
+        // watch takes back its input for the old question (a new one on the watch replaces it anyway).
+        if (ports.hardwareKeyboard) {
+            if (oldOnWatch) ports.cancelText()
+            openEditor(q)
+        } else {
+            askOnWatch(q)
+        }
     }
 
     /** The watch's own keyboard and voice input (RemoteInput), with a hint on the glasses. */
@@ -1209,6 +1222,8 @@ class AppHost(
 
         fun key(k: KeyPress) {
             when {
+                // Held from the key that asked (Enter on a button), Enter must not answer at once.
+                k.repeat && (k.key == Keys.ENTER || isBack(k)) -> return
                 k.key == Keys.ENTER -> return answerEditor(line.toString())
                 isBack(k) -> return answerEditor(null)
                 k.key == Keys.BACKSPACE -> if (cursor > 0) {
@@ -1903,6 +1918,11 @@ class AppHost(
         const val MAX_EDITOR_TEXT = 500
 
         const val MENU_KIND = "host.menu"
+
+        /** Keys a page with gestures takes as a tap or back: once per press, however long held. */
+        private val GESTURE_ONCE_KEYS = setOf(
+            Keys.SPACE, Keys.ENTER, Keys.MEDIA_PLAY_PAUSE, Keys.MEDIA_PLAY, Keys.MEDIA_PAUSE, Keys.BACKSPACE,
+        )
 
         /** Pixels the page scrolls per notch of the mouse wheel. */
         const val WHEEL_STEP = 48

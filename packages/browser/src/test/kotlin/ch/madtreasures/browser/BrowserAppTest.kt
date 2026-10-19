@@ -51,7 +51,8 @@ class BrowserAppTest {
         canForward: Boolean = false,
         field: WebField? = null,
         message: String? = null,
-    ) = send(AppEvent.Web(PICTURE, state, url, title, progress, canBack = false, canForward = canForward, reader = reader, readable = readable, field = field, message = message))
+        canBack: Boolean = false,
+    ) = send(AppEvent.Web(PICTURE, state, url, title, progress, canBack = canBack, canForward = canForward, reader = reader, readable = readable, field = field, message = message))
 
     private fun buttons(page: String) = ui.page(page).blocks.filterIsInstance<Block.Button>().map { it.text }
 
@@ -272,8 +273,40 @@ class BrowserAppTest {
         assertEquals(before, ui.webs.size)
     }
 
-    private fun key(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false, alt: Boolean = false) =
-        send(AppEvent.Key(key, text, shift = shift, ctrl = ctrl, alt = alt))
+    private fun key(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false, alt: Boolean = false, repeat: Boolean = false) =
+        send(AppEvent.Key(key, text, shift = shift, ctrl = ctrl, alt = alt, repeat = repeat))
+
+    @Test
+    fun `held keys type and scroll on, shortcuts and Enter act once`() {
+        started()
+        enter("srf.ch")
+        web(WebState.READY, "https://www.srf.ch/meteo", "SRF Meteo", canBack = true)
+        val before = ui.webs.size
+        key(Keys.ARROW_DOWN)
+        key(Keys.ARROW_DOWN, repeat = true)
+        key(Keys.ENTER)
+        key(Keys.ENTER, repeat = true)
+        key("r", ctrl = true)
+        key("r", ctrl = true, repeat = true)
+        key(Keys.BACKSPACE)
+        key(Keys.BACKSPACE, repeat = true)
+        key("d", ctrl = true)
+        key("d", ctrl = true, repeat = true)
+        assertEquals(
+            listOf(WebAction.Scroll(BrowserApp.LINE), WebAction.Scroll(BrowserApp.LINE), WebAction.Key(Keys.ENTER), WebAction.Reload, WebAction.Back),
+            ui.webs.drop(before).map { it.second },
+        )
+        assertEquals("Lesezeichen: SRF Meteo", ui.toasts.last())
+        // In a field, a held letter and a held Backspace go on.
+        web(WebState.READY, "https://www.srf.ch/meteo", "SRF Meteo", field = WebField("Suche"))
+        key("a", "a")
+        key("a", "a", repeat = true)
+        key(Keys.BACKSPACE, repeat = true)
+        assertEquals(
+            listOf(WebAction.Insert("a"), WebAction.Insert("a"), WebAction.Key(Keys.BACKSPACE)),
+            ui.webs.takeLast(3).map { it.second },
+        )
+    }
 
     @Test
     fun `the page takes the keyboard's keys, the start page leaves them to the watch`() {

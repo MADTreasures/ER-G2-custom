@@ -111,11 +111,12 @@ sealed interface AppEvent {
 
     /**
      * A key of a Bluetooth keyboard on the watch, after subscribing to [Sensor.KEYS] (the host keeps
-     * Escape and Alt+Left for back, ContextMenu and F10 for the app menu). [key] is the name a web page
-     * sees as `KeyboardEvent.key`: a [Keys] name such as "Enter" or "ArrowUp", or the character the key
-     * stands for in the keyboard's layout, Shift and AltGr applied ("a", "A", "@", "é"; with Ctrl still
-     * "l" for Ctrl+L). [text] is what the key types into a field, empty for keys that type nothing and
-     * for shortcuts with Ctrl, Alt or Meta. [repeat] marks the repeats while a key is held. Since
+     * Escape, Alt+Left and the keyboard's own back key for back, ContextMenu and F10 for the app menu).
+     * [key] is the name a web page sees as `KeyboardEvent.key`: a [Keys] name such as "Enter" or
+     * "ArrowUp", or the character the key stands for in the keyboard's layout, Shift and AltGr applied
+     * ("a", "A", "@", "é"; with Ctrl still "l" for Ctrl+L). [text] is what the key types into a field,
+     * empty for keys that type nothing and for shortcuts with Ctrl, Alt or Meta. [repeat] marks the
+     * repeats while a key is held; an app decides which keys may repeat (a toggle should not). Since
      * interface version 3.
      */
     data class Key(

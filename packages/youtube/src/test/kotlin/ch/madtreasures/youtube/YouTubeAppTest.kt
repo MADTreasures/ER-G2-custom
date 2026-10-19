@@ -341,8 +341,28 @@ class YouTubeAppTest {
         assertEquals("kurz", YouTubeApp.shorten("kurz", 23))
     }
 
-    private fun key(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false) =
-        send(AppEvent.Key(key, text, shift = shift, ctrl = ctrl))
+    private fun key(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false, repeat: Boolean = false) =
+        send(AppEvent.Key(key, text, shift = shift, ctrl = ctrl, repeat = repeat))
+
+    @Test
+    fun `held keys pause and switch once, the jumps go on`() {
+        started()
+        playHit(0, VideoState.PLAYING, 60_000)
+        ui.questionAnswered()
+        val before = ui.videos.size
+        key(Keys.SPACE, " ")
+        repeat(3) { key(Keys.SPACE, " ", repeat = true) }
+        key("m", "m")
+        repeat(3) { key("m", "m", repeat = true) }
+        assertEquals(listOf(VideoAction.Pause), ui.videos.drop(before).map { it.second }.filter { it !is VideoAction.Play })
+        assertEquals(1, ui.videos.drop(before).count { it.second is VideoAction.Play })
+        key("/", "/", repeat = true)
+        assertNull(ui.question?.takeIf { it.first == YouTubeApp.ASK_SEARCH })
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 60_000, 296_000))
+        key("l", "l")
+        key("l", "l", repeat = true)
+        assertEquals(VideoAction.Seek(80_000), ui.lastVideo(PICTURE))
+    }
 
     @Test
     fun `a keyboard works the video like on youtube com`() {

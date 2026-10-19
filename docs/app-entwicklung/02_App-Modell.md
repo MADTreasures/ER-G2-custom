@@ -322,9 +322,12 @@ ohne ihr Zutun, solange die Uhr das Touchpad zeigt:
 | Menütaste, F10 | App-Menü | App-Menü |
 
 Die Gesten von Tastatur und Maus kommen mit `source: "watch"`. Nach `subscribe` mit `keys` bekommt die App
-stattdessen jede Taste als Ereignis `key`; nur Esc und Alt+← (zurück), die Menütaste und F10 (App-Menü) behält
-der Host, ebenso alle Tasten, solange eine Seite des Hosts (App-Menü, Frage) darüber liegt. Maus und Rad bleiben
-beim Host. Auf dem Desktop ohne App bewegen die Pfeile den Zeiger, Enter klickt, Esc schließt das Fenster.
+stattdessen jede Taste als Ereignis `key`; nur Esc, Alt+← und die Zurück-Taste der Tastatur (zurück), die
+Menütaste und F10 (App-Menü) behält der Host, ebenso alle Tasten, solange eine Seite des Hosts (App-Menü, Frage)
+darüber liegt. Maus und Rad bleiben beim Host. Auf dem Desktop ohne App bewegen die Pfeile den Zeiger, Enter
+klickt, Esc schließt das Fenster. Eine gehaltene Taste wiederholt sich (beim Ereignis `key` mit `repeat`); was
+der Host selbst damit tut, wiederholt er nur bei Pfeilen, Tab, Leertaste und Bild↑/↓, zurück, App-Menü und
+Klick gelten einmal je Druck.
 
 ## 8. Berechtigungen
 

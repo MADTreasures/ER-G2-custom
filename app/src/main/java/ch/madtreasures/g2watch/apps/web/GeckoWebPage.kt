@@ -137,7 +137,8 @@ internal class GeckoWebPage(
         val input = session?.textInput ?: return
         val code = WebKeys.keyCode(key)
         if (code == KeyEvent.KEYCODE_UNKNOWN) {
-            if (!ctrl && !alt) geckoText(key)
+            // A character types; a name the page has no key for ("F5") does nothing, it is no text.
+            if (!ctrl && !alt) WebKeys.text(key)?.let(::geckoText)
             return
         }
         val meta = WebKeys.meta(shift, ctrl, alt)

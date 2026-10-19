@@ -386,6 +386,9 @@ class BrowserApp : G2App {
     /** A key of a Bluetooth keyboard while the page shows. */
     private fun key(k: AppEvent.Key, ui: AppContext) {
         if (!open) return
+        // Held, shortcuts and Enter act once (one reload, one bookmark, one form sent); typing, the
+        // deleting keys, Tab and scrolling go on.
+        if (k.repeat && (k.ctrl || k.alt || k.meta || k.key in ONCE_KEYS)) return
         val letter = k.key.lowercase()
         when {
             (k.ctrl && letter == "l") || k.key == Keys.F6 -> return askAddress(ui)
@@ -412,7 +415,7 @@ class BrowserApp : G2App {
             Keys.PAGE_UP -> ui.web(PICTURE, WebAction.Scroll(-page))
             // Tab walks links and fields, Enter follows the one with the focus; Home and End jump.
             Keys.TAB, Keys.ENTER, Keys.HOME, Keys.END -> ui.web(PICTURE, WebAction.Key(k.key, k.shift))
-            Keys.BACKSPACE -> if (canBack) ui.web(PICTURE, WebAction.Back)
+            Keys.BACKSPACE -> if (canBack && !k.repeat) ui.web(PICTURE, WebAction.Back)
         }
     }
 
@@ -545,6 +548,9 @@ class BrowserApp : G2App {
 
         /** Pixels an arrow key scrolls the page. */
         const val LINE = 48
+
+        /** Keys that act once per press, however long held. */
+        private val ONCE_KEYS = setOf(Keys.ENTER, Keys.F5, Keys.F6, Keys.BROWSER_FORWARD)
 
         /** Keys that edit or leave the field with the cursor. */
         private val FIELD_KEYS = setOf(

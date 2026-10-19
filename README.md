@@ -179,7 +179,8 @@ Im Gesten-Modus (Video) ist links ein Tippen und das Rad ein Wischen (10 s vor o
 
 Apps können die Tasten auch selbst nehmen (Schnittstelle 3): der [Browser](#web-browser-auf-der-brille) und
 [YouTube](#youtube-auf-der-brille) tun es. Esc, Alt+←, die Menütaste und F10 bleiben aber immer beim Host. Das
-Hilfe-Fenster auf dem Desktop der Brille listet die wichtigsten Tasten.
+Hilfe-Fenster auf dem Desktop der Brille listet die wichtigsten Tasten. Hält man eine Taste, wiederholen sich
+Pfeile, Tab, Leertaste und Bild↑/↓; zurück, App-Menü und Klick gelten einmal je Druck.
 
 **Text tippen:** Fragt eine App nach Text, erscheint die Frage auf der Brille statt auf der Uhr: die Zeile mit
 Cursor, darunter die Vorschläge. ← und →, Pos1 und Ende bewegen den Cursor, Rücktaste und Entf löschen,
@@ -196,6 +197,9 @@ Die Belegung gilt nur, wenn die Tastatur selbst keine hat.
 Brille verbunden ist; auf allen anderen Seiten bedienen sie die Uhr wie gewohnt. G2 Watch muss vorne sein
 und der Bildschirm an (der bleibt an, solange die Brille verbunden ist). Ist eine Maus da, hält die App den
 Mauszeiger fest: Android zeigt dann keinen Zeiger auf der Uhr, und die Bewegung endet nicht am Rand der Uhr.
+Die Bedienung an der Uhr bleibt, wie sie ist: Touchpad, Doppeltippen, Zahnrad, Krone, Gesten und Bügel gehen
+auch mit verbundener Tastatur und Maus und mit festgehaltenem Mauszeiger unverändert (Android hält nur die Maus
+fest, nie den Bildschirm der Uhr).
 
 **Offen, auf der Uhr zu prüfen:**
 
@@ -207,6 +211,9 @@ Mauszeiger fest: Android zeigt dann keinen Zeiger auf der Uhr, und die Bewegung 
 - **Magic Mouse:** Bewegen und Klicken sollten gehen. Scrollen über ihre Oberfläche braucht den
   Linux-Treiber `hid-magicmouse`, den die Uhr vielleicht nicht hat.
 - ob GeckoView Tasten auch direkt annimmt. Der Browser tippt deshalb über sein Skript in die Seite.
+- ob die Zurück-Taste der Maus G2 Watch vorne lässt: Seit Android 16 gibt Android ihr Zurück zuerst dem
+  System; die App fängt es ab, solange die Taste gedrückt ist. Die Zurück-Taste einer Tastatur (falls sie
+  eine hat) kann sie so nicht abfangen; Esc oder Alt+← gehen immer.
 
 ## Eigene Apps installieren
 
@@ -549,7 +556,7 @@ die Uhr offline ist.
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 4 + 492 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 4 + 510 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -584,8 +591,11 @@ Lint ohne Fehler. Die wichtigsten:
   **`FrameBeatTest`**, **`StreamChooserTest`**, **`TrackRulesTest`**, **`TestPatternPlayerTest`**.
 - **Tastatur und Maus:** **`HardwareInputTest`** (Tastennamen, Belegungen Schweiz, Deutschland und USA,
   Akzent-Tasten, Feststelltaste, Maus-Tasten, Rad), **`HardwareEventsTest`** (Androids Tasten- und
-  Mausereignisse, mit und ohne festgehaltenen Mauszeiger), **`AppHostKeysTest`** (Fokus, Enter, zurück,
-  App-Menü, Scrollen, Tasten nur nach Abo, Gesten-Seiten, Desktop, Fragen auf der Brille getippt).
+  Mausereignisse, mit und ohne festgehaltenen Mauszeiger; Touchpad, Krone und Knöpfe der Uhr bleiben bei der
+  Uhr), **`MouseCaptureTest`** (Mauszeiger nur mit Maus festgehalten, nach dem Fokus wieder),
+  **`MouseBackGuardTest`** (Androids Zurück der Maus-Taste abgefangen, die Zurück-Geste der Uhr nicht),
+  **`AppHostKeysTest`** (Fokus, Enter, zurück, App-Menü, Scrollen, gehaltene Tasten, Tasten nur nach Abo,
+  Gesten-Seiten, Desktop, Starter, Fragen auf der Brille getippt).
 - **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel, Tastatur und Maus), **`AppJsonTest`**, **`PageStateTest`**,
   **`BaukastenProjectTest`**, **`AppsBoundaryTest`** (Apps berühren weder Firmware noch Bluetooth, App-Pakete
   nur die Schnittstelle).

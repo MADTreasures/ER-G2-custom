@@ -4,6 +4,7 @@ import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import ch.madtreasures.g2watch.Scheduler
 import ch.madtreasures.g2watch.apps.host.InputRouter
 import java.util.Locale
 
@@ -37,7 +38,7 @@ class HardwareEvents(
         if (code in SYSTEM_KEYS) return false
         if (mouse && (code == KeyEvent.KEYCODE_BACK || code == KeyEvent.KEYCODE_FORWARD)) {
             // Android adds these keys to the mouse's back and forward buttons; the button already counts.
-            if (code == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && input.mouseBack(event.eventTime)) {
+            if (code == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && input.mouseBack(event.eventTime, fromKey = true)) {
                 router.onMouseButton(MouseButton.BACK)
             }
             return true
@@ -65,7 +66,7 @@ class HardwareEvents(
 
     private fun mouse(event: MotionEvent, captured: Boolean) {
         for (button in input.pressed(event.buttonState)) {
-            if (button == MouseButton.BACK && !input.mouseBack(event.eventTime)) continue
+            if (button == MouseButton.BACK && !input.mouseBack(event.eventTime, fromKey = false)) continue
             router.onMouseButton(button)
         }
         when (event.actionMasked) {
@@ -141,5 +142,56 @@ class MouseCapture(private val onEvent: (MotionEvent) -> Boolean) {
     private fun release(v: View) {
         v.setOnCapturedPointerListener(null)
         if (v.hasPointerCapture()) v.releasePointerCapture()
+    }
+}
+
+/**
+ * Keeps the system back that Android makes of a mouse's back button off the watch (03 §5.3). Android
+ * reports that button also as its Back key. With predictive back (the default for this app's target SDK
+ * from Android 16 on) the window hands that key straight to the back callbacks, before
+ * `dispatchKeyEvent` sees it, and the touchpad has none: G2 Watch would go to the background. So from
+ * the moment the button goes down until [RELEASE_MS] after it is up, [arm] (true) asks the activity for a
+ * back callback that swallows that one back ([used]); at any other time the watch's own back gesture
+ * finds no such callback and works as before. Main thread.
+ */
+class MouseBackGuard(private val scheduler: Scheduler, private val arm: (Boolean) -> Unit) {
+    private var down = false
+    private var armed = false
+    private var generation = 0
+
+    /** The button state of a mouse event on the touchpad. */
+    fun buttons(buttonState: Int) {
+        val nowDown = buttonState and MotionEvent.BUTTON_BACK != 0
+        if (nowDown == down) return
+        down = nowDown
+        if (nowDown) {
+            set(true)
+            // Should the release get lost (the window lost its focus meanwhile), the guard still ends.
+            disarmAfter(HOLD_LIMIT_MS)
+        } else if (armed) {
+            disarmAfter(RELEASE_MS)
+        }
+    }
+
+    /** The back callback swallowed the mouse's back. */
+    fun used() = set(false)
+
+    private fun disarmAfter(ms: Long) {
+        val g = ++generation
+        scheduler.postDelayed(ms) { if (g == generation) set(false) }
+    }
+
+    private fun set(on: Boolean) {
+        if (!on) generation++
+        if (on == armed) return
+        armed = on
+        arm(on)
+    }
+
+    companion object {
+        /** Android's Back key follows the button's release at once; this leaves room for a busy main thread. */
+        const val RELEASE_MS = 500L
+
+        const val HOLD_LIMIT_MS = 10_000L
     }
 }

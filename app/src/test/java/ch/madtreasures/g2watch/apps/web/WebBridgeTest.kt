@@ -71,6 +71,13 @@ class WebBridgeTest {
         // Characters go in as text.
         assertEquals(KeyEvent.KEYCODE_UNKNOWN, WebKeys.keyCode("a"))
         assertEquals(KeyEvent.KEYCODE_UNKNOWN, WebKeys.keyCode(Keys.MEDIA_PLAY_PAUSE))
+        // Only a character types as text, never the name of a key.
+        assertEquals("a", WebKeys.text("a"))
+        assertEquals("é", WebKeys.text("é"))
+        assertEquals("😀", WebKeys.text("😀"))
+        for (name in listOf(Keys.F5, Keys.MEDIA_PLAY_PAUSE, Keys.CONTEXT_MENU, Keys.INSERT, Keys.BROWSER_BACK, "")) {
+            assertEquals(name, null, WebKeys.text(name))
+        }
         assertEquals(KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON, WebKeys.meta(shift = true, ctrl = false, alt = false))
         assertEquals(0, WebKeys.meta(shift = false, ctrl = false, alt = false))
     }

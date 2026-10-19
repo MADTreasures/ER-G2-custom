@@ -63,7 +63,7 @@ class PointerTest {
 
     @Test
     fun `a slow mouse is precise, a quick one crosses the glasses`() {
-        // 4 counts in 8 ms: no acceleration beyond the floor.
+        // 4 counts in 8 ms: a slow move, little acceleration.
         val (slowX, _) = PointerMotion.fromMouse(4f, 0f, 8f, 1f)
         assertEquals(4f * PointerMotion.MOUSE_GAIN * (0.6f + 0.5f * 0.3f), slowX, 0.001f)
         // About 5 cm at 800 counts per inch, slowly: roughly the width of the app area.
