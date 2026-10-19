@@ -1,5 +1,7 @@
 package ch.madtreasures.g2watch.apps.web
 
+import android.view.KeyEvent
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.WebField
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -55,6 +57,22 @@ class WebBridgeTest {
         val type = parse(WebBridge.type("Katzen \"im\" Schnee", enter = true))
         assertEquals("Katzen \"im\" Schnee", type["text"]!!.jsonPrimitive.content)
         assertEquals("true", type["enter"]!!.jsonPrimitive.content)
+        assertEquals("""{"kind":"key","key":"Tab","shift":true,"ctrl":false,"alt":false}""", WebBridge.key("Tab", shift = true, ctrl = false, alt = false))
+        assertEquals("ä\"", parse(WebBridge.insert("ä\""))["text"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `web key names map to Android's keys where no script runs`() {
+        assertEquals(KeyEvent.KEYCODE_ENTER, WebKeys.keyCode(Keys.ENTER))
+        assertEquals(KeyEvent.KEYCODE_DEL, WebKeys.keyCode(Keys.BACKSPACE))
+        assertEquals(KeyEvent.KEYCODE_FORWARD_DEL, WebKeys.keyCode(Keys.DELETE))
+        assertEquals(KeyEvent.KEYCODE_DPAD_LEFT, WebKeys.keyCode(Keys.ARROW_LEFT))
+        assertEquals(KeyEvent.KEYCODE_SPACE, WebKeys.keyCode(Keys.SPACE))
+        // Characters go in as text.
+        assertEquals(KeyEvent.KEYCODE_UNKNOWN, WebKeys.keyCode("a"))
+        assertEquals(KeyEvent.KEYCODE_UNKNOWN, WebKeys.keyCode(Keys.MEDIA_PLAY_PAUSE))
+        assertEquals(KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON, WebKeys.meta(shift = true, ctrl = false, alt = false))
+        assertEquals(0, WebKeys.meta(shift = false, ctrl = false, alt = false))
     }
 
     // Unit tests run in the module directory.
@@ -81,7 +99,8 @@ class WebBridgeTest {
         assertTrue(layout.contains("function collectLayout(") && layout.contains("function stage("))
         assertTrue(File(extension, "readability/Readability.js").readText().contains("function Readability("))
         assertTrue(File(extension, "readability/Readability-readerable.js").readText().contains("function isProbablyReaderable("))
-        // Every message kind the engine decodes is one the script sends.
+        // Every message kind the engine decodes is one the script sends, every one it sends the script reads.
         for (kind in listOf("hello", "layout", "staged", "field", "reader", "changed")) assertTrue(kind, content.contains("kind: \"$kind\""))
+        for (kind in listOf("config", "reader", "layout", "stage", "scroll", "type", "key", "insert")) assertTrue(kind, content.contains("case \"$kind\":"))
     }
 }

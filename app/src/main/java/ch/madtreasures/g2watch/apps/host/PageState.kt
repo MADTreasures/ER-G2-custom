@@ -90,10 +90,17 @@ class PageState {
         if (history.lastOrNull() != pageId) history += pageId
     }
 
-    /** Shows [pageId] in place of the current page. */
+    /**
+     * Shows [pageId] in place of the current page. If the page below is [pageId] already, the history
+     * goes back to it instead: a page never follows itself (as with [show]).
+     */
     fun replace(pageId: String) {
         requirePage(pageId)
-        if (history.isEmpty()) history += pageId else history[history.lastIndex] = pageId
+        when {
+            history.isEmpty() -> history += pageId
+            history.size >= 2 && history[history.lastIndex - 1] == pageId -> history.removeAt(history.lastIndex)
+            else -> history[history.lastIndex] = pageId
+        }
     }
 
     /** Sets the history to [ids], oldest first; e.g. to undo what an app changed while going back. */

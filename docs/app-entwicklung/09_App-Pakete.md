@@ -126,22 +126,28 @@ Die DEX-Dateien sind schreibgeschützt, wie es Android ab Version 14 für gelade
 
 ## 5. Schnittstellen-Version
 
-`G2AppApi.VERSION` in [`app-api/`](../../app-api) ist zurzeit **2**. Jedes Paket merkt sich, gegen welche
+`G2AppApi.VERSION` in [`app-api/`](../../app-api) ist zurzeit **3**. Jedes Paket merkt sich, gegen welche
 Version es gebaut ist. Die Uhr-App führt Pakete mit dieser oder einer älteren Version aus.
 
 | Version | Uhr-App | Neu |
 |---|---|---|
 | 1 | 0.6.0 | die ersten App-Pakete |
 | 2 | 0.8.0 | Web-Seiten in Bild-Bausteinen: `AppContext.web`, `WebAction`, `WebState`, `WebField`, `WebContrast`, Ereignisse `AppEvent.Web`, `ImageClick`, `ImageScroll` (03 §12) |
+| 3 | 0.9.0 | Bluetooth-Tastatur: `Sensor.KEYS`, Ereignis `AppEvent.Key` mit den Namen in `Keys`, `WebAction.Key`, `WebAction.Insert`, `AppContext.keyboard` (03 §5.3) |
 
-Ein Paket, das jetzt gebaut wird, trägt Version 2, auch wenn es nichts Neues benutzt (etwa YouTube): Es braucht
-dann die Uhr-App 0.8.0. Ein schon installiertes Paket mit Version 1 läuft weiter.
+Ein Paket, das jetzt gebaut wird, trägt Version 3, auch wenn es nichts Neues benutzt: Es braucht dann die
+Uhr-App 0.9.0. Schon installierte Pakete mit Version 1 oder 2 laufen weiter; die Tastatur bedient sie über die
+Tasten des Hosts (Fokus, Klick, zurück, scrollen), und das neue Ereignis bekommen sie nie, weil sie `keys` nicht
+abonnieren.
 
 Deshalb **wächst die Schnittstelle nur**: neue Befehle, Ereignisse, Bausteine oder Felder mit Vorgabewert
 kommen dazu, nichts wird umbenannt oder entfernt. Vorsicht bei Feldern: Eine Klasse, die Pakete selbst
 anlegen (etwa `Block.Image`), bekommt kein neues Feld – ein Kotlin-Konstruktor mit einem Parameter mehr hat
 eine andere Signatur, und ältere Pakete fänden den alten nicht mehr. Version 2 kam deshalb nur mit neuen
-Klassen, einer neuen Methode und neuen Ereignissen aus. Mit jeder Erweiterung steigt `VERSION` um eins. Ein Paket
+Klassen, einer neuen Methode und neuen Ereignissen aus, Version 3 mit einem neuen Sensor-Wert, neuen Klassen und
+einer Eigenschaft von `AppContext`, die die Uhr-App bereitstellt. Neue Ereignisse bekommt eine App nur auf
+Bestellung (`subscribe`): Ein altes Paket, dessen `when` jeden ihm bekannten Fall abdeckt, sähe sonst einen
+unbekannten und stürzte ab. Mit jeder Erweiterung steigt `VERSION` um eins. Ein Paket
 für eine neuere Version lehnt die Uhr ab („braucht eine neuere Uhr-App“). Dann zuerst die Uhr-App
 aktualisieren.
 

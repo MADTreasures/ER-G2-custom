@@ -17,9 +17,11 @@ object G2AppApi {
      * packages built for this version or an older one: the interface only grows.
      *
      * 1: the first app packages (v0.6.0). 2: web pages in image blocks ([AppContext.web], [WebAction],
-     * [AppEvent.Web], [AppEvent.ImageClick], [AppEvent.ImageScroll]; v0.8.0).
+     * [AppEvent.Web], [AppEvent.ImageClick], [AppEvent.ImageScroll]; v0.8.0). 3: Bluetooth keyboards
+     * ([Sensor.KEYS], [AppEvent.Key], [Keys], [WebAction.Key], [WebAction.Insert], [AppContext.keyboard];
+     * v0.9.0).
      */
-    const val VERSION = 2
+    const val VERSION = 3
 }
 
 /** A broken or unsuitable app package; [message] is German and meant for the wearer. */

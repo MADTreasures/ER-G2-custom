@@ -7,9 +7,11 @@ import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.G2App
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputMode
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
+import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.VideoAction
 import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
@@ -35,6 +37,10 @@ import java.text.BreakIterator
  * up to 15 pictures a second). "Testbild" plays the watch's own test video, without internet. An app
  * package (09): the watch app does search, streaming and decoding, this class only the pages and the
  * remote control.
+ *
+ * A Bluetooth keyboard works the video like on youtube.com (since interface version 3): Space, K or the
+ * play key pause and go on, J or ← and L or → jump 10 s, P switches the profile, M the sound, and "/"
+ * asks for a new search, which ends the video once it is entered.
  */
 class YouTubeApp : G2App {
 
@@ -69,8 +75,9 @@ class YouTubeApp : G2App {
             is AppEvent.Toggle -> if (event.block == SOUND) setSound(event.on, ui)
             is AppEvent.TextInput -> if (event.tag == ASK_SEARCH) search(event.text, ui)
             is AppEvent.Video -> if (event.block == PICTURE) videoChanged(event, ui)
-            // Only the video page takes gestures.
+            // Only the video page takes gestures, and keys.
             is AppEvent.Gesture -> gesture(event.gesture, ui)
+            is AppEvent.Key -> key(event, ui)
             is AppEvent.Back -> if (event.page == VIDEO) stopVideo(ui)
             is AppEvent.Menu -> menu(event.item, ui)
             else -> Unit
@@ -166,7 +173,14 @@ class YouTubeApp : G2App {
         save(ui)
         hits = emptyList()
         ui.definePages(listOf(resultsPage(listOf(Block.Text(RESULTS_STATUS, "Suche läuft …")), query)))
-        ui.show(RESULTS)
+        // A search from the video ("/") ends it; the hits take the video's place, back leads to the start.
+        val fromVideo = current != null
+        if (fromVideo) {
+            leaveVideo(ui)
+            ui.replace(RESULTS)
+        } else {
+            ui.show(RESULTS)
+        }
         ui.videoSearch(query) { result -> showResults(query, result, ui) }
     }
 
@@ -225,6 +239,7 @@ class YouTubeApp : G2App {
         // A fresh page: black picture, a note how it works until the title comes.
         ui.definePages(listOf(videoPage()))
         ui.show(VIDEO)
+        ui.subscribe(Sensor.KEYS)
         ui.video(PICTURE, VideoAction.Play(item.url, profile, sound))
         ui.menu(menuItems())
         ui.toast(LOADING_NOTE, LONG_NOTE_MS)
@@ -232,12 +247,18 @@ class YouTubeApp : G2App {
 
     private fun stopVideo(ui: AppContext) {
         if (current == null) return
-        ui.video(PICTURE, VideoAction.Stop)
-        current = null
-        ui.menu(menuItems())
+        leaveVideo(ui)
         showHistory(ui)
         // A note stays up to 10 s, also over the list; "Pause … tippen: weiter" would be wrong there.
         ui.toast("Video beendet", SHORT_NOTE_MS)
+    }
+
+    /** The video ends: no more pictures, keys or video menu. */
+    private fun leaveVideo(ui: AppContext) {
+        ui.video(PICTURE, VideoAction.Stop)
+        current = null
+        ui.unsubscribe(Sensor.KEYS)
+        ui.menu(menuItems())
     }
 
     /** A note over the picture when the state changes; the position alone (every second) says nothing new. */
@@ -265,15 +286,35 @@ class YouTubeApp : G2App {
     private fun gesture(kind: GestureKind, ui: AppContext) {
         if (current == null) return
         when (kind) {
-            GestureKind.CLICK -> when (state) {
-                VideoState.PLAYING, VideoState.BUFFERING, VideoState.LOADING -> ui.video(PICTURE, VideoAction.Pause)
-                VideoState.PAUSED, VideoState.ENDED -> ui.video(PICTURE, VideoAction.Resume)
-                VideoState.ERROR -> current?.let { play(it, ui) }
-            }
+            GestureKind.CLICK -> playPause(ui)
             GestureKind.SCROLL_DOWN -> seek(SEEK_MS, ui)
             GestureKind.SCROLL_UP -> seek(-SEEK_MS, ui)
             GestureKind.LONG_PRESS, GestureKind.SWIPE_LEFT -> nextProfile(ui)
             else -> Unit
+        }
+    }
+
+    /** A tap: pause, go on, or try again after an error. */
+    private fun playPause(ui: AppContext) {
+        when (state) {
+            VideoState.PLAYING, VideoState.BUFFERING, VideoState.LOADING -> ui.video(PICTURE, VideoAction.Pause)
+            VideoState.PAUSED, VideoState.ENDED -> ui.video(PICTURE, VideoAction.Resume)
+            VideoState.ERROR -> current?.let { play(it, ui) }
+        }
+    }
+
+    /** A key of a Bluetooth keyboard on the video page, as on youtube.com. */
+    private fun key(k: AppEvent.Key, ui: AppContext) {
+        if (current == null || k.ctrl || k.alt || k.meta) return
+        when (k.key) {
+            Keys.SPACE, "k", "K", Keys.MEDIA_PLAY_PAUSE -> playPause(ui)
+            Keys.MEDIA_PLAY -> if (state == VideoState.PAUSED || state == VideoState.ENDED) playPause(ui)
+            Keys.MEDIA_PAUSE -> if (state == VideoState.PLAYING || state == VideoState.BUFFERING) playPause(ui)
+            "j", "J", Keys.ARROW_LEFT, Keys.MEDIA_REWIND -> seek(-SEEK_MS, ui)
+            "l", "L", Keys.ARROW_RIGHT, Keys.MEDIA_FAST_FORWARD -> seek(SEEK_MS, ui)
+            "p", "P" -> nextProfile(ui)
+            "m", "M" -> setSound(!sound, ui)
+            "/" -> askSearch(ui)
         }
     }
 

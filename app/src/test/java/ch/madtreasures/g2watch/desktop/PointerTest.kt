@@ -62,6 +62,22 @@ class PointerTest {
     }
 
     @Test
+    fun `a slow mouse is precise, a quick one crosses the glasses`() {
+        // 4 counts in 8 ms: no acceleration beyond the floor.
+        val (slowX, _) = PointerMotion.fromMouse(4f, 0f, 8f, 1f)
+        assertEquals(4f * PointerMotion.MOUSE_GAIN * (0.6f + 0.5f * 0.3f), slowX, 0.001f)
+        // About 5 cm at 800 counts per inch, slowly: roughly the width of the app area.
+        val (across, _) = PointerMotion.fromMouse(1600f, 0f, 1600f, 1f)
+        assertEquals(1600f * PointerMotion.MOUSE_GAIN * 0.9f, across, 0.5f)
+        // A flick at its cap; the pointer speed scales it like the finger's.
+        val (fast, fastY) = PointerMotion.fromMouse(80f, -40f, 8f, 2f)
+        assertEquals(80f * PointerMotion.MOUSE_GAIN * 2.4f * 2f, fast, 0.001f)
+        assertEquals(-40f * PointerMotion.MOUSE_GAIN * 2.4f * 2f, fastY, 0.001f)
+        val (limited, _) = PointerMotion.fromMouse(4f, 0f, 8f, 100f)
+        assertEquals(4f * PointerMotion.MOUSE_GAIN * 0.75f * PointerMotion.MAX_SPEED, limited, 0.001f)
+    }
+
+    @Test
     fun `sprite uses only the color-key values`() {
         assertEquals(11, PointerSprite.width)
         assertEquals(17, PointerSprite.height)

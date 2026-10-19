@@ -34,6 +34,9 @@ import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.GlassesState
 import ch.madtreasures.g2watch.glasses.Stage
 import ch.madtreasures.g2watch.glasses.TransferStats
+import ch.madtreasures.g2watch.input.ExternalDevice
+import ch.madtreasures.g2watch.input.HidPairing
+import ch.madtreasures.g2watch.input.KeyLayout
 import java.io.File
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -209,13 +212,29 @@ class WatchSnapshotTest {
     }
 
     @Test
+    fun touchpadKeyboard() = snapshot("uhr-touchpad-tastatur") {
+        TouchpadScreen(connected, 1f, { _, _ -> }, {}, {}, {}, timeSource = FixedTime, inputHint = inputHint(keyboard = true, mouse = true))
+    }
+
+    @Test
+    fun inputDevices() = snapshot("uhr-tastatur-maus") {
+        InputDevicesScreen(
+            devices = listOf(ExternalDevice(1, "Keychron K3", keyboard = true, mouse = false), ExternalDevice(2, "Magic Mouse", keyboard = false, mouse = true)),
+            layout = KeyLayout.AUTO,
+            autoLayout = KeyLayout.SWISS,
+            pairing = HidPairing.State(),
+            onLayout = {}, onScan = {}, onPair = {}, onBluetoothSettings = {}, onBack = {},
+        )
+    }
+
+    @Test
     fun settingsTransfer() = settingsSnapshot("uhr-einstellungen-log", FRAMES_TEXT)
 
     @Test
     fun settingsFirmware() = settingsSnapshot("uhr-einstellungen-firmware", "Custom-Firmware")
 
     @Test
-    fun settingsPointer() = settingsSnapshot("uhr-einstellungen-zeiger", "Protokoll")
+    fun settingsPointer() = settingsSnapshot("uhr-einstellungen-zeiger", "Zeiger zentrieren")
 
     @Test
     fun firmwareConfirm() = snapshot("uhr-firmware-bestaetigen") {

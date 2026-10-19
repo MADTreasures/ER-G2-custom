@@ -114,14 +114,17 @@ class DesktopRenderer(private val text: TextPainter) {
                 "Brille: ${percent(status.glassesBattery)}" + if (status.glassesCharging) " (lädt)" else "",
                 "Uhr: ${percent(status.watchBattery)}",
             )
+            // Eight lines fit in the smaller size.
             AppId.HELP -> lines(
-                target, body,
+                target, body, SMALL, 2,
                 "Finger auf der Uhr: Zeiger bewegen",
                 "Doppeltipp auf der Uhr: Klick",
                 "Zahnrad auf der Uhr halten: Einstellungen",
                 "Bügel: Tipp = Klick, Doppeltipp = zurück",
                 "In Apps: Wischen am Bügel = nächster Knopf",
                 "Tippen, dann halten = App-Menü",
+                "Tastatur: Pfeile = Knopf, Enter = Klick, Esc = zurück",
+                "Maus: links = Klick, rechts = Menü, Rad = scrollen",
             )
         }
         for ((id, rect) in layout.buttons(app)) {
@@ -142,11 +145,13 @@ class DesktopRenderer(private val text: TextPainter) {
         text.draw(target, s, x, y, size, value, bold)
     }
 
-    private fun lines(target: GrayRaster, body: Rect, vararg lines: String) {
+    private fun lines(target: GrayRaster, body: Rect, vararg lines: String) = lines(target, body, MEDIUM, 4, *lines)
+
+    private fun lines(target: GrayRaster, body: Rect, size: Int, gap: Int, vararg lines: String) {
         var y = body.y + 6
         for (line in lines) {
-            if (line.isNotEmpty()) text.draw(target, line, body.x + 8, y, MEDIUM, TEXT)
-            y += text.lineHeight(MEDIUM) + 4
+            if (line.isNotEmpty()) text.draw(target, line, body.x + 8, y, size, TEXT)
+            y += text.lineHeight(size) + gap
         }
     }
 

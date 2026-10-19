@@ -437,6 +437,7 @@ Aufbau, Dateien und Tests der Uhr-App-Seite: [03 §12](03_Uhr-Apps.md#12-web-sei
 | Scrollen | Bügel-Wischen (¾ Bildhöhe), Zeiger über den Rand → `imageScroll` → `Scroll` → das Skript scrollt das Fenster oder die innere Box unter der Mitte |
 | Adresse | Tastatur oder Sprache der Uhr (`askText`); Host-Namen auch gesprochen („srf punkt ch“), sonst Suche bei DuckDuckGo (Textfassung) |
 | Eingabefelder | das Skript meldet das Feld mit dem Cursor (Beschriftung, Inhalt, Passwort, mehrzeilig); nach einem Tippen darauf fragt die Uhr nach dem Text, `Type` schreibt ihn hinein und drückt Enter |
+| Bluetooth-Tastatur (seit v0.9.0) | auf der Seite bestellt der Browser die Tasten (`keys`): Zeichen → `Insert`, Bearbeiten, Tab und Enter → `Key`, das Skript meldet sie der Seite und schreibt selbst ins Feld; ohne Feld scrollen Pfeile, Leertaste und Bild↑/↓; Strg+L/F6, Strg+R/F5, Alt+→, Strg+D ([03 §5.3](03_Uhr-Apps.md#53-tastatur-und-maus)) |
 | Lesemodus | Standard an: Artikel (Mozillas Readability, Apache-2.0) als reiner Text, 18 CSS-Pixel, hell auf Schwarz; an/aus im App-Menü |
 | Lesezeichen, Verlauf | im Speicher der App (Lesezeichen auch im App-Menü), Verlauf der letzten 20 Seiten |
 | Zurück | erst durch den Verlauf der Seite (macht der Host), dann zur Startseite |

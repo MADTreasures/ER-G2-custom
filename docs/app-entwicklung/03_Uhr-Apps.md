@@ -8,7 +8,7 @@ Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 **Stand:** Der App-Host ist gebaut (M1, v0.4.0, aus Pull Request #2; Pull Request #1 enthält einen zweiten,
 der nicht zusätzlich übernommen wird), dazu seit v0.5.0 Texteingabe auf der Uhr und Video auf der Brille mit
 der App YouTube (§10), seit v0.5.2 Emoji in allen Texten (§11), seit v0.8.0 Web-Seiten in Bild-Bausteinen mit
-der App Browser (§12); nichts davon ist auf Hardware erprobt.
+der App Browser (§12), seit v0.9.0 Bluetooth-Tastatur und -Maus (§5.3); nichts davon ist auf Hardware erprobt.
 Dieses Kapitel beschreibt erst, was eine App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was
 bei der Umsetzung dazukam oder anders wurde als ursprünglich geplant, steht in §9 bis §12.
 
@@ -142,7 +142,8 @@ interface AppContext {
     fun askText(tag: String, prompt: String, suggestions: List<String> = emptyList())  // v0.5.0: keyboard/voice on the watch → AppEvent.TextInput
     fun video(block: String, action: VideoAction)          // v0.5.0: Play(src, profile, sound, startMs), Pause, Resume, Seek, Profile, Stop → AppEvent.Video (§10)
     fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit)  // v0.5.0: YouTube search; needs Permission.NETWORK
-    fun web(block: String, action: WebAction)              // v0.8.0 (interface 2): Open(url, reader), Back, Forward, Reload, Scroll, Tap, Type, Reader, Contrast, Stop → AppEvent.Web (§12)
+    fun web(block: String, action: WebAction)              // v0.8.0 (interface 2): Open(url, reader), Back, Forward, Reload, Scroll, Tap, Type, Reader, Contrast, Stop → AppEvent.Web (§12); v0.9.0 (interface 3): Key, Insert
+    val keyboard: Boolean                                  // v0.9.0 (interface 3): a Bluetooth keyboard is connected (§5.3)
     val storage: AppStorage                                // get(key): JsonElement?, set(key, JsonElement); ≤ 256 KiB per app
     fun log(message: String)                               // goes to Settings → Protokoll
     fun close()
@@ -170,6 +171,7 @@ sealed interface AppEvent {
     data class Web(val block: String, val state: WebState, val url: String, val title: String, /* progress, canBack, canForward, reader, readable, field, message */) : AppEvent  // v0.8.0
     data class ImageClick(val page: String, val block: String, val x: Int, val y: Int) : AppEvent   // v0.8.0, on a web page
     data class ImageScroll(val page: String, val block: String, val dy: Int) : AppEvent            // v0.8.0, on a web page
+    data class Key(val key: String, val text: String, val shift: Boolean, val ctrl: Boolean, val alt: Boolean, val meta: Boolean, val repeat: Boolean) : AppEvent  // v0.9.0, after subscribe(Sensor.KEYS)
 }
 ```
 
@@ -205,7 +207,8 @@ Threads und GeckoView-Prozesse, [05](05_EvenHub-Apps.md)).
 ## 5. Plattform: der App-Host (zu bauen in M1)
 
 ```
-Touchpad / Bügel / Ring ──▶ InputRouter ──▶ AppHost (Thread „G2Watch-apps“) ──▶ G2App.onEvent
+Touchpad / Bügel / Ring /
+Tastatur & Maus (seit v0.9.0) ──▶ InputRouter ──▶ AppHost (Thread „G2Watch-apps“) ──▶ G2App.onEvent
                                               │  Sitzungen, Verlauf, Fokus, Timer, Berechtigungen,
                                               │  Starter, App-Menü
                                               ▼  (neuester Stand)
@@ -223,7 +226,7 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 | `G2App.kt`, `AppContext.kt`, `AppManifest.kt` | die Schnittstelle aus §2 |
 | `host/AppHost.kt` | Sitzungen starten/stoppen, `start` + `visible`, Verlauf (Zurück), Fokus, Timer, Zeitmessung (50/500 ms), Berechtigungsabfrage, App-Menü |
 | `host/AppThread.kt` | ein Thread für alle Apps (`Scheduler`-Schnittstelle wie `ThreadScheduler`) |
-| `host/InputRouter.kt` | Gesten von Uhr und Brille nach §5.1 in Zeiger, Fokus oder `gesture`-Ereignisse |
+| `host/InputRouter.kt` | Gesten von Uhr und Brille nach §5.1 in Zeiger, Fokus oder `gesture`-Ereignisse; seit v0.9.0 auch Tastatur und Maus (§5.3) |
 | `render/PageRenderer.kt` | Seite + Zustand (Fokus, Scroll, Zeiger) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine) |
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
 | `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende markiert |
@@ -276,6 +279,83 @@ Even-Hub-Apps sind keine `G2App`. Der App-Host bekommt dafür in M1 schon die An
 | Brillen-Status | Akku, Laden, „getragen“ der Brille als beobachtbarer Wert. Akku und Laden stehen heute schon in `GlassesState`; „getragen“ braucht `enableWearDetectionAndRequestState()`, das die Uhr-App bisher nicht aufruft. |
 | App-Menü-Einträge | eine interne Sitzung kann eigene Einträge setzen und bekommt die Auswahl zurück |
 
+### 5.3 Tastatur und Maus
+
+Seit v0.9.0 bedienen eine Bluetooth-Tastatur und -Maus die Brille (Bedienung für Trägerinnen: README,
+Abschnitt „Tastatur und Maus“; was sie in welcher Eingabeart tun: [02 §7](02_App-Modell.md#7-eingabe-und-fokus)).
+**Nicht auf Hardware erprobt**, und ob Wear OS auf der Pixel Watch HID-Geräte überhaupt annimmt, ist offen.
+
+```
+Tastatur, Maus ──▶ MainActivity (nur auf dem Touchpad, Brille verbunden; sonst die Uhr wie gewohnt)
+                     │ dispatchKeyEvent · dispatchTouchEvent / dispatchGenericMotionEvent · festgehaltener Zeiger
+                     ▼
+                 HardwareEvents (input/) ──▶ HardwareInput: Taste → KeyPress, Maus-Tasten, Rad-Rasten
+                     ▼
+                 InputRouter ──▶ HardwareSink: Zeiger, Klick, zurück → DesktopController
+                                               Tasten, Rad, App-Menü → AppHost
+                             ──▶ Gesten (Gesten-Modus: links = click, Rad = scrollUp/scrollDown)
+```
+
+| Datei | Aufgabe |
+|---|---|
+| `input/InputDevices.kt` | Tastaturen und Mäuse von Androids `InputManager` (nur von außen verbundene, `isExternal`), als `StateFlow`; ob eine Tastatur Androids US-Belegung „Generic“ hat |
+| `input/HardwareInput.kt` | reines Kotlin: Taste → `KeyPress` (Name wie `KeyboardEvent.key`, getippter Text, Umschalt/Strg/Alt/Meta, Wiederholung), Akzent-Tasten, Maus-Tasten als Flanken, Rad-Rasten (Teile summiert), die doppelt gemeldete Zurück-Taste der Maus |
+| `input/KeyLayouts.kt` | eigene Belegungen nach Scan-Code (Platz der Taste): Schweiz, Deutschland, USA, nach Androids `keyboard_layout_swiss_german.kcm` und `keyboard_layout_german.kcm`; *Automatisch* nach der Sprache der Uhr |
+| `input/HardwareEvents.kt` | Androids `KeyEvent`/`MotionEvent` von außen verbundenen Geräten → `HardwareInput` → `InputRouter`; `MouseCapture`: Zeiger festhalten |
+| `input/HidPairing.kt` | „Gerät koppeln“: klassische Suche und LE-Suche nach dem HID-Dienst 0x1812, dann `createBond()` |
+| `ui/InputDevicesScreen.kt` | Einstellungen → „Tastatur & Maus“ |
+
+- **Wann:** Die Activity gibt Ereignisse nur weiter, solange das Touchpad zu sehen und die Brille verbunden
+  ist, und nur von Geräten, die Android als von außen verbunden meldet; Lautstärke- und Ein-Taste bleiben beim
+  System. Überall sonst (Einstellungen, Geräteliste) bedienen Tastatur und Maus die Uhr selbst, mit Compose'
+  eigener Fokus-Steuerung. `android:configChanges="keyboard|keyboardHidden|navigation"` hält die Activity,
+  wenn eine Tastatur kommt oder geht.
+- **Maus:** Ist eine Maus da, hält das Touchpad den Zeiger fest (`requestPointerCapture`, nach jedem
+  Fokuswechsel neu): Android meldet dann die rohen Zählwerte der Maus und zeigt keinen eigenen Zeiger.
+  Ohne Festhalten liest `HardwareEvents` die relativen Achsen `AXIS_RELATIVE_X/Y`, die auch am Rand der Uhr
+  weiterlaufen. `PointerMotion.fromMouse` rechnet Zählwerte in Brillen-Pixel (0,5 Pixel je Zählwert, bei
+  schneller Bewegung bis 2,4-mal mehr, mal Zeigertempo). Links = `DesktopController.click()` (also auch „‹“
+  und App-Name in der Kopfzeile), rechts = App-Menü, Mitte und Zurück = zurück. Die Zurück-Taste meldet
+  Android zweimal (als Taste der Maus und als `KEYCODE_BACK`); die zweite Meldung innerhalb von 400 ms
+  zählt nicht. Das Rad scrollt die Seite um 48 Pixel je Raste, über einer Web-Seite gesammelt als
+  `imageScroll` (wie der Zeiger über den Rand, 120 ms).
+- **Tastatur:** `AppHost.key` setzt die Tasten um wie in 02 §7. Für Apps mit `Sensor.KEYS` wird jede Taste ein
+  `AppEvent.Key`, außer Esc, Alt+← und `BrowserBack` (zurück) und Menütaste und F10 (App-Menü) und solange eine
+  Seite des Hosts darüber liegt. Ein Abo gilt für die ganze Sitzung; eine App abonniert es deshalb nur auf
+  den Seiten, die die Tasten selbst brauchen (Browser: die Web-Seite, YouTube: das Video), und bestellt es
+  wieder ab, damit auf den Listen die Pfeile den Fokus bewegen.
+- **Belegung:** Ohne Auswahl tippt Android mit `Generic.kcm` (US). Wear OS hat keine Auswahl dafür. Gleicht die
+  Zeichentabelle der Tastatur `Generic` (Probe auf Y, Z, `[`, `;` und weitere), nimmt `HardwareInput` die
+  gewählte eigene Belegung nach Scan-Code; sonst die der Tastatur. Akzent-Tasten (^ ´ ` ~ ¨) warten auf den
+  nächsten Buchstaben (Unicode-Komposition, NFC); Leerzeichen oder die Taste zweimal ergibt das Zeichen selbst.
+- **Text:** Ist eine Tastatur verbunden (`HostPorts.hardwareKeyboard`), zeigt `askText` die Frage als Seite
+  des Hosts auf der Brille (`host.text`): Frage, fett die Zeile mit Cursor „|“, die Vorschläge als Knöpfe,
+  „Auf der Uhr eingeben“ und eine Zeile Hilfe. Die Tasten bearbeiten die Zeile (höchstens 500 Zeichen), Enter
+  antwortet mit `AppEvent.TextInput`, Esc oder Zurück mit `null`. Nichts ist anfangs fokussiert, damit Enter
+  die Zeile schickt und nicht einen Vorschlag; Zeiger und Bügel erreichen die Knöpfe wie sonst.
+  `AppContext.keyboard` sagt Apps, ob eine Tastatur da ist (der Browser fragt dann bei einem Feld nicht).
+- **Web-Seiten:** `WebAction.Key` und `WebAction.Insert` gehen an das Inhalts-Skript (`key`, `insert`): Es meldet
+  der Seite `keydown`/`keyup` und tut, was ein Browser täte, wenn die Seite die Taste nicht selbst nimmt
+  (ins Feld schreiben mit `execCommand("insertText")` oder `setRangeText`, löschen, Cursor bewegen, Formular
+  schicken, mit Tab zum nächsten Link oder Feld, Enter folgt dem Link). GeckoViews `SessionTextInput` bekommt
+  die Tasten nur, wo kein Skript läuft (Fehlerseiten): Ob es ohne sichtbare Ansicht tippt, lässt sich ohne Uhr
+  nicht prüfen, das Skript schon.
+- **Koppeln:** Wear OS zeigt Tastaturen und Mäuse in seiner Bluetooth-Liste nicht. `HidPairing` sucht deshalb
+  selbst (15 s, mit den Bluetooth-Rechten, die die App schon hat) und ruft `createBond()`. Verbinden muss danach
+  Android selbst, über seinen HID-Host; ein Wear OS ohne diesen Teil nimmt das Gerät nicht als Eingabe. Eine App
+  kann das nicht nachholen: HID über Bluetooth Classic ist nur für das System, der GATT-HID-Dienst ist für Apps
+  gesperrt.
+- **Grenzen:** Nur mit G2 Watch im Vordergrund und eingeschaltetem Bildschirm (der bleibt an, solange die
+  Brille verbunden ist). Das Scrollen der Magic Mouse braucht den Linux-Treiber `hid-magicmouse`; ob der Kern
+  der Uhr ihn hat, ist offen (im GKI-Kern der Handys ist er drin).
+- **Auf der Uhr zu prüfen:** `adb shell dumpsys bluetooth_manager | grep -i -A3 hid` (HID-Host an?), Koppeln
+  aus der App, `adb shell dumpsys input` nach dem Koppeln (Gerät `external`, Quellen, Belegung), Scrollen der
+  Magic Mouse, Festhalten des Zeigers, ob eine Taste die Uhr zur App weckt, GeckoViews Tastenweg.
+- **Tests:** `HardwareInputTest`, `HardwareEventsTest`, `AppHostKeysTest`, Fälle in `InputRouterTest`,
+  `PointerTest`, `DesktopControllerTest`, `AppHostWebTest`, `AppJsonTest`, `WebBridgeTest`, `SettingsScreenTest`,
+  `TouchpadScreenTest`, `BrowserAppTest`, `YouTubeAppTest`; Bilder `uhr-tastatur-maus.png`,
+  `uhr-touchpad-tastatur.png`, `apps-texteingabe.png`.
+
 ## 6. Sensoren, Mikrofon, Summer (M6)
 
 Alles liegt in `GlassesSessionCore`. Der AppHost schaltet es nur ein, solange eine sichtbare App es
@@ -316,7 +396,7 @@ abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).
 - `AppHostTest` mit `FakeScheduler`: `start` gefolgt von `visible`, Zurück auf der ersten Seite schließt,
   500-ms-Grenze beendet, Timer ruhen im Hintergrund ohne `BACKGROUND`, Berechtigung verweigert → Fehler statt
   Stille, App-Menü „Apps“ verdeckt die App und der Starter holt sie zurück.
-- `InputRouterTest`: jede Zeile der Tabelle §5.1, doppelte Ring-Ereignisse.
+- `InputRouterTest`: jede Zeile der Tabelle §5.1, doppelte Ring-Ereignisse; Tastatur und Maus (§5.3).
 - `FlashingBoundaryTest` bleibt grün: Apps berühren den Firmware-Pfad nicht.
 
 ## 8. Warum Kotlin auf der Uhr und kein Skript-Interpreter?
@@ -478,7 +558,8 @@ pausiert. Ein Fehler beendet das Video (Eintrag im Protokoll, Ereignis `error`);
 **Weitere Änderungen am Host in v0.5.0:** Seiten können ihre Eingabeart wählen (`Page.input`, 02 §4.1).
 `askText` zeigt auf der Brille „Bitte auf der Uhr eingeben“ (bis zur Antwort), die Uhr vibriert; eine neue
 Frage beantwortet die offene mit `null`; endet die App, nimmt die Uhr die Frage zurück. Die Eingabe erscheint,
-sobald die G2-Watch-App im Vordergrund ist (während der Verbindung hält sie den Bildschirm an). Bekommt die
+sobald die G2-Watch-App im Vordergrund ist (während der Verbindung hält sie den Bildschirm an). Seit v0.9.0
+steht die Frage bei verbundener Bluetooth-Tastatur stattdessen auf der Brille (§5.3). Bekommt die
 angezeigte Seite neuen Inhalt und ist nichts fokussiert, fokussiert der Host den ersten sichtbaren Knopf –
 so spielt ein Tipp am Bügel den ersten Treffer ab, sobald die Liste da ist.
 

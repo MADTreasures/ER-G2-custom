@@ -2,7 +2,8 @@
 // (app/src/main/assets/webbridge/content.js, with Readability and web-raster's page-layout.js) in
 // Chromium, with a stand-in for GeckoView's native port, on two made-up local pages, and checks what
 // the engine relies on: reading mode on and off, text fields and their labels, typing with and without
-// Enter, scrolling the window and inner boxes, the layout report and the stages of the double capture.
+// Enter, keys and text of a Bluetooth keyboard, scrolling the window and inner boxes, the layout report
+// and the stages of the double capture.
 // Chromium stands in for GeckoView (no isolated world here); no network needed.
 //
 //   node tools/page-preview/bridge-check.js
@@ -142,6 +143,32 @@ const wait = (p, ms) => p.waitForTimeout(ms);
   await deliver(p, { kind: "scroll", dy: 100 });
   const s2 = await p.evaluate(() => ({ win: window.scrollY, box: document.querySelector("#box").scrollTop }));
   check("at the window's end the box under the middle scrolls", s2.win === end && s2.box === 100, s2);
+  // Keys of a Bluetooth keyboard: text at the cursor, editing keys, Tab to the next field.
+  await p.evaluate(() => { const q = document.querySelector("#q"); q.value = "Kat"; q.setSelectionRange(3, 3); window.__keys = []; q.addEventListener("keydown", (e) => window.__keys.push(e.key)); });
+  const value = () => p.evaluate(() => document.querySelector("#q").value);
+  await deliver(p, { kind: "insert", text: "zen" });
+  check("insert types at the cursor, keeping the text", (await value()) === "Katzen", await value());
+  await deliver(p, { kind: "key", key: "Backspace" });
+  await deliver(p, { kind: "key", key: "ArrowLeft" });
+  await deliver(p, { kind: "insert", text: "x" });
+  check("Backspace deletes, the arrows move the cursor", (await value()) === "Katzxe", await value());
+  await deliver(p, { kind: "key", key: "Home" });
+  await deliver(p, { kind: "key", key: "Delete" });
+  check("Home and Delete", (await value()) === "atzxe", await value());
+  // A single character is a key the page hears; longer text (from the watch) is not.
+  check("the page hears the keys", (await p.evaluate(() => window.__keys)).join() === "Backspace,ArrowLeft,x,Home,Delete",
+    await p.evaluate(() => window.__keys));
+  await p.evaluate(() => document.querySelector("#q").addEventListener("keydown", (e) => { if (e.key === "Backspace") e.preventDefault(); }));
+  await deliver(p, { kind: "key", key: "End" });
+  await deliver(p, { kind: "key", key: "Backspace" });
+  check("a key the page takes does nothing else", (await value()) === "atzxe", await value());
+  await deliver(p, { kind: "key", key: "Tab" });
+  check("Tab goes to the next field", await p.evaluate(() => document.activeElement.id === "pw"));
+  await deliver(p, { kind: "key", key: "Tab", shift: true });
+  check("Shift+Tab back", await p.evaluate(() => document.activeElement.id === "q"));
+  await deliver(p, { kind: "key", key: "a", ctrl: true });
+  check("Ctrl+A selects all", await p.evaluate(() => { const q = document.querySelector("#q"); return q.selectionStart === 0 && q.selectionEnd === q.value.length; }));
+  await p.evaluate(() => { const q = document.querySelector("#q"); q.value = ""; });
   const nav = p.waitForNavigation({ timeout: 3000 }).catch(() => null);
   await deliver(p, { kind: "type", text: "Katzen im Schnee", enter: true });
   const typed = await p.evaluate(() => ({ value: document.querySelector("#q")?.value, input: window.__input })).catch(() => null);
@@ -160,6 +187,23 @@ const wait = (p, ms) => p.waitForTimeout(ms);
   await wait(p, 300);
   reader = (await sent(p)).filter((m) => m.kind === "reader");
   check("switched on later", reader.length === 2 && reader[1].on, reader);
+  await p.context().close();
+
+  // 4. Enter as a key sends the form; without a field the keys scroll and walk the links.
+  p = await page(browser, "suche2", (url) => (url.includes("gesucht") ? "<title>Gesucht</title>" + decodeURIComponent(url) : FORM));
+  await p.evaluate(() => window.scrollTo(0, 0));
+  await deliver(p, { kind: "key", key: "PageDown" });
+  check("Page Down without a field scrolls", (await p.evaluate(() => window.scrollY)) > 100, await p.evaluate(() => window.scrollY));
+  await deliver(p, { kind: "key", key: "Home" });
+  check("Home goes to the top", (await p.evaluate(() => window.scrollY)) === 0);
+  await deliver(p, { kind: "key", key: "Tab" });
+  check("Tab without a field goes to the first field", await p.evaluate(() => document.activeElement.id === "q"));
+  await p.evaluate(() => { const q = document.querySelector("#q"); q.setSelectionRange(3, 3); });
+  for (const c of "zen") await deliver(p, { kind: "insert", text: c });
+  const sent2 = p.waitForNavigation({ timeout: 3000 }).catch(() => null);
+  await deliver(p, { kind: "key", key: "Enter" });
+  await sent2;
+  check("Enter as a key sends the form", p.url().includes("gesucht?q=Katzen"), p.url());
   await p.context().close();
 
   await browser.close();

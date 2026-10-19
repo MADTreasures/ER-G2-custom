@@ -17,6 +17,7 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.ListStyle
 import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
@@ -54,6 +55,7 @@ import ch.madtreasures.g2watch.desktop.AppView
 import ch.madtreasures.g2watch.desktop.GrayRaster
 import ch.madtreasures.g2watch.desktop.Rect
 import ch.madtreasures.g2watch.desktop.TextPainter
+import ch.madtreasures.g2watch.input.KeyPress
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -82,8 +84,8 @@ data class HostState(
  * most every [RENDER_INTERVAL_MS] (new video pictures every [VIDEO_INTERVAL_MS]) and hands the picture to
  * the desktop ([AppScreen]), which puts the header above it and sends it to the glasses. Input arrives
  * from the desktop thread ([AppInput]: pointer, clicks, header), from the temples and the ring ([gesture],
- * via [InputRouter]) and from the watch touchpad in gesture mode; all of it is posted to the app thread
- * first.
+ * via [InputRouter]), from the watch touchpad in gesture mode and from a Bluetooth keyboard and mouse
+ * ([key], [wheel]); all of it is posted to the app thread first.
  *
  * The host guarantees what 02 promises regardless of the app: back always works and leaves the app on
  * its first page, the app menu (tap-then-hold, or the title in the header) always offers "Apps", "Zurück"
@@ -130,12 +132,18 @@ class AppHost(
     private var cachedLayout: PageLayout? = null
     private var question: TextQuestion? = null
 
+    /** The line typed on the glasses for [question] while a Bluetooth keyboard is there. */
+    private var editor: TextEditor? = null
+
     /** The glasses went away while connected; videos and web pages wait until they are back. */
     private var glassesGone = false
 
     /** Pointer pushes past the edge over a web page, gathered for one [AppEvent.ImageScroll]. */
     private var pushedScroll = 0
     private var pushScheduled = false
+
+    /** The image block the gathered scroll is for (the web page under the pointer), or null for the first. */
+    private var pushedBlock: String? = null
 
     private val _inputMode = MutableStateFlow(InputMode.POINTER)
 
@@ -196,6 +204,12 @@ class AppHost(
 
     /** A gesture of the watch, a temple or the ring (from [InputRouter]). */
     fun gesture(g: Gesture) = scheduler.post { gestureNow(g) }
+
+    /** A key of a Bluetooth keyboard (03 §5.3). */
+    fun key(press: KeyPress) = scheduler.post { keyNow(press) }
+
+    /** The mouse wheel turned by [notches], positive further down, with the pointer where it is (03 §5.3). */
+    fun wheel(notches: Int) = scheduler.post { wheelNow(notches) }
 
     /** What the connection knows about the glasses. */
     fun updateGlasses(status: GlassesStatus) = scheduler.post {
@@ -403,6 +417,7 @@ class AppHost(
     }
 
     private fun makeVisible(s: Session) {
+        if (editor != null) cancelEditor()
         overlay = null
         if (visible === s) {
             invalidate()
@@ -446,6 +461,7 @@ class AppHost(
             question = null
             ports.cancelText()
         }
+        if (editor?.question?.session === s) editor = null
         sessions.remove(s.entryId)
         if (overlay?.session === s) overlay = null
         if (s.isLauncher) launcher = null
@@ -552,7 +568,7 @@ class AppHost(
         blocks += Block.Button("host_close", "Schließen")
         val items = s.menu
         overlay = HostPage(
-            kind = "host.menu",
+            kind = MENU_KIND,
             page = Page("host.menu", "Menü", blocks),
             session = s,
             onClick = { block ->
@@ -648,22 +664,143 @@ class AppHost(
         when (g.kind) {
             GestureKind.SCROLL_DOWN -> moveFocus(scr, forward = true)
             GestureKind.SCROLL_UP -> moveFocus(scr, forward = false)
-            GestureKind.CLICK -> {
-                // The pointer on a web page: the tap clicks the page there.
-                pointerWeb(scr)?.let { (w, at) ->
-                    webClick(scr, w, at)
-                    return
-                }
-                val layout = layoutOf(scr.page)
-                settle(layout, scr.view)
-                scr.view.focus?.let { activate(scr, it) }
-            }
+            GestureKind.CLICK -> clickFocus(scr)
             GestureKind.DOUBLE_CLICK, GestureKind.SWIPE_RIGHT -> backNow()
             GestureKind.SHORT_THEN_LONG_PRESS -> openMenuNow()
             else -> if (scr.host == null && s != null && Sensor.GESTURES in s.subscriptions) {
                 deliver(s, AppEvent.Gesture(g.kind, g.source))
             }
         }
+    }
+
+    /** A tap on a temple (or Enter): the web page under the pointer is clicked there, else the focus. */
+    private fun clickFocus(scr: Screen) {
+        pointerWeb(scr)?.let { (w, at) ->
+            webClick(scr, w, at)
+            return
+        }
+        val layout = layoutOf(scr.page)
+        settle(layout, scr.view)
+        scr.view.focus?.let { activate(scr, it) }
+    }
+
+    // --- Keyboard and mouse (03 §5.3) -------------------------------------------------------------
+
+    private fun keyNow(k: KeyPress) {
+        editor?.let {
+            it.key(k)
+            return
+        }
+        val s = visible
+        if (s == null && overlay == null) {
+            desktopKey(k)
+            return
+        }
+        val scr = currentScreen() ?: return
+        // Back and the app menu stay the host's, whatever the app subscribed to (02 §5).
+        if (isBack(k)) {
+            backNow()
+            return
+        }
+        if (isMenu(k)) {
+            if (overlay?.kind == MENU_KIND) overlay?.onBack?.invoke() else openMenuNow()
+            return
+        }
+        if (scr.host == null && s != null && Sensor.KEYS in s.subscriptions) {
+            deliver(s, k.toEvent())
+            return
+        }
+        if (scr.host == null && s != null && inputOf(s) == InputMode.GESTURES && s.pages.current != null) {
+            gestureKey(k)
+            return
+        }
+        when (k.key) {
+            Keys.ARROW_DOWN, Keys.ARROW_RIGHT -> moveFocus(scr, forward = true)
+            Keys.ARROW_UP, Keys.ARROW_LEFT -> moveFocus(scr, forward = false)
+            Keys.TAB -> moveFocus(scr, forward = !k.shift)
+            Keys.ENTER -> clickFocus(scr)
+            Keys.SPACE -> scrollPage(scr, forward = !k.shift)
+            Keys.PAGE_DOWN -> scrollPage(scr, forward = true)
+            Keys.PAGE_UP -> scrollPage(scr, forward = false)
+            Keys.BACKSPACE -> backNow()
+            else -> Unit
+        }
+    }
+
+    /** Escape, Alt+Left and the keyboard's own back key. */
+    private fun isBack(k: KeyPress) =
+        k.key == Keys.ESCAPE || k.key == Keys.BROWSER_BACK || (k.alt && k.key == Keys.ARROW_LEFT)
+
+    /** The context menu key and F10 (for keyboards without one). */
+    private fun isMenu(k: KeyPress) = k.key == Keys.CONTEXT_MENU || k.key == Keys.F10
+
+    /** The bare desktop: the arrows move the pointer, Enter clicks, Escape closes the window. */
+    private fun desktopKey(k: KeyPress) {
+        val step = if (k.shift) DESKTOP_KEY_STEP_FAST else DESKTOP_KEY_STEP
+        when {
+            k.key == Keys.ARROW_LEFT && !k.alt -> screen.movePointer(-step, 0f)
+            k.key == Keys.ARROW_RIGHT -> screen.movePointer(step, 0f)
+            k.key == Keys.ARROW_UP -> screen.movePointer(0f, -step)
+            k.key == Keys.ARROW_DOWN -> screen.movePointer(0f, step)
+            k.key == Keys.ENTER || k.key == Keys.SPACE -> screen.click()
+            isBack(k) || k.key == Keys.BACKSPACE -> screen.back()
+        }
+    }
+
+    /**
+     * A page that takes gestures (a video) and did not subscribe to keys: the keys a remote has become
+     * the watch's gestures. Space, Enter and play/pause tap; right, down and the page key down swipe on
+     * (`scrollDown`), left, up and page up back; Backspace goes back.
+     */
+    private fun gestureKey(k: KeyPress) {
+        val kind = when (k.key) {
+            Keys.SPACE, Keys.ENTER, Keys.MEDIA_PLAY_PAUSE, Keys.MEDIA_PLAY, Keys.MEDIA_PAUSE -> GestureKind.CLICK
+            Keys.ARROW_RIGHT, Keys.ARROW_DOWN, Keys.PAGE_DOWN, Keys.MEDIA_FAST_FORWARD -> GestureKind.SCROLL_DOWN
+            Keys.ARROW_LEFT, Keys.ARROW_UP, Keys.PAGE_UP, Keys.MEDIA_REWIND -> GestureKind.SCROLL_UP
+            Keys.BACKSPACE -> {
+                backNow()
+                return
+            }
+            else -> return
+        }
+        gestureNow(Gesture(kind, InputSource.WATCH))
+    }
+
+    /** Space and the page keys: the web page under the pointer, else the page by three quarters of its height. */
+    private fun scrollPage(scr: Screen, forward: Boolean) {
+        pointerWeb(scr)?.let { (w, _) ->
+            webScroll(scr, w, forward)
+            return
+        }
+        val layout = layoutOf(scr.page)
+        val step = layout.height * 3 / 4
+        if (!scrollView(scr, layout, if (forward) step else -step)) webOnPage(scr)?.let { webScroll(scr, it, forward) }
+    }
+
+    /** The wheel: the web page under the pointer scrolls, else the page; at its end a web page on it. */
+    private fun wheelNow(notches: Int) {
+        val scr = currentScreen() ?: return
+        val dy = notches * WHEEL_STEP
+        pointerWeb(scr)?.let { (w, _) ->
+            pushWebScroll(dy, w.block)
+            return
+        }
+        if (!scrollView(scr, layoutOf(scr.page), dy) && webOnPage(scr) != null) pushWebScroll(dy)
+    }
+
+    /** Scrolls the page on the glasses by [dy]; false at its end. A focus that leaves the view goes. */
+    private fun scrollView(scr: Screen, layout: PageLayout, dy: Int): Boolean {
+        val view = scr.view
+        settle(layout, view)
+        val next = (view.scroll + dy).coerceIn(0, layout.maxScroll)
+        if (next == view.scroll) return false
+        val current = layout.focusable(view.focus)
+        view.scroll = next
+        if (current != null && (current.rect.bottom <= next || current.rect.y >= next + layout.height)) view.focus = null
+        hover()
+        invalidate()
+        publish()
+        return true
     }
 
     /**
@@ -801,7 +938,7 @@ class AppHost(
             is AppCommand.Subscribe -> {
                 command.sensor.permission?.let { requirePermission(s, it) }
                 s.subscriptions += command.sensor
-                if (command.sensor != Sensor.GESTURES) notYet(s, command.sensor.json)
+                if (command.sensor != Sensor.GESTURES && command.sensor != Sensor.KEYS) notYet(s, command.sensor.json)
             }
             is AppCommand.Unsubscribe -> s.subscriptions -= command.sensor
             is AppCommand.Audio -> {
@@ -991,7 +1128,7 @@ class AppHost(
 
     // --- Text from the watch ---------------------------------------------------------------------
 
-    private class TextQuestion(val session: Session, val tag: String)
+    private class TextQuestion(val session: Session, val tag: String, val prompt: String, val suggestions: List<String>)
 
     private fun askText(s: Session, c: AppCommand.AskText) {
         if (c.tag.isEmpty() || c.tag.length > MAX_TAG) throw CommandException.badValue("Frage braucht einen Namen mit 1 bis $MAX_TAG Zeichen")
@@ -1001,9 +1138,17 @@ class AppHost(
         }
         // The open question, if any, is answered with "cancelled" – after this command, not inside it.
         question?.let { old -> scheduler.post { deliver(old.session, AppEvent.TextInput(old.tag, null)) } }
-        val q = TextQuestion(s, c.tag)
+        if (editor != null) closeEditor()
+        val q = TextQuestion(s, c.tag, c.prompt, c.suggestions)
         question = q
-        ports.askText(c.prompt, c.suggestions) { text ->
+        // With a Bluetooth keyboard the question shows on the glasses, and the wearer types there.
+        if (ports.hardwareKeyboard) openEditor(q) else askOnWatch(q)
+    }
+
+    /** The watch's own keyboard and voice input (RemoteInput), with a hint on the glasses. */
+    private fun askOnWatch(q: TextQuestion) {
+        val s = q.session
+        ports.askText(q.prompt, q.suggestions) { text ->
             scheduler.post {
                 if (question !== q) return@post
                 question = null
@@ -1018,6 +1163,133 @@ class AppHost(
         }
         ports.vibrate(Vibration.TICK)
         showToast(s, TEXT_HINT, TEXT_HINT_MS)
+    }
+
+    // --- Text from a Bluetooth keyboard, on the glasses -------------------------------------------
+
+    /**
+     * The question of [question] on the glasses: its prompt, the line with a cursor, the suggestions
+     * as buttons and a way to the watch's own input. The keyboard edits the line ([key]); Enter answers,
+     * Escape (or back) cancels, up and down put the suggestions into the line.
+     */
+    private inner class TextEditor(val question: TextQuestion) {
+        val line = StringBuilder()
+        var cursor = 0
+        var choice = -1
+        val host = HostPage(
+            kind = EDITOR_KIND,
+            page = page(),
+            session = question.session,
+            onClick = { block ->
+                when {
+                    block == EDITOR_WATCH -> toWatch()
+                    block.startsWith(EDITOR_SUGGESTION) ->
+                        question.suggestions.getOrNull(block.removePrefix(EDITOR_SUGGESTION).toIntOrNull() ?: -1)?.let { answerEditor(it) }
+                }
+            },
+            onBack = { answerEditor(null) },
+        ).also {
+            // Nothing is focused at first: Enter answers with the line, not with a suggestion.
+            it.view.fresh = false
+        }
+
+        fun page(): Page {
+            val blocks = ArrayList<Block>()
+            blocks += Block.Text("host_h", question.prompt.ifBlank { "Text eingeben" })
+            // The line stands out, bold and bright.
+            blocks += Block.Heading("host_line", line.substring(0, cursor) + EDITOR_CURSOR + line.substring(cursor))
+            question.suggestions.forEachIndexed { i, text -> blocks += Block.Button("$EDITOR_SUGGESTION$i", text) }
+            blocks += Block.Button(EDITOR_WATCH, "Auf der Uhr eingeben")
+            blocks += Block.Text(
+                "host_hint",
+                "Enter: fertig · Esc: abbrechen" + if (question.suggestions.isNotEmpty()) " · ↑ ↓: Vorschläge" else "",
+            )
+            return Page(EDITOR_KIND, "Eingabe", blocks)
+        }
+
+        fun key(k: KeyPress) {
+            when {
+                k.key == Keys.ENTER -> return answerEditor(line.toString())
+                isBack(k) -> return answerEditor(null)
+                k.key == Keys.BACKSPACE -> if (cursor > 0) {
+                    val n = Character.charCount(line.codePointBefore(cursor))
+                    line.delete(cursor - n, cursor)
+                    cursor -= n
+                }
+                k.key == Keys.DELETE -> if (cursor < line.length) line.delete(cursor, cursor + Character.charCount(line.codePointAt(cursor)))
+                k.key == Keys.ARROW_LEFT -> if (cursor > 0) cursor -= Character.charCount(line.codePointBefore(cursor))
+                k.key == Keys.ARROW_RIGHT -> if (cursor < line.length) cursor += Character.charCount(line.codePointAt(cursor))
+                k.key == Keys.HOME -> cursor = 0
+                k.key == Keys.END -> cursor = line.length
+                k.key == Keys.ARROW_DOWN || (k.key == Keys.TAB && !k.shift) -> suggest(+1)
+                k.key == Keys.ARROW_UP || (k.key == Keys.TAB && k.shift) -> suggest(-1)
+                k.plain && k.text.isNotEmpty() && line.length + k.text.length <= MAX_EDITOR_TEXT -> {
+                    line.insert(cursor, k.text)
+                    cursor += k.text.length
+                }
+                else -> return
+            }
+            refresh()
+        }
+
+        /** The next or previous suggestion goes into the line, the cursor at its end. */
+        private fun suggest(step: Int) {
+            val all = question.suggestions
+            if (all.isEmpty()) return
+            choice = if (choice < 0) (if (step > 0) 0 else all.lastIndex) else (choice + step).mod(all.size)
+            line.setLength(0)
+            line.append(all[choice])
+            cursor = line.length
+        }
+
+        fun refresh() {
+            host.page = page()
+            if (overlay === host) invalidate()
+        }
+
+        /** The wearer would rather use the watch: its input opens for the same question. */
+        private fun toWatch() {
+            closeEditor()
+            askOnWatch(question)
+        }
+    }
+
+    private fun openEditor(q: TextQuestion) {
+        val e = TextEditor(q)
+        editor = e
+        overlay = e.host
+        updateInputMode()
+        invalidate()
+        publish()
+    }
+
+    /** Takes the editor off the glasses; its question stays open. */
+    private fun closeEditor() {
+        val e = editor ?: return
+        editor = null
+        if (overlay === e.host) overlay = null
+        updateInputMode()
+        invalidate()
+        publish()
+    }
+
+    /** The editor's answer: [text], or null when the wearer cancelled. */
+    private fun answerEditor(text: String?) {
+        val e = editor ?: return
+        closeEditor()
+        val q = e.question
+        if (question !== q) return
+        question = null
+        deliver(q.session, AppEvent.TextInput(q.tag, text?.trim()?.takeIf { it.isNotEmpty() }))
+    }
+
+    /** Something else takes the glasses (another app): the open question counts as cancelled. */
+    private fun cancelEditor() {
+        val q = editor?.question ?: return
+        closeEditor()
+        if (question !== q) return
+        question = null
+        scheduler.post { deliver(q.session, AppEvent.TextInput(q.tag, null)) }
     }
 
     // --- Video ----------------------------------------------------------------------------------
@@ -1175,6 +1447,14 @@ class AppHost(
                 if (action.text.length > MAX_WEB_TEXT) throw CommandException.badValue("Höchstens $MAX_WEB_TEXT Zeichen auf einmal")
                 w.page.type(action.text, action.enter)
             }
+            is WebAction.Key -> {
+                if (action.key.isEmpty() || action.key.length > MAX_KEY_NAME) throw CommandException.badValue("Unbekannte Taste „${action.key.take(20)}“")
+                w.page.key(action.key, action.shift, action.ctrl, action.alt)
+            }
+            is WebAction.Insert -> {
+                if (action.text.length > MAX_WEB_TEXT) throw CommandException.badValue("Höchstens $MAX_WEB_TEXT Zeichen auf einmal")
+                if (action.text.isNotEmpty()) w.page.insert(action.text)
+            }
             is WebAction.Reader -> w.page.setReader(action.on)
             is WebAction.Contrast -> w.page.setContrast(action.contrast)
             WebAction.Stop -> s.webs.remove(block)?.page?.release()
@@ -1276,18 +1556,25 @@ class AppHost(
         deliver(s, AppEvent.ImageScroll(scr.page.id, w.block, if (forward) step else -step))
     }
 
-    /** The pointer pushes past the edge over a web page: pushes are gathered for [PUSH_SCROLL_MS]. */
-    private fun pushWebScroll(dy: Int) {
+    /**
+     * The pointer pushes past the edge over a web page, or the wheel turns: steps are gathered for
+     * [PUSH_SCROLL_MS] into one scroll of the page in [block] (null: the first on the page).
+     */
+    private fun pushWebScroll(dy: Int, block: String? = null) {
         pushedScroll += dy
+        if (block != null) pushedBlock = block
         if (pushScheduled) return
         pushScheduled = true
         scheduler.postDelayed(PUSH_SCROLL_MS) {
             pushScheduled = false
             val dyAll = pushedScroll
+            val wanted = pushedBlock
             pushedScroll = 0
+            pushedBlock = null
             val scr = currentScreen() ?: return@postDelayed
-            val w = webOnPage(scr) ?: return@postDelayed
+            if (scr.host != null) return@postDelayed
             val s = scr.session ?: return@postDelayed
+            val w = wanted?.let { b -> s.webs[b]?.takeIf { scr.page.block(b) != null } } ?: webOnPage(scr) ?: return@postDelayed
             if (dyAll != 0) deliver(s, AppEvent.ImageScroll(scr.page.id, w.block, dyAll))
         }
     }
@@ -1309,7 +1596,7 @@ class AppHost(
     /** A page the host draws itself (menu, question, notice), with its own focus and scroll. */
     private class HostPage(
         val kind: String,
-        val page: Page,
+        var page: Page,
         val session: Session? = null,
         val onClick: (String) -> Unit,
         val onBack: () -> Unit,
@@ -1411,7 +1698,9 @@ class AppHost(
 
     private fun updateInputMode() {
         val s = visible
-        _inputMode.value = if (s == null || overlay?.kind == "host.permission") InputMode.POINTER else inputOf(s)
+        // Host pages that wait for an answer take the pointer, also over a page with gestures.
+        val kind = overlay?.kind
+        _inputMode.value = if (s == null || kind == "host.permission" || kind == EDITOR_KIND) InputMode.POINTER else inputOf(s)
     }
 
     /** How the wearer works [s] right now: its page's mode, else its manifest's. */
@@ -1552,6 +1841,8 @@ class AppHost(
 
         override val glasses: GlassesStatus get() = this@AppHost.glasses
 
+        override val keyboard: Boolean get() = ports.hardwareKeyboard
+
         private fun command(c: AppCommand) = guarded(c.name) { execute(s, c) }
 
         private fun guarded(name: String, block: () -> Unit) {
@@ -1603,6 +1894,25 @@ class AppHost(
         /** Shown on the glasses while the watch asks for text. */
         const val TEXT_HINT = "Bitte auf der Uhr eingeben"
         const val TEXT_HINT_MS = 4_000
+
+        /** The host page that shows a question with the line typed on a Bluetooth keyboard. */
+        const val EDITOR_KIND = "host.text"
+        const val EDITOR_WATCH = "host_watch"
+        const val EDITOR_SUGGESTION = "host_s"
+        const val EDITOR_CURSOR = "|"
+        const val MAX_EDITOR_TEXT = 500
+
+        const val MENU_KIND = "host.menu"
+
+        /** Pixels the page scrolls per notch of the mouse wheel. */
+        const val WHEEL_STEP = 48
+
+        /** Pixels an arrow key moves the pointer on the bare desktop; with Shift. */
+        const val DESKTOP_KEY_STEP = 8f
+        const val DESKTOP_KEY_STEP_FAST = 32f
+
+        /** Longest key name of [WebAction.Key] ("MediaTrackPrevious" and the like). */
+        const val MAX_KEY_NAME = 32
 
         const val WATCH_PREFIX = "watch:"
         const val EVEN_HUB_PREFIX = "evenhub:"

@@ -6,6 +6,8 @@ import ch.madtreasures.g2watch.apps.FakeAppContext
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.Keys
+import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.VideoAction
 import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
@@ -16,6 +18,7 @@ import ch.madtreasures.youtube.YouTubeApp.Companion.VIDEO
 import ch.madtreasures.g2watch.apps.textOf
 import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -336,5 +339,64 @@ class YouTubeAppTest {
         assertEquals("Kanal", YouTubeApp.info(VideoItem("https://x", "t", "Kanal")))
         assertEquals("Ein sehr langer Titel…", YouTubeApp.shorten("Ein sehr langer Titel mit vielen Wörtern", 23))
         assertEquals("kurz", YouTubeApp.shorten("kurz", 23))
+    }
+
+    private fun key(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false) =
+        send(AppEvent.Key(key, text, shift = shift, ctrl = ctrl))
+
+    @Test
+    fun `a keyboard works the video like on youtube com`() {
+        started()
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+        playHit(0, VideoState.PLAYING, 60_000)
+        assertTrue(Sensor.KEYS in ui.subscriptions)
+        key(Keys.SPACE, " ")
+        assertEquals(VideoAction.Pause, ui.lastVideo(PICTURE))
+        send(AppEvent.Video(PICTURE, VideoState.PAUSED, 60_000, 296_000))
+        key("k", "k")
+        assertEquals(VideoAction.Resume, ui.lastVideo(PICTURE))
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 60_000, 296_000))
+        key(Keys.MEDIA_PLAY_PAUSE)
+        assertEquals(VideoAction.Pause, ui.lastVideo(PICTURE))
+        // Play while playing changes nothing.
+        val before = ui.videos.size
+        key(Keys.MEDIA_PLAY)
+        assertEquals(before, ui.videos.size)
+        key("l", "l")
+        assertEquals(VideoAction.Seek(70_000), ui.lastVideo(PICTURE))
+        key(Keys.ARROW_LEFT)
+        assertEquals(VideoAction.Seek(60_000), ui.lastVideo(PICTURE))
+        key("J", "J", shift = true)
+        assertEquals(VideoAction.Seek(50_000), ui.lastVideo(PICTURE))
+        key("p", "p")
+        assertTrue(ui.lastVideo(PICTURE) is VideoAction.Profile)
+        key("m", "m")
+        assertEquals(true, (ui.lastVideo(PICTURE) as VideoAction.Play).sound)
+        // Shortcuts with Ctrl are not YouTube's.
+        val now = ui.videos.size
+        key("k", ctrl = true)
+        assertEquals(now, ui.videos.size)
+        send(AppEvent.Back(VIDEO))
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+    }
+
+    @Test
+    fun `slash asks for a new search in the video, which ends it once entered`() {
+        started()
+        playHit(0)
+        ui.questionAnswered()
+        key("/", "/")
+        assertEquals(YouTubeApp.ASK_SEARCH, ui.question!!.first)
+        // Cancelled: the video goes on.
+        send(AppEvent.TextInput(YouTubeApp.ASK_SEARCH, null))
+        assertTrue(ui.lastVideo(PICTURE) is VideoAction.Play)
+        key("/", "/")
+        send(AppEvent.TextInput(YouTubeApp.ASK_SEARCH, "hunde"))
+        assertEquals(VideoAction.Stop, ui.lastVideo(PICTURE))
+        assertEquals("hunde", ui.searches.last().first)
+        // The hits take the video's place: back from them leads to the start.
+        assertEquals(listOf(YouTubeApp.START, YouTubeApp.RESULTS), ui.pages.historyIds)
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+        assertTrue("Neue Suche" in ui.menu.map { it.text })
     }
 }

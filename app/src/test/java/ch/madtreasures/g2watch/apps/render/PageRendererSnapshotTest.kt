@@ -10,6 +10,7 @@ import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.HeadingSize
 import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.ListItem
 import ch.madtreasures.g2watch.apps.ListStyle
 import ch.madtreasures.g2watch.apps.MenuItem
@@ -39,6 +40,9 @@ import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.desktop.DesktopLayout
 import ch.madtreasures.g2watch.desktop.PointerSprite
+import ch.madtreasures.g2watch.input.KeyPress
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -272,6 +276,19 @@ class PageRendererSnapshotTest {
         val luma = ByteArray(grid.size)
         FrameConverter.scaleInto(SyntheticVideo.LANDSCAPE.frame(90), SyntheticVideo.WIDTH, SyntheticVideo.HEIGHT, SyntheticVideo.WIDTH, luma, grid.width, picture)
         return converter.convert(luma, picture)
+    }
+
+    @Test
+    fun textOnGlasses() {
+        // A Bluetooth keyboard is connected: the search asks on the glasses, and the wearer types there.
+        ports.hardwareKeyboard = true
+        ports.storage(youtubeId).set("suchen", JsonArray(listOf(JsonPrimitive("Katzen im Schnee"), JsonPrimitive("Zugfahrt Albula"))))
+        val host = youtube()
+        host.gesture(GestureKind.CLICK)
+        for (c in "Alpenseen") host.key(KeyPress(c.toString(), c.toString(), shift = c.isUpperCase()))
+        repeat(2) { host.key(KeyPress(Keys.ARROW_LEFT)) }
+        settle()
+        save("apps-texteingabe")
     }
 
     @Test

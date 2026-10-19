@@ -76,7 +76,8 @@ import kotlin.math.PI
 /**
  * The settings, opened by holding the gear on the touchpad (or from the status page when the
  * firmware does not fit or the connection failed). First how fast frames go from the watch to the
- * glasses, then the firmware (original or custom), then the pointer and the connection.
+ * glasses, then the firmware (original or custom), then the pointer, keyboard and mouse, and the
+ * connection.
  */
 @Composable
 fun SettingsScreen(
@@ -97,6 +98,8 @@ fun SettingsScreen(
     appsSummary: String? = null,
     protocolFile: Boolean = false,
     onProtocolFile: (Boolean) -> Unit = {},
+    inputSummary: String? = null,
+    onInput: () -> Unit = {},
 ) {
     val listState = rememberScalingLazyListState()
     val watchBattery = rememberWatchBattery()
@@ -160,6 +163,16 @@ fun SettingsScreen(
                 item {
                     FilledTonalButton(onClick = onCloseWindow, modifier = Modifier.fillMaxWidth()) { Text("Fenster schließen") }
                 }
+            }
+
+            item { ListSubHeader { Text("Tastatur & Maus") } }
+            item {
+                FilledTonalButton(
+                    onClick = onInput,
+                    modifier = Modifier.fillMaxWidth().testTag(INPUT_TAG),
+                    label = { Text("Tastatur & Maus") },
+                    secondaryLabel = inputSummary?.let { { Text(it, fontSize = 11.sp) } },
+                )
             }
 
             item { ListSubHeader { Text("Verbindung") } }
@@ -447,6 +460,7 @@ internal const val HOLD_CONFIRM_MS = 2_000
 internal const val HOLD_TO_CONFIRM_TAG = "hold-to-confirm"
 internal const val RISKS_TAG = "firmware-risks"
 internal const val APPS_TAG = "settings-apps"
+internal const val INPUT_TAG = "settings-input"
 internal const val PROTOCOL_FILE_TAG = "settings-protocol-file"
 internal const val PROGRESS_RING_TAG = "progress-ring"
 

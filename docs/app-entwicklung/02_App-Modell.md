@@ -195,6 +195,7 @@ Gleiche JSON-Form in beiden Laufzeiten:
   "back": true, "forward": false, "reader": false, "readable": true, "field": null, "message": null }
 { "kind": "imageClick",  "page": "p_seite", "block": "seite", "x": 120, "y": 80 }
 { "kind": "imageScroll", "page": "p_seite", "block": "seite", "dy": 195 }
+{ "kind": "key",      "key": "é", "text": "é", "shift": false, "ctrl": false, "alt": false, "meta": false, "repeat": false }
 { "kind": "error",    "command": "patch", "code": "unknown_block", "message": "…" }
 ```
 
@@ -225,6 +226,15 @@ Gleiche JSON-Form in beiden Laufzeiten:
   Zeiger dort steht. `imageScroll`: Wischen am Bügel (¾ der Bausteinhöhe), wenn kein Fokus mehr weiterkommt
   oder der Zeiger auf dem Baustein steht; der Zeiger über den Rand geschoben, wenn die Seite selbst nicht
   mehr scrollt.
+- `key` (seit Schnittstelle 3): eine Taste einer Bluetooth-Tastatur an der Uhr, nur nach `subscribe` mit
+  `keys` (§7). `key` ist der Name, den eine Web-Seite als `KeyboardEvent.key` sieht: `Enter`, `Escape`,
+  `Backspace`, `Delete`, `Tab`, `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`, `PageUp`, `PageDown`,
+  `Home`, `End`, `ContextMenu`, `F1` … `F12`, `MediaPlayPause` und weitere (Kotlin: `Keys`); sonst das Zeichen,
+  das die Taste in der Belegung tippt (`"a"`, `"A"`, `"@"`, `"é"`; mit Strg weiterhin `"l"` für Strg+L). `text`
+  ist, was die Taste in ein Feld schreibt, leer bei Tasten ohne Zeichen und bei Kürzeln mit Strg, Alt oder Meta.
+  `alt` meint nur die linke Alt-Taste, AltGr steckt im Zeichen; `repeat` die Wiederholungen einer gehaltenen
+  Taste. Eine Akzent-Taste (^ ´ ` ~ ¨) meldet sich nicht selbst, sondern mit dem nächsten Buchstaben (`é`).
+  Unbekannte Namen ignoriert eine App.
 - `error`: nur bei Rechner-Apps; die Uhr hat einen Befehl abgelehnt (§6.2 „Fehler“).
 - Unbekannte `kind`-Werte ignoriert eine App. So kann die Plattform neue Ereignisse ergänzen.
 
@@ -234,7 +244,7 @@ Gleiche JSON-Form in beiden Laufzeiten:
 |---|---|---|
 | `definePages` | `pages[]` oder ein Baukasten-Projekt | Seiten bekannt machen (ersetzt gleichnamige) |
 | `show` | `page` (id) | Seite zeigen, auf den Verlauf legen |
-| `replace` | `page` (id) | Seite zeigen, ohne Verlauf |
+| `replace` | `page` (id) | Seite zeigen, ohne Verlauf (steht im Verlauf darunter schon diese Seite, geht es zu ihr zurück: eine Seite folgt nie auf sich selbst) |
 | `patch` | `page`, `changes`: `{ "<blockId>": { <Felder> } }` | Felder von Bausteinen ändern (nur die genannten) |
 | `setBlocks` | `page`, `blocks[]` | Alle Bausteine einer Seite ersetzen (für dynamische Listen) |
 | `toast` | `text`, `ms` (Standard 2000) | kurzer Hinweis unten auf der App-Fläche |
@@ -243,12 +253,12 @@ Gleiche JSON-Form in beiden Laufzeiten:
 | `buzz` | `notes`: `[[freqHz, dutyProzent, ms], …]`, ≤ 48 Schritte | Summer der Brille (Berechtigung `buzzer`) |
 | `timer` | `tag`, `ms`, `repeat` | Ereignis `timer` nach `ms` (wiederholt, wenn `repeat`) |
 | `cancelTimer` | `tag` | |
-| `subscribe` / `unsubscribe` | `sensor` (`imu`, `compass`, `location`, `gestures`), `rate` | Ereignisse an/aus (Berechtigung nötig). `rate` bei `imu`: Firmware-Takt 100–1000 (Einheit von Even nicht dokumentiert); bei `location`: Sekunden |
+| `subscribe` / `unsubscribe` | `sensor` (`imu`, `compass`, `location`, `gestures`, `keys`), `rate` | Ereignisse an/aus (Berechtigung nötig). `rate` bei `imu`: Firmware-Takt 100–1000 (Einheit von Even nicht dokumentiert); bei `location`: Sekunden. `keys` (seit Schnittstelle 3, keine Berechtigung): Tasten einer Bluetooth-Tastatur als Ereignis `key` statt der Bedienung durch den Host (§7) |
 | `audio` | `on` (bool) | Mikrofon der Brille an/aus (Berechtigung `mic`) |
 | `storage.get` / `storage.set` | `key`, `value` (JSON) | kleiner Speicher je App (≤ 256 KiB gesamt) |
-| `askText` | `tag`, `prompt` (≤ 100 Zeichen), `suggestions` (≤ 5, je ≤ 40 Zeichen) | Tastatur/Spracheingabe auf der Uhr, auf der Brille der Hinweis „Bitte auf der Uhr eingeben“; Antwort als Ereignis `text` (seit v0.5.0) |
+| `askText` | `tag`, `prompt` (≤ 100 Zeichen), `suggestions` (≤ 5, je ≤ 40 Zeichen) | Tastatur/Spracheingabe auf der Uhr, auf der Brille der Hinweis „Bitte auf der Uhr eingeben“; Antwort als Ereignis `text` (seit v0.5.0). Ist eine Bluetooth-Tastatur verbunden, steht die Frage auf der Brille und wird dort getippt (seit v0.9.0, für die App gleich) |
 | `video` | `block` (ein `image`), `action`: `play` (`src`, `profile` `stable`/`balanced`/`fast`, `sound`, `start` in ms), `pause`, `resume`, `seek` (`position`), `profile` (`profile`), `stop` | Video in einen Bild-Baustein; `src` ist eine Video-Seite (YouTube …), eine Video-Datei/HLS-Adresse (`https://`, Berechtigung `network`) oder `test:muster`. Zustand als Ereignis `video`. Details [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050) (seit v0.5.0) |
-| `web` | `block` (ein `image`), `action`: `open` (`url` `https://`/`http://`, `reader`), `back`, `forward`, `reload`, `scroll` (`dy`), `tap` (`x`, `y`), `type` (`text`, `enter`), `reader` (`on`), `contrast` (`outline`/`halo`/`plate`), `stop` | Web-Seite in einem Bild-Baustein (Berechtigung `network`): die Uhr lädt sie, zeichnet sie in der Größe des Bausteins und schreibt das Brillenbild hinein; Zustand als Ereignis `web`. `open` in einem Baustein mit Seite lädt die neue Adresse als nächste Seite ihres Verlaufs. Verdeckt ruht die Seite, mit der App endet sie. Details [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080) (seit Schnittstelle 2, v0.8.0) |
+| `web` | `block` (ein `image`), `action`: `open` (`url` `https://`/`http://`, `reader`), `back`, `forward`, `reload`, `scroll` (`dy`), `tap` (`x`, `y`), `type` (`text`, `enter`), `key` (`key` wie beim Ereignis `key`, `shift`, `ctrl`, `alt`; seit Schnittstelle 3), `insert` (`text`: an der Stelle des Cursors, ohne zu ersetzen; seit Schnittstelle 3), `reader` (`on`), `contrast` (`outline`/`halo`/`plate`), `stop` | Web-Seite in einem Bild-Baustein (Berechtigung `network`): die Uhr lädt sie, zeichnet sie in der Größe des Bausteins und schreibt das Brillenbild hinein; Zustand als Ereignis `web`. `open` in einem Baustein mit Seite lädt die neue Adresse als nächste Seite ihres Verlaufs. Verdeckt ruht die Seite, mit der App endet sie. Details [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080) (seit Schnittstelle 2, v0.8.0) |
 | `close` | – | App beenden |
 
 `patch`-Felder je Baustein: `heading`/`text`: `text`, `align`; `button`: `text`, `target`;
@@ -293,6 +303,28 @@ Zwei Eingabearten, im Manifest gewählt (und seit v0.5.0 je Seite mit `input` ü
 | Bügel/Ring: Wischen | Fokus vor/zurück | `scrollUp`/`scrollDown` |
 | Bügel/Ring: lang drücken / loslassen | – | `longPress` / `longPressRelease` |
 | Bügel/Ring: Tippen-dann-Halten | App-Menü | App-Menü |
+
+**Bluetooth-Tastatur und -Maus** (seit v0.9.0, [03 §5.3](03_Uhr-Apps.md#53-tastatur-und-maus)) bedienen jede App
+ohne ihr Zutun, solange die Uhr das Touchpad zeigt:
+
+| Eingabe | `pointer` | `gestures` |
+|---|---|---|
+| Maus: bewegen | Zeiger bewegen (über den Rand hinaus: Seite scrollen) | – |
+| Maus: links | Klick unter Zeiger | `click` |
+| Maus: rechts | App-Menü | App-Menü |
+| Maus: Mitte, Zurück-Taste | Zurück | Zurück |
+| Maus: Rad | Seite scrollen; über einer Web-Seite `imageScroll` | je Raste `scrollUp`/`scrollDown` |
+| Pfeile, Tab, Umschalt+Tab | Fokus vor/zurück | → ↓ Bild↓ = `scrollDown`, ← ↑ Bild↑ = `scrollUp` |
+| Enter | Klick auf Fokus; Zeiger auf einer Web-Seite: `imageClick` dort | `click` |
+| Leertaste, Bild↓, Bild↑ | Seite scrollen (¾); über einer Web-Seite `imageScroll` | Leertaste = `click` |
+| Play/Pause | – | `click` |
+| Esc, Alt+←, Rücktaste | Zurück | Zurück |
+| Menütaste, F10 | App-Menü | App-Menü |
+
+Die Gesten von Tastatur und Maus kommen mit `source: "watch"`. Nach `subscribe` mit `keys` bekommt die App
+stattdessen jede Taste als Ereignis `key`; nur Esc und Alt+← (zurück), die Menütaste und F10 (App-Menü) behält
+der Host, ebenso alle Tasten, solange eine Seite des Hosts (App-Menü, Frage) darüber liegt. Maus und Rad bleiben
+beim Host. Auf dem Desktop ohne App bewegen die Pfeile den Zeiger, Enter klickt, Esc schließt das Fenster.
 
 ## 8. Berechtigungen
 

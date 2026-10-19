@@ -1,7 +1,9 @@
 package ch.madtreasures.g2watch.apps.web
 
+import android.view.KeyEvent
 import ch.madtreasures.g2watch.apps.AppJson
 import ch.madtreasures.g2watch.apps.CommandException
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.WebField
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonElement
@@ -100,6 +102,21 @@ object WebBridge {
         put("enter", enter)
     }.toString()
 
+    /** A key pressed on the page ([ch.madtreasures.g2watch.apps.WebAction.Key]). */
+    fun key(key: String, shift: Boolean, ctrl: Boolean, alt: Boolean): String = buildJsonObject {
+        put("kind", "key")
+        put("key", key)
+        put("shift", shift)
+        put("ctrl", ctrl)
+        put("alt", alt)
+    }.toString()
+
+    /** Text typed at the cursor ([ch.madtreasures.g2watch.apps.WebAction.Insert]). */
+    fun insert(text: String): String = buildJsonObject {
+        put("kind", "insert")
+        put("text", text)
+    }.toString()
+
     private fun string(e: JsonElement?): String? = (e as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
 
     private fun bool(e: JsonElement?): Boolean = (e as? JsonPrimitive)?.takeIf { !it.isString }?.booleanOrNull ?: false
@@ -112,4 +129,36 @@ object WebBridge {
             null
         }
     }
+}
+
+/**
+ * Web key names ([Keys]) as Android key codes, for GeckoView's own key input on pages where our script
+ * does not run ([GeckoWebPage.key]). Characters go in as text instead.
+ */
+object WebKeys {
+    private val CODES = mapOf(
+        Keys.ENTER to KeyEvent.KEYCODE_ENTER,
+        Keys.ESCAPE to KeyEvent.KEYCODE_ESCAPE,
+        Keys.BACKSPACE to KeyEvent.KEYCODE_DEL,
+        Keys.DELETE to KeyEvent.KEYCODE_FORWARD_DEL,
+        Keys.TAB to KeyEvent.KEYCODE_TAB,
+        Keys.SPACE to KeyEvent.KEYCODE_SPACE,
+        Keys.ARROW_UP to KeyEvent.KEYCODE_DPAD_UP,
+        Keys.ARROW_DOWN to KeyEvent.KEYCODE_DPAD_DOWN,
+        Keys.ARROW_LEFT to KeyEvent.KEYCODE_DPAD_LEFT,
+        Keys.ARROW_RIGHT to KeyEvent.KEYCODE_DPAD_RIGHT,
+        Keys.PAGE_UP to KeyEvent.KEYCODE_PAGE_UP,
+        Keys.PAGE_DOWN to KeyEvent.KEYCODE_PAGE_DOWN,
+        Keys.HOME to KeyEvent.KEYCODE_MOVE_HOME,
+        Keys.END to KeyEvent.KEYCODE_MOVE_END,
+    )
+
+    /** The key code of [key], or [KeyEvent.KEYCODE_UNKNOWN] for a character or a key the page has no use for. */
+    fun keyCode(key: String): Int = CODES[key] ?: KeyEvent.KEYCODE_UNKNOWN
+
+    /** The meta state of the modifiers, as a left key of each. */
+    fun meta(shift: Boolean, ctrl: Boolean, alt: Boolean): Int =
+        (if (shift) KeyEvent.META_SHIFT_ON or KeyEvent.META_SHIFT_LEFT_ON else 0) or
+            (if (ctrl) KeyEvent.META_CTRL_ON or KeyEvent.META_CTRL_LEFT_ON else 0) or
+            (if (alt) KeyEvent.META_ALT_ON or KeyEvent.META_ALT_LEFT_ON else 0)
 }

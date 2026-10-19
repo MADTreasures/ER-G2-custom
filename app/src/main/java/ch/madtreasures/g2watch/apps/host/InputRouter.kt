@@ -2,18 +2,71 @@ package ch.madtreasures.g2watch.apps.host
 
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.desktop.PointerMotion
+import ch.madtreasures.g2watch.input.KeyPress
+import ch.madtreasures.g2watch.input.MouseButton
 import com.faceclaw.app.BleProtocol
+import kotlin.math.abs
 
 /** A gesture of the wearer, from the watch, a temple or the ring. */
 data class Gesture(val kind: GestureKind, val source: InputSource)
 
 /**
+ * Where a Bluetooth keyboard and mouse go besides gestures (03 §5.3): the desktop for the pointer and
+ * its clicks, the app host for keys, the wheel and the app menu. Any thread.
+ */
+interface HardwareSink {
+    /** The page on the glasses takes gestures, without a pointer (02 §7). */
+    val gestureMode: Boolean
+
+    /** Pointer speed factor (crown, settings), also for the mouse. */
+    val speed: Float
+
+    /** Moves the pointer by glasses pixels. */
+    fun movePointer(dx: Float, dy: Float)
+
+    /** A click at the pointer. */
+    fun click()
+
+    /** The app menu of the app on the glasses. */
+    fun menu()
+
+    /** Back: closes the window on the desktop, back in an app. */
+    fun back()
+
+    /** The wheel turned by [notches], positive further down. */
+    fun wheel(notches: Int)
+
+    fun key(press: KeyPress)
+
+    companion object {
+        val NONE: HardwareSink = object : HardwareSink {
+            override val gestureMode = false
+            override val speed = 1f
+
+            override fun movePointer(dx: Float, dy: Float) = Unit
+
+            override fun click() = Unit
+
+            override fun menu() = Unit
+
+            override fun back() = Unit
+
+            override fun wheel(notches: Int) = Unit
+
+            override fun key(press: KeyPress) = Unit
+        }
+    }
+}
+
+/**
  * Turns what the glasses report through Faceclaw's `onRingEvent` into [Gesture]s (03 §5.1, after
  * Faceclaw's own translation, wissen/03 §2.11.2), drops the ring's repeated reports like Faceclaw does
  * (§2.11.3), and passes the watch touchpad's gestures on. Everything goes to [sink]; the app host
- * decides what a gesture means where. Not thread-safe: call it from one thread (the main thread).
+ * decides what a gesture means where. Keyboard and mouse go to [hardware], or as gestures of the watch
+ * to [sink] while the page takes gestures. Not thread-safe: call it from one thread (the main thread).
  */
-class InputRouter(private val sink: (Gesture) -> Unit) {
+class InputRouter(private val hardware: HardwareSink = HardwareSink.NONE, private val sink: (Gesture) -> Unit) {
     /** Ring clock of the last accepted ring report; 0 = none yet. */
     private var lastRingTick = 0L
 
@@ -31,6 +84,47 @@ class InputRouter(private val sink: (Gesture) -> Unit) {
 
     /** A gesture of the watch touchpad in gesture mode. */
     fun onWatchGesture(kind: GestureKind) = sink(Gesture(kind, InputSource.WATCH))
+
+    /** A key of a Bluetooth keyboard; the app host decides what it means on the page it shows. */
+    fun onKey(press: KeyPress) = hardware.key(press)
+
+    /**
+     * The mouse moved by [dx]/[dy] of its own counts within [dtMs]: the pointer follows. With gestures
+     * there is no pointer, and moving means nothing.
+     */
+    fun onMouseMove(dx: Float, dy: Float, dtMs: Float) {
+        if (hardware.gestureMode || (dx == 0f && dy == 0f)) return
+        val (gx, gy) = PointerMotion.fromMouse(dx, dy, dtMs, hardware.speed)
+        hardware.movePointer(gx, gy)
+    }
+
+    /**
+     * A mouse button went down: left clicks at the pointer (a tap in gesture mode), right opens the app
+     * menu, the middle and the back button go back.
+     */
+    fun onMouseButton(button: MouseButton) {
+        when (button) {
+            MouseButton.PRIMARY -> if (hardware.gestureMode) onWatchGesture(GestureKind.CLICK) else hardware.click()
+            MouseButton.SECONDARY -> hardware.menu()
+            MouseButton.TERTIARY, MouseButton.BACK -> hardware.back()
+            MouseButton.FORWARD -> Unit
+        }
+    }
+
+    /**
+     * The wheel turned by [notches] (positive further down): the page or the web page under the pointer
+     * scrolls; in gesture mode each notch is a swipe on the watch (finger up = [GestureKind.SCROLL_DOWN]),
+     * at most [MAX_WHEEL_GESTURES] at once.
+     */
+    fun onWheel(notches: Int) {
+        if (notches == 0) return
+        if (!hardware.gestureMode) {
+            hardware.wheel(notches)
+            return
+        }
+        val kind = if (notches > 0) GestureKind.SCROLL_DOWN else GestureKind.SCROLL_UP
+        repeat(minOf(abs(notches), MAX_WHEEL_GESTURES)) { onWatchGesture(kind) }
+    }
 
     /** Forgets the ring clock, e.g. after a new connection. */
     fun reset() {
@@ -54,6 +148,9 @@ class InputRouter(private val sink: (Gesture) -> Unit) {
 
     companion object {
         const val RING_WINDOW = 100L
+
+        /** A fast spin of the wheel is not a dozen jumps of a video. */
+        const val MAX_WHEEL_GESTURES = 3
         private const val RING_RELEASE = 8
         private const val RING_PRESS = 10
 

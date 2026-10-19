@@ -70,8 +70,17 @@ interface AppContext {
      * Asks the wearer for a line of text on the watch: keyboard, voice or one of at most 5 [suggestions].
      * The answer comes as [AppEvent.TextInput] with [tag] (text null when the wearer cancelled). One
      * question at a time: a new one cancels the open one. The glasses show a hint to look at the watch.
+     * With a Bluetooth keyboard on the watch ([keyboard]) the question shows on the glasses instead, with
+     * the line being typed (since interface version 3; the app sees no difference).
      */
     fun askText(tag: String, prompt: String, suggestions: List<String> = emptyList())
+
+    /**
+     * Whether a Bluetooth keyboard is connected to the watch right now, e.g. to type straight into a
+     * web page's field ([WebAction.Insert]) instead of asking with [askText]. Its keys reach the app as
+     * [AppEvent.Key] after subscribing to [Sensor.KEYS]. Since interface version 3.
+     */
+    val keyboard: Boolean get() = false
 
     /**
      * Plays, pauses, moves or stops a video in image block [block] (03 §10). The watch decodes it on its

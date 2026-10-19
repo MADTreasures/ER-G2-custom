@@ -67,7 +67,7 @@ seit die Uhr beim Verbinden die Trageerkennung einschaltet (wie Faceclaw).
 | Apps | Pixel Watch 3, 4 und **5** laufen mit **32-Bit-Apps** (`armeabi-v7a`; für die Watch 5 bestätigt: Android Studio meldet „Device supports armeabi-v7a, armeabi“). Wichtig für native Bibliotheken: heute nur `libandroidx.graphics.path.so` aus AndroidX (für alle Architekturen dabei), später GeckoView und liblc3. |
 | Bildschirm | rund, 456 × 456 px, 320 ppi |
 | Netz | WLAN, LTE, Bluetooth (zur Brille; zum Handy nur, wenn gekoppelt) |
-| Eingabe für die Brille | Touchpad als Maus (Finger ziehen = Zeiger, Doppeltippen = Klick), Krone = Zeigertempo, Zahnrad halten = Einstellungen |
+| Eingabe für die Brille | Touchpad als Maus (Finger ziehen = Zeiger, Doppeltippen = Klick), Krone = Zeigertempo, Zahnrad halten = Einstellungen. Seit v0.9.0 auch Bluetooth-Tastatur und -Maus, solange das Touchpad zu sehen ist ([03 §5.3](03_Uhr-Apps.md#53-tastatur-und-maus)); ob Wear OS auf der Pixel Watch HID-Geräte annimmt, ist ungeprüft |
 | Rückmeldung | Vibration |
 | Was fehlt | **kein WebView** („the android.webkit APIs aren't supported“, und nachinstallieren geht nicht) → für Web-Apps bringt G2 Watch die Engine GeckoView mit ([05 §5](05_EvenHub-Apps.md#5-engine-auf-der-uhr-geckoview)); keine Kamera |
 | Laufzeit | Vordergrund-Dienst (`connectedDevice`) hält die Verbindung; Akku 465 mAh – jede Rechenlast kostet Tragezeit |

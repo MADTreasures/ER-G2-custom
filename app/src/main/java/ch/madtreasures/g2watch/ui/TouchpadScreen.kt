@@ -87,6 +87,9 @@ import kotlin.math.sin
  * phone), down [GestureKind.SCROLL_UP], left and right [GestureKind.SWIPE_LEFT] / [GestureKind.SWIPE_RIGHT]
  * (right means back); a tap is a click once no second tap followed, two taps a double click, and holding
  * a long press with its release. Holding the gear still opens the settings.
+ *
+ * With a Bluetooth keyboard or mouse connected, [inputHint] says so under the gear ("Tastatur · Maus");
+ * their input reaches the glasses past this screen (03 §5.3).
  */
 @Composable
 fun TouchpadScreen(
@@ -99,6 +102,7 @@ fun TouchpadScreen(
     timeSource: TimeSource = TimeTextDefaults.rememberTimeSource(TimeTextDefaults.timeFormat()),
     gestureMode: Boolean = false,
     onGesture: (GestureKind) -> Unit = {},
+    inputHint: String? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current.density
@@ -231,6 +235,9 @@ fun TouchpadScreen(
                 }
                 if (gestureMode) {
                     Text("Gesten", fontSize = 13.sp, color = RIM_TOP, modifier = Modifier.testTag(GESTURES_TAG))
+                }
+                if (inputHint != null) {
+                    Text(inputHint, fontSize = 12.sp, color = RIM_TOP, modifier = Modifier.testTag(INPUT_HINT_TAG))
                 }
             }
             TouchFeedbackLayer(feedback, Modifier.fillMaxSize())
@@ -515,6 +522,13 @@ internal const val GEAR_TAG = "gear"
 
 /** Test tag of the hint that the face reports gestures. */
 internal const val GESTURES_TAG = "gestures"
+
+/** Test tag of the hint that a keyboard or mouse is connected. */
+internal const val INPUT_HINT_TAG = "input-hint"
+
+/** The hint under the gear for what is connected: "Tastatur · Maus", or null for nothing. */
+internal fun inputHint(keyboard: Boolean, mouse: Boolean): String? =
+    listOfNotNull("Tastatur".takeIf { keyboard }, "Maus".takeIf { mouse }).joinToString(" · ").ifEmpty { null }
 
 /** A swipe in gesture mode must cover at least this much. */
 private const val SWIPE_MIN_DP = 24f

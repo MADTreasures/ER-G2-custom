@@ -6,6 +6,8 @@ import android.hardware.HardwareBuffer
 import android.media.ImageReader
 import android.os.SystemClock
 import android.view.InputDevice
+import android.view.KeyCharacterMap
+import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.core.graphics.scale
 import ch.madtreasures.g2watch.apps.WebContrast
@@ -41,8 +43,8 @@ import kotlin.coroutines.resumeWithException
  * [ImageReader] surface of the block's size. When [CapturePlan] says so, it holds the page still
  * ("freeze"), asks the extension for the layout, captures the surface, captures it again without
  * text ("hide-text") and lets [WebPicture] make the glasses' picture; a picture equal to the last is
- * not sent again. Taps go to GeckoView as touch events (like a finger), scrolling and typing through
- * the extension. Everything here runs on the main thread; the [WebPage] methods may be called from
+ * not sent again. Taps go to GeckoView as touch events (like a finger), scrolling, typing and keys
+ * through the extension (keys through GeckoView's own key input where no script runs). Everything here runs on the main thread; the [WebPage] methods may be called from
  * any thread and post there.
  */
 internal class GeckoWebPage(
@@ -114,6 +116,40 @@ internal class GeckoWebPage(
     override fun type(text: String, enter: Boolean) = onMain {
         if (!send(WebBridge.type(text, enter))) note("Hier lässt sich nichts eingeben")
         acted(CapturePlan.AFTER_TYPE_MS)
+    }
+
+    /**
+     * The page's script edits the field and moves the focus itself and tells the page about the key
+     * first. GeckoView's own key input takes the key only where no script runs (an error page): whether
+     * it reaches a page without a view on screen is not known yet, and the script's way can be checked.
+     */
+    override fun key(key: String, shift: Boolean, ctrl: Boolean, alt: Boolean) = onMain {
+        if (!send(WebBridge.key(key, shift, ctrl, alt))) geckoKey(key, shift, ctrl, alt)
+        acted(CapturePlan.AFTER_TYPE_MS)
+    }
+
+    override fun insert(text: String) = onMain {
+        if (!send(WebBridge.insert(text))) geckoText(text)
+        acted(CapturePlan.AFTER_TYPE_MS)
+    }
+
+    private fun geckoKey(key: String, shift: Boolean, ctrl: Boolean, alt: Boolean) {
+        val input = session?.textInput ?: return
+        val code = WebKeys.keyCode(key)
+        if (code == KeyEvent.KEYCODE_UNKNOWN) {
+            if (!ctrl && !alt) geckoText(key)
+            return
+        }
+        val meta = WebKeys.meta(shift, ctrl, alt)
+        val now = SystemClock.uptimeMillis()
+        input.onKeyDown(code, KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, 0, meta))
+        input.onKeyUp(code, KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0, meta))
+    }
+
+    /** Text as one "multiple characters" key event, the way Android sends text that has no keys. */
+    private fun geckoText(text: String) {
+        val input = session?.textInput ?: return
+        input.onKeyMultiple(KeyEvent.KEYCODE_UNKNOWN, 1, KeyEvent(SystemClock.uptimeMillis(), text, KeyCharacterMap.VIRTUAL_KEYBOARD, 0))
     }
 
     /** The next picture follows the extension's answer (on) or the new load (off). */

@@ -5,9 +5,11 @@ import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.AppManifest
 import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.G2App
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
+import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.WebAction
 import ch.madtreasures.g2watch.apps.WebContrast
 import ch.madtreasures.g2watch.apps.WebField
@@ -29,6 +31,12 @@ import java.text.BreakIterator
  * the pointer on the page, clicks there; temple swipes and the pointer pushed past the edge scroll. A
  * text field that gets the cursor asks for its text on the watch. Back goes back through the pages
  * seen, then to the start page with the bookmarks. Articles show in reading mode (switchable).
+ *
+ * With a Bluetooth keyboard on the watch (since interface version 3) the page takes its keys: typing
+ * goes straight into the field that has the cursor, the arrows, Space and the page keys scroll, Tab
+ * walks the links and fields, Enter follows one; Ctrl+L or F6 asks for an address, Ctrl+R or F5
+ * reloads, Alt+→ goes forward, Ctrl+D sets or removes the bookmark. Escape (back) and the menu key
+ * stay the watch's.
  *
  * An app package (09): this class holds the pages, bookmarks and history; GeckoView, capturing and
  * rasterizing are part of the watch app (`apps/web`), reached through [AppContext.web].
@@ -58,6 +66,7 @@ class BrowserApp : G2App {
     private var title = ""
     private var progress = 0
     private var canForward = false
+    private var canBack = false
     private var readerShown = false
     private var readable = false
     private var field: WebField? = null
@@ -67,6 +76,9 @@ class BrowserApp : G2App {
 
     /** The wearer tapped the page: a text field that gets the cursor now asks for its text. */
     private var tapped = false
+
+    /** Keys of a Bluetooth keyboard come to the app, while the page shows ([Sensor.KEYS]). */
+    private var keys = false
     private var shownMenu: List<MenuItem>? = null
 
     /** Bookmark armed for removal (index), until another click. */
@@ -82,6 +94,7 @@ class BrowserApp : G2App {
             is AppEvent.Web -> if (event.block == PICTURE) pageChanged(event, ui)
             is AppEvent.ImageClick -> if (event.block == PICTURE) tap(event.x, event.y, ui)
             is AppEvent.ImageScroll -> if (event.block == PICTURE) ui.web(PICTURE, WebAction.Scroll(event.dy))
+            is AppEvent.Key -> key(event, ui)
             is AppEvent.Back -> if (event.page == WEB) close(ui) else disarm(ui)
             is AppEvent.Navigate -> disarm(ui)
             is AppEvent.Menu -> menu(event.item, ui)
@@ -281,6 +294,10 @@ class BrowserApp : G2App {
             ui.web(PICTURE, WebAction.Open(address, reader))
         }
         ui.show(WEB)
+        if (!keys) {
+            ui.subscribe(Sensor.KEYS)
+            keys = true
+        }
         updateMenu(ui)
     }
 
@@ -290,6 +307,11 @@ class BrowserApp : G2App {
         ui.web(PICTURE, WebAction.Stop)
         open = false
         field = null
+        // On the start page the watch's own keys work again: arrows to the buttons, Enter clicks.
+        if (keys) {
+            ui.unsubscribe(Sensor.KEYS)
+            keys = false
+        }
         ui.definePages(listOf(historyPage()))
         updateMenu(ui)
     }
@@ -308,6 +330,7 @@ class BrowserApp : G2App {
         title = e.title
         progress = e.progress
         canForward = e.canForward
+        canBack = e.canBack
         readable = e.readable
         readerShown = e.reader
         field = e.field
@@ -326,10 +349,11 @@ class BrowserApp : G2App {
         if (e.state != WebState.ERROR) e.message?.let { ui.toast(it) }
         rename(ui)
         // Only a field the wearer tapped asks at once; one the page focused by itself waits for the menu.
+        // With a keyboard the wearer types into it straight away.
         val f = field
         if (f != null && tapped && (hadField == null || hadField.label != f.label)) {
             tapped = false
-            askField(ui)
+            if (ui.keyboard) ui.toast("Tippen geht ins Feld, Enter sendet") else askField(ui)
         }
         updateMenu(ui)
     }
@@ -355,6 +379,41 @@ class BrowserApp : G2App {
         history = (listOf(Link(url, name)) + history.filter { it.url != url }).take(MAX_HISTORY)
         save(ui)
         ui.definePages(listOf(historyPage()))
+    }
+
+    // --- Keyboard -------------------------------------------------------------------------------
+
+    /** A key of a Bluetooth keyboard while the page shows. */
+    private fun key(k: AppEvent.Key, ui: AppContext) {
+        if (!open) return
+        val letter = k.key.lowercase()
+        when {
+            (k.ctrl && letter == "l") || k.key == Keys.F6 -> return askAddress(ui)
+            (k.ctrl && letter == "r") || k.key == Keys.F5 -> return ui.web(PICTURE, WebAction.Reload)
+            (k.alt && k.key == Keys.ARROW_RIGHT) || k.key == Keys.BROWSER_FORWARD -> {
+                if (canForward) ui.web(PICTURE, WebAction.Forward)
+                return
+            }
+            k.ctrl && letter == "d" -> return if (bookmarks.any { it.url == url }) unmark(ui) else mark(ui)
+        }
+        if (field != null) {
+            when {
+                k.text.isNotEmpty() && !k.ctrl && !k.alt && !k.meta -> ui.web(PICTURE, WebAction.Insert(k.text))
+                k.key in FIELD_KEYS || k.ctrl -> ui.web(PICTURE, WebAction.Key(k.key, k.shift, k.ctrl, k.alt))
+            }
+            return
+        }
+        val page = PICTURE_H * 3 / 4
+        when (k.key) {
+            Keys.ARROW_DOWN -> ui.web(PICTURE, WebAction.Scroll(LINE))
+            Keys.ARROW_UP -> ui.web(PICTURE, WebAction.Scroll(-LINE))
+            Keys.SPACE -> ui.web(PICTURE, WebAction.Scroll(if (k.shift) -page else page))
+            Keys.PAGE_DOWN -> ui.web(PICTURE, WebAction.Scroll(page))
+            Keys.PAGE_UP -> ui.web(PICTURE, WebAction.Scroll(-page))
+            // Tab walks links and fields, Enter follows the one with the focus; Home and End jump.
+            Keys.TAB, Keys.ENTER, Keys.HOME, Keys.END -> ui.web(PICTURE, WebAction.Key(k.key, k.shift))
+            Keys.BACKSPACE -> if (canBack) ui.web(PICTURE, WebAction.Back)
+        }
     }
 
     // --- Menu -----------------------------------------------------------------------------------
@@ -483,6 +542,15 @@ class BrowserApp : G2App {
         /** The page fills the app area below the header. */
         const val PICTURE_W = 576
         const val PICTURE_H = 260
+
+        /** Pixels an arrow key scrolls the page. */
+        const val LINE = 48
+
+        /** Keys that edit or leave the field with the cursor. */
+        private val FIELD_KEYS = setOf(
+            Keys.BACKSPACE, Keys.DELETE, Keys.ENTER, Keys.TAB, Keys.ARROW_LEFT, Keys.ARROW_RIGHT,
+            Keys.ARROW_UP, Keys.ARROW_DOWN, Keys.HOME, Keys.END,
+        )
 
         const val MAX_BOOKMARKS = 30
         const val MAX_HISTORY = 20
