@@ -72,7 +72,13 @@ class InputDevices(context: Context) : InputManager.InputDeviceListener {
         fun hasKeys(device: InputDevice?): Boolean =
             device != null && device.isExternal && !device.isVirtual && device.supportsSource(InputDevice.SOURCE_KEYBOARD)
 
+        /**
+         * Whether [device] is an external mouse. While a window holds its pointer capture, Android reports
+         * the mouse as SOURCE_MOUSE_RELATIVE instead of SOURCE_MOUSE (and tells of a changed device): it
+         * still counts, or the capture would end itself and come back in a loop.
+         */
         fun isMouse(device: InputDevice?): Boolean =
-            device != null && device.isExternal && !device.isVirtual && device.supportsSource(InputDevice.SOURCE_MOUSE)
+            device != null && device.isExternal && !device.isVirtual &&
+                (device.supportsSource(InputDevice.SOURCE_MOUSE) || device.supportsSource(InputDevice.SOURCE_MOUSE_RELATIVE))
     }
 }

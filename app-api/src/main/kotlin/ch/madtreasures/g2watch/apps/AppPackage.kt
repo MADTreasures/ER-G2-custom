@@ -33,8 +33,9 @@ class PackageFormatException(message: String) : Exception(message)
  * that class reports it, so the watch can list and check a package without running its code.
  *
  * [icon] is the package file of the app's launcher icon under `assets/` (`apps/<app id>/icon.png`), if
- * the package has one. It belongs to the package, not to the app interface: an older watch app ignores
- * it, and [G2AppApi.VERSION] stays as it is.
+ * the package has one. It belongs to the package, not to the app interface, so it needs no new
+ * [G2AppApi.VERSION] of its own: an older watch app's parser ignores it. A package built now carries
+ * [api] = [G2AppApi.VERSION] all the same, and needs a watch app that knows that version (09 §5).
  */
 data class PackageManifest(val api: Int, val main: String, val app: AppManifest, val icon: String? = null) {
 

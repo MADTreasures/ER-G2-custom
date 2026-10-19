@@ -228,10 +228,10 @@ Cursor, darunter die Vorschläge. ← und →, Pos1 und Ende bewegen den Cursor,
 öffnet stattdessen Tastatur und Spracheingabe der Uhr.
 
 **Belegung:** Ohne eigene Einstellung tippt Android mit der amerikanischen Belegung: Y und Z wären vertauscht,
-Umlaute fehlten. Wear OS hat dafür keine Einstellung. Die App hat deshalb eigene Belegungen für **Schweiz**,
-**Deutschland** (beide mit den Akzent-Tasten ^ ´ ` ~ ¨) und **USA**. Standard ist *Automatisch*: nach der
-Sprache der Uhr (Deutsch (Schweiz) → Schweiz, anderes Deutsch → Deutschland, sonst die Belegung der Tastatur).
-Die Belegung gilt nur, wenn die Tastatur selbst keine hat.
+Umlaute fehlten. Wear OS hat dafür keine Einstellung. Die App hat deshalb eigene Belegungen für **Schweiz**
+(mit den Akzent-Tasten ^ ´ ` ~ ¨), **Deutschland** (Akzent-Tasten ^ ´ `; ~ mit AltGr direkt) und **USA**.
+Standard ist *Automatisch*: nach der Sprache der Uhr (Deutsch (Schweiz) → Schweiz, anderes Deutsch →
+Deutschland, sonst die Belegung der Tastatur). Die Belegung gilt nur, wenn die Tastatur selbst keine hat.
 
 **Wann es geht:** Tastatur und Maus wirken auf die Brille nur, solange die Uhr das Touchpad zeigt und die
 Brille verbunden ist; auf allen anderen Seiten bedienen sie die Uhr wie gewohnt. G2 Watch muss vorne sein
@@ -598,7 +598,7 @@ die Uhr offline ist.
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 7 + 538 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 7 + 541 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 

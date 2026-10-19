@@ -130,6 +130,8 @@ class HidPairing(context: Context, private val log: (String) -> Unit) {
         } catch (e: IllegalArgumentException) {
             return
         }
+        // The scan ends here; its timeout would otherwise clear the pairing message later.
+        main.removeCallbacks(timeout)
         stopScanning()
         register()
         val started = try {

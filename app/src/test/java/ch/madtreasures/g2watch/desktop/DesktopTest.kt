@@ -1,5 +1,6 @@
 package ch.madtreasures.g2watch.desktop
 
+import ch.madtreasures.g2watch.FakeText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -119,5 +120,17 @@ class DesktopTest {
         assertEquals(Target.Tile(AppId.COUNTER), desktop.hover)
         assertTrue(desktop.updateHover(0, 0))
         assertNull(desktop.hover)
+    }
+
+    @Test
+    fun `the help window says that the arrows move the pointer on the desktop`() {
+        // The window shows only on the bare desktop, where the arrows move the pointer (AppHost.desktopKey);
+        // only inside apps do they move to the next button.
+        val text = FakeText()
+        val r = tile(AppId.HELP)
+        desktop.click(r.centerX(), r.centerY())
+        DesktopRenderer(text).render(desktop, GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT))
+        val keyboard = text.drawn.single { it.startsWith("Tastatur:") }
+        assertTrue(keyboard, keyboard.startsWith("Tastatur: Pfeile = Zeiger (in Apps: Knopf)"))
     }
 }

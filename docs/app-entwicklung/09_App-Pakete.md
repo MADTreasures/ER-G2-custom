@@ -7,7 +7,7 @@ Die Uhr-App muss dafür weder neu gebaut noch neu installiert werden.
 
 Stand v0.6.0: fertig und mit Tests abgesichert, **nicht auf echter Uhr erprobt**. Nur das Laden des
 DEX-Codes auf der Uhr (`DexClassLoader`) lässt sich ohne Uhr nicht testen. Seit v0.8.0 Schnittstelle
-Version 2 (§5) und das Paket Browser.
+Version 2 (§5) und das Paket Browser, seit v0.9.0 Version 3 (Tastatur, §5).
 
 ## 1. Wer macht was
 
@@ -35,11 +35,11 @@ Eine ZIP-Datei mit der Endung `.g2app`:
 ```json
 {
   "format": "g2app-paket@1",
-  "api": 2,
+  "api": 3,
   "main": "ch.madtreasures.youtube.YouTubeApp",
   "id": "ch.madtreasures.youtube",
   "name": "YouTube",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "input": "pointer",
   "permissions": ["network"],
   "description": "YouTube-Videos suchen und als Graustufen-Raster auf der Brille ansehen.",
@@ -56,8 +56,9 @@ außer `icon`.
 Paket, nicht zur Schnittstelle: Der Bau-Schritt trägt es ein, wenn `src/main/assets/apps/<app-id>/icon.png`
 existiert; am `AppManifest` ändert sich nichts. Format: PNG, quadratisch, 64 × 64 empfohlen (16 bis 256 px),
 höchstens 64 KB, Graustufen auf Schwarz oder transparent (beides ist auf dem Glas durchsichtig); Gestaltung
-siehe [02 §2](02_App-Modell.md#2-manifest-g2appjson). Das Format bleibt `g2app-paket@1` und die
-Schnittstelle Version 2: Eine ältere Uhr-App überliest `icon`.
+siehe [02 §2](02_App-Modell.md#2-manifest-g2appjson). Das Format bleibt `g2app-paket@1`, und `icon` allein
+braucht keine neue Schnittstellen-Version: Eine ältere Uhr-App überliest das Feld. Ein Paket, das jetzt gebaut
+wird, trägt aber Version 3 und braucht damit die Uhr-App 0.9.0 (§5).
 
 Grenzen: Datei höchstens 20 MB, entpackt höchstens 50 MB, höchstens 2000 Dateien, Pfade ohne `..`.
 

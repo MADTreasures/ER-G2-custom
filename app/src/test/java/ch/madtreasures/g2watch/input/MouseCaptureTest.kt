@@ -1,6 +1,7 @@
 package ch.madtreasures.g2watch.input
 
 import android.content.Context
+import android.hardware.input.InputManager
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.MotionEvent
@@ -12,6 +13,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 /**
@@ -116,5 +118,44 @@ class MouseCaptureTest {
         assertFalse(view.captured)
         assertFalse(view.dispatchCapturedPointerEvent(relativeMove()))
         assertEquals(0, events.size)
+    }
+
+    /** An external mouse as Android describes it, by its hidden InputDevice.Builder. */
+    private fun mouseDevice(sources: Int, generation: Int): InputDevice {
+        val builder = Class.forName("android.view.InputDevice\$Builder").getConstructor().newInstance()
+        fun set(name: String, type: Class<*>, value: Any) = builder.javaClass.getMethod(name, type).invoke(builder, value)
+        set("setId", Int::class.javaPrimitiveType!!, MOUSE_ID)
+        set("setGeneration", Int::class.javaPrimitiveType!!, generation)
+        set("setName", String::class.java, "Magic Mouse")
+        set("setExternal", Boolean::class.javaPrimitiveType!!, true)
+        set("setSources", Int::class.javaPrimitiveType!!, sources)
+        return builder.javaClass.getMethod("build").invoke(builder) as InputDevice
+    }
+
+    @Test
+    fun `a captured mouse stays a mouse, so the capture holds`() {
+        val context = RuntimeEnvironment.getApplication()
+        val manager = shadowOf(context.getSystemService(InputManager::class.java))
+        val devices = InputDevices(context)
+        // As the touchpad does it: capture while the device list has a mouse.
+        fun follow() = capture.set(view, wanted = devices.devices.value.any { it.mouse })
+
+        manager.addInputDevice(mouseDevice(InputDevice.SOURCE_MOUSE, generation = 1))
+        devices.onInputDeviceAdded(MOUSE_ID)
+        follow()
+        assertTrue(view.captured)
+        // Captured, Android reports the mouse as a relative one and tells of a changed device.
+        manager.removeInputDevice(MOUSE_ID)
+        manager.addInputDevice(mouseDevice(InputDevice.SOURCE_MOUSE_RELATIVE, generation = 2))
+        devices.onInputDeviceChanged(MOUSE_ID)
+        follow()
+        assertEquals(listOf(true), devices.devices.value.map { it.mouse })
+        assertTrue(view.captured)
+        assertEquals(1, view.requests)
+        assertEquals(0, view.releases)
+    }
+
+    private companion object {
+        const val MOUSE_ID = 7
     }
 }

@@ -709,8 +709,8 @@ erlaubt, Downloads und Links in andere Apps nicht, ein Link in ein neues Fenster
 Zurück durch den Verlauf, Ruhen, Aktionen, Fehler), `CapturePlanTest`, `WebBridgeTest` (auch: die Dateien der
 Erweiterung passen zu Engine und Manifest), `WebPictureTest` (Seite → Brillenbild, Fehlerseite), `AppJsonTest`,
 `BrowserAppTest`, `InstalledPackagesTest`, Bilder `apps-browser-*.png` (erfundene Seiten). Das Inhalts-Skript
-prüft [`tools/page-preview/bridge-check.js`](../../tools/page-preview/README.md) in Chromium (20 Prüfungen,
-nicht in der CI).
+prüft [`tools/page-preview/bridge-check.js`](../../tools/page-preview/README.md) in Chromium (32 Prüfungen,
+davon 12 zur Bluetooth-Tastatur, nicht in der CI).
 
 **Nicht erprobt:** alles auf der echten Uhr – ob GeckoView dort startet, Tipp-Ereignisse ohne Ansicht annimmt,
 die Aufnahmen gelingen, wie schnell ein Bild entsteht, Speicher und Akku. Was davon an den Messwerten des

@@ -130,7 +130,7 @@ class DesktopRenderer(private val text: TextPainter) {
                 "Bügel: Tipp = Klick, Doppeltipp = zurück",
                 "In Apps: Wischen am Bügel = nächster Knopf",
                 "Tippen, dann halten = App-Menü",
-                "Tastatur: Pfeile = Knopf, Enter = Klick, Esc = zurück",
+                "Tastatur: Pfeile = Zeiger (in Apps: Knopf), Enter = Klick, Esc = zurück",
                 "Maus: links = Klick, rechts = Menü, Rad = scrollen",
             )
         }
