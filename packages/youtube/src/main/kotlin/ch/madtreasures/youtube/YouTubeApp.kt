@@ -58,6 +58,9 @@ class YouTubeApp : G2App {
     private var position = 0L
     private var duration = 0L
 
+    /** Whether [current] has played yet: its title comes with the first picture, "Weiter" after that. */
+    private var titled = false
+
     override fun onEvent(event: AppEvent, ui: AppContext) {
         when (event) {
             AppEvent.Start -> start(ui)
@@ -212,6 +215,7 @@ class YouTubeApp : G2App {
     private fun play(item: VideoItem, ui: AppContext) {
         current = item
         state = VideoState.LOADING
+        titled = false
         position = 0
         duration = item.durationS * 1000
         if (item.url != TEST_VIDEO.url) {
@@ -232,6 +236,8 @@ class YouTubeApp : G2App {
         current = null
         ui.menu(menuItems())
         showHistory(ui)
+        // A note stays up to 10 s, also over the list; "Pause … tippen: weiter" would be wrong there.
+        ui.toast("Video beendet", SHORT_NOTE_MS)
     }
 
     /** A note over the picture when the state changes; the position alone (every second) says nothing new. */
@@ -240,19 +246,20 @@ class YouTubeApp : G2App {
         position = e.positionMs
         if (e.durationMs > 0) duration = e.durationMs
         if (e.state == state) return
-        val before = state
         state = e.state
         when (e.state) {
             VideoState.LOADING -> ui.toast(LOADING_NOTE, LONG_NOTE_MS)
             // The title once at the start; later only that it goes on, briefly, so the picture is free.
             VideoState.PLAYING ->
-                if (before == VideoState.LOADING) ui.toast(shorten(title(item), 42), TITLE_NOTE_MS)
+                if (!titled) ui.toast(shorten(title(item), 42), TITLE_NOTE_MS)
                 else ui.toast("Weiter · ${time()}", SHORT_NOTE_MS)
             VideoState.PAUSED -> ui.toast("Pause ${time()} – tippen: weiter", LONG_NOTE_MS)
-            VideoState.BUFFERING -> ui.toast("Lädt nach … ${time()}", LONG_NOTE_MS)
+            // The first picture often comes while the player still fills its buffer: that is still loading.
+            VideoState.BUFFERING -> ui.toast(if (titled) "Lädt nach … ${time()}" else LOADING_NOTE, LONG_NOTE_MS)
             VideoState.ENDED -> ui.toast("Ende – tippen: nochmal", LONG_NOTE_MS)
             VideoState.ERROR -> ui.toast(shorten(e.message ?: "Video geht nicht", 60), LONG_NOTE_MS)
         }
+        if (e.state == VideoState.PLAYING) titled = true
     }
 
     private fun gesture(kind: GestureKind, ui: AppContext) {

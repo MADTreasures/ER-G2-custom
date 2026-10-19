@@ -207,6 +207,22 @@ class YouTubeAppTest {
     }
 
     @Test
+    fun `the title comes with the first picture, also after buffering, and no note outlives the video`() {
+        started()
+        playHit(0, state = VideoState.LOADING)
+        // The player often shows its first picture while it still fills its buffer: still loading, not "again".
+        send(AppEvent.Video(PICTURE, VideoState.BUFFERING, 0, 296_000))
+        assertEquals("Lädt … Tippen = Pause, Wischen = ±10 s", note())
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 0, 296_000))
+        assertEquals("Katzen im Schnee", note())
+        // Paused, then back to the list: "tippen: weiter" must not stay over the list for seconds.
+        send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RIGHT))
+        send(AppEvent.Video(PICTURE, VideoState.PAUSED, 31_000, 296_000))
+        send(AppEvent.Back(VIDEO))
+        assertEquals("Video beendet", note())
+    }
+
+    @Test
     fun `back from the video stops it, and it is in the history`() {
         started()
         playHit(1)

@@ -49,6 +49,10 @@ internal class ExoVideoPlayer(
 
     // Before the thread: a size the converter refuses throws here, without leaving a thread behind.
     private val converter = FrameConverter(request.width, request.height, request.profile)
+
+    /** Source lines the raster asks for (03 §10), for the stream choice and among the pictures of an HLS stream. */
+    private val wantHeight = StreamChooser.wantHeight(request.height / request.profile.cell)
+
     private val thread = HandlerThread("G2Watch-video").apply { start() }
     private val handler = Handler(thread.looper)
 
@@ -149,8 +153,7 @@ internal class ExoVideoPlayer(
             post { fail(message) }
             return
         }
-        val want = StreamChooser.wantHeight(request.height / request.profile.cell)
-        val chosen = StreamChooser.plans(result.options, result.hls, result.live, want, request.sound)
+        val chosen = StreamChooser.plans(result.options, result.hls, result.live, wantHeight, request.sound)
         post {
             if (chosen.isEmpty()) {
                 fail("Keine abspielbare Fassung gefunden")
@@ -178,13 +181,7 @@ internal class ExoVideoPlayer(
         val g = GlFrameGrabber(handler) { picture() }
         grabber = g
         val selector = DefaultTrackSelector(context)
-        selector.setParameters(
-            selector.buildUponParameters()
-                .setMaxVideoSize(Int.MAX_VALUE, StreamChooser.MAX_HEIGHT)
-                .setForceLowestBitrate(true)
-                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !request.sound)
-                .build(),
-        )
+        selector.setParameters(trackRules(selector.buildUponParameters(), wantHeight, request.sound))
         val load = DefaultLoadControl.Builder()
             .setBufferDurationsMs(BUFFER_MIN_MS, BUFFER_MAX_MS, 1_500, 3_000)
             .build()
@@ -370,6 +367,20 @@ internal class ExoVideoPlayer(
         const val IDLE_MS = 20_000L
         const val BUFFER_MIN_MS = 15_000
         const val BUFFER_MAX_MS = 30_000
+
+        /**
+         * What ExoPlayer may pick where a stream offers several pictures (HLS, live videos): the lowest
+         * bitrate with at least [wantHeight] lines (if there is none, the lowest at all), never more than
+         * [StreamChooser.MAX_HEIGHT] lines; no sound track unless [sound]. A stream from [StreamChooser.plans]
+         * has only one picture.
+         */
+        fun trackRules(base: DefaultTrackSelector.Parameters.Builder, wantHeight: Int, sound: Boolean): DefaultTrackSelector.Parameters =
+            base
+                .setMaxVideoSize(Int.MAX_VALUE, StreamChooser.MAX_HEIGHT)
+                .setMinVideoSize(0, wantHeight)
+                .setForceLowestBitrate(true)
+                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !sound)
+                .build()
 
         /** A file or playlist rather than a page a portal has to be asked about. */
         fun isDirectMedia(src: String): Boolean {

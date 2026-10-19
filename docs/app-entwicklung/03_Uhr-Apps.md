@@ -399,9 +399,11 @@ YouTubeApp (G2App) ── video(block, Play) ──────────▶ A
 4. Auf die 16 Graustufen runden; ein Punkt wechselt seine Stufe erst, wenn der Wert **10/16 einer Stufe**
    davon weg ist (bis v0.8 13/16; 8/16 wäre einfaches Runden). Ruhige Bildteile bleiben so Byte für Byte gleich
    – das spart Funk, weil Faceclaws Kern nur Änderungen schickt und zlib Wiederholungen findet –, und langsame
-   Bewegungen kommen früher an als mit 13/16. Preis: Rauschen von ±2 Helligkeitswerten lässt in
-   kontrastarmen oder detailreichen ruhigen Szenen 1–3 % der Punkte je Bild kippen (simuliert; ±1 kippt
-   keine, 12/16 hielte ±2 still). Flimmert das auf der Brille, ist 12/16 der nächste Schritt.
+   Bewegungen kommen früher an als mit 13/16. Preis: Es hält weniger Rauschen still. In ruhigen Szenen der
+   erfundenen Videos lässt Rauschen von ±2 Helligkeitswerten 1–3 % der Punkte je Bild kippen, ±1 keine; in
+   einer flauen Szene, die auf 72 Stufen gestreckt wird, kippen schon bei ±1 etwa 4 %, bei ±2 etwa 16 %
+   (12/16: keine und 7 %, 13/16: keine und 4 %; simuliert). Flimmert das auf der Brille, ist 12/16 der
+   nächste Schritt.
 5. Jeder Rasterpunkt wird ein Quadrat aus `cell` × `cell` Pixeln.
 
 **Profile.** Ein Profil legt das Raster fest und wie oft die Uhr ein Bild macht; wie viele davon ankommen,
@@ -425,7 +427,8 @@ höchstens die halbe Verbindung, und dass viel Detail mindestens 2 (Schnell: 4) 
 waren es 1, 2 und 4 Bilder pro Sekunde mit 2 × 2, 3 × 3 und 4 × 4 (8 Stufen) bei 416 × 234 – höchstens ein
 Drittel der Verbindung, und der Host zeichnete ohnehin nur alle 200 ms. Die YouTube-App zeigt das Bild seit
 v0.9.0 randlos in 512 × 288 statt 416 × 234 mit Statuszeile; der Zustand kommt als Hinweis (`toast`) über das
-Bild. Der Test zeigt dafür bei gewöhnlichen Szenen weiter 10 Bilder pro Sekunde, nur viel Detail fällt von 3
+Bild, der Titel mit dem ersten Bild. Ein Hinweis bleibt bis zu 10 s, auch über einer anderen Seite: Beim Zurück
+zur Liste ersetzt ihn darum kurz „Video beendet“ (sonst stünde dort noch „Pause … – tippen: weiter“). Der Test zeigt dafür bei gewöhnlichen Szenen weiter 10 Bilder pro Sekunde, nur viel Detail fällt von 3
 auf 2.
 
 **Dithering:** keines. Fehlerverteilung (Floyd–Steinberg) lässt ruhige Bildteile flimmern: Im Gespräch
@@ -441,7 +444,10 @@ Drittel mehr (mit halber Stärke 10–15 %); es glättet Verläufe wie den Himme
   bis v0.8 meist 144p, für das feinere Raster zu verwaschen), sonst VP9, nie AV1 und nie über 480p; mit Ton die
   kleinste AAC-Spur der Originalsprache ab 48 kbit/s. Reihenfolge der Versuche: Bild(+Ton) → HLS → Datei mit
   Ton. Schlägt ein Stream fehl (z. B. HTTP 403), kommt der nächste; sind alle durch, wird die Seite einmal neu
-  aufgelöst (Adressen verfallen). Live-Videos nur über HLS.
+  aufgelöst (Adressen verfallen). Live-Videos nur über HLS. Ein HLS-Stream bietet mehrere Fassungen; davon
+  nimmt ExoPlayer nach derselben Regel die mit der kleinsten Bitrate und mindestens so vielen Zeilen
+  (`ExoVideoPlayer.trackRules`; bis v0.8 einfach die kleinste, also 144p). Die Fassung gilt für das Profil
+  beim Start; wer während des Videos das Profil wechselt, behält sie.
 - YouTubes Videoserver bekommen, was NewPipe schickt: den User-Agent des Clients, der die Adresse bekam
   (Android, iOS, visionOS), bei Web-Adressen POST und Origin/Referer, und die Bytes stückweise als
   `range=a-b` mit Zähler `rn` (je 1 MiB).
@@ -464,7 +470,8 @@ Drittel mehr (mit halber Stärke 10–15 %); es glättet Verläufe wie den Himme
 **Im Host:** `video(block, …)` verlangt einen `image`-Baustein; `https://` braucht `network`, `test:` nicht.
 Ein neues Video beginnt schwarz und ersetzt ein altes im selben Baustein. Bilder gehen in den Baustein wie
 `setRaster`. Ein neues Videobild zeichnet der Host nach höchstens **66 ms** (etwa 15 pro Sekunde), mit allen
-Befehlen bis dahin; Befehle allein weiter höchstens alle 200 ms (02 §6.2). Das Video **pausiert**, solange die
+Befehlen bis dahin; Befehle allein weiter höchstens alle 200 ms (02 §6.2), ebenso Videobilder, solange das
+App-Menü oder ein Hinweis der Uhr das Bild verdeckt. Das Video **pausiert**, solange die
 App verdeckt ist oder die Brille weg ist, und läuft danach von selbst weiter – außer die App hat selbst
 pausiert. Ein Fehler beendet das Video (Eintrag im Protokoll, Ereignis `error`); mit der App endet es immer.
 
@@ -477,7 +484,7 @@ so spielt ein Tipp am Bügel den ersten Treffer ab, sobald die Liste da ist.
 
 **Tests (ohne Hardware):** `AppHostVideoTest` (auch: Bilder pro Sekunde bei 10 und 30 Videobildern),
 `YouTubeAppTest`, `FrameConverterTest` (auch: Glättung je Sekunde, Totzone), `FrameBeatTest`,
-`StreamChooserTest`, `TestPatternPlayerTest`, `VideoBudgetTest`, Bilder `apps-youtube-*.png` und
+`StreamChooserTest`, `TrackRulesTest` (welche HLS-Fassung), `TestPatternPlayerTest`, `VideoBudgetTest`, Bilder `apps-youtube-*.png` und
 `video-profile.png`. Suche und Auflösen sind einmal mit echtem Netz gegen YouTube probiert (20 Treffer; nach
 der damaligen Regel 144p H.264 gewählt), nicht in der CI.
 

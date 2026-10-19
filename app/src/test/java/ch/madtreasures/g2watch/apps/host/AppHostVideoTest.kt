@@ -223,6 +223,34 @@ class AppHostVideoTest {
     }
 
     @Test
+    fun `under the app menu video pictures do not speed up the drawing`() {
+        val host = host(app())
+        host.start()
+        asApp {
+            show("video")
+            video("bild", VideoAction.Play("test:muster"))
+        }
+        player.state(VideoState.PLAYING)
+        host.openMenu()
+        settle()
+        val menu = screen.last.pixels.copyOf()
+        // The video goes on under the menu, 30 pictures a second for two seconds.
+        val before = screen.views.size
+        for (t in 0 until 2_000 step 33) {
+            player.listener.onFrame(GrayRaster(96, 54).also { it.fillRect(0, 0, 96, 54, t / 10) })
+            scheduler.advanceBy(33)
+        }
+        // The menu hides the picture: drawn as for commands, at most every 200 ms, and it stays the menu.
+        assertTrue("${screen.views.size - before} in 2 s", screen.views.size - before <= 11)
+        assertTrue(menu.contentEquals(screen.last.pixels))
+        // Closed again: the newest picture at once.
+        host.back()
+        settle()
+        val shown = screen.last
+        assertEquals(1_980 / 10, shown.pixels[(8 + 10) * shown.width + (shown.width - 96) / 2 + 10].toInt() and 0xFF)
+    }
+
+    @Test
     fun `pause, resume, seek, profile and stop reach the player`() {
         val host = host(app())
         host.start()

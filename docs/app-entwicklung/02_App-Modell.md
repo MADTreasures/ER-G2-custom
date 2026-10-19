@@ -263,8 +263,8 @@ Berechtigung oder sind Werte ungültig, führt der Host ihn nicht aus und meldet
 **Taktung:** Der Host zeichnet höchstens alle **200 ms** neu und fasst dazwischen eingehende
 Befehle zusammen (der neueste Stand gewinnt). Eine App darf also viele kleine `patch` schicken. Sinnvoll
 sind aber höchstens 5 pro Sekunde, sonst entsteht nur Verkehr und Akkulast. Ausnahme Video (Befehl `video`):
-Ein neues Videobild zeichnet der Host schon nach höchstens **66 ms**, mit allen Befehlen bis dahin
-([03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050)).
+Ein neues Videobild zeichnet der Host schon nach höchstens **66 ms**, mit allen Befehlen bis dahin, außer das
+App-Menü verdeckt es ([03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050)).
 
 ## 7. Eingabe und Fokus
 

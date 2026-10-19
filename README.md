@@ -226,7 +226,8 @@ tut (Titel, Pause, Laden, Ende), steht kurz als Hinweis darüber.
   (die teilt sich den Funk mit der Brille). Klappt das nicht innerhalb von 8 s, geht es über das Netz, das da
   ist. Ist das Video zu Ende oder 20 s pausiert, gibt die Uhr WLAN/LTE wieder frei. Die Uhr lädt die
   kleinste Fassung mit etwa doppelt so vielen Zeilen wie das Raster, mindestens 240p: in Stabil und
-  Ausgewogen meist 360p H.264, in Schnell 240p (144p ist für das feinere Raster zu verwaschen). Geschätzt
+  Ausgewogen meist 360p H.264, in Schnell 240p (144p ist für das feinere Raster zu verwaschen; es zählt das
+  Profil beim Start des Videos, auch bei Live-Videos). Geschätzt
   150–250 MB pro Stunde, etwa dreimal so viel wie mit 144p; mit Ton etwa 20 MB mehr.
 - **Akku:** Dekodieren, Funk und Bluetooth zur Brille kosten spürbar Akku der Uhr (465 mAh) – nicht gemessen.
 - Die App wird dadurch rund **11 MB** größer (Debug-APK 41 statt 31 MB): NewPipeExtractor mit Rhino und
@@ -504,7 +505,7 @@ Lint ohne Fehler. Die wichtigsten:
   Pause beim Verdecken und ohne Brille), Eingabeart pro Seite, Video-Suche. **`YouTubeAppTest`** – Suche,
   Treffer, Gesten im Video, Hinweise über dem Bild, Profile, Ton, Verlauf. **`VideoBudgetTest`** – was ein Video mit Faceclaws Weg zur Custom-Firmware über
   Bluetooth kostet und wie viele Bilder pro Sekunde durchkommen; **`FrameConverterTest`**,
-  **`FrameBeatTest`**, **`StreamChooserTest`**, **`TestPatternPlayerTest`**.
+  **`FrameBeatTest`**, **`StreamChooserTest`**, **`TrackRulesTest`**, **`TestPatternPlayerTest`**.
 - **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel), **`AppJsonTest`**, **`PageStateTest`**,
   **`BaukastenProjectTest`**, **`AppsBoundaryTest`** (Apps berühren weder Firmware noch Bluetooth, App-Pakete
   nur die Schnittstelle).

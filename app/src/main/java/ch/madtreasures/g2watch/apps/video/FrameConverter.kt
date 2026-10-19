@@ -219,8 +219,10 @@ class FrameConverter(val width: Int, val height: Int, profile: VideoProfile) {
         /**
          * A point changes its level only when the value is this many sixteenths past the old level (8 would
          * be plain rounding). 10 follows slow changes sooner than 13 did and, in the simulation, costs fewer
-         * bytes. But codec noise of ±2 luma steps flips 1–3 % of the points of a calm, low-contrast or
-         * detailed scene per picture (±1 none); if that flickers on the glasses, 12 is the next step.
+         * bytes. But it holds less noise: in still scenes of the made-up videos, codec noise of ±2 luma
+         * steps flips 1–3 % of the points per picture (±1 none); in a dull scene stretched to [MIN_RANGE],
+         * where one luma step is almost a third of a level, ±1 flips about 4 % and ±2 about 16 % (12: none
+         * and 7 %, 13: none and 4 %). If that flickers on the glasses, 12 is the next step.
          */
         const val HOLD = 10
 

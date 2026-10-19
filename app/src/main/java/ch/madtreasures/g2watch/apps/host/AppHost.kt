@@ -1094,8 +1094,11 @@ class AppHost(
         // The app made the block another size meanwhile: this picture no longer fits.
         if (raster.width != image.w || raster.height != image.h) return
         s.images[v.block] = raster
-        // Pictures go out as fast as they come (the player keeps to its profile, the core sends the newest).
-        if (s === visible && s.pages.current?.block(v.block) != null) invalidate(VIDEO_INTERVAL_MS)
+        // Pictures go out as fast as they come (the player keeps to its profile, the core sends the newest),
+        // unless a menu or notice hides them.
+        if (s === visible && s.pages.current?.block(v.block) != null) {
+            invalidate(if (overlay == null && s.notice == null) VIDEO_INTERVAL_MS else RENDER_INTERVAL_MS)
+        }
     }
 
     private fun videoState(s: Session, v: ActiveVideo, state: VideoState, positionMs: Long, durationMs: Long, message: String?) {
