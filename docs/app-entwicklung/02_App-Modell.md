@@ -314,7 +314,7 @@ ohne ihr Zutun, solange die Uhr das Touchpad zeigt:
 | Maus: rechts | App-Menü | App-Menü |
 | Maus: Mitte, Zurück-Taste | Zurück | Zurück |
 | Maus: Rad | Seite scrollen; über einer Web-Seite `imageScroll` | je Raste `scrollUp`/`scrollDown` |
-| Pfeile, Tab, Umschalt+Tab | Fokus vor/zurück | → ↓ Bild↓ = `scrollDown`, ← ↑ Bild↑ = `scrollUp` |
+| Pfeile, Tab, Umschalt+Tab | Fokus vor/zurück (im Raster des Starters ↑ ↓ eine Reihe hoch/runter) | → ↓ Bild↓ = `scrollDown`, ← ↑ Bild↑ = `scrollUp` |
 | Enter | Klick auf Fokus; Zeiger auf einer Web-Seite: `imageClick` dort | `click` |
 | Leertaste, Bild↓, Bild↑ | Seite scrollen (¾); über einer Web-Seite `imageScroll` | Leertaste = `click` |
 | Play/Pause | – | `click` |

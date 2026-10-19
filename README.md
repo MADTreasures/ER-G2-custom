@@ -14,7 +14,7 @@ ob GeckoView auf der Uhr gut genug läuft.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.8.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
+> **Ehrlicher Stand (v0.9.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
 > Custom-Firmware**: Pixel Watch 5 und G2, linkes Glas im ersten Anlauf; beim rechten brach der erste Anlauf
 > ab, nach dem angezeigten Weg (Brille laden, neu starten, erneut aufspielen) klappte es. Alles andere läuft
 > bisher nur gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
@@ -209,7 +209,7 @@ Im Gesten-Modus (Video) ist links ein Tippen und das Rad ein Wischen (10 s vor o
 
 | Taste | Wirkung |
 |---|---|
-| Pfeile, Tab, Umschalt+Tab | nächster oder voriger Knopf |
+| Pfeile, Tab, Umschalt+Tab | nächster oder voriger Knopf; im Starter gehen ↑ ↓ eine Reihe hoch oder runter |
 | Enter | Klick (steht der Zeiger auf einer Web-Seite: dort) |
 | Esc, Alt+←, Rücktaste | zurück |
 | Menütaste, F10 | App-Menü |
@@ -598,7 +598,7 @@ die Uhr offline ist.
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 7 + 541 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 7 + 542 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 

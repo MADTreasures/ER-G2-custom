@@ -127,10 +127,41 @@ class AppHostKeysTest {
         host.openLauncher()
         settle()
         assertEquals(Launcher.PAGE, host.page)
-        host.press(Keys.ARROW_DOWN)
+        host.press(Keys.ARROW_RIGHT)
         host.press(Keys.ENTER)
         assertEquals("ch.test.zwei", host.state.value.visible)
         assertEquals("a", host.page)
+    }
+
+    @Test
+    fun `in the launcher's grid up and down go a row up or down, left and right along the row`() {
+        val apps: List<() -> G2App> = (1..6).map { n ->
+            { ScriptedApp(AppManifest("ch.test.app$n", "App $n", "1.0.0"), twoPages).also { created += it } }
+        }
+        val host = host(*apps.toTypedArray())
+        host.openLauncher()
+        settle()
+        // Launcher cells are app0 … app5, four to a row.
+        val cells = (0 until 6).map { FocusTarget("app$it") }
+        assertEquals(cells[0], host.focus)
+        host.press(Keys.ARROW_DOWN)
+        assertEquals("first column, second row", cells[4], host.focus)
+        host.press(Keys.ARROW_DOWN)
+        assertEquals("the last row stays", cells[4], host.focus)
+        host.press(Keys.ARROW_UP)
+        assertEquals(cells[0], host.focus)
+        host.press(Keys.ARROW_UP)
+        assertEquals("the first row stays", cells[0], host.focus)
+        host.press(Keys.ARROW_RIGHT)
+        host.press(Keys.ARROW_RIGHT)
+        host.press(Keys.ARROW_RIGHT)
+        assertEquals(cells[3], host.focus)
+        host.press(Keys.ARROW_DOWN)
+        assertEquals("the nearest cell of the shorter row", cells[5], host.focus)
+        host.press(Keys.ARROW_LEFT)
+        assertEquals(cells[4], host.focus)
+        host.press(Keys.ENTER)
+        assertEquals("ch.test.app5", host.state.value.visible)
     }
 
     @Test

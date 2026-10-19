@@ -745,8 +745,10 @@ class AppHost(
             return
         }
         when (k.key) {
-            Keys.ARROW_DOWN, Keys.ARROW_RIGHT -> moveFocus(scr, forward = true)
-            Keys.ARROW_UP, Keys.ARROW_LEFT -> moveFocus(scr, forward = false)
+            Keys.ARROW_DOWN -> if (!moveFocusInGrid(scr, down = true)) moveFocus(scr, forward = true)
+            Keys.ARROW_UP -> if (!moveFocusInGrid(scr, down = false)) moveFocus(scr, forward = false)
+            Keys.ARROW_RIGHT -> moveFocus(scr, forward = true)
+            Keys.ARROW_LEFT -> moveFocus(scr, forward = false)
             Keys.TAB -> moveFocus(scr, forward = !k.shift)
             // One click per press, like a tap on a temple; the arrows and the page keys repeat.
             Keys.ENTER -> if (!k.repeat) clickFocus(scr)
@@ -756,6 +758,29 @@ class AppHost(
             Keys.BACKSPACE -> if (!k.repeat) backNow()
             else -> Unit
         }
+    }
+
+    /**
+     * In the launcher's grid the arrows up and down go to the nearest cell in the row above or below,
+     * as on any icon grid; in the last row nothing moves. False where there is no grid or no focus yet,
+     * so the caller steps in reading order instead.
+     */
+    private fun moveFocusInGrid(scr: Screen, down: Boolean): Boolean {
+        val layout = layoutOf(scr)
+        if (!layout.tiles) return false
+        val view = scr.view
+        settle(layout, view)
+        val from = layout.focusable(view.focus)?.rect ?: return false
+        val beyond = layout.focusables.filter { if (down) it.rect.y >= from.bottom else it.rect.bottom <= from.y }
+        if (beyond.isEmpty()) return true
+        val row = if (down) beyond.minOf { it.rect.y } else beyond.maxOf { it.rect.y }
+        val centre = from.x + from.w / 2
+        val next = beyond.filter { it.rect.y == row }.minBy { abs(it.rect.x + it.rect.w / 2 - centre) }
+        view.focus = next.target
+        view.scroll = scrollToShow(layout, view.scroll, next.rect)
+        invalidate()
+        publish()
+        return true
     }
 
     /** Escape, Alt+Left and the keyboard's own back key. */
