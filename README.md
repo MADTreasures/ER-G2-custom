@@ -98,8 +98,8 @@ bekommt, probiert eine andere Stufe.
 |---|---|
 | ![Bildtiefe](docs/bilder/uhr-einstellungen-bildtiefe.png) | ![Desktop](docs/bilder/desktop-start.png) |
 
-So geht es: Evens Firmware schiebt ihr Bild für „Nah“ in jedem Glas um 8 Pixel zur Nase hin, für „Fern“
-um 8 Pixel nach außen. Diese Einstellung übernimmt die Custom-Firmware nicht; sie zeigt das Bild der Uhr
+So geht es: Evens Firmware schiebt ihr Bild je nach Stufe in jedem Glas um 8 Pixel zur Nase hin oder nach
+außen. Diese Einstellung übernimmt die Custom-Firmware nicht; sie zeigt das Bild der Uhr
 immer wie „Mittel“. Deshalb verschiebt die Uhr das ganze Bild selbst, mit der Stereo-Tiefe von Faceclaw
 um genau dieselben Pixel (Tiefe +16, 0, −16). Über Bluetooth kostet das nichts. Die Einstellung in der
 Even-App selbst bleibt unberührt. Der Zeiger ist dafür keine eigene Fläche mehr, sondern ins Bild
@@ -110,9 +110,9 @@ bekommen dasselbe Bild an derselben Stelle, genau wie bei Evens Firmware auf „
 Werk für jedes Glas steckt im Display selbst und gilt auch mit der Custom-Firmware. Es gibt also keinen
 Versatz zu beheben. Ein Unterschied war der Rand: Die Linie der Kopfzeile ging über die ganze Breite, ihre
 Texte reichten von x = 12 bis 628 und der Zeiger bis an den Bildrand; Evens Firmware lässt dagegen nie
-Pixel außerhalb von x = 24 bis 615 leuchten. Was so weit außen liegt, sieht womöglich nur ein Auge, und das strengt an. Jetzt liegt alles,
-auch der Zeiger, zwischen x = 32 und 607, wo Evens Bild auf „Mittel“ liegt. So fällt auch bei „Nah“ und
-„Fern“ nichts über den Rand.
+Pixel außerhalb von x = 24 bis 615 leuchten. Was so weit außen liegt, sieht womöglich nur ein Auge, und
+das strengt an. Jetzt liegt alles, auch der Zeiger, zwischen x = 32 und 607, wo Evens Bild auf „Mittel“
+liegt. So fällt auch bei „Nah“ und „Fern“ nichts über den Rand.
 
 Nicht auf Hardware erprobt. Dass +16 näher wirkt, folgt aus der Geometrie und aus Faceclaws Bezeichnung;
 welche Stufe die Even-App „Nah“ nennt, ist nicht belegt. Details:
@@ -495,7 +495,7 @@ die Uhr offline ist.
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 4 + 432 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 4 + 439 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -511,7 +511,8 @@ Lint ohne Fehler. Die wichtigsten:
   Image (≈ 1.130 Blöcke pro Glas) durch Faceclaws Flasher an die simulierte Brille und vergleicht, was
   ankommt.
 - **`DesktopControllerTest`** – Desktop und Zeiger in einer Fläche, eine Zeigerbewegung schickt nur den
-  Block darum; **Bildtiefe** bei jeder Verbindung und sofort bei einer Änderung. Mit Faceclaws echtem
+  Block darum, und nach zufälligen Folgen von Ereignissen zeigt die Brille genau Desktop plus Zeiger;
+  **Bildtiefe** bei jeder Verbindung und sofort bei einer Änderung. Mit Faceclaws echtem
   Compositor: die Tiefe kommt auch mit Zeiger an, und jedes Glas zeigt das ganze Bild um die halbe Tiefe
   verschoben, ohne dass etwas über den Rand fällt; nichts leuchtet außerhalb von x = 32 bis 607.
   **`DesktopTextFitTest`** – mit Androids Schrift passt jeder Text in Kopfzeile oder Fenster.

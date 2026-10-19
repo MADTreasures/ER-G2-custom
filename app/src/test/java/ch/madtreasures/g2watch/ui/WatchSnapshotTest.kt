@@ -218,7 +218,7 @@ class WatchSnapshotTest {
     fun settingsPointer() = settingsSnapshot("uhr-einstellungen-zeiger", "Protokoll")
 
     @Test
-    fun settingsDepth() = settingsSnapshot("uhr-einstellungen-bildtiefe", "Nah")
+    fun settingsDepth() = settingsSnapshot("uhr-einstellungen-bildtiefe", "Fern")
 
     @Test
     fun firmwareConfirm() = snapshot("uhr-firmware-bestaetigen") {

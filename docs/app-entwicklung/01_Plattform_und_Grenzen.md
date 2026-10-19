@@ -12,7 +12,7 @@ von uns.
 | Größe | Wert | Bedeutung für Apps |
 |---|---|---|
 | Bildspeicher je Glas | 640 × 480 Pixel | Die Uhr zeichnet in diese Fläche. |
-| Sichtbarer Streifen | 640 × **288**, mittig (y = 96 … 383) | Die Optik zeigt nicht die ganze Höhe. Faceclaw und G2 Watch legen alles in diesen Streifen. G2 Watch lässt seit v0.9.0 auch links und rechts 32 px frei (x = 32 … 607, wie Evens Firmware), weil die Ränder nicht für beide Augen gleich sind ([03 §5.3](03_Uhr-Apps.md#53-bildtiefe-und-bildrand)). |
+| Sichtbarer Streifen | 640 × **288**, mittig (y = 96 … 383) | Die Optik zeigt nicht die ganze Höhe. Faceclaw und G2 Watch legen alles in diesen Streifen. G2 Watch lässt seit v0.9.0 auch links und rechts 32 px frei (x = 32 … 607, wie Evens Firmware), weil die Ränder womöglich nicht für beide Augen gleich aussehen ([03 §5.3](03_Uhr-Apps.md#53-bildtiefe-und-bildrand)). |
 | **App-Fläche** | **576 × 260** bei (32, 124) | Unter der 28 px hohen Kopfzeile der Uhr (Uhrzeit, App-Name, Akku). Das ist die Fläche einer App. |
 | App-Fläche Vollbild | 576 × 288 bei (32, 96) | Ohne Kopfzeile (`statusBar: false`); so groß ist auch Evens Entwickler-Leinwand. |
 | Farben | 16 Graustufen, grün | Stufe 0 = aus = durchsichtig. Helle Flächen blenden, große helle Flächen vermeiden. |

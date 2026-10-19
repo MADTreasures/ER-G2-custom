@@ -11,6 +11,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
+import kotlin.random.Random
 
 class DesktopControllerTest {
     private val scheduler = FakeScheduler()
@@ -48,19 +49,16 @@ class DesktopControllerTest {
     private val stage get() = controller.layout.stage
 
     /** What the desktop surface should hold now: the rendered desktop with the pointer drawn in. */
-    private fun expectedScreen(): GrayRaster {
-        val frame = controller.frame.value
-        val screen = GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT)
-        for (row in 0 until frame.band.h) {
-            System.arraycopy(frame.pixels, row * frame.band.w, screen.pixels, (frame.band.y + row) * screen.width + frame.band.x, frame.band.w)
-        }
+    private fun expectedScreen(of: DesktopController = controller): GrayRaster {
+        val frame = of.frame.value
+        val screen = desktopOnly(of)
         PointerSprite.drawInto(screen, frame.pointerPixels, frame.pointerX, frame.pointerY, stage)
         return screen
     }
 
     /** The desktop without the pointer, as last rendered. */
-    private fun desktopOnly(): GrayRaster {
-        val frame = controller.frame.value
+    private fun desktopOnly(of: DesktopController = controller): GrayRaster {
+        val frame = of.frame.value
         val raster = GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT)
         for (row in 0 until frame.band.h) {
             System.arraycopy(frame.pixels, row * frame.band.w, raster.pixels, (frame.band.y + row) * raster.width + frame.band.x, frame.band.w)
@@ -393,6 +391,51 @@ class DesktopControllerTest {
         scheduler.runPending()
         assertEquals(Pair(stage.right - 1, stage.bottom - 1), Pair(controller.frame.value.pointerX, controller.frame.value.pointerY))
         assertEquals(Rect(32, 96, 576, 288), stage)
+    }
+
+    @Test
+    fun `in any order of events the glasses end up with the desktop and the arrow where it is`() {
+        // Moves, clicks, apps in both input modes, status changes, new sessions and depths, with time passing in
+        // between. After each pause the surface holds exactly the desktop plus the arrow (none in gesture mode):
+        // the small pointer blocks leave nothing behind.
+        for (seed in 0 until 40) {
+            val rnd = Random(seed)
+            val clock = FakeScheduler()
+            val desktop = DesktopController(text, clock, nowMs = { clock.now }, now = { LocalDateTime.of(2026, 9, 25, 14, 5) })
+            desktop.connectApps(Apps())
+            var glasses: FakeDisplay? = FakeDisplay().also { desktop.attach(it) }
+            var pointerShown = true
+            repeat(150) { step ->
+                when (rnd.nextInt(11)) {
+                    in 0..3 -> desktop.moveBy(rnd.nextInt(-80, 80).toFloat(), rnd.nextInt(-60, 60).toFloat())
+                    4 -> desktop.click()
+                    5 -> desktop.back()
+                    6 -> {
+                        pointerShown = rnd.nextBoolean()
+                        desktop.showApp(appView(pointer = pointerShown, fullScreen = rnd.nextBoolean(), value = rnd.nextInt(256)))
+                    }
+                    7 -> {
+                        desktop.closeApp()
+                        pointerShown = true
+                    }
+                    8 -> desktop.updateStatus { it.copy(glassesBattery = rnd.nextInt(101)) }
+                    9 -> if (rnd.nextInt(3) == 0) {
+                        desktop.detach()
+                        glasses = null
+                    } else {
+                        glasses = FakeDisplay().also { desktop.attach(it) }
+                    }
+                    else -> desktop.setDepth(Depth.entries.random(rnd))
+                }
+                clock.advanceBy(rnd.nextLong(0, 40))
+                val shown = glasses
+                if (shown == null || rnd.nextInt(3) != 0) return@repeat
+                clock.advanceBy(10 * DesktopController.POINTER_INTERVAL_MS)
+                val want = if (pointerShown) expectedScreen(desktop) else desktopOnly(desktop)
+                assertArrayEquals("seed $seed, step $step", want.pixels, shown.content("desktop").pixels)
+                assertEquals("seed $seed, step $step", desktop.depth.value.disparity, shown.depths.last().second)
+            }
+        }
     }
 
     @Test
