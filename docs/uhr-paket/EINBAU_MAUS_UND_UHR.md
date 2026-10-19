@@ -2,7 +2,9 @@
 > Firmware. Inzwischen ist der Weg zum Aufspielen eingebaut (`WatchFirmwareInstaller`, siehe
 > [`../FIRMWARE.md`](../FIRMWARE.md)), `NoFlashingTest` ist durch `FlashingBoundaryTest` ersetzt und die
 > App verlangt genau Faceclaw-Firmware **Revision 35** (Faceclaw 0.8.0) statt „34 oder neuer“.
-> Alles zu Maus, Touchpad und Einstellungen gilt weiter.
+> Alles zu Maus, Touchpad und Einstellungen gilt weiter, mit einer Ausnahme: Seit 0.9.0 ist der Zeiger
+> keine eigene Fläche mehr, sondern in die Desktop-Fläche gezeichnet, und alles liegt zwischen x = 32 und
+> 607 – nötig für die Bildtiefe ([README](../../README.md#bildtiefe), [03 §5.3](../app-entwicklung/03_Uhr-Apps.md#53-bildtiefe-und-bildrand)).
 
 # Maus und Uhr-Oberfläche – Nachbau und Einbau in ein anderes Projekt
 

@@ -12,11 +12,11 @@ von uns.
 | Größe | Wert | Bedeutung für Apps |
 |---|---|---|
 | Bildspeicher je Glas | 640 × 480 Pixel | Die Uhr zeichnet in diese Fläche. |
-| Sichtbarer Streifen | 640 × **288**, mittig (y = 96 … 383) | Die Optik zeigt nicht die ganze Höhe. Faceclaw und G2 Watch legen alles in diesen Streifen. |
+| Sichtbarer Streifen | 640 × **288**, mittig (y = 96 … 383) | Die Optik zeigt nicht die ganze Höhe. Faceclaw und G2 Watch legen alles in diesen Streifen. G2 Watch lässt seit v0.9.0 auch links und rechts 32 px frei (x = 32 … 607, wie Evens Firmware), weil die Ränder nicht für beide Augen gleich sind ([03 §5.3](03_Uhr-Apps.md#53-bildtiefe-und-bildrand)). |
 | **App-Fläche** | **576 × 260** bei (32, 124) | Unter der 28 px hohen Kopfzeile der Uhr (Uhrzeit, App-Name, Akku). Das ist die Fläche einer App. |
 | App-Fläche Vollbild | 576 × 288 bei (32, 96) | Ohne Kopfzeile (`statusBar: false`); so groß ist auch Evens Entwickler-Leinwand. |
 | Farben | 16 Graustufen, grün | Stufe 0 = aus = durchsichtig. Helle Flächen blenden, große helle Flächen vermeiden. |
-| Tiefe | Versatz je Glas −128 … 127 px | Faceclaw nutzt 2–4 px für Hervorhebungen, −2 für die Kopfzeile. Sparsam einsetzen. |
+| Tiefe | Abstand der Gläser −128 … 127 px (je Glas die Hälfte) | Faceclaw nutzt 2–4 px für Hervorhebungen, −2 für die Kopfzeile. G2 Watch verschiebt nur das ganze Bild: Einstellung *Bildtiefe* Nah +16, Mittel 0, Fern −16 (wie Evens Stufen). Apps setzen keine Tiefe. |
 | Schrift | frei, weil die Uhr Text als Pixel zeichnet | Umlaute und Sonderzeichen gehen, seit v0.5.2 auch Emoji (als Strichzeichnung, [03 §11](03_Uhr-Apps.md#11-emoji-v052)). Unter 16 px ist Text schlecht lesbar. |
 
 ### Übertragung Uhr → Brille (Bluetooth LE)

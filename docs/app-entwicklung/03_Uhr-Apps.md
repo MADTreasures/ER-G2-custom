@@ -237,9 +237,8 @@ Einbau in den bestehenden Desktop (`desktop/`):
   „Zeiger“ und „Info“ wandern in die Einstellungen der Uhr oder in den Starter, damit „Apps“ Platz hat.
 - Solange eine App offen ist, zeichnet `DesktopRenderer` die Kopfzeile (mit „‹“ und App-Name) und
   übernimmt für die App-Fläche das Raster aus `PageRenderer`.
-- Zeiger: im Modus `pointer` bleibt er die eigene Fläche „pointer“, im Modus `gestures` wird er
-  ausgeblendet. `setSurfaceVisible` gibt es bisher nur an `GlassesSessionCore`; die Schnittstelle
-  `GlassesDisplay` (mit `CoreDisplay` und den Test-Fakes) bekommt dafür eine neue Methode.
+- Zeiger: im Modus `pointer` sichtbar, im Modus `gestures` ausgeblendet. Seit v0.9.0 ist er keine eigene
+  Fläche mehr, sondern ins Bild des Desktops gezeichnet (§5.3).
 - `TouchpadScreen` bekommt einen Gesten-Modus (Wischen in 4 Richtungen, Tippen, Doppeltippen, langes
   Drücken), den der AppHost ein- und ausschaltet.
 
@@ -275,6 +274,20 @@ Even-Hub-Apps sind keine `G2App`. Der App-Host bekommt dafür in M1 schon die An
 | `setRaster(blockId, raster)` | intern: schreibt ein fertiges Graustufen-Raster in einen randlosen Bild-Baustein, ohne PNG und ohne 48-KiB-Grenze |
 | Brillen-Status | Akku, Laden, „getragen“ der Brille als beobachtbarer Wert. Akku und Laden stehen heute schon in `GlassesState`; „getragen“ braucht `enableWearDetectionAndRequestState()`, das die Uhr-App bisher nicht aufruft. |
 | App-Menü-Einträge | eine interne Sitzung kann eigene Einträge setzen und bekommt die Auswahl zurück |
+
+### 5.3 Bildtiefe und Bildrand
+
+Seit v0.9.0. Alles in `desktop/`; Apps merken davon nichts, die App-Fläche bleibt, wo sie war.
+
+| Punkt | So ist es gebaut |
+|---|---|
+| Eine Fläche | `DesktopController` schickt nur noch die deckende Fläche „desktop“ (640 × 480, z 0); der Zeiger ist in ihr Bild gezeichnet (`PointerSprite.drawInto`), am Rand der Bühne abgeschnitten. Faceclaws Compositor wendet die Tiefe nur an, wenn die oberste sichtbare Fläche deckend den ganzen Schirm füllt – mit der früheren Zeiger-Fläche darüber galt sie nur im Gesten-Modus. |
+| Zeiger | Höchstens 30 Bilder pro Sekunde wie bisher. Eine Bewegung schickt nur den Block um alte und neue Zeigerstelle (`GlassesDisplay.submit` mit Rechteck), das Bild darunter liegt ohne Zeiger bereit. Über Bluetooth geht wie bisher nur die Differenz. Der Fingerabdruck enthält Desktop, Zeigerstelle und Zeigerpixel. |
+| Bildtiefe | `Depth`: Nah = +16, Mittel = 0 (Standard), Fern = −16 – genau Evens Stufen 0/1/2 (Glas rechts x = 24/32/40, links 40/32/24). `GlassesDisplay.setDepth` → `setSurfaceDepth` des Kerns, dann ein neues Gesamtbild (`setSurfaceVisible`). Jede Sitzung hat einen eigenen Compositor, deshalb setzt `attach` die Tiefe jedes Mal. Gespeichert unter `depth` in den Einstellungen `g2watch`; Auswahl auf der Uhr unter *Einstellungen → Bildtiefe*. |
+| Was die Brille daraus macht | Statt einer Kopie des Bildspeichers malt sie erst Schwarz und kopiert ihn dann je Glas um ±8 px verschoben. Die Liste wird nur bei einer Änderung neu geschickt, jedes Bild kostet also nichts extra. Vielfache von 4 halten beide Verschiebungen gerade (schnelle Kopie). Evens eigene Nachrichten für Tiefe und Höhe schickt die Uhr nicht: Unter der Custom-Firmware wirken sie nicht, und sie würden die Einstellung der Even-App ändern. |
+| Bühne | `DesktopLayout.stage` = x 32 … 607, y 96 … 383: wo Evens Bild auf „Mittel“ liegt (Evens Firmware lässt nie Pixel außerhalb von x 24 … 615 leuchten). Kopfzeile (Texte 16 px eingerückt, Linie), Kacheln, Fenster, Hinweise und die Spitze des Zeigers bleiben darin; `DesktopRenderer` löscht alles außerhalb. Bei ±16 fällt so nichts über den Rand. |
+| Ausrichtung der Gläser | Geprüft, kein Fehler: Beide Gläser bekommen dasselbe Bild, bei Tiefe 0 Byte für Byte. Die Werksjustierung je Glas liegt im Display-Controller und gilt auch unter der Custom-Firmware ([wissen/02 §7](../firmware-uebergabe/wissen/02-display.md#7-open-questions--uncertainties)). |
+| Tests | `DesktopControllerTest`: Tiefe bei jedem `attach` und sofort bei Änderung; mit Faceclaws echtem `SurfaceCompositor` die Tiefe der Wurzel-Liste, auch mit Zeiger, und je Glas das ganze Bild um die halbe Tiefe verschoben, ohne dass ein Pixel verloren geht; Zeiger im Bild und als kleiner Block; nichts leuchtet außerhalb der Bühne. `DesktopTextFitTest`: mit Androids Schrift passt jeder Text in Kopfzeile oder Fenster. `SettingsScreenTest`: die drei Stufen. |
 
 ## 6. Sensoren, Mikrofon, Summer (M6)
 
