@@ -805,7 +805,10 @@ class AppHostTest {
         host.openLauncher()
         settle()
         assertTrue("Auf der Uhr" in text.drawn && "Even Hub" in text.drawn)
-        assertTrue("Hub-App · Uhr" in text.drawn)
+        // The cell's name says where it runs (the stub font is wider than Android's, so it is cut here).
+        val names = host.currentPageOf(Launcher.ID)!!.blocks.filterIsInstance<Block.Button>().map { it.text }
+        assertEquals(listOf("Eins", "Hub-App · Uhr"), names)
+        assertTrue(text.drawn.any { it.startsWith("Hub-App ·") })
 
         host.launch("evenhub:com.example.hub")
         settle()

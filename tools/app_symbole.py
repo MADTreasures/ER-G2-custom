@@ -2,7 +2,7 @@
 """Draws the launcher icons of the app packages (docs/app-entwicklung/09 §2).
 
 Calm grey line art for the glasses: 64 x 64, 8-bit grey, black background (black is see-through on the
-lens), strokes of 2-3 px at levels 11-14 of the 16 the glasses show, no large bright areas. Drawn at
+lens), strokes of 2-3 px at levels 10-14 of the 16 the glasses show, no large bright areas. Drawn at
 8x size and averaged down, then rounded to the 16 levels (n x 16, level 15 = 255) so the edges stay soft.
 
     python3 tools/app_symbole.py            # writes the icons into packages/<name>/src/main/assets/...

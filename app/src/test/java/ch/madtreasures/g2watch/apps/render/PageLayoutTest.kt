@@ -180,6 +180,19 @@ class PageLayoutTest {
     }
 
     @Test
+    fun `a long name stays inside the focus frame of its cell`() {
+        val l = grid(Block.Button("a", "M".repeat(20)))
+        val raster = GrayRaster(l.width, l.height)
+        PageRenderer(text).render(raster, l, PageLook(focus = FocusTarget("a")))
+        assertTrue(text.drawn.any { it.endsWith("…") })
+        // The frame is 3 px wide, 4 px inside the cell; next to its inner edge, 4 px stay free of the name
+        // (in the name's rows above where the frame's corners round off, 12 px above its bottom).
+        val rows = 8 + 84 until 8 + 116 - 12
+        val free = (7 until 11) + (136 - 11 until 136 - 7)
+        assertEquals(Levels.SURFACE, rows.maxOf { y -> free.maxOf { x -> raster[16 + x, y] } })
+    }
+
+    @Test
     fun `initials are the first letters of the first two words`() {
         assertEquals("Y", TileLook.initials("YouTube"))
         assertEquals("HA", TileLook.initials("Hub-App"))

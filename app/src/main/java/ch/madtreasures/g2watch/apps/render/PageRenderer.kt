@@ -133,7 +133,9 @@ class PageRenderer(private val text: TextPainter) {
         if (focused) {
             val f = r.inset(TILE_INSET)
             Shapes.fillRoundRect(target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, Levels.SURFACE)
-            Shapes.strokeRoundRect(target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, 3f, Levels.STRONG)
+            Shapes.strokeRoundRect(
+                target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, TILE_FRAME.toFloat(), Levels.STRONG,
+            )
         }
         val ix = r.x + (r.w - m.TILE_ICON) / 2
         val iy = r.y + TILE_ICON_TOP
@@ -151,7 +153,8 @@ class PageRenderer(private val text: TextPainter) {
             }
         }
         if (tile.running) Shapes.fillCircle(target, ix + m.TILE_ICON + 8f, iy + 6f, 4f, Levels.STRONG)
-        val label = TextFit.ellipsize(text, b.text, m.TILE_LABEL, false, r.w - 12)
+        // Within the focus frame, with room on both sides, so a long name never touches it.
+        val label = TextFit.ellipsize(text, b.text, m.TILE_LABEL, false, r.w - 2 * (TILE_INSET + TILE_FRAME + TILE_LABEL_SPACE))
         if (label.isNotEmpty()) {
             val lx = r.x + (r.w - text.measure(label, m.TILE_LABEL)) / 2
             text.draw(target, label, lx, r.y + TILE_LABEL_TOP, m.TILE_LABEL, if (focused) Levels.STRONG else Levels.TEXT)
@@ -281,9 +284,14 @@ class PageRenderer(private val text: TextPainter) {
     }
 
     private companion object {
-        /** Inside a launcher cell: the focus frame's inset and corner, where the icon and the name start, the initials' size. */
+        /**
+         * Inside a launcher cell: the focus frame's inset, corner and width, the room between it and the
+         * name, where the icon and the name start, the initials' size.
+         */
         const val TILE_INSET = 4
         const val TILE_RADIUS = 12f
+        const val TILE_FRAME = 3
+        const val TILE_LABEL_SPACE = 4
         const val TILE_ICON_TOP = 14
         const val TILE_LABEL_TOP = 84
         const val INITIALS = 28
