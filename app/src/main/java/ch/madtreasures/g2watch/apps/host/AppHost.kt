@@ -79,10 +79,11 @@ data class HostState(
  *
  * Everything happens on one thread ([scheduler], "G2Watch-apps"): the host delivers events to the apps
  * there, applies their commands to each session's [PageState], lays out and draws the visible page at
- * most every [RENDER_INTERVAL_MS] and hands the picture to the desktop ([AppScreen]), which puts the
- * header above it and sends it to the glasses. Input arrives from the desktop thread ([AppInput]: pointer,
- * clicks, header), from the temples and the ring ([gesture], via [InputRouter]) and from the watch
- * touchpad in gesture mode; all of it is posted to the app thread first.
+ * most every [RENDER_INTERVAL_MS] (new video pictures every [VIDEO_INTERVAL_MS]) and hands the picture to
+ * the desktop ([AppScreen]), which puts the header above it and sends it to the glasses. Input arrives
+ * from the desktop thread ([AppInput]: pointer, clicks, header), from the temples and the ring ([gesture],
+ * via [InputRouter]) and from the watch touchpad in gesture mode; all of it is posted to the app thread
+ * first.
  *
  * The host guarantees what 02 promises regardless of the app: back always works and leaves the app on
  * its first page, the app menu (tap-then-hold, or the title in the header) always offers "Apps", "Zurück"
@@ -122,6 +123,8 @@ class AppHost(
     private var glasses = GlassesStatus()
     private var pointer: Pair<Int, Int>? = null
     private var renderScheduled = false
+    private var renderAtMs = 0L
+    private var renderToken = 0
     private var lastRenderMs = Long.MIN_VALUE / 2
     private var appOnScreen = false
     private var cachedLayout: PageLayout? = null
@@ -1091,7 +1094,8 @@ class AppHost(
         // The app made the block another size meanwhile: this picture no longer fits.
         if (raster.width != image.w || raster.height != image.h) return
         s.images[v.block] = raster
-        if (s === visible && s.pages.current?.block(v.block) != null) invalidate()
+        // Pictures go out as fast as they come (the player keeps to its profile, the core sends the newest).
+        if (s === visible && s.pages.current?.block(v.block) != null) invalidate(VIDEO_INTERVAL_MS)
     }
 
     private fun videoState(s: Session, v: ActiveVideo, state: VideoState, positionMs: Long, durationMs: Long, message: String?) {
@@ -1345,11 +1349,19 @@ class AppHost(
         }
     }
 
-    private fun invalidate() {
-        if (renderScheduled) return
+    /**
+     * Draws the visible page again, at most [interval] after the last time: [RENDER_INTERVAL_MS] for
+     * commands, [VIDEO_INTERVAL_MS] when a new video picture came. A pending render that would come
+     * later is brought forward.
+     */
+    private fun invalidate(interval: Long = RENDER_INTERVAL_MS) {
+        val now = nowMs()
+        val at = maxOf(now, lastRenderMs + interval)
+        if (renderScheduled && renderAtMs <= at) return
         renderScheduled = true
-        val wait = (lastRenderMs + RENDER_INTERVAL_MS - nowMs()).coerceAtLeast(0L)
-        scheduler.postDelayed(wait) { render() }
+        renderAtMs = at
+        val token = ++renderToken
+        scheduler.postDelayed(at - now) { if (token == renderToken) render() }
     }
 
     private fun render() {
@@ -1558,6 +1570,9 @@ class AppHost(
 
         /** The host draws at most this often and combines the commands in between (02 §6.2). */
         const val RENDER_INTERVAL_MS = 200L
+
+        /** … but a new video picture is drawn after this (about 15 a second), with the commands so far. */
+        const val VIDEO_INTERVAL_MS = 66L
 
         const val SLOW_LOG_MS = 50L
         const val SLOW_STOP_MS = 500L

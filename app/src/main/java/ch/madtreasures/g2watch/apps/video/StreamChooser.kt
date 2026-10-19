@@ -28,14 +28,20 @@ data class PlaybackPlan(val video: StreamOption? = null, val audio: StreamOption
 }
 
 /**
- * Picks the streams for the glasses (03 §10): the picture ends up as a raster of about 200 × 110 points,
- * so the smallest video that still has [wantHeight] lines is enough, and H.264 comes first because every
- * watch decodes it in hardware. The plans come in the order to try them; the player moves on to the next
- * one when a stream fails (e.g. HTTP 403).
+ * Picks the streams for the glasses (03 §10): the picture ends up as a raster of about 256 × 144 points,
+ * so the smallest video with about twice the raster's lines ([wantHeight]) is enough, and H.264 comes
+ * first because every watch decodes it in hardware. The plans come in the order to try them; the player
+ * moves on to the next one when a stream fails (e.g. HTTP 403).
  */
 object StreamChooser {
     /** Never more than this many lines: more costs data and battery and shows nothing more. */
     const val MAX_HEIGHT = 480
+
+    /** At least this many: 144p is too soft and blocky even for the raster, its edges smear. */
+    const val MIN_HEIGHT = 240
+
+    /** Lines to ask for a raster of [rows]: two source lines per raster row, so edges stay crisp. */
+    fun wantHeight(rows: Int): Int = (2 * rows).coerceIn(MIN_HEIGHT, MAX_HEIGHT)
 
     fun plans(options: List<StreamOption>, hls: String?, live: Boolean, wantHeight: Int, sound: Boolean): List<PlaybackPlan> {
         val out = ArrayList<PlaybackPlan>()

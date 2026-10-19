@@ -296,6 +296,8 @@ class PageRendererSnapshotTest {
     @Test
     fun youtubeVideo() {
         youtubeVideo(landscapeFrame(VideoProfile.BALANCED), VideoState.PLAYING, 83_000)
+        // Once the title note is gone: the picture alone.
+        scheduler.advanceBy(YouTubeApp.TITLE_NOTE_MS.toLong())
         save("apps-youtube-video")
     }
 
@@ -332,6 +334,7 @@ class PageRendererSnapshotTest {
         fake.listener.onFrame(frame!!)
         fake.listener.onState(VideoState.PLAYING, 12_500, TestPattern.DURATION_MS)
         settle()
+        scheduler.advanceBy(YouTubeApp.TITLE_NOTE_MS.toLong())
         save("apps-youtube-testbild")
     }
 
@@ -381,14 +384,15 @@ class PageRendererSnapshotTest {
         save("apps-browser-lesemodus")
     }
 
-    /** The same picture in the three profiles, one above the other: Stabil, Ausgewogen, Schnell. */
+    /** The same picture in the rasters of the profiles, one above the other: fine (Stabil, Ausgewogen), coarse (Schnell). */
     @Test
     fun videoProfiles() {
         val w = YouTubeApp.VIDEO_W
         val h = YouTubeApp.VIDEO_H
         val gap = 12
-        val image = BufferedImage(w, 3 * h + 2 * gap, BufferedImage.TYPE_INT_RGB)
-        VideoProfile.entries.forEachIndexed { i, profile ->
+        val rasters = VideoProfile.entries.distinctBy { it.cell }
+        val image = BufferedImage(w, rasters.size * (h + gap) - gap, BufferedImage.TYPE_INT_RGB)
+        rasters.forEachIndexed { i, profile ->
             val raster = landscapeFrame(profile)
             for (y in 0 until h) for (x in 0 until w) image.setRGB(x, i * (h + gap) + y, green(raster[x, y]))
         }

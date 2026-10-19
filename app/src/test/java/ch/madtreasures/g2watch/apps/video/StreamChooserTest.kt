@@ -31,6 +31,18 @@ class StreamChooserTest {
     }
 
     @Test
+    fun `twice the raster's lines, at least 240p, at most 480p`() {
+        // The YouTube app's 256 × 144 points: 360p; the coarse raster (96 rows) and small blocks: 240p.
+        assertEquals(288, StreamChooser.wantHeight(144))
+        assertEquals(240, StreamChooser.wantHeight(96))
+        assertEquals(240, StreamChooser.wantHeight(27))
+        assertEquals(480, StreamChooser.wantHeight(400))
+        val plans = StreamChooser.plans(youtube, null, live = false, wantHeight = StreamChooser.wantHeight(144), sound = false)
+        assertEquals("360p H.264", plans.first().label)
+        assertEquals("240p H.264", StreamChooser.plans(youtube, null, live = false, wantHeight = StreamChooser.wantHeight(96), sound = false).first().label)
+    }
+
+    @Test
     fun `VP9 when there is no H264, AV1 never`() {
         assertEquals("vp9", StreamChooser.bestVideo(listOf(video(240, "vp9"), video(144, "av01.0.00M.08")), 100)!!.codec)
         assertNull(StreamChooser.bestVideo(listOf(video(144, "av01.0.00M.08")), 100))

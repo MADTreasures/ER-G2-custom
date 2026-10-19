@@ -2,20 +2,24 @@ package ch.madtreasures.g2watch.apps
 
 /**
  * How the watch turns a video into pictures for the glasses (03 §10). The glasses show 16 grey levels
- * and receive about 41 KiB/s (01 §1), so a profile trades pictures per second against detail: a picture
- * every [frameMs], raster points of [cell] × [cell] pixels, [levels] grey levels. Sized so that even a
- * picture full of fine detail needs at most about a third of the link (`VideoBudgetTest`, simulated with
- * Faceclaw's wire encoding, not measured on the glasses); ordinary scenes need a tenth.
+ * and receive about 41 KiB/s (01 §1). A profile sets the raster (points of [cell] × [cell] pixels in
+ * [levels] grey levels) and how often the watch makes a picture ([frameMs]); the link then sets how many
+ * arrive: while it is busy, a newer picture replaces the waiting one, nothing piles up.
+ *
+ * Chosen with `VideoBudgetTest` (Faceclaw's own wire path to the custom firmware, made-up videos in the
+ * YouTube app's 512 × 288 block; simulated, not measured on the glasses): in the fine raster an ordinary
+ * scene costs about 3 KB per picture, so 10 a second take two thirds of the link; fine detail everywhere
+ * (leaves, crowds) costs about 20 KB, and the link carries 2 a second, 4 in the coarse raster.
  */
 enum class VideoProfile(val json: String, val label: String, val frameMs: Long, val cell: Int, val levels: Int) {
-    /** One picture a second in the finest raster, like a slide show. */
-    STABLE("stable", "Stabil", 1000, 2, 16),
+    /** Up to 5 pictures a second in the fine raster: ordinary scenes leave over half of the link free. */
+    STABLE("stable", "Stabil", 200, 2, 16),
 
-    /** Two pictures a second on a medium raster. */
-    BALANCED("balanced", "Ausgewogen", 500, 3, 16),
+    /** Up to 10 pictures a second in the fine raster; ordinary scenes keep the pace (default). */
+    BALANCED("balanced", "Ausgewogen", 100, 2, 16),
 
-    /** Four pictures a second on a coarse raster with 8 grey levels. */
-    FAST("fast", "Schnell", 250, 4, 8),
+    /** Up to 15 pictures a second on a coarser raster, which also keeps fine detail moving at about 4. */
+    FAST("fast", "Schnell", 66, 3, 16),
     ;
 
     /** The next profile, for a button that cycles through them. */

@@ -1,6 +1,5 @@
 package ch.madtreasures.youtube
 
-import ch.madtreasures.g2watch.apps.Align
 import ch.madtreasures.g2watch.apps.AppContext
 import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.AppManifest
@@ -29,11 +28,13 @@ import java.text.BreakIterator
 
 /**
  * YouTube on the glasses, entirely on the watch (03 §10): search by keyboard or voice on the watch,
- * pick a hit with pointer or temple, and the watch decodes the video and shows it as a grey raster. On
- * the video page the temple works like a remote: tap = pause/play, swipe = 10 s back or on, double tap =
- * back to the list; a long press switches the profile (Stabil 1, Ausgewogen 2, Schnell 4 pictures a
- * second). "Testbild" plays the watch's own test video, without internet. An app package (09): the
- * watch app does search, streaming and decoding, this class only the pages and the remote control.
+ * pick a hit with pointer or temple, and the watch decodes the video and shows it as a grey raster,
+ * 512 × 288 without margins; what the video does (title, pause, loading, end) comes as a short note over
+ * it. On the video page the temple works like a remote: tap = pause/play, swipe = 10 s back or on, double
+ * tap = back to the list; a long press switches the profile (Stabil up to 5, Ausgewogen up to 10, Schnell
+ * up to 15 pictures a second). "Testbild" plays the watch's own test video, without internet. An app
+ * package (09): the watch app does search, streaming and decoding, this class only the pages and the
+ * remote control.
  */
 class YouTubeApp : G2App {
 
@@ -139,9 +140,10 @@ class YouTubeApp : G2App {
         save(ui)
         ui.patch(START) { on(SOUND, on) }
         ui.menu(menuItems())
-        // Sound needs other streams: start again where the video is.
+        // Sound needs other streams: start again where the video is (quietly, the note says why).
         val playing = current
         if (playing != null && state != VideoState.ERROR && state != VideoState.ENDED) {
+            state = VideoState.LOADING
             ui.video(PICTURE, VideoAction.Play(playing.url, profile, sound, position))
         }
         ui.toast(if (on) "Ton auf der Uhr an" else "Ton aus")
@@ -199,12 +201,10 @@ class YouTubeApp : G2App {
 
     // --- Video ----------------------------------------------------------------------------------
 
+    /** The picture fills the screen; the state comes as a note over it ([videoChanged]). */
     private fun videoPage() = Page(
         VIDEO, "Video",
-        listOf(
-            Block.Image(PICTURE, null, VIDEO_W, VIDEO_H),
-            Block.Text(STATUS, "", Align.CENTER),
-        ),
+        listOf(Block.Image(PICTURE, null, VIDEO_W, VIDEO_H, bleed = true)),
         statusBar = false,
         input = InputMode.GESTURES,
     )
@@ -218,12 +218,12 @@ class YouTubeApp : G2App {
             history = (listOf(item) + history.filter { it.url != item.url }).take(MAX_HISTORY)
             save(ui)
         }
-        // A fresh page: black picture, loading line.
+        // A fresh page: black picture, a note how it works until the title comes.
         ui.definePages(listOf(videoPage()))
-        ui.patch(VIDEO) { text(STATUS, "Lädt … Tippen = Pause, Wischen = ±10 s") }
         ui.show(VIDEO)
         ui.video(PICTURE, VideoAction.Play(item.url, profile, sound))
         ui.menu(menuItems())
+        ui.toast(LOADING_NOTE, LONG_NOTE_MS)
     }
 
     private fun stopVideo(ui: AppContext) {
@@ -234,22 +234,25 @@ class YouTubeApp : G2App {
         showHistory(ui)
     }
 
+    /** A note over the picture when the state changes; the position alone (every second) says nothing new. */
     private fun videoChanged(e: AppEvent.Video, ui: AppContext) {
         val item = current ?: return
         position = e.positionMs
         if (e.durationMs > 0) duration = e.durationMs
-        if (e.state == state && e.state == VideoState.PLAYING) return
+        if (e.state == state) return
+        val before = state
         state = e.state
-        val line = when (e.state) {
-            VideoState.LOADING -> "Lädt … Tippen = Pause, Wischen = ±10 s"
-            VideoState.PLAYING -> shorten(title(item), 42)
-            VideoState.PAUSED -> "Pause ${time()} – tippen: weiter"
-            VideoState.BUFFERING -> "Lädt nach … ${time()}"
-            VideoState.ENDED -> "Ende – tippen: nochmal"
-            VideoState.ERROR -> shorten(e.message ?: "Fehler", 60)
+        when (e.state) {
+            VideoState.LOADING -> ui.toast(LOADING_NOTE, LONG_NOTE_MS)
+            // The title once at the start; later only that it goes on, briefly, so the picture is free.
+            VideoState.PLAYING ->
+                if (before == VideoState.LOADING) ui.toast(shorten(title(item), 42), TITLE_NOTE_MS)
+                else ui.toast("Weiter · ${time()}", SHORT_NOTE_MS)
+            VideoState.PAUSED -> ui.toast("Pause ${time()} – tippen: weiter", LONG_NOTE_MS)
+            VideoState.BUFFERING -> ui.toast("Lädt nach … ${time()}", LONG_NOTE_MS)
+            VideoState.ENDED -> ui.toast("Ende – tippen: nochmal", LONG_NOTE_MS)
+            VideoState.ERROR -> ui.toast(shorten(e.message ?: "Video geht nicht", 60), LONG_NOTE_MS)
         }
-        ui.patch(VIDEO) { text(STATUS, line) }
-        if (e.state == VideoState.ERROR) ui.toast("Video geht nicht")
     }
 
     private fun gesture(kind: GestureKind, ui: AppContext) {
@@ -335,7 +338,6 @@ class YouTubeApp : G2App {
         const val HISTORY_EMPTY = "verlauf_leer"
         const val CLEAR_HISTORY = "verlauf_loeschen"
         const val PICTURE = "bild"
-        const val STATUS = "status"
 
         /** Buttons and info lines of hits and history entries: prefix + index. */
         const val HIT = "v"
@@ -348,9 +350,16 @@ class YouTubeApp : G2App {
         const val MENU_PROFILE = "profil"
         const val MENU_SOUND = "ton"
 
-        /** 16:9, with the status line below it exactly the height of the full screen (288). */
-        const val VIDEO_W = 416
-        const val VIDEO_H = 234
+        /** 16:9, the full height of the screen without margins (576 × 288). */
+        const val VIDEO_W = 512
+        const val VIDEO_H = 288
+
+        /** Notes over the video: how long the state, the title and "goes on" stay (the host keeps ≤ 10 s). */
+        const val LONG_NOTE_MS = 10_000
+        const val TITLE_NOTE_MS = 3_000
+        const val SHORT_NOTE_MS = 1_200
+        const val LOADING_NOTE = "Lädt … Tippen = Pause, Wischen = ±10 s"
+
         const val SEEK_MS = 10_000L
         const val MAX_HISTORY = 20
         const val MAX_QUERIES = 5
@@ -364,9 +373,9 @@ class YouTubeApp : G2App {
         private const val KEY_HISTORY = "verlauf"
 
         private val PER_SECOND = mapOf(
-            VideoProfile.STABLE to "1 Bild pro Sekunde",
-            VideoProfile.BALANCED to "2 Bilder pro Sekunde",
-            VideoProfile.FAST to "4 Bilder pro Sekunde",
+            VideoProfile.STABLE to "bis 5 Bilder pro Sekunde",
+            VideoProfile.BALANCED to "bis 10 Bilder pro Sekunde",
+            VideoProfile.FAST to "bis 15 Bilder pro Sekunde, gröber",
         )
 
         /** "Kanal · 4:56 · 1,2 Mio. Aufrufe", short enough for one line. */

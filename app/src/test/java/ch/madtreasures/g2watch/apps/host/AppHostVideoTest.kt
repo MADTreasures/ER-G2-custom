@@ -186,6 +186,43 @@ class AppHostVideoTest {
     }
 
     @Test
+    fun `video pictures are drawn at the video's pace, commands still at most every 200 ms`() {
+        val host = host(app())
+        host.start()
+        asApp {
+            show("video")
+            video("bild", VideoAction.Play("test:muster"))
+        }
+        player.state(VideoState.PLAYING)
+        settle()
+
+        /** Pictures every [everyMs] for two seconds; how many the glasses got per second. */
+        fun shownPerSecond(everyMs: Long): Double {
+            val before = screen.views.size
+            for (t in 0 until 2_000 step everyMs.toInt()) {
+                player.listener.onFrame(GrayRaster(96, 54).also { it.fillRect(0, 0, 96, 54, t / 10) })
+                scheduler.advanceBy(everyMs)
+            }
+            scheduler.advanceBy(AppHost.VIDEO_INTERVAL_MS)
+            return (screen.views.size - before) / 2.0
+        }
+        // 10 a second (the default profile): every one, not every second one.
+        assertEquals(10.0, shownPerSecond(100), 0.5)
+        // 30 a second: at most one every 66 ms, and the last one is on the glasses.
+        assertEquals(15.0, shownPerSecond(33), 1.0)
+        val shown = screen.last
+        assertEquals(1_980 / 10, shown.pixels[(8 + 10) * shown.width + (shown.width - 96) / 2 + 10].toInt() and 0xFF)
+
+        // A status line patched every 50 ms, without pictures: drawn every 200 ms, 5 times a second, as before.
+        val before = screen.views.size
+        repeat(40) { i ->
+            scheduler.post { context!!.patch("video") { text("status", "Zeile $i") } }
+            scheduler.advanceBy(50)
+        }
+        assertEquals(5.0, (screen.views.size - before) / 2.0, 0.5)
+    }
+
+    @Test
     fun `pause, resume, seek, profile and stop reach the player`() {
         val host = host(app())
         host.start()

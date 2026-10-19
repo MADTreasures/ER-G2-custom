@@ -359,7 +359,7 @@ Hardware-Decoder, Verkleinern die GPU der Uhr; die App gibt nur Befehle und blei
 ```
 YouTubeApp (G2App) ── video(block, Play) ──────────▶ AppHost ──▶ VideoEngine (HostPorts.video)
      ◀── AppEvent.Video (Zustand, Position) ────────┤             AndroidVideoEngine
-     ◀── Bild im image-Baustein (≤ alle 200 ms) ────┘              ├─ NewPipeCatalog: Suche; Video-Seite → Streams
+     ◀── Bild im image-Baustein (≤ alle 66 ms) ─────┘              ├─ NewPipeCatalog: Suche; Video-Seite → Streams
                                                                    ├─ StreamChooser: kleinste H.264-Fassung, die reicht
                                                                    ├─ ExoVideoPlayer (Media3, Thread „G2Watch-video“):
                                                                    │    Hardware-Decoder → SurfaceTexture → GlFrameGrabber
@@ -372,6 +372,7 @@ YouTubeApp (G2App) ── video(block, Play) ──────────▶ A
 | `Video.kt` | öffentliche Typen: `VideoProfile`, `VideoAction`, `VideoState`, `VideoItem`, `VideoSearchResult` |
 | `video/VideoEngine.kt` | Anschluss des Hosts: `search`, `open(VideoRequest, VideoListener) → VideoPlayer` (pause, resume, seekTo, setProfile, release) |
 | `video/FrameConverter.kt` | Helligkeitsraster → Raster des Bild-Bausteins (reines Kotlin, getestet) |
+| `video/FrameBeat.kt` | welche dekodierten Bilder der Player im Takt des Profils nimmt (reines Kotlin, getestet) |
 | `video/TestPattern.kt` | Testvideo der Uhr (`test:muster`, 16:9, 1 min) und sein Player |
 | `video/StreamChooser.kt` | welche Fassung (reines Kotlin, getestet) |
 | `video/NewPipeCatalog.kt` | YouTube-Suche und Stream-Adressen mit NewPipeExtractor (GPL-3.0) |
@@ -385,30 +386,59 @@ YouTubeApp (G2App) ── video(block, Play) ──────────▶ A
    Abtastungen), seitenrichtig mit schwarzen Rändern, und rechnet es in Helligkeit um. Zurückgelesen werden
    nur ein paar zehn KB statt eines ganzen Videobilds. Ein `ImageReader` wäre einfacher, lässt sich aber von
    vielen Qualcomm-Decodern nicht füttern (eigene YUV-Formate).
-2. **Kontrast** zwischen 2. und 98. Perzentil strecken (höchstens auf 72 Stufen Spanne), über die Zeit
-   geglättet (35 % je Bild), Mitteltöne leicht angehoben (Gamma 0,85): die dunkle Hälfte eines Bilds ist auf
-   dem Glas durchsichtig.
-3. Auf die Graustufen des Profils runden; ein Punkt wechselt seine Stufe erst, wenn der Wert **13/16 einer
-   Stufe** davon weg ist. Ruhige Bildteile bleiben so Byte für Byte gleich – das spart Funk, weil Faceclaws
-   Kern nur Änderungen schickt und zlib Wiederholungen findet.
-4. Jeder Rasterpunkt wird ein Quadrat aus `cell` × `cell` Pixeln.
+2. **Kontrast** zwischen 2. und 98. Perzentil strecken (höchstens auf 72 Stufen Spanne). Geglättet wird je
+   Sekunde, nicht je Bild (75 % des Wegs in einer Sekunde, bei 5 wie bei 15 Bildern pro Sekunde), mit einer
+   **Totzone** von 4 Helligkeitswerten (von 255): Rauschen in einer ruhigen Szene verschiebt die Kurve nicht,
+   sonst kippten Punkte nahe einer Schwelle von Bild zu Bild.
+3. **Tonkurve** `GAMMA = 1,4` (Stufe = gestreckte Helligkeit hoch 1,4): Videos sind für Bildschirme mit
+   Gamma ≈ 2,2 kodiert, die Brille gibt aber Licht fast linear ab (Stufe 1 ≈ 1/15 der vollen Helligkeit,
+   `firmware-uebergabe/wissen/02-display.md` §1). Unverändert wirken Mitteltöne zu hell, das Bild vor dem
+   durchsichtigen Hintergrund milchig; 1,4 nimmt sie ein Stück zurück, ein volles 2,2 ließe die dunkle Hälfte
+   im Hintergrund verschwinden. Bis v0.8 hob Gamma 0,85 die Mitteltöne sogar an. Auf der Brille nicht
+   verglichen.
+4. Auf die 16 Graustufen runden; ein Punkt wechselt seine Stufe erst, wenn der Wert **10/16 einer Stufe**
+   davon weg ist (bis v0.8 13/16; 8/16 wäre einfaches Runden). Ruhige Bildteile bleiben so Byte für Byte gleich
+   – das spart Funk, weil Faceclaws Kern nur Änderungen schickt und zlib Wiederholungen findet –, und langsame
+   Bewegungen kommen früher an als mit 13/16. Preis: Rauschen von ±2 Helligkeitswerten lässt in
+   kontrastarmen oder detailreichen ruhigen Szenen 1–3 % der Punkte je Bild kippen (simuliert; ±1 kippt
+   keine, 12/16 hielte ±2 still). Flimmert das auf der Brille, ist 12/16 der nächste Schritt.
+5. Jeder Rasterpunkt wird ein Quadrat aus `cell` × `cell` Pixeln.
 
-**Profile** (Budget: `VideoBudgetTest` rechnet mit Faceclaws eigener Kodierung – geändertes Rechteck, RLE
-Modus 3, zlib-Strom des Transports – für drei erfundene Videos; Bild-Baustein 416 × 234):
+**Profile.** Ein Profil legt das Raster fest und wie oft die Uhr ein Bild macht; wie viele davon ankommen,
+bestimmt die Verbindung zur Brille. Faceclaws Kern hält nur das neueste noch nicht geschickte Bild und plant
+es erst, wenn die Verbindung frei ist, gegen das zuletzt geschickte – ein schnelleres Profil staut also
+nichts, es kostet höchstens Rechenzeit auf der Uhr für Bilder, die verworfen werden. Gewählt mit
+`VideoBudgetTest`: erfundene Videos im Bild-Baustein der YouTube-App (512 × 288 bei x 64, y 96), durch
+Faceclaws echten Weg zur Custom-Firmware (`ScenePlanner`: je geändertem 32-Zeilen-Band ein RLE-Rechteck, dann
+PRESENT; jeder Befehl durch `CfwTransport` mit dem zlib-Strom und Paketen für MTU 244), über eine Verbindung mit
+41 KiB/s, die während eines Bilds das wartende durch das neueste ersetzt (`GlassesLink.kt` im Test):
 
-| Profil | Bild alle | Rasterpunkt | Stufen | Raster | Landschaft / viel Detail / Gespräch |
-|---|---|---|---|---|---|
-| `stable` Stabil | 1000 ms | 2 × 2 | 16 | 208 × 117 | 3,3 / 12,5 / 1,3 KB/s |
-| `balanced` Ausgewogen | 500 ms | 3 × 3 | 16 | 138 × 78 | 3,6 / 11,8 / 1,4 KB/s |
-| `fast` Schnell | 250 ms | 4 × 4 | 8 | 104 × 58 | 3,3 / 10,9 / 1,6 KB/s |
+| Profil | Bild alle | Rasterpunkt | Stufen | Raster | Landschaft | Gespräch | viel Detail |
+|---|---|---|---|---|---|---|---|
+| `stable` Stabil | 200 ms | 2 × 2 | 16 | 256 × 144 | 5/s, 3,1 KB, 37 % | 5/s, 0,9 KB, 11 % | 2,2/s |
+| `balanced` Ausgewogen | 100 ms | 2 × 2 | 16 | 256 × 144 | 10/s, 2,9 KB, 68 % | 10/s, 0,8 KB, 19 % | 2,2/s |
+| `fast` Schnell | 66 ms | 3 × 3 | 16 | 170 × 96 | 15/s, 1,9 KB, 69 % | 15/s, 0,6 KB, 23 % | 4,4/s |
 
-Der Test verlangt höchstens 16 KiB/s (≈ 40 % der ≈ 41 KiB/s, 01 §1) und für gewöhnliche Szenen 5 KiB/s.
-Ordered Dithering wurde verworfen: Es macht aus jeder Fläche abwechselnde Pixel und kostet ein Vielfaches.
+(Bilder pro Sekunde, die ankommen; Bytes je Bild auf der Leitung; Anteil der Verbindung.) Der Test verlangt,
+dass gewöhnliche Szenen jedes Bild jedes Profils durchbringen, Ausgewogen mindestens 8 pro Sekunde, Stabil
+höchstens die halbe Verbindung, und dass viel Detail mindestens 2 (Schnell: 4) pro Sekunde bewegt. Bis v0.8
+waren es 1, 2 und 4 Bilder pro Sekunde mit 2 × 2, 3 × 3 und 4 × 4 (8 Stufen) bei 416 × 234 – höchstens ein
+Drittel der Verbindung, und der Host zeichnete ohnehin nur alle 200 ms. Die YouTube-App zeigt das Bild seit
+v0.9.0 randlos in 512 × 288 statt 416 × 234 mit Statuszeile; der Zustand kommt als Hinweis (`toast`) über das
+Bild. Der Test zeigt dafür bei gewöhnlichen Szenen weiter 10 Bilder pro Sekunde, nur viel Detail fällt von 3
+auf 2.
+
+**Dithering:** keines. Fehlerverteilung (Floyd–Steinberg) lässt ruhige Bildteile flimmern: Im Gespräch
+kippen in der Simulation 17–20 % der Punkte je Bild, jedes Bild kostet 5–15 KB. Ein festes Bayer-Muster
+4 × 4 kostet **kein Vielfaches**, wie hier früher stand, sondern je nach Szene etwa ein Fünftel bis ein
+Drittel mehr (mit halber Stärke 10–15 %); es glättet Verläufe wie den Himmel, legt aber ein feines Gitter
+über jede Fläche. Im Vergleich der simulierten Bilder nicht klar besser, darum aus.
 
 **Wiedergabe** (`ExoVideoPlayer`):
 
 - Video-Seiten fragt `NewPipeCatalog` nach Streams; `StreamChooser` nimmt die **kleinste H.264-Fassung mit
-  mindestens so vielen Zeilen wie das Raster** (meist 144p), sonst VP9, nie AV1 und nie über 480p; mit Ton die
+  mindestens doppelt so vielen Zeilen wie das Raster, mindestens 240p** (YouTube-App: 360p, in Schnell 240p;
+  bis v0.8 meist 144p, für das feinere Raster zu verwaschen), sonst VP9, nie AV1 und nie über 480p; mit Ton die
   kleinste AAC-Spur der Originalsprache ab 48 kbit/s. Reihenfolge der Versuche: Bild(+Ton) → HLS → Datei mit
   Ton. Schlägt ein Stream fehl (z. B. HTTP 403), kommt der nächste; sind alle durch, wird die Seite einmal neu
   aufgelöst (Adressen verfallen). Live-Videos nur über HLS.
@@ -423,12 +453,20 @@ Ordered Dithering wurde verworfen: Es macht aus jeder Fläche abwechselnde Pixel
 - Ein Sprung während des Ladens gilt ab dem Start; ein Live-Video, das länger pausiert war, als sein Fenster
   reicht, geht an der Live-Kante weiter.
 - Puffer 15–30 s, Ton nur mit `sound` (sonst ist die Tonspur abgeschaltet), Wake-Lock fürs Netz.
+- Vom Decoder nimmt der Player im Takt des Profils das erste Bild ab jedem Taktschlag (`FrameBeat`): So
+  bleiben es 10 pro Sekunde auch bei Videos mit 24 oder 25 Bildern pro Sekunde, nicht 8. Nach einer Pause
+  beginnt der Takt neu.
+- Nicht gebaut: den Takt an die Bestätigung der Brille koppeln (`onFrameFinished` des Kerns). Das spart
+  Rechenzeit für Bilder, die der Kern verwirft, braucht aber ein Signal durch `GlassesConnection`,
+  `CoreDisplay`, `DesktopController` und den Host. Zuerst auf der Uhr messen, was ein Bild kostet
+  (`FrameTimingsCore`: composite, pack-4bpp, compress-and-plan).
 
 **Im Host:** `video(block, …)` verlangt einen `image`-Baustein; `https://` braucht `network`, `test:` nicht.
 Ein neues Video beginnt schwarz und ersetzt ein altes im selben Baustein. Bilder gehen in den Baustein wie
-`setRaster` und werden höchstens alle 200 ms gezeichnet. Das Video **pausiert**, solange die App verdeckt ist
-oder die Brille weg ist, und läuft danach von selbst weiter – außer die App hat selbst pausiert. Ein Fehler
-beendet das Video (Eintrag im Protokoll, Ereignis `error`); mit der App endet es immer.
+`setRaster`. Ein neues Videobild zeichnet der Host nach höchstens **66 ms** (etwa 15 pro Sekunde), mit allen
+Befehlen bis dahin; Befehle allein weiter höchstens alle 200 ms (02 §6.2). Das Video **pausiert**, solange die
+App verdeckt ist oder die Brille weg ist, und läuft danach von selbst weiter – außer die App hat selbst
+pausiert. Ein Fehler beendet das Video (Eintrag im Protokoll, Ereignis `error`); mit der App endet es immer.
 
 **Weitere Änderungen am Host in v0.5.0:** Seiten können ihre Eingabeart wählen (`Page.input`, 02 §4.1).
 `askText` zeigt auf der Brille „Bitte auf der Uhr eingeben“ (bis zur Antwort), die Uhr vibriert; eine neue
@@ -437,12 +475,17 @@ sobald die G2-Watch-App im Vordergrund ist (während der Verbindung hält sie de
 angezeigte Seite neuen Inhalt und ist nichts fokussiert, fokussiert der Host den ersten sichtbaren Knopf –
 so spielt ein Tipp am Bügel den ersten Treffer ab, sobald die Liste da ist.
 
-**Tests (ohne Hardware):** `AppHostVideoTest`, `YouTubeAppTest`, `FrameConverterTest`, `StreamChooserTest`,
-`TestPatternPlayerTest`, `VideoBudgetTest`, Bilder `apps-youtube-*.png` und `video-profile.png`. Suche und
-Auflösen sind einmal mit echtem Netz gegen YouTube probiert (20 Treffer; 144p H.264 gewählt), nicht in der CI.
+**Tests (ohne Hardware):** `AppHostVideoTest` (auch: Bilder pro Sekunde bei 10 und 30 Videobildern),
+`YouTubeAppTest`, `FrameConverterTest` (auch: Glättung je Sekunde, Totzone), `FrameBeatTest`,
+`StreamChooserTest`, `TestPatternPlayerTest`, `VideoBudgetTest`, Bilder `apps-youtube-*.png` und
+`video-profile.png`. Suche und Auflösen sind einmal mit echtem Netz gegen YouTube probiert (20 Treffer; nach
+der damaligen Regel 144p H.264 gewählt), nicht in der CI.
 
 **Nicht erprobt:** alles auf der echten Uhr – GPU-Abgriff, Media3 mit dem Decoder der Pixel Watch 5,
-WLAN/LTE-Anforderung, Tastatur/Sprache, Akku. Ob YouTube die Videos an die Uhr ausliefert, ist offen: In der
+WLAN/LTE-Anforderung, Tastatur/Sprache, Akku. Offen ist auch, ob die Verbindung zur Brille mit Firmware 2.3.0
+wirklich ≈ 41 KiB/s trägt (gemessen hat Faceclaw auf 2.2.9), welche MTU die Brille gewährt, ob Brille und Uhr
+10–15 Bilder pro Sekunde schaffen, und wie Tonkurve und Raster auf dem grünen Glas wirken. Zuerst prüfen mit
+„Testbild“ und der Übertragungsstatistik der Uhr. Ob YouTube die Videos an die Uhr ausliefert, ist offen: In der
 Testumgebung antworteten YouTubes Videoserver mit 403, weil sie die Adresse an die IP binden und die
 Umgebung YouTube und die Videoserver über verschiedene Adressen erreicht.
 

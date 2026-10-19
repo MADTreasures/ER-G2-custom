@@ -12,7 +12,6 @@ import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
 import ch.madtreasures.g2watch.apps.VideoState
 import ch.madtreasures.youtube.YouTubeApp.Companion.PICTURE
-import ch.madtreasures.youtube.YouTubeApp.Companion.STATUS
 import ch.madtreasures.youtube.YouTubeApp.Companion.VIDEO
 import ch.madtreasures.g2watch.apps.textOf
 import kotlinx.serialization.json.JsonArray
@@ -55,7 +54,8 @@ class YouTubeAppTest {
         send(AppEvent.Video(PICTURE, state, positionMs, cats[index].durationS * 1000))
     }
 
-    private fun status() = ui.page(VIDEO).textOf(STATUS)
+    /** The latest note over the video. */
+    private fun note() = ui.toasts.last()
 
     @Test
     fun `the start page offers search, history, profile, sound and the test picture`() {
@@ -121,11 +121,13 @@ class YouTubeAppTest {
         assertEquals(VIDEO, page.id)
         assertEquals(false, page.statusBar)
         assertEquals(InputMode.GESTURES, page.input)
+        // The picture alone, as large as the screen allows; the title comes as a note over it.
+        assertEquals(listOf(PICTURE), page.blocks.map { it.id })
         val image = page.block(PICTURE) as Block.Image
-        assertEquals(YouTubeApp.VIDEO_W, image.w)
-        assertEquals(YouTubeApp.VIDEO_H, image.h)
+        assertEquals(Pair(512, 288), Pair(image.w, image.h))
+        assertTrue(image.bleed)
         assertEquals(VideoAction.Play(cats[0].url, VideoProfile.BALANCED, sound = false), ui.videos.first { it.second is VideoAction.Play }.second)
-        assertEquals("Katzen im Schnee", status())
+        assertEquals("Katzen im Schnee", note())
     }
 
     @Test
@@ -135,7 +137,7 @@ class YouTubeAppTest {
         send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RIGHT))
         assertEquals(VideoAction.Pause, ui.lastVideo(PICTURE))
         send(AppEvent.Video(PICTURE, VideoState.PAUSED, 31_000, 296_000))
-        assertEquals("Pause 0:31 / 4:56 – tippen: weiter", status())
+        assertEquals("Pause 0:31 / 4:56 – tippen: weiter", note())
         send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RING))
         assertEquals(VideoAction.Resume, ui.lastVideo(PICTURE))
 
@@ -149,7 +151,7 @@ class YouTubeAppTest {
         send(AppEvent.Gesture(GestureKind.LONG_PRESS, InputSource.RIGHT))
         assertEquals(VideoAction.Profile(VideoProfile.FAST), ui.lastVideo(PICTURE))
         assertEquals("Profil: Schnell", ui.page(YouTubeApp.START).textOf(YouTubeApp.PROFILE))
-        assertEquals("Schnell: 4 Bilder pro Sekunde", ui.toasts.last())
+        assertEquals("Schnell: bis 15 Bilder pro Sekunde, gröber", ui.toasts.last())
     }
 
     @Test
@@ -177,19 +179,27 @@ class YouTubeAppTest {
     }
 
     @Test
-    fun `the status line follows the video`() {
+    fun `notes over the picture follow the video`() {
         started()
         playHit(0, state = VideoState.LOADING)
-        assertEquals("Lädt … Tippen = Pause, Wischen = ±10 s", status())
+        assertEquals("Lädt … Tippen = Pause, Wischen = ±10 s", note())
+        val notes = ui.toasts.size
+        send(AppEvent.Video(PICTURE, VideoState.LOADING, 0, 296_000))
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 0, 296_000))
+        assertEquals("Katzen im Schnee", note())
+        // The position every second is no news.
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 1_000, 296_000))
+        assertEquals(notes + 1, ui.toasts.size)
         send(AppEvent.Video(PICTURE, VideoState.BUFFERING, 65_000, 296_000))
-        assertEquals("Lädt nach … 1:05 / 4:56", status())
+        assertEquals("Lädt nach … 1:05 / 4:56", note())
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 65_000, 296_000))
+        assertEquals("Weiter · 1:05 / 4:56", note())
         send(AppEvent.Video(PICTURE, VideoState.ENDED, 296_000, 296_000))
-        assertEquals("Ende – tippen: nochmal", status())
+        assertEquals("Ende – tippen: nochmal", note())
         send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RIGHT))
         assertEquals(VideoAction.Resume, ui.lastVideo(PICTURE))
         send(AppEvent.Video(PICTURE, VideoState.ERROR, 0, 0, "YouTube lässt das Video nicht laden (HTTP 403)"))
-        assertEquals("YouTube lässt das Video nicht laden (HTTP 403)", status())
-        assertEquals("Video geht nicht", ui.toasts.last())
+        assertEquals("YouTube lässt das Video nicht laden (HTTP 403)", note())
         // After an error a tap tries again from the start.
         val plays = ui.videos.count { it.second is VideoAction.Play }
         send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RIGHT))
@@ -245,6 +255,9 @@ class YouTubeAppTest {
         send(AppEvent.Toggle(YouTubeApp.START, YouTubeApp.SOUND, true))
         assertEquals(VideoAction.Play(cats[0].url, VideoProfile.BALANCED, sound = true, startMs = 42_000), ui.lastVideo(PICTURE))
         assertEquals("Ton aus", ui.menu.last().text)
+        // The new start says nothing over the note.
+        send(AppEvent.Video(PICTURE, VideoState.LOADING, 42_000, 296_000))
+        assertEquals("Ton auf der Uhr an", note())
         send(AppEvent.Menu(YouTubeApp.MENU_SOUND))
         assertEquals(VideoAction.Play(cats[0].url, VideoProfile.BALANCED, sound = false, startMs = 42_000), ui.lastVideo(PICTURE))
     }

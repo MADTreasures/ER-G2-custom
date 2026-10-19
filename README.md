@@ -181,32 +181,38 @@ um – Graustufen in Grün, wie bei „G2 Agent Cam“ im Even Hub, nur mit Vide
 | Start | Treffer (Suche per Tastatur/Sprache der Uhr) | Video |
 |---|---|---|
 | ![Start](docs/bilder/apps-youtube-start.png) | ![Treffer](docs/bilder/apps-youtube-treffer.png) | ![Video](docs/bilder/apps-youtube-video.png) |
-| **Pause** | **Testbild der Uhr** (ohne Internet) | **Profile Stabil / Ausgewogen / Schnell** |
+| **Pause** | **Testbild der Uhr** (ohne Internet) | **Raster fein (Stabil, Ausgewogen) / grob (Schnell)** |
 | ![Pause](docs/bilder/apps-youtube-pause.png) | ![Testbild](docs/bilder/apps-youtube-testbild.png) | ![Profile](docs/bilder/video-profile.png) |
 
 Die Videobilder oben sind ein erfundenes Landschafts-Video (keine echten YouTube-Inhalte im Repo), durch
-dieselbe Umrechnung wie auf der Uhr.
+dieselbe Umrechnung wie auf der Uhr. Das Video füllt die Brille ohne Rand (512 × 288 Pixel); was es gerade
+tut (Titel, Pause, Laden, Ende), steht kurz als Hinweis darüber.
 
 **Bedienen:**
 
 - **Suchen** anklicken → auf der Uhr erscheint die Tastatur (mit Spracheingabe und den letzten Suchen als
   Vorschlag). Die Treffer zeigen Titel, Kanal, Länge und Aufrufe; der erste ist schon ausgewählt, ein Tipp
   am Bügel spielt ihn ab.
-- **Im Video** (Vollbild, Gesten-Modus): **Tippen** = Pause/weiter, **Wischen** = 10 s zurück/vor,
-  **Doppeltippen** = zurück zur Liste, **lange drücken** = nächstes Profil. Auf der Uhr gilt dasselbe
-  (Wischen hoch/runter, nach links = Profil, nach rechts = zurück). Unter dem Bild steht der Titel, bei
-  Pause die Zeit.
-- **Profil** (Startseite oder App-Menü) – wie bei „G2 Agent Cam“:
+- **Im Video** (Vollbild ohne Rand, Gesten-Modus): **Tippen** = Pause/weiter, **Wischen** = 10 s
+  zurück/vor, **Doppeltippen** = zurück zur Liste, **lange drücken** = nächstes Profil. Auf der Uhr gilt
+  dasselbe (Wischen hoch/runter, nach links = Profil, nach rechts = zurück). Zu Beginn steht der Titel ein
+  paar Sekunden im Bild, bei Pause die Zeit.
+- **Profil** (Startseite oder App-Menü). Die Uhr macht höchstens so viele Bilder, wie das Profil sagt; wie
+  viele davon ankommen, entscheidet die Bluetooth-Verbindung (etwa 41 KB/s). Ist sie mit einem Bild noch
+  beschäftigt, ersetzt das nächste das wartende – es staut sich nichts, die Brille zeigt immer das neueste.
 
-  | Profil | Bilder pro Sekunde | Raster (Punkte) | Graustufen | Bluetooth, Szene mit viel Detail / normal (simuliert) |
+  | Profil | Bilder pro Sekunde, höchstens | Raster (Punkte) | Normale Szene: Bilder/s, Anteil der Verbindung | Viel Detail (Laub, Menge): Bilder/s |
   |---|---|---|---|---|
-  | **Stabil** | 1 | 208 × 117 | 16 | ≈ 12,5 KB/s / ≈ 3,3 KB/s |
-  | **Ausgewogen** (Standard) | 2 | 138 × 78 | 16 | ≈ 11,8 KB/s / ≈ 3,6 KB/s |
-  | **Schnell** | 4 | 104 × 58 | 8 | ≈ 10,9 KB/s / ≈ 3,3 KB/s |
+  | **Stabil** | 5 | 256 × 144 (2 × 2 Pixel) | 5, ≈ 11–37 % | ≈ 2 |
+  | **Ausgewogen** (Standard) | 10 | 256 × 144 (2 × 2 Pixel) | 10, ≈ 19–68 % | ≈ 2 |
+  | **Schnell** | 15 | 170 × 96 (3 × 3 Pixel) | 15, ≈ 23–69 % | ≈ 4 |
 
-  Die Brille bekommt etwa 41 KB/s; jedes Profil braucht also höchstens rund ein Drittel davon. Die Werte
-  hat `VideoBudgetTest` mit Faceclaws eigener Übertragungs-Kodierung ausgerechnet, **nicht gemessen**.
-  Kommt die Brille nicht nach, zeigt sie einfach das jeweils neueste Bild (nichts staut sich).
+  Alle Profile mit 16 Graustufen. Die Werte hat `VideoBudgetTest` mit Faceclaws eigenem Weg zur
+  Custom-Firmware ausgerechnet (erfundene Videos, Verbindung mit 41 KB/s angenommen), **nicht gemessen**.
+  **Stabil** lässt der Verbindung bei normalen Szenen über die Hälfte frei, für den Fall, dass sie auf der
+  echten Brille langsamer ist. Mitteltöne rechnet die Uhr dunkler, als sie im Video stehen: Die Brille gibt
+  Licht fast linear ab, sonst wirkt das Bild vor dem durchsichtigen Hintergrund milchig. Auf der Brille ist
+  das noch nicht verglichen.
 - **Ton auf der Uhr** (Schalter): spielt den Ton über den Lautsprecher der Uhr oder daran gekoppelte
   Kopfhörer. Die Brille selbst hat keinen Lautsprecher.
 - **Verlauf:** die letzten 20 Videos, bleiben auf der Uhr gespeichert. **Testbild:** ein eigenes
@@ -218,8 +224,10 @@ dieselbe Umrechnung wie auf der Uhr.
 
 - Für die Videos fragt die Uhr Wear OS nach **WLAN oder LTE** statt der Bluetooth-Verbindung übers Handy
   (die teilt sich den Funk mit der Brille). Klappt das nicht innerhalb von 8 s, geht es über das Netz, das da
-  ist. Ist das Video zu Ende oder 20 s pausiert, gibt die Uhr WLAN/LTE wieder frei. Die Uhr lädt die kleinste Fassung, die für das Raster reicht (meist 144p H.264, ≈ 130 kbit/s, also
-  rund 60 MB pro Stunde; mit Ton etwa 20 MB mehr).
+  ist. Ist das Video zu Ende oder 20 s pausiert, gibt die Uhr WLAN/LTE wieder frei. Die Uhr lädt die
+  kleinste Fassung mit etwa doppelt so vielen Zeilen wie das Raster, mindestens 240p: in Stabil und
+  Ausgewogen meist 360p H.264, in Schnell 240p (144p ist für das feinere Raster zu verwaschen). Geschätzt
+  150–250 MB pro Stunde, etwa dreimal so viel wie mit 144p; mit Ton etwa 20 MB mehr.
 - **Akku:** Dekodieren, Funk und Bluetooth zur Brille kosten spürbar Akku der Uhr (465 mAh) – nicht gemessen.
 - Die App wird dadurch rund **11 MB** größer (Debug-APK 41 statt 31 MB): NewPipeExtractor mit Rhino und
   Media3.
@@ -492,10 +500,11 @@ Lint ohne Fehler. Die wichtigsten:
   Suche, Klicks, Felder, Lesezeichen, Verlauf, Lesemodus, Hinweise). Das Inhalts-Skript selbst prüft
   `node tools/page-preview/bridge-check.js` in Chromium (nicht in der CI).
 - **`AppHostVideoTest`** – Texteingabe (Antwort, Abbruch, ersetzte Frage, App endet), Videos (Bilder im
-  Bild-Baustein, Zustände, Pause/Weiter/Springen/Profil/Stopp, Berechtigung, Pause beim Verdecken und ohne
-  Brille), Eingabeart pro Seite, Video-Suche. **`YouTubeAppTest`** – Suche, Treffer, Gesten im Video,
-  Profile, Ton, Verlauf. **`VideoBudgetTest`** – was ein Video mit Faceclaws Kodierung über Bluetooth kostet;
-  **`FrameConverterTest`**, **`StreamChooserTest`**, **`TestPatternPlayerTest`**.
+  Bild-Baustein, bis 15 pro Sekunde statt 5, Zustände, Pause/Weiter/Springen/Profil/Stopp, Berechtigung,
+  Pause beim Verdecken und ohne Brille), Eingabeart pro Seite, Video-Suche. **`YouTubeAppTest`** – Suche,
+  Treffer, Gesten im Video, Hinweise über dem Bild, Profile, Ton, Verlauf. **`VideoBudgetTest`** – was ein Video mit Faceclaws Weg zur Custom-Firmware über
+  Bluetooth kostet und wie viele Bilder pro Sekunde durchkommen; **`FrameConverterTest`**,
+  **`FrameBeatTest`**, **`StreamChooserTest`**, **`TestPatternPlayerTest`**.
 - **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel), **`AppJsonTest`**, **`PageStateTest`**,
   **`BaukastenProjectTest`**, **`AppsBoundaryTest`** (Apps berühren weder Firmware noch Bluetooth, App-Pakete
   nur die Schnittstelle).
