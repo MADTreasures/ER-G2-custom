@@ -9,6 +9,8 @@ import ch.madtreasures.browser.BrowserApp.Companion.WEB
 import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.FakeAppContext
+import ch.madtreasures.g2watch.apps.Keys
+import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.WebAction
 import ch.madtreasures.g2watch.apps.WebContrast
 import ch.madtreasures.g2watch.apps.WebField
@@ -49,7 +51,8 @@ class BrowserAppTest {
         canForward: Boolean = false,
         field: WebField? = null,
         message: String? = null,
-    ) = send(AppEvent.Web(PICTURE, state, url, title, progress, canBack = false, canForward = canForward, reader = reader, readable = readable, field = field, message = message))
+        canBack: Boolean = false,
+    ) = send(AppEvent.Web(PICTURE, state, url, title, progress, canBack = canBack, canForward = canForward, reader = reader, readable = readable, field = field, message = message))
 
     private fun buttons(page: String) = ui.page(page).blocks.filterIsInstance<Block.Button>().map { it.text }
 
@@ -268,5 +271,122 @@ class BrowserAppTest {
         val before = ui.webs.size
         send(AppEvent.TextInput(ASK_ADDRESS, null))
         assertEquals(before, ui.webs.size)
+    }
+
+    private fun key(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false, alt: Boolean = false, repeat: Boolean = false) =
+        send(AppEvent.Key(key, text, shift = shift, ctrl = ctrl, alt = alt, repeat = repeat))
+
+    @Test
+    fun `held keys type and scroll on, shortcuts and Enter act once`() {
+        started()
+        enter("srf.ch")
+        web(WebState.READY, "https://www.srf.ch/meteo", "SRF Meteo", canBack = true)
+        val before = ui.webs.size
+        key(Keys.ARROW_DOWN)
+        key(Keys.ARROW_DOWN, repeat = true)
+        key(Keys.ENTER)
+        key(Keys.ENTER, repeat = true)
+        key("r", ctrl = true)
+        key("r", ctrl = true, repeat = true)
+        key(Keys.BACKSPACE)
+        key(Keys.BACKSPACE, repeat = true)
+        key("d", ctrl = true)
+        key("d", ctrl = true, repeat = true)
+        assertEquals(
+            listOf(WebAction.Scroll(BrowserApp.LINE), WebAction.Scroll(BrowserApp.LINE), WebAction.Key(Keys.ENTER), WebAction.Reload, WebAction.Back),
+            ui.webs.drop(before).map { it.second },
+        )
+        assertEquals("Lesezeichen: SRF Meteo", ui.toasts.last())
+        // In a field, a held letter and a held Backspace go on.
+        web(WebState.READY, "https://www.srf.ch/meteo", "SRF Meteo", field = WebField("Suche"))
+        key("a", "a")
+        key("a", "a", repeat = true)
+        key(Keys.BACKSPACE, repeat = true)
+        assertEquals(
+            listOf(WebAction.Insert("a"), WebAction.Insert("a"), WebAction.Key(Keys.BACKSPACE)),
+            ui.webs.takeLast(3).map { it.second },
+        )
+    }
+
+    @Test
+    fun `the page takes the keyboard's keys, the start page leaves them to the watch`() {
+        started()
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+        enter("srf.ch")
+        assertTrue(Sensor.KEYS in ui.subscriptions)
+        web(WebState.READY, "https://www.srf.ch/news", "SRF News")
+        key(Keys.ARROW_DOWN)
+        assertEquals(WebAction.Scroll(BrowserApp.LINE), ui.lastWeb(PICTURE))
+        key(Keys.SPACE, " ")
+        assertEquals(WebAction.Scroll(195), ui.lastWeb(PICTURE))
+        key(Keys.SPACE, " ", shift = true)
+        assertEquals(WebAction.Scroll(-195), ui.lastWeb(PICTURE))
+        key(Keys.PAGE_DOWN)
+        assertEquals(WebAction.Scroll(195), ui.lastWeb(PICTURE))
+        key(Keys.TAB, shift = true)
+        assertEquals(WebAction.Key(Keys.TAB, shift = true), ui.lastWeb(PICTURE))
+        key(Keys.ENTER)
+        assertEquals(WebAction.Key(Keys.ENTER), ui.lastWeb(PICTURE))
+        // Letters without a field type nothing.
+        val before = ui.webs.size
+        key("a", "a")
+        assertEquals(before, ui.webs.size)
+        send(AppEvent.Back(WEB))
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+    }
+
+    @Test
+    fun `typing goes straight into the field with the cursor`() {
+        started()
+        ui.keyboard = true
+        enter("lite.duckduckgo.com/lite/")
+        ui.questionAnswered()
+        send(AppEvent.ImageClick(WEB, PICTURE, 200, 40))
+        web(WebState.READY, "https://lite.duckduckgo.com/lite/", "DuckDuckGo", field = WebField("Suche"))
+        // With a keyboard the wearer types on it; the watch does not ask.
+        assertNull(ui.question)
+        assertEquals("Tippen geht ins Feld, Enter sendet", ui.toasts.last())
+        key("K", "K", shift = true)
+        assertEquals(WebAction.Insert("K"), ui.lastWeb(PICTURE))
+        key("ä", "ä")
+        assertEquals(WebAction.Insert("ä"), ui.lastWeb(PICTURE))
+        key(Keys.BACKSPACE)
+        assertEquals(WebAction.Key(Keys.BACKSPACE), ui.lastWeb(PICTURE))
+        key(Keys.ARROW_LEFT, shift = true)
+        assertEquals(WebAction.Key(Keys.ARROW_LEFT, shift = true), ui.lastWeb(PICTURE))
+        key("a", ctrl = true)
+        assertEquals(WebAction.Key("a", ctrl = true), ui.lastWeb(PICTURE))
+        key(Keys.ENTER)
+        assertEquals(WebAction.Key(Keys.ENTER), ui.lastWeb(PICTURE))
+        // The menu still asks, on the glasses with a keyboard.
+        send(AppEvent.Menu(BrowserApp.MENU_TYPE))
+        assertEquals(ASK_FIELD, ui.question!!.first)
+    }
+
+    @Test
+    fun `browser shortcuts on the page`() {
+        started()
+        enter("srf.ch")
+        web(WebState.READY, "https://www.srf.ch/meteo", "SRF Meteo", canForward = true)
+        ui.questionAnswered()
+        key("l", ctrl = true)
+        assertEquals(ASK_ADDRESS, ui.question!!.first)
+        ui.questionAnswered()
+        key(Keys.F6)
+        assertEquals(ASK_ADDRESS, ui.question!!.first)
+        key("r", ctrl = true)
+        assertEquals(WebAction.Reload, ui.lastWeb(PICTURE))
+        key(Keys.F5)
+        assertEquals(WebAction.Reload, ui.lastWeb(PICTURE))
+        key(Keys.ARROW_RIGHT, alt = true)
+        assertEquals(WebAction.Forward, ui.lastWeb(PICTURE))
+        key("d", ctrl = true)
+        assertEquals("Lesezeichen: SRF Meteo", ui.toasts.last())
+        key("D", shift = true, ctrl = true)
+        assertEquals("Lesezeichen entfernt", ui.toasts.last())
+        // In a field the shortcuts stay shortcuts.
+        web(WebState.READY, "https://www.srf.ch/meteo", "SRF Meteo", field = WebField("Suche"))
+        key("r", ctrl = true)
+        assertEquals(WebAction.Reload, ui.lastWeb(PICTURE))
     }
 }

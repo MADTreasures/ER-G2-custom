@@ -47,6 +47,12 @@ interface HostPorts {
     /** Takes back the open question of [askText], if any (its app ended). */
     fun cancelText()
 
+    /**
+     * A Bluetooth keyboard is connected to the watch: questions show on the glasses and are typed
+     * there instead of [askText] (03 §5.4). Any thread.
+     */
+    val hardwareKeyboard: Boolean get() = false
+
     /** Searching and playing videos (03 §10). */
     val video: VideoEngine
 

@@ -31,6 +31,11 @@ ob GeckoView auf der Uhr gut genug läuft.
 > Gecko-Tests von der echten Uhr fehlen noch; was davon abhängt, steht im Browser-Abschnitt.
 > 0.8.1: Das Projekt enthält nur noch die Uhr-App, Android Studio kann nichts anderes aufspielen; der
 > Gecko-Test ist ein eigenes Projekt ([Gecko-Test](#gecko-test-m2-auf-die-uhr-bringen-und-messen)).
+> Neu in 0.9.0: **[Bildtiefe](#bildtiefe)** Nah/Mittel/Fern wie in der Even-App, und das Bild bleibt im Bereich,
+> den auch Evens Firmware nutzt (beide Gläser geprüft, kein Versatz gefunden); der **Starter zeigt Symbole**
+> statt einer Liste; **YouTube** schärfer und mit bis zu 15 Bildern pro Sekunde (randlos, 512 × 288);
+> **[Bluetooth-Tastatur und -Maus](#tastatur-und-maus)** zusätzlich zur Bedienung an der Uhr. Pakete YouTube
+> und Browser 1.1.0 (Schnittstelle 3). Nichts davon ist auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -155,7 +160,8 @@ Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installi
   „Gesten“: Wischen in vier Richtungen (nach rechts = zurück), Tippen, Doppeltippen, lang Drücken. Das
   Zahnrad öffnet weiter die Einstellungen.
 - **Texteingabe:** Fragt eine App nach Text (etwa die Suche), öffnet die Uhr ihre Tastatur mit
-  Spracheingabe; auf der Brille steht „Bitte auf der Uhr eingeben“.
+  Spracheingabe; auf der Brille steht „Bitte auf der Uhr eingeben“. Mit einer Bluetooth-Tastatur erscheint
+  die Frage auf der Brille, getippt wird dort ([Tastatur und Maus](#tastatur-und-maus)).
 - Braucht eine App Mikrofon, Standort o. Ä., fragt die Brille beim ersten Start einmal nach („Erlauben“ /
   „Ablehnen“). Sensoren, Mikrofon und Summer kommen erst mit M6 bei den Apps an.
 
@@ -178,6 +184,77 @@ fett in Überschriften. Flaggen werden zu Kästchen mit Länderkürzel, Hautfarb
 Herzen sind schraffiert. „…“ und Zeilenumbruch schneiden nie ein Emoji entzwei. Emoji ab Unicode 16 (2024)
 kennt die Schrift noch nicht; sie bleiben Kleckse. Details: [03 §11](docs/app-entwicklung/03_Uhr-Apps.md#11-emoji-v052).
 
+## Tastatur und Maus
+
+Eine Bluetooth-Tastatur und eine Bluetooth-Maus (etwa eine Magic Mouse) bedienen die Brille, sobald die Uhr
+sie verbunden hat: den Desktop, den Starter, den Browser, YouTube und jede andere App. **Nicht auf Hardware
+erprobt** – und ob Wear OS auf der Pixel Watch Tastaturen und Mäuse überhaupt annimmt, ist offen (unten).
+Wie es gebaut ist: [03 §5.4](docs/app-entwicklung/03_Uhr-Apps.md#54-tastatur-und-maus).
+
+| Uhr: *Einstellungen → Tastatur & Maus* | Touchpad mit Tastatur und Maus | Frage auf der Brille, mit der Tastatur getippt |
+|---|---|---|
+| ![Tastatur & Maus](docs/bilder/uhr-tastatur-maus.png) | ![Touchpad](docs/bilder/uhr-touchpad-tastatur.png) | ![Texteingabe](docs/bilder/apps-texteingabe.png) |
+
+**Koppeln:** Zahnrad halten → *Einstellungen → Tastatur & Maus → Gerät koppeln*. Die Uhr sucht etwa 15 s
+nach Tastaturen und Mäusen in der Nähe (das Gerät vorher in den Kopplungsmodus bringen); Antippen koppelt.
+Eine Tastatur verlangt dabei vielleicht einen Code, den man auf ihr eintippt und mit Enter bestätigt. Die
+Bluetooth-Liste von Wear OS zeigt solche Geräte nicht; der Knopf *Bluetooth-Einstellungen* führt trotzdem
+dorthin. Verbundene Geräte stehen oben auf der Seite und auf dem Touchpad unter dem Zahnrad.
+
+**Maus:** Bewegen führt den Zeiger der Brille (Tempo wie beim Finger: Krone oder Einstellungen). Links =
+Klick, rechts = App-Menü, Mitte oder Zurück-Taste = zurück, Rad = scrollen (über einer Web-Seite die Seite).
+Im Gesten-Modus (Video) ist links ein Tippen und das Rad ein Wischen (10 s vor oder zurück).
+
+**Tastatur** – so in jeder App, auch in Paketen für ältere Uhr-Apps:
+
+| Taste | Wirkung |
+|---|---|
+| Pfeile, Tab, Umschalt+Tab | nächster oder voriger Knopf |
+| Enter | Klick (steht der Zeiger auf einer Web-Seite: dort) |
+| Esc, Alt+←, Rücktaste | zurück |
+| Menütaste, F10 | App-Menü |
+| Leertaste, Bild↓, Bild↑ | scrollen (über einer Web-Seite die Seite) |
+| Play/Pause, Leertaste, Pfeile | im Video: Pause/weiter, 10 s vor oder zurück |
+| auf dem Desktop: Pfeile, Enter, Esc | Zeiger um 8 Pixel (mit Umschalt 32), Klick, Fenster zu |
+
+Apps können die Tasten auch selbst nehmen (Schnittstelle 3): der [Browser](#web-browser-auf-der-brille) und
+[YouTube](#youtube-auf-der-brille) tun es. Esc, Alt+←, die Menütaste und F10 bleiben aber immer beim Host. Das
+Hilfe-Fenster auf dem Desktop der Brille listet die wichtigsten Tasten. Hält man eine Taste, wiederholen sich
+Pfeile, Tab, Leertaste und Bild↑/↓; zurück, App-Menü und Klick gelten einmal je Druck.
+
+**Text tippen:** Fragt eine App nach Text, erscheint die Frage auf der Brille statt auf der Uhr: die Zeile mit
+Cursor, darunter die Vorschläge. ← und →, Pos1 und Ende bewegen den Cursor, Rücktaste und Entf löschen,
+↑ und ↓ holen die Vorschläge in die Zeile. Enter schickt den Text, Esc bricht ab. *Auf der Uhr eingeben*
+öffnet stattdessen Tastatur und Spracheingabe der Uhr.
+
+**Belegung:** Ohne eigene Einstellung tippt Android mit der amerikanischen Belegung: Y und Z wären vertauscht,
+Umlaute fehlten. Wear OS hat dafür keine Einstellung. Die App hat deshalb eigene Belegungen für **Schweiz**,
+**Deutschland** (beide mit den Akzent-Tasten ^ ´ ` ~ ¨) und **USA**. Standard ist *Automatisch*: nach der
+Sprache der Uhr (Deutsch (Schweiz) → Schweiz, anderes Deutsch → Deutschland, sonst die Belegung der Tastatur).
+Die Belegung gilt nur, wenn die Tastatur selbst keine hat.
+
+**Wann es geht:** Tastatur und Maus wirken auf die Brille nur, solange die Uhr das Touchpad zeigt und die
+Brille verbunden ist; auf allen anderen Seiten bedienen sie die Uhr wie gewohnt. G2 Watch muss vorne sein
+und der Bildschirm an (der bleibt an, solange die Brille verbunden ist). Ist eine Maus da, hält die App den
+Mauszeiger fest: Android zeigt dann keinen Zeiger auf der Uhr, und die Bewegung endet nicht am Rand der Uhr.
+Die Bedienung an der Uhr bleibt, wie sie ist: Touchpad, Doppeltippen, Zahnrad, Krone, Gesten und Bügel gehen
+auch mit verbundener Tastatur und Maus und mit festgehaltenem Mauszeiger unverändert (Android hält nur die Maus
+fest, nie den Bildschirm der Uhr).
+
+**Offen, auf der Uhr zu prüfen:**
+
+- ob Wear OS auf der Pixel Watch Tastaturen und Mäuse überhaupt annimmt (Bluetooth-HID-Host). Wenn nicht,
+  kann keine App das ändern.
+- ob das Koppeln aus der App klappt, und ob eine Taste die dunkle Uhr zurück zur App weckt.
+- ob das Festhalten des Mauszeigers auf Wear OS geht; sonst liest die App die Bewegung ohne (Androids
+  Mauszeiger ist dann auf der Uhr zu sehen).
+- **Magic Mouse:** Bewegen und Klicken sollten gehen. Scrollen über ihre Oberfläche braucht den
+  Linux-Treiber `hid-magicmouse`, den die Uhr vielleicht nicht hat.
+- ob GeckoView Tasten auch direkt annimmt. Der Browser tippt deshalb über sein Skript in die Seite.
+- ob die Zurück-Taste der Maus G2 Watch vorne lässt: Seit Android 16 gibt Android ihr Zurück zuerst dem
+  System; die App fängt es ab, solange die Taste gedrückt ist. Die Zurück-Taste einer Tastatur (falls sie
+  eine hat) kann sie so nicht abfangen; Esc oder Alt+← gehen immer.
+
 ## Eigene Apps installieren
 
 Seit 0.6.0 ist jede eigene App ein **App-Paket**: eine Datei `<app-id>-<version>.g2app` (eine ZIP-Datei).
@@ -195,19 +272,20 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
    Tool Windows → Device Explorer* → Uhr → `sdcard/Android/data/ch.madtreasures.g2watch/files/apps/` →
    Rechtsklick → *Upload*. Oder:
    ```sh
-   adb push ch.madtreasures.youtube-1.0.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
+   adb push ch.madtreasures.youtube-1.1.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
    ```
 3. **Installieren:** auf der Uhr Zahnrad halten → *Einstellungen → Apps installieren* → unter „Neu auf der
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
 zweimal antippen. Fertige Pakete: **YouTube** und **Browser**, beide mit Symbol für den Starter (ein Paket
-bringt sein Symbol als `assets/apps/<app-id>/icon.png` mit, [09 §2](docs/app-entwicklung/09_App-Pakete.md#2-das-paket)). Pakete ab 0.8.0 (Schnittstelle 2) brauchen
-die Uhr-App 0.8.0 oder neuer; ältere Pakete laufen weiter.
+bringt sein Symbol als `assets/apps/<app-id>/icon.png` mit, [09 §2](docs/app-entwicklung/09_App-Pakete.md#2-das-paket)).
+Pakete ab 0.8.0 (Schnittstelle 2) brauchen die Uhr-App 0.8.0 oder neuer, Pakete mit Schnittstelle 3 (Tastatur,
+seit 0.9.0) die Uhr-App 0.9.0; ältere Pakete laufen weiter.
 
 ## YouTube auf der Brille
 
-Die App **YouTube** (seit 0.5.0, seit 0.7.0 als App-Paket `ch.madtreasures.youtube-1.0.0.g2app`, zu
+Die App **YouTube** (seit 0.5.0, seit 0.7.0 als App-Paket `ch.madtreasures.youtube-1.1.0.g2app`, zu
 installieren wie in [Eigene Apps installieren](#eigene-apps-installieren)) läuft **ganz auf der Uhr**, ohne
 Handy und ohne Rechner: Sie sucht auf
 YouTube, lädt das Video über WLAN oder LTE, dekodiert es und rechnet jedes Bild in das Raster der Brille
@@ -217,32 +295,41 @@ um – Graustufen in Grün, wie bei „G2 Agent Cam“ im Even Hub, nur mit Vide
 | Start | Treffer (Suche per Tastatur/Sprache der Uhr) | Video |
 |---|---|---|
 | ![Start](docs/bilder/apps-youtube-start.png) | ![Treffer](docs/bilder/apps-youtube-treffer.png) | ![Video](docs/bilder/apps-youtube-video.png) |
-| **Pause** | **Testbild der Uhr** (ohne Internet) | **Profile Stabil / Ausgewogen / Schnell** |
+| **Pause** | **Testbild der Uhr** (ohne Internet) | **Raster fein (Stabil, Ausgewogen) / grob (Schnell)** |
 | ![Pause](docs/bilder/apps-youtube-pause.png) | ![Testbild](docs/bilder/apps-youtube-testbild.png) | ![Profile](docs/bilder/video-profile.png) |
 
 Die Videobilder oben sind ein erfundenes Landschafts-Video (keine echten YouTube-Inhalte im Repo), durch
-dieselbe Umrechnung wie auf der Uhr.
+dieselbe Umrechnung wie auf der Uhr. Das Video füllt die Brille ohne Rand (512 × 288 Pixel); was es gerade
+tut (Titel, Pause, Laden, Ende), steht kurz als Hinweis darüber.
 
 **Bedienen:**
 
 - **Suchen** anklicken → auf der Uhr erscheint die Tastatur (mit Spracheingabe und den letzten Suchen als
   Vorschlag). Die Treffer zeigen Titel, Kanal, Länge und Aufrufe; der erste ist schon ausgewählt, ein Tipp
   am Bügel spielt ihn ab.
-- **Im Video** (Vollbild, Gesten-Modus): **Tippen** = Pause/weiter, **Wischen** = 10 s zurück/vor,
-  **Doppeltippen** = zurück zur Liste, **lange drücken** = nächstes Profil. Auf der Uhr gilt dasselbe
-  (Wischen hoch/runter, nach links = Profil, nach rechts = zurück). Unter dem Bild steht der Titel, bei
-  Pause die Zeit.
-- **Profil** (Startseite oder App-Menü) – wie bei „G2 Agent Cam“:
+- **Im Video** (Vollbild ohne Rand, Gesten-Modus): **Tippen** = Pause/weiter, **Wischen** = 10 s
+  zurück/vor, **Doppeltippen** = zurück zur Liste, **lange drücken** = nächstes Profil. Auf der Uhr gilt
+  dasselbe (Wischen hoch/runter, nach links = Profil, nach rechts = zurück). Zu Beginn steht der Titel ein
+  paar Sekunden im Bild, bei Pause die Zeit.
+- **Tastatur** ([Tastatur und Maus](#tastatur-und-maus)) im Video wie auf youtube.com: Leertaste, K oder
+  Play/Pause = Pause/weiter, J oder ← und L oder → = 10 s zurück/vor, P = Profil, M = Ton, / = neue Suche
+  (das Video endet, sobald sie eingegeben ist). Die Maus: links = Pause/weiter, Rad = 10 s.
+- **Profil** (Startseite oder App-Menü). Die Uhr macht höchstens so viele Bilder, wie das Profil sagt; wie
+  viele davon ankommen, entscheidet die Bluetooth-Verbindung (etwa 41 KB/s). Ist sie mit einem Bild noch
+  beschäftigt, ersetzt das nächste das wartende – es staut sich nichts, die Brille zeigt immer das neueste.
 
-  | Profil | Bilder pro Sekunde | Raster (Punkte) | Graustufen | Bluetooth, Szene mit viel Detail / normal (simuliert) |
+  | Profil | Bilder pro Sekunde, höchstens | Raster (Punkte) | Normale Szene: Bilder/s, Anteil der Verbindung | Viel Detail (Laub, Menge): Bilder/s |
   |---|---|---|---|---|
-  | **Stabil** | 1 | 208 × 117 | 16 | ≈ 12,5 KB/s / ≈ 3,3 KB/s |
-  | **Ausgewogen** (Standard) | 2 | 138 × 78 | 16 | ≈ 11,8 KB/s / ≈ 3,6 KB/s |
-  | **Schnell** | 4 | 104 × 58 | 8 | ≈ 10,9 KB/s / ≈ 3,3 KB/s |
+  | **Stabil** | 5 | 256 × 144 (2 × 2 Pixel) | 5, ≈ 11–37 % | ≈ 2 |
+  | **Ausgewogen** (Standard) | 10 | 256 × 144 (2 × 2 Pixel) | 10, ≈ 19–68 % | ≈ 2 |
+  | **Schnell** | 15 | 170 × 96 (3 × 3 Pixel) | 15, ≈ 23–69 % | ≈ 4 |
 
-  Die Brille bekommt etwa 41 KB/s; jedes Profil braucht also höchstens rund ein Drittel davon. Die Werte
-  hat `VideoBudgetTest` mit Faceclaws eigener Übertragungs-Kodierung ausgerechnet, **nicht gemessen**.
-  Kommt die Brille nicht nach, zeigt sie einfach das jeweils neueste Bild (nichts staut sich).
+  Alle Profile mit 16 Graustufen. Die Werte hat `VideoBudgetTest` mit Faceclaws eigenem Weg zur
+  Custom-Firmware ausgerechnet (erfundene Videos, Verbindung mit 41 KB/s angenommen), **nicht gemessen**.
+  **Stabil** lässt der Verbindung bei normalen Szenen über die Hälfte frei, für den Fall, dass sie auf der
+  echten Brille langsamer ist. Mitteltöne rechnet die Uhr dunkler, als sie im Video stehen: Die Brille gibt
+  Licht fast linear ab, sonst wirkt das Bild vor dem durchsichtigen Hintergrund milchig. Auf der Brille ist
+  das noch nicht verglichen.
 - **Ton auf der Uhr** (Schalter): spielt den Ton über den Lautsprecher der Uhr oder daran gekoppelte
   Kopfhörer. Die Brille selbst hat keinen Lautsprecher.
 - **Verlauf:** die letzten 20 Videos, bleiben auf der Uhr gespeichert. **Testbild:** ein eigenes
@@ -254,8 +341,11 @@ dieselbe Umrechnung wie auf der Uhr.
 
 - Für die Videos fragt die Uhr Wear OS nach **WLAN oder LTE** statt der Bluetooth-Verbindung übers Handy
   (die teilt sich den Funk mit der Brille). Klappt das nicht innerhalb von 8 s, geht es über das Netz, das da
-  ist. Ist das Video zu Ende oder 20 s pausiert, gibt die Uhr WLAN/LTE wieder frei. Die Uhr lädt die kleinste Fassung, die für das Raster reicht (meist 144p H.264, ≈ 130 kbit/s, also
-  rund 60 MB pro Stunde; mit Ton etwa 20 MB mehr).
+  ist. Ist das Video zu Ende oder 20 s pausiert, gibt die Uhr WLAN/LTE wieder frei. Die Uhr lädt die
+  kleinste Fassung mit etwa doppelt so vielen Zeilen wie das Raster, mindestens 240p: in Stabil und
+  Ausgewogen meist 360p H.264, in Schnell 240p (144p ist für das feinere Raster zu verwaschen; es zählt das
+  Profil beim Start des Videos, auch bei Live-Videos). Geschätzt
+  150–250 MB pro Stunde, etwa dreimal so viel wie mit 144p; mit Ton etwa 20 MB mehr.
 - **Akku:** Dekodieren, Funk und Bluetooth zur Brille kosten spürbar Akku der Uhr (465 mAh) – nicht gemessen.
 - Die App wird dadurch rund **11 MB** größer (Debug-APK 41 statt 31 MB): NewPipeExtractor mit Rhino und
   Media3.
@@ -271,7 +361,7 @@ dieselbe Umrechnung wie auf der Uhr.
 
 ## Web-Browser auf der Brille
 
-Die App **Browser** (seit 0.8.0, App-Paket `ch.madtreasures.browser-1.0.0.g2app`, zu installieren wie in
+Die App **Browser** (seit 0.8.0, App-Paket `ch.madtreasures.browser-1.1.0.g2app`, zu installieren wie in
 [Eigene Apps installieren](#eigene-apps-installieren)) zeigt normale Web-Seiten auf der Brille, ganz auf der
 Uhr. Die Uhr-App lädt die Seite mit **GeckoView** (Mozillas Browser-Engine, die auch in Firefox steckt), zeichnet
 sie unsichtbar in der Größe der App-Fläche und wandelt sie mit `web-raster` ins Brillenbild: Der Grund wird
@@ -301,6 +391,11 @@ denselben Weg wie auf der Uhr: Layout-Bericht, Raster, App-Host, Desktop.
   *Text eingeben*.
 - **Zurück** (Doppeltippen am Bügel, „‹“ in der Kopfzeile) geht erst durch die besuchten Seiten zurück, dann
   zur Startseite. **Verlauf:** die letzten 20 Seiten.
+- **Mit Tastatur** ([Tastatur und Maus](#tastatur-und-maus)): Getippt wird direkt ins Feld mit dem Cursor,
+  ohne Frage auf der Uhr; Enter schickt. Ohne Feld scrollen Pfeile, Leertaste und Bild↑/↓, Tab springt von
+  Link zu Link und Feld zu Feld, Enter folgt dem Link. Strg+L oder F6 = Adresse, Strg+R oder F5 = neu laden,
+  Alt+→ = vorwärts, Strg+D = Lesezeichen setzen/entfernen, Rücktaste = vorige Seite. Mit der Maus: Klick
+  tippt an, das Rad scrollt die Seite.
 - **Lesemodus** (Standard: an): Artikel erscheinen als reiner Text, groß und hell auf durchsichtigem Grund,
   ohne Menüs und Werbung (Mozillas Readability, wie die Leseansicht von Firefox). In der Kopfzeile steht dann
   📖. Seiten, die kein Artikel sind, zeigt der Browser normal.
@@ -333,7 +428,9 @@ Gecko-Tests (M2), die noch fehlen, hängt ab:**
 
 Ungeprüft ist außerdem, ob GeckoView ohne sichtbare Ansicht Tipp-Ereignisse annimmt (so machen es GeckoViews
 eigene Tests) und ob Seiten mit strengen Regeln (CSP) die Stile des Lesemodus zulassen (die wichtigsten
-setzt das Skript deshalb zusätzlich direkt am Element).
+setzt das Skript deshalb zusätzlich direkt am Element). Tasten einer Bluetooth-Tastatur gibt das Skript der
+Seite weiter und tippt selbst ins Feld; ob GeckoViews eigener Tastenweg ohne Ansicht ginge, ist offen (er dient
+nur Seiten ohne Skript, etwa Fehlerseiten).
 
 ### Web-Seiten fürs Brillenbild
 
@@ -480,7 +577,7 @@ die Uhr offline ist.
 
 | Modul | Inhalt |
 |---|---|
-| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der Video-Wiedergabe `apps/video`, der Browser-Engine `apps/web` (GeckoView, Erweiterung in `assets/webbridge/`) und der Installation von App-Paketen `apps/packages` |
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der Video-Wiedergabe `apps/video`, der Browser-Engine `apps/web` (GeckoView, Erweiterung in `assets/webbridge/`), der Installation von App-Paketen `apps/packages` und Bluetooth-Tastatur und -Maus `input` |
 | [`app-api/`](app-api) | Die Schnittstelle der Apps (`G2App`, `AppContext`, Ereignisse, Seiten), reines Kotlin; App-Pakete werden dagegen gebaut ([09](docs/app-entwicklung/09_App-Pakete.md)) |
 | [`packages/`](packages) | Ein Ordner je App-Paket, zurzeit [`youtube`](packages/youtube) und [`browser`](packages/browser). `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
@@ -501,7 +598,7 @@ die Uhr offline ist.
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 7 + 449 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 7 + 538 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -536,11 +633,19 @@ Lint ohne Fehler. Die wichtigsten:
   Suche, Klicks, Felder, Lesezeichen, Verlauf, Lesemodus, Hinweise). Das Inhalts-Skript selbst prüft
   `node tools/page-preview/bridge-check.js` in Chromium (nicht in der CI).
 - **`AppHostVideoTest`** – Texteingabe (Antwort, Abbruch, ersetzte Frage, App endet), Videos (Bilder im
-  Bild-Baustein, Zustände, Pause/Weiter/Springen/Profil/Stopp, Berechtigung, Pause beim Verdecken und ohne
-  Brille), Eingabeart pro Seite, Video-Suche. **`YouTubeAppTest`** – Suche, Treffer, Gesten im Video,
-  Profile, Ton, Verlauf. **`VideoBudgetTest`** – was ein Video mit Faceclaws Kodierung über Bluetooth kostet;
-  **`FrameConverterTest`**, **`StreamChooserTest`**, **`TestPatternPlayerTest`**.
-- **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel), **`AppJsonTest`**, **`PageStateTest`**,
+  Bild-Baustein, bis 15 pro Sekunde statt 5, Zustände, Pause/Weiter/Springen/Profil/Stopp, Berechtigung,
+  Pause beim Verdecken und ohne Brille), Eingabeart pro Seite, Video-Suche. **`YouTubeAppTest`** – Suche,
+  Treffer, Gesten im Video, Hinweise über dem Bild, Profile, Ton, Verlauf. **`VideoBudgetTest`** – was ein Video mit Faceclaws Weg zur Custom-Firmware über
+  Bluetooth kostet und wie viele Bilder pro Sekunde durchkommen; **`FrameConverterTest`**,
+  **`FrameBeatTest`**, **`StreamChooserTest`**, **`TrackRulesTest`**, **`TestPatternPlayerTest`**.
+- **Tastatur und Maus:** **`HardwareInputTest`** (Tastennamen, Belegungen Schweiz, Deutschland und USA,
+  Akzent-Tasten, Feststelltaste, Maus-Tasten, Rad), **`HardwareEventsTest`** (Androids Tasten- und
+  Mausereignisse, mit und ohne festgehaltenen Mauszeiger; Touchpad, Krone und Knöpfe der Uhr bleiben bei der
+  Uhr), **`MouseCaptureTest`** (Mauszeiger nur mit Maus festgehalten, nach dem Fokus wieder),
+  **`MouseBackGuardTest`** (Androids Zurück der Maus-Taste abgefangen, die Zurück-Geste der Uhr nicht),
+  **`AppHostKeysTest`** (Fokus, Enter, zurück, App-Menü, Scrollen, gehaltene Tasten, Tasten nur nach Abo,
+  Gesten-Seiten, Desktop, Starter, Fragen auf der Brille getippt).
+- **`InputRouterTest`** (jede Zeile der Gesten-Tabelle, Ring-Doppel, Tastatur und Maus), **`AppJsonTest`**, **`PageStateTest`**,
   **`BaukastenProjectTest`**, **`AppsBoundaryTest`** (Apps berühren weder Firmware noch Bluetooth, App-Pakete
   nur die Schnittstelle).
 - **App-Pakete:** **`InstalledPackagesTest`** installiert die Dateien, die `:packages:<name>:g2app` wirklich

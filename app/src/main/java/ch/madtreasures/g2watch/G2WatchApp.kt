@@ -10,11 +10,13 @@ import android.os.BatteryManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.builtInApps
 import ch.madtreasures.g2watch.apps.host.AndroidHostPorts
 import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.AppThread
 import ch.madtreasures.g2watch.apps.host.GlassesStatus
+import ch.madtreasures.g2watch.apps.host.HardwareSink
 import ch.madtreasures.g2watch.apps.host.InputRouter
 import ch.madtreasures.g2watch.apps.host.TextPrompts
 import ch.madtreasures.g2watch.apps.launcher.Launcher
@@ -32,6 +34,14 @@ import ch.madtreasures.g2watch.glasses.FirmwareInstaller
 import ch.madtreasures.g2watch.glasses.GlassesConnection
 import ch.madtreasures.g2watch.glasses.GlassesListener
 import ch.madtreasures.g2watch.glasses.ProtocolFile
+import ch.madtreasures.g2watch.input.HardwareEvents
+import ch.madtreasures.g2watch.input.HidPairing
+import ch.madtreasures.g2watch.input.InputDevices
+import ch.madtreasures.g2watch.input.KeyLayout
+import ch.madtreasures.g2watch.input.KeyPress
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -62,7 +72,7 @@ class G2WatchApp : Application() {
             scheduler = AppThread.scheduler(),
             screen = desktop,
             text = AndroidTextPainter(emojiFont),
-            ports = AndroidHostPorts(this, textPrompts) { line -> main.post { glasses.note(line) } },
+            ports = AndroidHostPorts(this, textPrompts, keyboard = { inputDevices.keyboard }) { line -> main.post { glasses.note(line) } },
             installed = packages,
         ).also { desktop.connectApps(it) }
     }
@@ -92,8 +102,47 @@ class G2WatchApp : Application() {
         ).also { it.rescan() }
     }
 
-    /** Turns the glasses' and the watch's gestures into input for the apps. */
-    val input: InputRouter by lazy { InputRouter { apps.gesture(it) } }
+    /** Turns the glasses' and the watch's gestures, and a Bluetooth keyboard and mouse, into input for the apps. */
+    val input: InputRouter by lazy { InputRouter(hardwareSink) { apps.gesture(it) } }
+
+    /** Keyboards and mice connected to the watch (03 §5.4). */
+    val inputDevices: InputDevices by lazy { InputDevices(this).also { it.start() } }
+
+    private val _keyLayout by lazy { MutableStateFlow(KeyLayout.of(prefs.getString(KEY_LAYOUT, null))) }
+
+    /** The layout of a hardware keyboard (Einstellungen → Tastatur & Maus); "Automatisch" by default. */
+    val keyLayout: StateFlow<KeyLayout> by lazy { _keyLayout.asStateFlow() }
+
+    fun setKeyLayout(layout: KeyLayout) {
+        prefs.edit { putString(KEY_LAYOUT, layout.id) }
+        _keyLayout.value = layout
+    }
+
+    /** Key and mouse events of the activity, while the touchpad shows, for the glasses. */
+    val hardware: HardwareEvents by lazy {
+        HardwareEvents(input, layout = { _keyLayout.value }, locale = { resources.configuration.locales[0] }, isGeneric = inputDevices::isGeneric)
+    }
+
+    /** "Gerät koppeln" in the settings: finds keyboards and mice nearby and pairs them. */
+    val pairing: HidPairing by lazy { HidPairing(this) { line -> glasses.note(line) } }
+
+    /** Where keyboard and mouse go: the pointer and its clicks to the desktop, keys, wheel and menu to the app host. */
+    private val hardwareSink = object : HardwareSink {
+        override val gestureMode: Boolean get() = apps.inputMode.value == InputMode.GESTURES
+        override val speed: Float get() = desktop.speed.value
+
+        override fun movePointer(dx: Float, dy: Float) = desktop.moveBy(dx, dy)
+
+        override fun click() = desktop.click()
+
+        override fun menu() = apps.openMenu()
+
+        override fun back() = desktop.back()
+
+        override fun wheel(notches: Int) = apps.wheel(notches)
+
+        override fun key(press: KeyPress) = apps.key(press)
+    }
 
     val glasses: GlassesConnection by lazy {
         GlassesConnection(
@@ -152,6 +201,8 @@ class G2WatchApp : Application() {
         followWatchBattery()
         // Connects itself to the desktop, so the "Apps" tile works from the first frame.
         apps
+        // Listens for keyboards and mice from the start, so a question already knows about one.
+        inputDevices
     }
 
     /** False in GeckoView's own processes. */
@@ -205,5 +256,7 @@ class G2WatchApp : Application() {
 
         /** Preference: the name of the [Depth] level (Settings → "Bildtiefe"). */
         const val DEPTH = "depth"
+        /** Preference: layout of a hardware keyboard ([KeyLayout.id]). */
+        const val KEY_LAYOUT = "keyboardLayout"
     }
 }

@@ -45,8 +45,10 @@
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
 
+        <!-- A Bluetooth keyboard coming or going changes the configuration; the activity stays (03 §5.3). -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation"
             android:exported="true"
             android:launchMode="singleTask"
             android:taskAffinity="">

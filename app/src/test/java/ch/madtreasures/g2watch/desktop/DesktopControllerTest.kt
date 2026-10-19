@@ -4,6 +4,7 @@ import ch.madtreasures.g2watch.CompositorDisplay
 import ch.madtreasures.g2watch.FakeDisplay
 import ch.madtreasures.g2watch.FakeScheduler
 import ch.madtreasures.g2watch.FakeText
+import ch.madtreasures.g2watch.apps.host.AppHost
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -254,6 +255,20 @@ class DesktopControllerTest {
         scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
         assertEquals(320, controller.frame.value.pointerX)
         assertEquals(240, controller.frame.value.pointerY)
+    }
+
+    @Test
+    fun `the arrow keys of a keyboard move the pointer on the desktop and hover the tiles`() {
+        attached()
+        val (x, y) = tileCenter(AppId.CLOCK)
+        moveTo(x - 40, y)
+        controller.movePointer(AppHost.DESKTOP_KEY_STEP * 5, 0f)
+        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
+        assertEquals(x, controller.frame.value.pointerX)
+        controller.movePointer(0f, -10_000f)
+        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
+        // It stays on the visible band, like the finger's pointer.
+        assertEquals(controller.layout.band.y, controller.frame.value.pointerY)
     }
 
     /** Records what the desktop hands to the app host. */

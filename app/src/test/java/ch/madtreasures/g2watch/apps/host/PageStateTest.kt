@@ -44,11 +44,18 @@ class PageStateTest {
         state.show("p_start")
         state.show("p_liste")
         assertEquals(listOf("p_start", "p_liste"), state.historyIds)
-        state.replace("p_start")
-        assertEquals(listOf("p_start", "p_start"), state.historyIds)
+        state.replace("p_liste")
+        assertEquals(listOf("p_start", "p_liste"), state.historyIds)
         assertTrue(state.back())
         assertEquals("p_start", state.current?.id)
         assertFalse(state.back())
+        state.replace("p_liste")
+        assertEquals(listOf("p_liste"), state.historyIds)
+        // A page never follows itself: replacing with the page below goes back to it.
+        state.replace("p_start")
+        state.show("p_liste")
+        state.replace("p_start")
+        assertEquals(listOf("p_start"), state.historyIds)
         refused(CommandException.UNKNOWN_PAGE) { state.show("p_fehlt") }
     }
 

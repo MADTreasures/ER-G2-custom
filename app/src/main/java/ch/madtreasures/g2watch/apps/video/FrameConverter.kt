@@ -14,12 +14,16 @@ import kotlin.math.roundToInt
  * The decoder (or the test pattern) delivers each picture already scaled to the [grid]: one luma value
  * (0–255) per raster point, the picture letterboxed into [pictureRect], black around it. Per picture the
  * converter
- *  1. stretches the contrast between the 2nd and the 98th percentile, smoothed over time so the
- *     brightness does not pump,
- *  2. rounds to the profile's grey levels, and keeps a point's previous level unless the new value is
- *     clearly past the middle to the next one: calm parts of a video stay byte for byte the same from
- *     picture to picture, which the link to the glasses rewards,
+ *  1. stretches the contrast between the 2nd and the 98th percentile, smoothed per second (not per
+ *     picture) and with a dead band, so the brightness neither pumps nor creeps in a still scene,
+ *  2. maps it through the tone curve [GAMMA] to the profile's grey levels, and keeps a point's previous
+ *     level unless the new value is clearly past the middle to the next one: calm parts of a video stay
+ *     byte for byte the same from picture to picture, which the link to the glasses rewards,
  *  3. draws every raster point as a cell × cell square (one level of the glasses' 16).
+ *
+ * No dithering: error diffusion makes still parts shimmer (every picture costs KBs more), and a fixed
+ * Bayer pattern smooths gradients but laces every surface with a fine grid, for a fifth to a third
+ * more bytes in the simulation; not clearly better (03 §10).
  *
  * Not thread-safe: one converter per video, used from one thread at a time.
  */
@@ -40,8 +44,8 @@ class FrameConverter(val width: Int, val height: Int, profile: VideoProfile) {
     private var levels = profile.levels
 
     /**
-     * Stretch the contrast and lift the mid-tones (step 1), right for camera pictures. Off for pictures
-     * made for the glasses that already use the full range, like the test video's grey ramp.
+     * Stretch the contrast and apply the tone curve (steps 1 and 2), right for camera pictures. Off for
+     * pictures made for the glasses that already use the full range, like the test video's grey ramp.
      */
     var adjust = true
 
@@ -52,6 +56,9 @@ class FrameConverter(val width: Int, val height: Int, profile: VideoProfile) {
     private var lo = -1f
     private var hi = -1f
     private val histogram = IntArray(256)
+
+    /** The luma range the contrast is stretched over now (−1 before the first picture); for tests. */
+    internal val contrast: ClosedFloatingPointRange<Float> get() = lo..hi
 
     init {
         require(width >= 8 && height >= 8) { "picture $width × $height is too small" }
@@ -72,13 +79,18 @@ class FrameConverter(val width: Int, val height: Int, profile: VideoProfile) {
 
     /**
      * Converts [luma] (grid width × height values, row by row) into a new raster of the block's size.
-     * Only [picture] counts for the contrast; outside it the raster stays black.
+     * Only [picture] counts for the contrast; outside it the raster stays black. [elapsedMs] is the time
+     * since the previous picture, for the contrast smoothing.
      */
-    fun convert(luma: ByteArray, picture: Rect = Rect(0, 0, grid.width, grid.height)): GrayRaster {
+    fun convert(
+        luma: ByteArray,
+        picture: Rect = Rect(0, 0, grid.width, grid.height),
+        elapsedMs: Long = profile.frameMs,
+    ): GrayRaster {
         val g = grid
         require(luma.size >= g.size) { "luma has ${luma.size} values, the grid ${g.size}" }
         val levels = levels
-        val lut = levelTable(luma, picture, levels)
+        val lut = levelTable(luma, picture, levels, elapsedMs)
 
         val last = previous?.takeIf { it.size == g.size }
         val next = ByteArray(g.size)
@@ -122,10 +134,9 @@ class FrameConverter(val width: Int, val height: Int, profile: VideoProfile) {
 
     /**
      * For every luma value the level (0 until [levels]) times 16: contrast stretched between the 2nd and
-     * 98th percentile of [picture], mid-tones lifted a little, because the dark half of a picture is
-     * see-through on the lens.
+     * 98th percentile of [picture], then the tone curve [GAMMA].
      */
-    private fun levelTable(luma: ByteArray, picture: Rect, levels: Int): IntArray {
+    private fun levelTable(luma: ByteArray, picture: Rect, levels: Int, elapsedMs: Long): IntArray {
         val top = (levels - 1) * 16
         if (!adjust) return IntArray(256) { v -> (v * top + 127) / 255 }
         val g = grid
@@ -153,14 +164,22 @@ class FrameConverter(val width: Int, val height: Int, profile: VideoProfile) {
             lo = newLo
             hi = newHi
         } else {
-            lo += (newLo - lo) * SMOOTHING
-            hi += (newHi - hi) * SMOOTHING
+            val share = 1f - (1f - SMOOTHING_PER_SECOND).pow(elapsedMs.coerceAtLeast(0) / 1000f)
+            lo = follow(lo, newLo, share)
+            hi = follow(hi, newHi, share)
         }
         return IntArray(256) { v ->
             val t = ((v - lo) / (hi - lo)).coerceIn(0f, 1f)
             (t.toDouble().pow(GAMMA) * top).roundToInt()
         }
     }
+
+    /**
+     * [share] of the way from [current] to [target], or nowhere while [target] is within [DEAD_BAND]:
+     * the noise of a still scene does not shift the tone curve and flip points from picture to picture.
+     */
+    private fun follow(current: Float, target: Float, share: Float): Float =
+        if (abs(target - current) <= DEAD_BAND) current else current + (target - current) * share
 
     private fun percentile(rank: Int): Int {
         var seen = 0
@@ -197,16 +216,37 @@ class FrameConverter(val width: Int, val height: Int, profile: VideoProfile) {
     }
 
     companion object {
-        /** A point changes its level only when the value is this many sixteenths past the old level. */
-        const val HOLD = 13
+        /**
+         * A point changes its level only when the value is this many sixteenths past the old level (8 would
+         * be plain rounding). 10 follows slow changes sooner than 13 did and, in the simulation, costs fewer
+         * bytes. But it holds less noise: in still scenes of the made-up videos, codec noise of ±2 luma
+         * steps flips 1–3 % of the points per picture (±1 none); in a dull scene stretched to [MIN_RANGE],
+         * where one luma step is almost a third of a level, ±1 flips about 4 % and ±2 about 16 % (12: none
+         * and 7 %, 13: none and 4 %). If that flickers on the glasses, 12 is the next step.
+         */
+        const val HOLD = 10
 
         /** Contrast is never stretched further than to this luma range. */
         const val MIN_RANGE = 72f
 
-        /** How fast the contrast follows the picture (share of the difference per picture). */
-        const val SMOOTHING = 0.35f
+        /**
+         * How fast the contrast follows the picture: share of the difference per second, the same at 5 or
+         * 15 pictures a second (a cut is followed within about a second, without pumping).
+         */
+        const val SMOOTHING_PER_SECOND = 0.75f
 
-        const val GAMMA = 0.85
+        /** Luma steps the 2nd/98th percentile may wander before the contrast follows (sensor and codec noise). */
+        const val DEAD_BAND = 4f
+
+        /**
+         * The tone curve: level = stretched luma ^ GAMMA. Video luma is coded for screens with a gamma of
+         * about 2.2, while the lens adds light about linearly per level (level 1 already gives about 1/15
+         * of full, firmware-uebergabe/wissen/02-display.md). Taken as is, mid-tones come out too bright and
+         * the picture flat and milky against the see-through background. 1.4 takes them part of the way
+         * down and keeps the contrast; a full 2.2 would sink the dark half into the background. Not yet
+         * compared on the glasses.
+         */
+        const val GAMMA = 1.4
 
         /**
          * Scales a [srcW] × [srcH] luma picture (row stride [stride]) by area averaging into [out], a

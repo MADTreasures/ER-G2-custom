@@ -31,8 +31,9 @@ gehören nicht ins Repo (Urheberrecht der Seiten).
 `bridge-check.js` führt das Inhalts-Skript des Browsers der Uhr-App (`app/src/main/assets/webbridge/content.js`
 mit Readability und `page-layout.js`) in Chromium aus, mit einem Ersatz für GeckoViews Verbindung zur Uhr-App,
 auf zwei selbst geschriebenen Testseiten (ohne Netz). Geprüft wird, worauf sich die Engine verlässt: Lesemodus
-an und aus, Eingabefelder mit Beschriftung, Tippen mit und ohne Enter, Scrollen von Fenster und inneren Boxen,
-Layout-Bericht und die Stufen der doppelten Aufnahme.
+an und aus, Eingabefelder mit Beschriftung, Tippen mit und ohne Enter, Tasten und Text einer Bluetooth-Tastatur
+(an der Stelle des Cursors einfügen, löschen, Cursor bewegen, Tab, Enter schickt, Tasten, die die Seite selbst
+nimmt), Scrollen von Fenster und inneren Boxen, Layout-Bericht und die Stufen der doppelten Aufnahme.
 
 ```sh
 node tools/page-preview/bridge-check.js   # „all ok“ oder die Prüfungen mit FAIL

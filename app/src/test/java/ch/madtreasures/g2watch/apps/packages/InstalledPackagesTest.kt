@@ -108,7 +108,7 @@ class InstalledPackagesTest {
         assertTrue(listOf("YouTube", "Browser").all { it in text.drawn })
         assertTrue("Y" !in text.drawn && "B" !in text.drawn)
 
-        fakePorts.answers["$YOUTUBE@1.0.0"] = setOf(Permission.NETWORK)
+        fakePorts.answers["$YOUTUBE@1.1.0"] = setOf(Permission.NETWORK)
         host.launch("watch:$YOUTUBE")
         settle()
         assertEquals(YOUTUBE, host.state.value.visible)

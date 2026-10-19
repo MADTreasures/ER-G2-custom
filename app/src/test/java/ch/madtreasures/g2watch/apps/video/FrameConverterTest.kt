@@ -11,17 +11,25 @@ import org.junit.Test
 class FrameConverterTest {
     @Test
     fun `the grid is the block in cells, centred`() {
-        val c = FrameConverter(416, 234, VideoProfile.STABLE)
+        val c = FrameConverter(416, 234, VideoProfile.BALANCED)
         assertEquals(208, c.grid.width)
         assertEquals(117, c.grid.height)
-        c.profile = VideoProfile.BALANCED
+        c.profile = VideoProfile.FAST
         // 416 / 3 = 138 cells, 2 pixels left over: one on each side.
         assertEquals(138, c.grid.width)
         assertEquals(78, c.grid.height)
         assertEquals(1, c.grid.offsetX)
-        c.profile = VideoProfile.FAST
-        assertEquals(104, c.grid.width)
-        assertEquals(58, c.grid.height)
+        // The YouTube app's block in the default profile: 256 × 144 points.
+        val big = FrameConverter(512, 288, VideoProfile.BALANCED)
+        assertEquals(256, big.grid.width)
+        assertEquals(144, big.grid.height)
+    }
+
+    @Test
+    fun `every profile has all 16 levels, the default the fine raster`() {
+        assertTrue(VideoProfile.entries.all { it.levels == 16 })
+        assertEquals(2, VideoProfile.BALANCED.cell)
+        assertTrue(VideoProfile.entries.all { it.frameMs in 66..200 })
     }
 
     @Test
@@ -75,11 +83,54 @@ class FrameConverterTest {
         val g = c.grid
         val ramp = ByteArray(g.size) { i -> ((i % g.width) * 255 / (g.width - 1)).toByte() }
         val first = c.convert(ramp)
-        val wobble = ByteArray(g.size) { i -> ((ramp[i].toInt() and 0xFF) + if (i % 2 == 0) 3 else -3).coerceIn(0, 255).toByte() }
-        assertEquals(first.pixels.toList(), c.convert(wobble).pixels.toList())
+        // Codec noise of one luma step, picture after picture.
+        repeat(10) { n ->
+            val wobble = ByteArray(g.size) { i -> ((ramp[i].toInt() and 0xFF) + if ((i + n) % 2 == 0) 1 else -1).coerceIn(0, 255).toByte() }
+            assertEquals(first.pixels.toList(), c.convert(wobble).pixels.toList())
+        }
         val inverted = ByteArray(g.size) { i -> (255 - (ramp[i].toInt() and 0xFF)).toByte() }
         val flipped = c.convert(inverted)
         assertTrue(flipped[0, 0] > first[0, 0])
+    }
+
+    @Test
+    fun `the contrast follows per second, whatever the picture rate`() {
+        fun after(pictures: Int, elapsedMs: Long): ClosedFloatingPointRange<Float> {
+            val c = FrameConverter(64, 32, VideoProfile.BALANCED)
+            val g = c.grid
+            // From a dull picture (100 to 180) to the full range (0 to 255).
+            c.convert(ByteArray(g.size) { i -> (100 + (i % g.width) * 80 / (g.width - 1)).toByte() })
+            val full = ByteArray(g.size) { i -> ((i % g.width) * 255 / (g.width - 1)).toByte() }
+            repeat(pictures) { c.convert(full, elapsedMs = elapsedMs) }
+            return c.contrast
+        }
+        val fast = after(10, 100)
+        val slow = after(5, 200)
+        // One second: three quarters of the way, at 10 pictures a second as at 5.
+        assertEquals(25f, fast.start, 0.5f)
+        assertEquals(236.25f, fast.endInclusive, 0.5f)
+        assertEquals(fast.start, slow.start, 0.5f)
+        assertEquals(fast.endInclusive, slow.endInclusive, 0.5f)
+        // And it gets there, to within the dead band.
+        val late = after(50, 100)
+        assertEquals(0f, late.start, FrameConverter.DEAD_BAND)
+        assertEquals(255f, late.endInclusive, FrameConverter.DEAD_BAND)
+    }
+
+    @Test
+    fun `a still scene keeps its tone curve, a new one moves it`() {
+        val c = FrameConverter(64, 32, VideoProfile.BALANCED)
+        val g = c.grid
+        fun scene(offset: Int) = ByteArray(g.size) { i -> (60 + offset + (i % g.width) * 120 / (g.width - 1)).toByte() }
+        c.convert(scene(0))
+        val settled = c.contrast
+        // Exposure and codec noise: the whole picture a few steps brighter or darker.
+        for (offset in listOf(3, -2, 4, -4, 1, 0, 2, -3)) {
+            c.convert(scene(offset), elapsedMs = 100)
+            assertEquals(settled, c.contrast)
+        }
+        c.convert(scene(40), elapsedMs = 100)
+        assertTrue(c.contrast.start > settled.start)
     }
 
     @Test

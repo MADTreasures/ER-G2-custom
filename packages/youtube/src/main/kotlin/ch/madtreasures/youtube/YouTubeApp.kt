@@ -1,6 +1,5 @@
 package ch.madtreasures.youtube
 
-import ch.madtreasures.g2watch.apps.Align
 import ch.madtreasures.g2watch.apps.AppContext
 import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.AppManifest
@@ -8,9 +7,11 @@ import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.G2App
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputMode
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
+import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.VideoAction
 import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
@@ -29,18 +30,24 @@ import java.text.BreakIterator
 
 /**
  * YouTube on the glasses, entirely on the watch (03 §10): search by keyboard or voice on the watch,
- * pick a hit with pointer or temple, and the watch decodes the video and shows it as a grey raster. On
- * the video page the temple works like a remote: tap = pause/play, swipe = 10 s back or on, double tap =
- * back to the list; a long press switches the profile (Stabil 1, Ausgewogen 2, Schnell 4 pictures a
- * second). "Testbild" plays the watch's own test video, without internet. An app package (09): the
- * watch app does search, streaming and decoding, this class only the pages and the remote control.
+ * pick a hit with pointer or temple, and the watch decodes the video and shows it as a grey raster,
+ * 512 × 288 without margins; what the video does (title, pause, loading, end) comes as a short note over
+ * it. On the video page the temple works like a remote: tap = pause/play, swipe = 10 s back or on, double
+ * tap = back to the list; a long press switches the profile (Stabil up to 5, Ausgewogen up to 10, Schnell
+ * up to 15 pictures a second). "Testbild" plays the watch's own test video, without internet. An app
+ * package (09): the watch app does search, streaming and decoding, this class only the pages and the
+ * remote control.
+ *
+ * A Bluetooth keyboard works the video like on youtube.com (since interface version 3): Space, K or the
+ * play key pause and go on, J or ← and L or → jump 10 s, P switches the profile, M the sound, and "/"
+ * asks for a new search, which ends the video once it is entered.
  */
 class YouTubeApp : G2App {
 
     override val manifest = AppManifest(
         id = "ch.madtreasures.youtube",
         name = "YouTube",
-        version = "1.0.0",
+        version = "1.1.0",
         permissions = setOf(Permission.NETWORK),
         description = "YouTube-Videos suchen und als Graustufen-Raster auf der Brille ansehen.",
     )
@@ -57,6 +64,9 @@ class YouTubeApp : G2App {
     private var position = 0L
     private var duration = 0L
 
+    /** Whether [current] has played yet: its title comes with the first picture, "Weiter" after that. */
+    private var titled = false
+
     override fun onEvent(event: AppEvent, ui: AppContext) {
         when (event) {
             AppEvent.Start -> start(ui)
@@ -65,8 +75,9 @@ class YouTubeApp : G2App {
             is AppEvent.Toggle -> if (event.block == SOUND) setSound(event.on, ui)
             is AppEvent.TextInput -> if (event.tag == ASK_SEARCH) search(event.text, ui)
             is AppEvent.Video -> if (event.block == PICTURE) videoChanged(event, ui)
-            // Only the video page takes gestures.
+            // Only the video page takes gestures, and keys.
             is AppEvent.Gesture -> gesture(event.gesture, ui)
+            is AppEvent.Key -> key(event, ui)
             is AppEvent.Back -> if (event.page == VIDEO) stopVideo(ui)
             is AppEvent.Menu -> menu(event.item, ui)
             else -> Unit
@@ -139,9 +150,10 @@ class YouTubeApp : G2App {
         save(ui)
         ui.patch(START) { on(SOUND, on) }
         ui.menu(menuItems())
-        // Sound needs other streams: start again where the video is.
+        // Sound needs other streams: start again where the video is (quietly, the note says why).
         val playing = current
         if (playing != null && state != VideoState.ERROR && state != VideoState.ENDED) {
+            state = VideoState.LOADING
             ui.video(PICTURE, VideoAction.Play(playing.url, profile, sound, position))
         }
         ui.toast(if (on) "Ton auf der Uhr an" else "Ton aus")
@@ -161,7 +173,14 @@ class YouTubeApp : G2App {
         save(ui)
         hits = emptyList()
         ui.definePages(listOf(resultsPage(listOf(Block.Text(RESULTS_STATUS, "Suche läuft …")), query)))
-        ui.show(RESULTS)
+        // A search from the video ("/") ends it; the hits take the video's place, back leads to the start.
+        val fromVideo = current != null
+        if (fromVideo) {
+            leaveVideo(ui)
+            ui.replace(RESULTS)
+        } else {
+            ui.show(RESULTS)
+        }
         ui.videoSearch(query) { result -> showResults(query, result, ui) }
     }
 
@@ -199,12 +218,10 @@ class YouTubeApp : G2App {
 
     // --- Video ----------------------------------------------------------------------------------
 
+    /** The picture fills the screen; the state comes as a note over it ([videoChanged]). */
     private fun videoPage() = Page(
         VIDEO, "Video",
-        listOf(
-            Block.Image(PICTURE, null, VIDEO_W, VIDEO_H),
-            Block.Text(STATUS, "", Align.CENTER),
-        ),
+        listOf(Block.Image(PICTURE, null, VIDEO_W, VIDEO_H, bleed = true)),
         statusBar = false,
         input = InputMode.GESTURES,
     )
@@ -212,58 +229,94 @@ class YouTubeApp : G2App {
     private fun play(item: VideoItem, ui: AppContext) {
         current = item
         state = VideoState.LOADING
+        titled = false
         position = 0
         duration = item.durationS * 1000
         if (item.url != TEST_VIDEO.url) {
             history = (listOf(item) + history.filter { it.url != item.url }).take(MAX_HISTORY)
             save(ui)
         }
-        // A fresh page: black picture, loading line.
+        // A fresh page: black picture, a note how it works until the title comes.
         ui.definePages(listOf(videoPage()))
-        ui.patch(VIDEO) { text(STATUS, "Lädt … Tippen = Pause, Wischen = ±10 s") }
         ui.show(VIDEO)
+        ui.subscribe(Sensor.KEYS)
         ui.video(PICTURE, VideoAction.Play(item.url, profile, sound))
         ui.menu(menuItems())
+        ui.toast(LOADING_NOTE, LONG_NOTE_MS)
     }
 
     private fun stopVideo(ui: AppContext) {
         if (current == null) return
-        ui.video(PICTURE, VideoAction.Stop)
-        current = null
-        ui.menu(menuItems())
+        leaveVideo(ui)
         showHistory(ui)
+        // A note stays up to 10 s, also over the list; "Pause … tippen: weiter" would be wrong there.
+        ui.toast("Video beendet", SHORT_NOTE_MS)
     }
 
+    /** The video ends: no more pictures, keys or video menu. */
+    private fun leaveVideo(ui: AppContext) {
+        ui.video(PICTURE, VideoAction.Stop)
+        current = null
+        ui.unsubscribe(Sensor.KEYS)
+        ui.menu(menuItems())
+    }
+
+    /** A note over the picture when the state changes; the position alone (every second) says nothing new. */
     private fun videoChanged(e: AppEvent.Video, ui: AppContext) {
         val item = current ?: return
         position = e.positionMs
         if (e.durationMs > 0) duration = e.durationMs
-        if (e.state == state && e.state == VideoState.PLAYING) return
+        if (e.state == state) return
         state = e.state
-        val line = when (e.state) {
-            VideoState.LOADING -> "Lädt … Tippen = Pause, Wischen = ±10 s"
-            VideoState.PLAYING -> shorten(title(item), 42)
-            VideoState.PAUSED -> "Pause ${time()} – tippen: weiter"
-            VideoState.BUFFERING -> "Lädt nach … ${time()}"
-            VideoState.ENDED -> "Ende – tippen: nochmal"
-            VideoState.ERROR -> shorten(e.message ?: "Fehler", 60)
+        when (e.state) {
+            VideoState.LOADING -> ui.toast(LOADING_NOTE, LONG_NOTE_MS)
+            // The title once at the start; later only that it goes on, briefly, so the picture is free.
+            VideoState.PLAYING ->
+                if (!titled) ui.toast(shorten(title(item), 42), TITLE_NOTE_MS)
+                else ui.toast("Weiter · ${time()}", SHORT_NOTE_MS)
+            VideoState.PAUSED -> ui.toast("Pause ${time()} – tippen: weiter", LONG_NOTE_MS)
+            // The first picture often comes while the player still fills its buffer: that is still loading.
+            VideoState.BUFFERING -> ui.toast(if (titled) "Lädt nach … ${time()}" else LOADING_NOTE, LONG_NOTE_MS)
+            VideoState.ENDED -> ui.toast("Ende – tippen: nochmal", LONG_NOTE_MS)
+            VideoState.ERROR -> ui.toast(shorten(e.message ?: "Video geht nicht", 60), LONG_NOTE_MS)
         }
-        ui.patch(VIDEO) { text(STATUS, line) }
-        if (e.state == VideoState.ERROR) ui.toast("Video geht nicht")
+        if (e.state == VideoState.PLAYING) titled = true
     }
 
     private fun gesture(kind: GestureKind, ui: AppContext) {
         if (current == null) return
         when (kind) {
-            GestureKind.CLICK -> when (state) {
-                VideoState.PLAYING, VideoState.BUFFERING, VideoState.LOADING -> ui.video(PICTURE, VideoAction.Pause)
-                VideoState.PAUSED, VideoState.ENDED -> ui.video(PICTURE, VideoAction.Resume)
-                VideoState.ERROR -> current?.let { play(it, ui) }
-            }
+            GestureKind.CLICK -> playPause(ui)
             GestureKind.SCROLL_DOWN -> seek(SEEK_MS, ui)
             GestureKind.SCROLL_UP -> seek(-SEEK_MS, ui)
             GestureKind.LONG_PRESS, GestureKind.SWIPE_LEFT -> nextProfile(ui)
             else -> Unit
+        }
+    }
+
+    /** A tap: pause, go on, or try again after an error. */
+    private fun playPause(ui: AppContext) {
+        when (state) {
+            VideoState.PLAYING, VideoState.BUFFERING, VideoState.LOADING -> ui.video(PICTURE, VideoAction.Pause)
+            VideoState.PAUSED, VideoState.ENDED -> ui.video(PICTURE, VideoAction.Resume)
+            VideoState.ERROR -> current?.let { play(it, ui) }
+        }
+    }
+
+    /** A key of a Bluetooth keyboard on the video page, as on youtube.com. */
+    private fun key(k: AppEvent.Key, ui: AppContext) {
+        if (current == null || k.ctrl || k.alt || k.meta) return
+        // Held, only the jumps go on: Space pauses once, P and M switch once.
+        if (k.repeat && k.key !in SEEK_KEYS) return
+        when (k.key) {
+            Keys.SPACE, "k", "K", Keys.MEDIA_PLAY_PAUSE -> playPause(ui)
+            Keys.MEDIA_PLAY -> if (state == VideoState.PAUSED || state == VideoState.ENDED) playPause(ui)
+            Keys.MEDIA_PAUSE -> if (state == VideoState.PLAYING || state == VideoState.BUFFERING) playPause(ui)
+            "j", "J", Keys.ARROW_LEFT, Keys.MEDIA_REWIND -> seek(-SEEK_MS, ui)
+            "l", "L", Keys.ARROW_RIGHT, Keys.MEDIA_FAST_FORWARD -> seek(SEEK_MS, ui)
+            "p", "P" -> nextProfile(ui)
+            "m", "M" -> setSound(!sound, ui)
+            "/" -> askSearch(ui)
         }
     }
 
@@ -335,7 +388,6 @@ class YouTubeApp : G2App {
         const val HISTORY_EMPTY = "verlauf_leer"
         const val CLEAR_HISTORY = "verlauf_loeschen"
         const val PICTURE = "bild"
-        const val STATUS = "status"
 
         /** Buttons and info lines of hits and history entries: prefix + index. */
         const val HIT = "v"
@@ -348,10 +400,21 @@ class YouTubeApp : G2App {
         const val MENU_PROFILE = "profil"
         const val MENU_SOUND = "ton"
 
-        /** 16:9, with the status line below it exactly the height of the full screen (288). */
-        const val VIDEO_W = 416
-        const val VIDEO_H = 234
+        /** 16:9, the full height of the screen without margins (576 × 288). */
+        const val VIDEO_W = 512
+        const val VIDEO_H = 288
+
+        /** Notes over the video: how long the state, the title and "goes on" stay (the host keeps ≤ 10 s). */
+        const val LONG_NOTE_MS = 10_000
+        const val TITLE_NOTE_MS = 3_000
+        const val SHORT_NOTE_MS = 1_200
+        const val LOADING_NOTE = "Lädt … Tippen = Pause, Wischen = ±10 s"
+
         const val SEEK_MS = 10_000L
+
+        /** Keys that jump in the video, and repeat while held. */
+        private val SEEK_KEYS = setOf("j", "J", "l", "L", Keys.ARROW_LEFT, Keys.ARROW_RIGHT, Keys.MEDIA_REWIND, Keys.MEDIA_FAST_FORWARD)
+
         const val MAX_HISTORY = 20
         const val MAX_QUERIES = 5
 
@@ -364,9 +427,9 @@ class YouTubeApp : G2App {
         private const val KEY_HISTORY = "verlauf"
 
         private val PER_SECOND = mapOf(
-            VideoProfile.STABLE to "1 Bild pro Sekunde",
-            VideoProfile.BALANCED to "2 Bilder pro Sekunde",
-            VideoProfile.FAST to "4 Bilder pro Sekunde",
+            VideoProfile.STABLE to "bis 5 Bilder pro Sekunde",
+            VideoProfile.BALANCED to "bis 10 Bilder pro Sekunde",
+            VideoProfile.FAST to "bis 15 Bilder pro Sekunde, gröber",
         )
 
         /** "Kanal · 4:56 · 1,2 Mio. Aufrufe", short enough for one line. */

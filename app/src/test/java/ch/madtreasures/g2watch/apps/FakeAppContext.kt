@@ -54,6 +54,9 @@ class FakeAppContext(
 
     override val storage = MemoryStorage()
 
+    /** A Bluetooth keyboard on the watch ([AppContext.keyboard]); tests switch it on. */
+    override var keyboard = false
+
     val current: Page? get() = pages.current
 
     fun page(id: String): Page = pages.page(id) ?: throw AssertionError("no page $id (have ${pages.pageIds()})")
@@ -191,6 +194,8 @@ class FakeAppContext(
         } else {
             require(webOpen(block)) { "no web page in $block" }
             if (action is WebAction.Type) require(action.text.length <= 2_000) { "at most 2000 characters" }
+            if (action is WebAction.Insert) require(action.text.length <= 2_000) { "at most 2000 characters" }
+            if (action is WebAction.Key) require(action.key.isNotEmpty() && action.key.length <= 32) { "key name ${action.key}" }
             if (action is WebAction.Tap) {
                 val image = pages.block(block) as Block.Image
                 require(action.x in 0 until image.w && action.y in 0 until image.h) { "tap outside $block" }

@@ -9,6 +9,7 @@ import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.G2App
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.WebAction
@@ -16,6 +17,7 @@ import ch.madtreasures.g2watch.apps.WebContrast
 import ch.madtreasures.g2watch.apps.WebField
 import ch.madtreasures.g2watch.apps.WebState
 import ch.madtreasures.g2watch.desktop.GrayRaster
+import ch.madtreasures.g2watch.input.KeyPress
 import ch.madtreasures.browser.BrowserApp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -187,6 +189,53 @@ class AppHostWebTest {
     }
 
     @Test
+    fun `the mouse wheel scrolls the page under the pointer, gathered, and keys scroll it too`() {
+        val host = host(app())
+        val app = host.withPage()
+        host.pointerAt(200, 100)
+        host.wheel(1)
+        host.wheel(2)
+        scheduler.runPending()
+        scheduler.advanceBy(AppHost.PUSH_SCROLL_MS)
+        assertEquals(listOf(AppEvent.ImageScroll("web", "seite", 3 * AppHost.WHEEL_STEP)), app.inputEvents())
+        // Without the pointer on it, the page still scrolls once the app page can no further.
+        host.pointerAt(-1, -1)
+        host.wheel(-1)
+        scheduler.runPending()
+        scheduler.advanceBy(AppHost.PUSH_SCROLL_MS)
+        assertEquals(AppEvent.ImageScroll("web", "seite", -AppHost.WHEEL_STEP), app.inputEvents().last())
+        // Space and the page keys scroll by three quarters, like a temple swipe; Enter clicks at the pointer.
+        host.key(KeyPress(Keys.SPACE, " "))
+        host.key(KeyPress(Keys.PAGE_UP))
+        host.pointerAt(10, 20)
+        host.key(KeyPress(Keys.ENTER))
+        settle()
+        assertEquals(
+            listOf(AppEvent.ImageScroll("web", "seite", 195), AppEvent.ImageScroll("web", "seite", -195), AppEvent.ImageClick("web", "seite", 10, 20)),
+            app.inputEvents().takeLast(3),
+        )
+    }
+
+    @Test
+    fun `keys and typed text reach the page`() {
+        val host = host(app())
+        host.withPage()
+        asApp {
+            web("seite", WebAction.Insert("Grüezi"))
+            web("seite", WebAction.Key(Keys.BACKSPACE))
+            web("seite", WebAction.Key(Keys.TAB, shift = true))
+            web("seite", WebAction.Key("a", ctrl = true))
+            web("seite", WebAction.Insert(""))
+        }
+        assertEquals(listOf("insert Grüezi", "key Backspace", "key shift+Tab", "key ctrl+a"), page.calls.filter { it.startsWith("insert") || it.startsWith("key") })
+        asApp {
+            web("seite", WebAction.Key(""))
+            web("seite", WebAction.Insert("x".repeat(AppHost.MAX_WEB_TEXT + 1)))
+        }
+        assertEquals(2, ports.logs.count { it.contains("„web“ abgelehnt") })
+    }
+
+    @Test
     fun `back goes back through the page's history first, then leaves the page`() {
         val host = host(app())
         val app = host.start()
@@ -296,7 +345,7 @@ class AppHostWebTest {
     @Test
     fun `the browser package in the host with address, pointer, temple and back`() {
         val host = AppHost(scheduler, screen, FakeText(), ports, listOf({ BrowserApp() }), nowMs = { scheduler.now }, nanoTime = { scheduler.now * 1_000_000L })
-        ports.answers["ch.madtreasures.browser@1.0.0"] = setOf(Permission.NETWORK)
+        ports.answers["ch.madtreasures.browser@1.1.0"] = setOf(Permission.NETWORK)
         host.launch("watch:ch.madtreasures.browser")
         settle()
         // A temple tap on the focused "Adresse oder Suche": the watch asks, the wearer says an address.

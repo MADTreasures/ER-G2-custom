@@ -5,7 +5,8 @@
 //
 //   page → watch   hello · layout · staged · field (a text field got or lost the cursor) ·
 //                  reader (reading mode shown or not, the page is an article) · changed
-//   watch → page   config (reading mode wanted) · reader · layout · stage · scroll · type
+//   watch → page   config (reading mode wanted) · reader · layout · stage · scroll · type ·
+//                  key, insert (a Bluetooth keyboard)
 //
 // stage() and collectLayout() come from page-layout.js (web-raster/src/main/js/, copied by the build),
 // Readability and isProbablyReaderable from readability/ (Mozilla, Apache-2.0); the manifest loads
@@ -56,6 +57,12 @@ port.onMessage.addListener((wrapped) => {
       break;
     case "type":
       typeText(String(m.text || ""), m.enter !== false);
+      break;
+    case "key":
+      pressKey(String(m.key || ""), !!m.shift, !!m.ctrl, !!m.alt);
+      break;
+    case "insert":
+      insertText(String(m.text || ""));
       break;
   }
 });
@@ -191,11 +198,243 @@ function pressEnter(el) {
   const go = el.dispatchEvent(new KeyboardEvent("keydown", init));
   el.dispatchEvent(new KeyboardEvent("keypress", init));
   el.dispatchEvent(new KeyboardEvent("keyup", init));
-  // Script-made key events do not send a form by themselves.
-  if (go && el.form && el.tagName !== "TEXTAREA") {
-    if (typeof el.form.requestSubmit === "function") el.form.requestSubmit();
-    else el.form.submit();
+  if (go && el.tagName !== "TEXTAREA") submitForm(el);
+}
+
+/** Script-made key events do not send a form by themselves. */
+function submitForm(el) {
+  if (!el.form) return;
+  if (typeof el.form.requestSubmit === "function") el.form.requestSubmit();
+  else el.form.submit();
+}
+
+// --- Keys of a Bluetooth keyboard ----------------------------------------------------------------------
+// Characters come with "insert", other keys with "key". The page hears each key first (keydown, keyup);
+// unless it took it (preventDefault), the script does what a browser would: edit the field with the
+// cursor, move the cursor, send the form, go to the next link or field with Tab, follow the focused link
+// with Enter, scroll otherwise.
+
+const KEY_CODES = {
+  Enter: 13, Escape: 27, Backspace: 8, Delete: 46, Tab: 9, " ": 32, PageUp: 33, PageDown: 34, End: 35, Home: 36,
+  ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40,
+};
+
+function keyInit(key, shift, ctrl, alt) {
+  const init = { key, bubbles: true, cancelable: true, shiftKey: shift, ctrlKey: ctrl, altKey: alt };
+  const code = KEY_CODES[key] || (key.length === 1 ? key.toUpperCase().charCodeAt(0) : 0);
+  if (code) {
+    init.keyCode = code;
+    init.which = code;
   }
+  return init;
+}
+
+/** Tells the page about the key, then runs [action] unless the page took it. */
+function withKeyEvents(key, shift, ctrl, alt, action) {
+  const el = focused();
+  const target = el && el !== document.documentElement ? el : document.body || document.documentElement;
+  const init = keyInit(key, shift, ctrl, alt);
+  if (target.dispatchEvent(new KeyboardEvent("keydown", init))) action(el);
+  target.dispatchEvent(new KeyboardEvent("keyup", init));
+  changed();
+}
+
+function pressKey(key, shift, ctrl, alt) {
+  if (!key) return;
+  withKeyEvents(key, shift, ctrl, alt, (el) => {
+    if (editable(el)) editKey(el, key, shift, ctrl);
+    else pageKey(el, key, shift);
+  });
+}
+
+/** Text at the cursor; a single character is a key the page hears first. */
+function insertText(text) {
+  if (!text) return;
+  const el = focused();
+  if (!editable(el)) {
+    lastField = "null";
+    send({ kind: "field", field: null });
+    return;
+  }
+  if ([...text].length === 1) withKeyEvents(text, false, false, false, (target) => insertAt(target, text));
+  else {
+    insertAt(el, text);
+    changed();
+  }
+}
+
+function insertAt(el, text) {
+  if (!editable(el)) return;
+  if (document.execCommand("insertText", false, text)) return;
+  if (el.isContentEditable) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+  } else if (hasCursor(el)) {
+    el.setRangeText(text, el.selectionStart, el.selectionEnd, "end");
+  } else {
+    setValue(el, String(el.value || "") + text);
+    return;
+  }
+  el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+}
+
+/** Input types such as email and number have no cursor position to read or set. */
+function hasCursor(el) {
+  try {
+    return typeof el.selectionStart === "number";
+  } catch (e) {
+    return false;
+  }
+}
+
+/** The element's own setter, so pages that track the value (React and the like) see the change. */
+function setValue(el, value) {
+  const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, "value").set.call(el, value);
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+/** Backspace (dir -1) or Delete (dir 1) in the field. */
+function deleteText(el, dir) {
+  if (document.execCommand(dir < 0 ? "delete" : "forwardDelete")) return;
+  if (el.isContentEditable) {
+    const sel = window.getSelection();
+    if (sel && sel.isCollapsed) sel.modify("extend", dir < 0 ? "backward" : "forward", "character");
+    if (sel && sel.rangeCount) sel.getRangeAt(0).deleteContents();
+    el.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    return;
+  }
+  const value = String(el.value || "");
+  if (!hasCursor(el)) {
+    if (dir < 0) setValue(el, value.slice(0, -1));
+    return;
+  }
+  let start = el.selectionStart;
+  let end = el.selectionEnd;
+  if (start === end) {
+    if (dir < 0) start = Math.max(0, start - 1);
+    else end = Math.min(value.length, end + 1);
+  }
+  if (start === end) return;
+  el.setRangeText("", start, end, "end");
+  el.dispatchEvent(new InputEvent("input", { bubbles: true }));
+}
+
+/** Moves the cursor by [unit] ("character", "line", "lineboundary") back or on; with Shift it selects. */
+function moveCursor(el, forward, unit, extend) {
+  const sel = window.getSelection();
+  if (el.isContentEditable || (el.tagName === "TEXTAREA" && unit === "line")) {
+    if (sel) sel.modify(extend ? "extend" : "move", forward ? "forward" : "backward", unit);
+    return;
+  }
+  if (!hasCursor(el)) return;
+  const length = String(el.value || "").length;
+  let at = forward ? el.selectionEnd : el.selectionStart;
+  if (unit === "character") at = Math.max(0, Math.min(length, at + (forward ? 1 : -1)));
+  else if (unit === "lineboundary") at = forward ? length : 0;
+  else return;
+  if (extend) {
+    const anchor = forward ? el.selectionStart : el.selectionEnd;
+    el.setSelectionRange(Math.min(anchor, at), Math.max(anchor, at), forward ? "forward" : "backward");
+  } else {
+    el.setSelectionRange(at, at);
+  }
+}
+
+function editKey(el, key, shift, ctrl) {
+  switch (key) {
+    case "Backspace":
+      deleteText(el, -1);
+      break;
+    case "Delete":
+      deleteText(el, 1);
+      break;
+    case "ArrowLeft":
+    case "ArrowRight":
+      moveCursor(el, key === "ArrowRight", "character", shift);
+      break;
+    case "ArrowUp":
+    case "ArrowDown":
+      moveCursor(el, key === "ArrowDown", "line", shift);
+      break;
+    case "Home":
+    case "End":
+      moveCursor(el, key === "End", "lineboundary", shift);
+      break;
+    case "Enter":
+      if (el.tagName === "TEXTAREA" || el.isContentEditable) insertAt(el, "\n");
+      else submitForm(el);
+      break;
+    case "Tab":
+      focusNext(el, shift ? -1 : 1);
+      break;
+    case "Escape":
+      el.blur();
+      break;
+    default:
+      if (ctrl && key.toLowerCase() === "a") {
+        if (el.isContentEditable) document.execCommand("selectAll");
+        else if (typeof el.select === "function") el.select();
+      } else if (!ctrl && [...key].length === 1) {
+        insertAt(el, key);
+      }
+  }
+}
+
+/** Keys without a field: Tab walks links and fields, Enter follows the focused one, the rest scrolls. */
+function pageKey(el, key, shift) {
+  const page = window.innerHeight * 0.75;
+  switch (key) {
+    case "Tab":
+      focusNext(el, shift ? -1 : 1);
+      break;
+    case "Enter":
+      if (el && el !== document.body && typeof el.click === "function") el.click();
+      break;
+    case " ":
+      scrollPage(shift ? -page : page);
+      break;
+    case "PageDown":
+      scrollPage(page);
+      break;
+    case "PageUp":
+      scrollPage(-page);
+      break;
+    case "ArrowDown":
+      scrollPage(40);
+      break;
+    case "ArrowUp":
+      scrollPage(-40);
+      break;
+    case "Home":
+      window.scrollTo({ top: 0, behavior: "instant" });
+      break;
+    case "End":
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+      break;
+    case "Escape":
+      if (el && typeof el.blur === "function") el.blur();
+      break;
+  }
+}
+
+const FOCUSABLE =
+  'a[href], button, input:not([type="hidden"]), select, textarea, summary, [tabindex]:not([tabindex="-1"]), [contenteditable=""], [contenteditable="true"]';
+
+/** The next (dir 1) or previous (-1) link, button or field that can be seen, as Tab does. */
+function focusNext(from, dir) {
+  const all = Array.from(document.querySelectorAll(FOCUSABLE)).filter(
+    (e) => !e.disabled && e.getClientRects().length > 0 && getComputedStyle(e).visibility !== "hidden",
+  );
+  if (!all.length) return;
+  const at = all.indexOf(from);
+  const next = all[at < 0 ? (dir > 0 ? 0 : all.length - 1) : (at + dir + all.length) % all.length];
+  next.focus();
+  next.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 // --- Reading mode ------------------------------------------------------------------------------------

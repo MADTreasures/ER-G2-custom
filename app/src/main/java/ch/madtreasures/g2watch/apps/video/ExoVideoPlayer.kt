@@ -30,8 +30,8 @@ import java.util.concurrent.Executor
 
 /**
  * A video from the internet, decoded on the watch for the glasses (03 §10). Media3's ExoPlayer decodes
- * in hardware into a [GlFrameGrabber]; every [VideoProfile.frameMs] a picture is read back at raster size
- * and turned into grey levels by [FrameConverter]. Video pages (YouTube …) are looked up with
+ * in hardware into a [GlFrameGrabber]; every [VideoProfile.frameMs] ([FrameBeat]) a picture is read back
+ * at raster size and turned into grey levels by [FrameConverter]. Video pages (YouTube …) are looked up with
  * [NewPipeCatalog] on [work]; when a stream fails the next [PlaybackPlan] is tried, and once all failed the
  * page is looked up again (addresses expire). WLAN/LTE ([FastNetwork]) is held while the video loads or
  * plays, not while it is over or paused for long. Everything else runs on the thread "G2Watch-video".
@@ -49,6 +49,10 @@ internal class ExoVideoPlayer(
 
     // Before the thread: a size the converter refuses throws here, without leaving a thread behind.
     private val converter = FrameConverter(request.width, request.height, request.profile)
+
+    /** Source lines the raster asks for (03 §10), for the stream choice and among the pictures of an HLS stream. */
+    private val wantHeight = StreamChooser.wantHeight(request.height / request.profile.cell)
+
     private val thread = HandlerThread("G2Watch-video").apply { start() }
     private val handler = Handler(thread.looper)
 
@@ -68,7 +72,8 @@ internal class ExoVideoPlayer(
     private var wantPause = false
     private var released = false
     private var shown = false
-    private var lastPictureAt = Long.MIN_VALUE / 2
+    private val beat = FrameBeat()
+    private var lastPictureAt = 0L
     private var lastState: VideoState? = null
     private var networkHeld = false
 
@@ -99,7 +104,7 @@ internal class ExoVideoPlayer(
     override fun seekTo(positionMs: Long) = post {
         resumeAt = positionMs
         val p = player ?: return@post
-        lastPictureAt = Long.MIN_VALUE / 2
+        beat.restart()
         converter.reset()
         p.seekTo(positionMs)
     }
@@ -107,7 +112,7 @@ internal class ExoVideoPlayer(
     override fun setProfile(profile: VideoProfile) = post {
         converter.profile = profile
         picture = player?.videoSize?.let { fit(it) } ?: Rect(0, 0, converter.grid.width, converter.grid.height)
-        lastPictureAt = Long.MIN_VALUE / 2
+        beat.restart()
         // Paused, no new picture comes: draw the last one again in the new raster.
         if (shown && player?.isPlaying != true) picture()
     }
@@ -148,8 +153,7 @@ internal class ExoVideoPlayer(
             post { fail(message) }
             return
         }
-        val want = request.height / request.profile.cell
-        val chosen = StreamChooser.plans(result.options, result.hls, result.live, want, request.sound)
+        val chosen = StreamChooser.plans(result.options, result.hls, result.live, wantHeight, request.sound)
         post {
             if (chosen.isEmpty()) {
                 fail("Keine abspielbare Fassung gefunden")
@@ -177,13 +181,7 @@ internal class ExoVideoPlayer(
         val g = GlFrameGrabber(handler) { picture() }
         grabber = g
         val selector = DefaultTrackSelector(context)
-        selector.setParameters(
-            selector.buildUponParameters()
-                .setMaxVideoSize(Int.MAX_VALUE, StreamChooser.MAX_HEIGHT)
-                .setForceLowestBitrate(true)
-                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !request.sound)
-                .build(),
-        )
+        selector.setParameters(trackRules(selector.buildUponParameters(), wantHeight, request.sound))
         val load = DefaultLoadControl.Builder()
             .setBufferDurationsMs(BUFFER_MIN_MS, BUFFER_MAX_MS, 1_500, 3_000)
             .build()
@@ -236,12 +234,13 @@ internal class ExoVideoPlayer(
     private fun picture() {
         val g = grabber ?: return
         val now = SystemClock.elapsedRealtime()
-        if (now - lastPictureAt < converter.profile.frameMs) return
+        if (!beat.take(now, converter.profile.frameMs)) return
+        val elapsed = now - lastPictureAt
         lastPictureAt = now
         val grid = converter.grid
         if (luma.size != grid.size) luma = ByteArray(grid.size)
         g.read(grid.width, grid.height, picture, luma)
-        listener.onFrame(converter.convert(luma, picture))
+        listener.onFrame(converter.convert(luma, picture, elapsed))
         if (!shown) {
             // The first picture can come while ExoPlayer still fills its buffer: its state says what it is.
             shown = true
@@ -368,6 +367,20 @@ internal class ExoVideoPlayer(
         const val IDLE_MS = 20_000L
         const val BUFFER_MIN_MS = 15_000
         const val BUFFER_MAX_MS = 30_000
+
+        /**
+         * What ExoPlayer may pick where a stream offers several pictures (HLS, live videos): the lowest
+         * bitrate with at least [wantHeight] lines (if there is none, the lowest at all), never more than
+         * [StreamChooser.MAX_HEIGHT] lines; no sound track unless [sound]. A stream from [StreamChooser.plans]
+         * has only one picture.
+         */
+        fun trackRules(base: DefaultTrackSelector.Parameters.Builder, wantHeight: Int, sound: Boolean): DefaultTrackSelector.Parameters =
+            base
+                .setMaxVideoSize(Int.MAX_VALUE, StreamChooser.MAX_HEIGHT)
+                .setMinVideoSize(0, wantHeight)
+                .setForceLowestBitrate(true)
+                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !sound)
+                .build()
 
         /** A file or playlist rather than a page a portal has to be asked about. */
         fun isDirectMedia(src: String): Boolean {

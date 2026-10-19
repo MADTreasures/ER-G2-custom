@@ -24,6 +24,11 @@ import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.GlassesState
 import ch.madtreasures.g2watch.glasses.Stage
 import ch.madtreasures.g2watch.glasses.TransferStats
+import ch.madtreasures.g2watch.input.ExternalDevice
+import ch.madtreasures.g2watch.input.FoundDevice
+import ch.madtreasures.g2watch.input.HidKind
+import ch.madtreasures.g2watch.input.HidPairing
+import ch.madtreasures.g2watch.input.KeyLayout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -261,5 +266,62 @@ class SettingsScreenTest {
         compose.onNodeWithText("Nicht eingerichtet").assertExists()
         compose.onNodeWithText("OK").performClick()
         assertEquals(1, closed)
+    }
+
+    @Test
+    fun `keyboard and mouse have their own page in the settings`() {
+        var opened = 0
+        show {
+            SettingsScreen(
+                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {}, {},
+                inputSummary = inputSummary(listOf(ExternalDevice(3, "Magic Mouse", keyboard = false, mouse = true))),
+                onInput = { opened++ },
+            )
+        }
+        scrollTo(hasTestTag(INPUT_TAG))
+        compose.onNodeWithText("Maus verbunden").assertExists()
+        compose.onNodeWithTag(INPUT_TAG).performClick()
+        assertEquals(1, opened)
+        assertEquals("nichts verbunden", inputSummary(emptyList()))
+        assertEquals("Tastatur und Maus verbunden", inputSummary(listOf(ExternalDevice(1, "K", true, false), ExternalDevice(2, "M", false, true))))
+    }
+
+    @Test
+    fun `the keyboard and mouse page lists the devices, pairs new ones and picks the layout`() {
+        val layouts = mutableListOf<KeyLayout>()
+        val paired = mutableListOf<String>()
+        var scans = 0
+        var bluetooth = 0
+        show {
+            InputDevicesScreen(
+                devices = listOf(ExternalDevice(1, "Keychron K3", keyboard = true, mouse = false), ExternalDevice(2, "Magic Mouse", keyboard = false, mouse = true)),
+                layout = KeyLayout.AUTO,
+                autoLayout = KeyLayout.SWISS,
+                pairing = HidPairing.State(found = listOf(FoundDevice("AA:BB:CC:00:11:22", "MX Keys", HidKind.KEYBOARD))),
+                onLayout = { layouts += it },
+                onScan = { scans++ },
+                onPair = { paired += it.address },
+                onBluetoothSettings = { bluetooth++ },
+                onBack = {},
+            )
+        }
+        compose.onNodeWithText("Tastatur: Keychron K3").assertExists()
+        compose.onNodeWithText("Maus: Magic Mouse").assertExists()
+        scrollTo(hasTestTag(PAIR_SCAN_TAG))
+        compose.onNodeWithTag(PAIR_SCAN_TAG).performClick()
+        assertEquals(1, scans)
+        scrollTo(hasText("MX Keys"))
+        compose.onNodeWithText("MX Keys").performClick()
+        assertEquals(listOf("AA:BB:CC:00:11:22"), paired)
+        scrollTo(hasText("Bluetooth-Einstellungen"))
+        compose.onNodeWithText("Bluetooth-Einstellungen").performClick()
+        assertEquals(1, bluetooth)
+        scrollTo(hasText("jetzt: Schweiz"))
+        scrollTo(hasTestTag(LAYOUT_TAG + KeyLayout.GERMAN.id))
+        compose.onNodeWithTag(LAYOUT_TAG + KeyLayout.GERMAN.id).performClick()
+        assertEquals(listOf(KeyLayout.GERMAN), layouts)
+        // Honest about what is not known yet.
+        scrollTo(hasText(INPUT_NOTE))
+        assertTrue(INPUT_NOTE.contains("Noch nicht auf der Uhr geprüft"))
     }
 }

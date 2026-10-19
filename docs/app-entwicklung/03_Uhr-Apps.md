@@ -8,7 +8,7 @@ Rechenintensive: [Rechner-Apps](04_Rechner-Apps_und_Protokoll.md).
 **Stand:** Der App-Host ist gebaut (M1, v0.4.0, aus Pull Request #2; Pull Request #1 enthält einen zweiten,
 der nicht zusätzlich übernommen wird), dazu seit v0.5.0 Texteingabe auf der Uhr und Video auf der Brille mit
 der App YouTube (§10), seit v0.5.2 Emoji in allen Texten (§11), seit v0.8.0 Web-Seiten in Bild-Bausteinen mit
-der App Browser (§12); nichts davon ist auf Hardware erprobt.
+der App Browser (§12), seit v0.9.0 Bluetooth-Tastatur und -Maus (§5.4); nichts davon ist auf Hardware erprobt.
 Dieses Kapitel beschreibt erst, was eine App-Entwicklerin schreibt (§1–§4), dann die Plattform (§5–§8). Was
 bei der Umsetzung dazukam oder anders wurde als ursprünglich geplant, steht in §9 bis §12.
 
@@ -150,7 +150,8 @@ interface AppContext {
     fun askText(tag: String, prompt: String, suggestions: List<String> = emptyList())  // v0.5.0: keyboard/voice on the watch → AppEvent.TextInput
     fun video(block: String, action: VideoAction)          // v0.5.0: Play(src, profile, sound, startMs), Pause, Resume, Seek, Profile, Stop → AppEvent.Video (§10)
     fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit)  // v0.5.0: YouTube search; needs Permission.NETWORK
-    fun web(block: String, action: WebAction)              // v0.8.0 (interface 2): Open(url, reader), Back, Forward, Reload, Scroll, Tap, Type, Reader, Contrast, Stop → AppEvent.Web (§12)
+    fun web(block: String, action: WebAction)              // v0.8.0 (interface 2): Open(url, reader), Back, Forward, Reload, Scroll, Tap, Type, Reader, Contrast, Stop → AppEvent.Web (§12); v0.9.0 (interface 3): Key, Insert
+    val keyboard: Boolean                                  // v0.9.0 (interface 3): a Bluetooth keyboard is connected (§5.4)
     val storage: AppStorage                                // get(key): JsonElement?, set(key, JsonElement); ≤ 256 KiB per app
     fun log(message: String)                               // goes to Settings → Protokoll
     fun close()
@@ -178,6 +179,7 @@ sealed interface AppEvent {
     data class Web(val block: String, val state: WebState, val url: String, val title: String, /* progress, canBack, canForward, reader, readable, field, message */) : AppEvent  // v0.8.0
     data class ImageClick(val page: String, val block: String, val x: Int, val y: Int) : AppEvent   // v0.8.0, on a web page
     data class ImageScroll(val page: String, val block: String, val dy: Int) : AppEvent            // v0.8.0, on a web page
+    data class Key(val key: String, val text: String, val shift: Boolean, val ctrl: Boolean, val alt: Boolean, val meta: Boolean, val repeat: Boolean) : AppEvent  // v0.9.0, after subscribe(Sensor.KEYS)
 }
 ```
 
@@ -213,7 +215,8 @@ Threads und GeckoView-Prozesse, [05](05_EvenHub-Apps.md)).
 ## 5. Plattform: der App-Host (zu bauen in M1)
 
 ```
-Touchpad / Bügel / Ring ──▶ InputRouter ──▶ AppHost (Thread „G2Watch-apps“) ──▶ G2App.onEvent
+Touchpad / Bügel / Ring /
+Tastatur & Maus (seit v0.9.0) ──▶ InputRouter ──▶ AppHost (Thread „G2Watch-apps“) ──▶ G2App.onEvent
                                               │  Sitzungen, Verlauf, Fokus, Timer, Berechtigungen,
                                               │  Starter, App-Menü
                                               ▼  (neuester Stand)
@@ -231,7 +234,7 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 | `G2App.kt`, `AppContext.kt`, `AppManifest.kt` | die Schnittstelle aus §2 |
 | `host/AppHost.kt` | Sitzungen starten/stoppen, `start` + `visible`, Verlauf (Zurück), Fokus, Timer, Zeitmessung (50/500 ms), Berechtigungsabfrage, App-Menü |
 | `host/AppThread.kt` | ein Thread für alle Apps (`Scheduler`-Schnittstelle wie `ThreadScheduler`) |
-| `host/InputRouter.kt` | Gesten von Uhr und Brille nach §5.1 in Zeiger, Fokus oder `gesture`-Ereignisse |
+| `host/InputRouter.kt` | Gesten von Uhr und Brille nach §5.1 in Zeiger, Fokus oder `gesture`-Ereignisse; seit v0.9.0 auch Tastatur und Maus (§5.4) |
 | `render/PageRenderer.kt` | Seite + Zustand (Fokus, Scroll, Zeiger) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine) |
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
 | `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), installierte Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; Raster aus Symbolen mit Namen, laufende mit einem Punkt markiert |
@@ -297,6 +300,100 @@ Seit v0.9.0. Alles in `desktop/`; Apps merken davon nichts, die App-Fläche blei
 | Ausrichtung der Gläser | Im Code und in Evens Firmware geprüft (nicht an der Brille), kein Fehler gefunden: Beide Gläser bekommen dasselbe Bild, bei Tiefe 0 Byte für Byte. Die Werksjustierung je Glas liegt im Display-Controller und gilt auch unter der Custom-Firmware ([wissen/02 §7](../firmware-uebergabe/wissen/02-display.md#7-open-questions--uncertainties)). |
 | Tests | `DesktopControllerTest`: Tiefe bei jedem `attach` und sofort bei Änderung; mit Faceclaws echtem `SurfaceCompositor` die Tiefe der Wurzel-Liste, auch mit Zeiger, und je Glas das ganze Bild um die halbe Tiefe verschoben, ohne dass ein Pixel verloren geht; Zeiger im Bild und als kleiner Block, auch nach zufälligen Folgen von Bewegungen, Klicks, Apps, Verbindungen und Tiefen genau Desktop plus Zeiger; nichts leuchtet außerhalb der Bühne. `DepthTest`: die drei Stufen je Glas genau wie Evens Tabellen, gespeicherter Name zurück, Unbekanntes wird „Mittel“. `DesktopTextFitTest`: mit Androids Schrift passt jeder Text in Kopfzeile oder Fenster. `SettingsScreenTest`: die drei Stufen. |
 
+### 5.4 Tastatur und Maus
+
+Seit v0.9.0 bedienen eine Bluetooth-Tastatur und -Maus die Brille (Bedienung für Trägerinnen: README,
+Abschnitt „Tastatur und Maus“; was sie in welcher Eingabeart tun: [02 §7](02_App-Modell.md#7-eingabe-und-fokus)).
+**Nicht auf Hardware erprobt**, und ob Wear OS auf der Pixel Watch HID-Geräte überhaupt annimmt, ist offen.
+
+```
+Tastatur, Maus ──▶ MainActivity (nur auf dem Touchpad, Brille verbunden; sonst die Uhr wie gewohnt)
+                     │ dispatchKeyEvent · dispatchTouchEvent / dispatchGenericMotionEvent · festgehaltener Zeiger
+                     ▼
+                 HardwareEvents (input/) ──▶ HardwareInput: Taste → KeyPress, Maus-Tasten, Rad-Rasten
+                     ▼
+                 InputRouter ──▶ HardwareSink: Zeiger, Klick, zurück → DesktopController
+                                               Tasten, Rad, App-Menü → AppHost
+                             ──▶ Gesten (Gesten-Modus: links = click, Rad = scrollUp/scrollDown)
+```
+
+| Datei | Aufgabe |
+|---|---|
+| `input/InputDevices.kt` | Tastaturen und Mäuse von Androids `InputManager` (nur von außen verbundene, `isExternal`), als `StateFlow`; ob eine Tastatur Androids US-Belegung „Generic“ hat |
+| `input/HardwareInput.kt` | reines Kotlin: Taste → `KeyPress` (Name wie `KeyboardEvent.key`, getippter Text, Umschalt/Strg/Alt/Meta, Wiederholung), Akzent-Tasten, Maus-Tasten als Flanken, Rad-Rasten (Teile summiert), die doppelt gemeldete Zurück-Taste der Maus |
+| `input/KeyLayouts.kt` | eigene Belegungen nach Scan-Code (Platz der Taste): Schweiz, Deutschland, USA, nach Androids `keyboard_layout_swiss_german.kcm` und `keyboard_layout_german.kcm`; *Automatisch* nach der Sprache der Uhr |
+| `input/HardwareEvents.kt` | Androids `KeyEvent`/`MotionEvent` von außen verbundenen Geräten → `HardwareInput` → `InputRouter`; `MouseCapture`: Zeiger festhalten |
+| `input/HidPairing.kt` | „Gerät koppeln“: klassische Suche und LE-Suche nach dem HID-Dienst 0x1812, dann `createBond()` |
+| `ui/InputDevicesScreen.kt` | Einstellungen → „Tastatur & Maus“ |
+
+- **Wann:** Die Activity gibt Ereignisse nur weiter, solange das Touchpad zu sehen und die Brille verbunden
+  ist, und nur von Geräten, die Android als von außen verbunden meldet; Lautstärke- und Ein-Taste bleiben beim
+  System. Überall sonst (Einstellungen, Geräteliste) bedienen Tastatur und Maus die Uhr selbst, mit Compose'
+  eigener Fokus-Steuerung. `android:configChanges="keyboard|keyboardHidden|navigation"` hält die Activity,
+  wenn eine Tastatur kommt oder geht. Die Bedienung an der Uhr bleibt dabei, wie sie ist: Touchpad,
+  Doppeltippen, Zahnrad, Krone, Gesten-Modus und Bügel gehen unverändert, auch mit festgehaltenem Zeiger
+  (Android hält nur die Maus fest, Bildschirm und Krone nie); `HardwareEvents` nimmt nur Ereignisse mit der
+  Quelle Maus oder von außen verbundener Tastatur.
+- **Maus:** Ist eine Maus da, hält das Touchpad den Zeiger fest (`requestPointerCapture`, nach jedem
+  Fokuswechsel neu): Android meldet dann die rohen Zählwerte der Maus und zeigt keinen eigenen Zeiger.
+  Ohne Festhalten liest `HardwareEvents` die relativen Achsen `AXIS_RELATIVE_X/Y`, die auch am Rand der Uhr
+  weiterlaufen. `PointerMotion.fromMouse` rechnet Zählwerte in Brillen-Pixel (0,5 Pixel je Zählwert, bei
+  schneller Bewegung bis 2,4-mal mehr, mal Zeigertempo). Links = `DesktopController.click()` (also auch „‹“
+  und App-Name in der Kopfzeile), rechts = App-Menü, Mitte und Zurück = zurück. Die Zurück-Taste meldet
+  Android zweimal (als Taste der Maus und als `KEYCODE_BACK`, zur selben Zeit); von den beiden Meldungen
+  eines Drucks zählt eine (die andere innerhalb von 200 ms fällt weg), ein zweiter Druck gleich danach
+  zählt wieder. Mit Predictive Back (Standard für die Ziel-SDK der App ab Android 16) gibt das Fenster
+  `KEYCODE_BACK` den Zurück-Callbacks, bevor `dispatchKeyEvent` es sieht; das Touchpad hat keinen, G2 Watch
+  ginge in den Hintergrund. Deshalb hält `MouseBackGuard` einen `OnBackPressedCallback` bereit, nur solange
+  die Zurück-Taste der Maus gedrückt ist und 500 ms danach; er schluckt genau dieses Zurück. Die Zurück-Geste
+  der Uhr findet zu jeder anderen Zeit keinen und wirkt wie bisher. Das Rad scrollt die Seite um 48 Pixel je Raste, über einer Web-Seite gesammelt als
+  `imageScroll` (wie der Zeiger über den Rand, 120 ms).
+- **Tastatur:** `AppHost.key` setzt die Tasten um wie in 02 §7. Für Apps mit `Sensor.KEYS` wird jede Taste ein
+  `AppEvent.Key`, außer Esc, Alt+← und `BrowserBack` (zurück) und Menütaste und F10 (App-Menü) und solange eine
+  Seite des Hosts darüber liegt. Eine gehaltene Taste meldet Android wiederholt (`repeat`): Pfeile, Tab,
+  Leertaste und Bild↑/↓ wiederholen sich, zurück, App-Menü und Klick (Enter; auf Seiten mit Gesten auch
+  Leertaste und Play/Pause) gelten einmal je Druck, so flackert das Menü nicht, und Zurück läuft nicht aus
+  der App hinaus. Ein Abo gilt für die ganze Sitzung; eine App abonniert es deshalb nur auf
+  den Seiten, die die Tasten selbst brauchen (Browser: die Web-Seite, YouTube: das Video), und bestellt es
+  wieder ab, damit auf den Listen die Pfeile den Fokus bewegen.
+- **Belegung:** Ohne Auswahl tippt Android mit `Generic.kcm` (US). Wear OS hat keine Auswahl dafür. Gleicht die
+  Zeichentabelle der Tastatur `Generic` (Probe auf Y, Z, `[`, `;` und weitere), nimmt `HardwareInput` die
+  gewählte eigene Belegung nach Scan-Code; sonst die der Tastatur. Akzent-Tasten (^ ´ ` ~ ¨) warten auf den
+  nächsten Buchstaben (Unicode-Komposition, NFC); Leerzeichen oder die Taste zweimal ergibt das Zeichen selbst.
+- **Text:** Ist eine Tastatur verbunden (`HostPorts.hardwareKeyboard`), zeigt `askText` die Frage als Seite
+  des Hosts auf der Brille (`host.text`): Frage, fett die Zeile mit Cursor „|“, die Vorschläge als Knöpfe,
+  „Auf der Uhr eingeben“ und eine Zeile Hilfe. Die Tasten bearbeiten die Zeile (höchstens 500 Zeichen), Enter
+  antwortet mit `AppEvent.TextInput`, Esc oder Zurück mit `null`. Nichts ist anfangs fokussiert, damit Enter
+  die Zeile schickt und nicht einen Vorschlag; Zeiger und Bügel erreichen die Knöpfe wie sonst. Eine noch
+  gehaltene Taste (Enter auf dem Knopf, der gefragt hat) antwortet nicht. Stand die vorige Frage noch auf der
+  Uhr, nimmt die Uhr ihre Eingabe zurück.
+  `AppContext.keyboard` sagt Apps, ob eine Tastatur da ist (der Browser fragt dann bei einem Feld nicht).
+- **Web-Seiten:** `WebAction.Key` und `WebAction.Insert` gehen an das Inhalts-Skript (`key`, `insert`): Es meldet
+  der Seite `keydown`/`keyup` und tut, was ein Browser täte, wenn die Seite die Taste nicht selbst nimmt
+  (ins Feld schreiben mit `execCommand("insertText")` oder `setRangeText`, löschen, Cursor bewegen, Formular
+  schicken, mit Tab zum nächsten Link oder Feld, Enter folgt dem Link). GeckoViews `SessionTextInput` bekommt
+  die Tasten nur, wo kein Skript läuft (Fehlerseiten): Ob es ohne sichtbare Ansicht tippt, lässt sich ohne Uhr
+  nicht prüfen, das Skript schon.
+- **Koppeln:** Wear OS zeigt Tastaturen und Mäuse in seiner Bluetooth-Liste nicht. `HidPairing` sucht deshalb
+  selbst (15 s, mit den Bluetooth-Rechten, die die App schon hat) und ruft `createBond()`. Verbinden muss danach
+  Android selbst, über seinen HID-Host; ein Wear OS ohne diesen Teil nimmt das Gerät nicht als Eingabe. Eine App
+  kann das nicht nachholen: HID über Bluetooth Classic ist nur für das System, der GATT-HID-Dienst ist für Apps
+  gesperrt.
+- **Grenzen:** Nur mit G2 Watch im Vordergrund und eingeschaltetem Bildschirm (der bleibt an, solange die
+  Brille verbunden ist). Die Zurück-Taste mancher Tastaturen (Browser-Zurück) gibt Android ab Version 16
+  vermutlich gar nicht der App, sondern dem System wie die Zurück-Geste der Uhr; vorher kündigt sie nichts
+  an, das die App abfangen könnte. Esc und Alt+← gehen immer. Das Scrollen der Magic Mouse braucht den Linux-Treiber `hid-magicmouse`; ob der Kern
+  der Uhr ihn hat, ist offen (im GKI-Kern der Handys ist er drin).
+- **Auf der Uhr zu prüfen:** `adb shell dumpsys bluetooth_manager | grep -i -A3 hid` (HID-Host an?), Koppeln
+  aus der App, `adb shell dumpsys input` nach dem Koppeln (Gerät `external`, Quellen, Belegung), Scrollen der
+  Magic Mouse, Festhalten des Zeigers, ob die Zurück-Taste der Maus G2 Watch vorne lässt, ob eine Taste die
+  Uhr zur App weckt, GeckoViews Tastenweg.
+- **Tests:** `HardwareInputTest`, `HardwareEventsTest` (auch: Touchpad, Krone und Knöpfe der Uhr bleiben bei
+  der Uhr), `MouseCaptureTest`, `MouseBackGuardTest`, `AppHostKeysTest`, Fälle in `InputRouterTest`,
+  `PointerTest`, `DesktopControllerTest`, `AppHostWebTest`, `AppJsonTest`, `WebBridgeTest`, `SettingsScreenTest`,
+  `TouchpadScreenTest`, `BrowserAppTest`, `YouTubeAppTest`; Bilder `uhr-tastatur-maus.png`,
+  `uhr-touchpad-tastatur.png`, `apps-texteingabe.png`.
+
 ## 6. Sensoren, Mikrofon, Summer (M6)
 
 Alles liegt in `GlassesSessionCore`. Der AppHost schaltet es nur ein, solange eine sichtbare App es
@@ -337,7 +434,7 @@ abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).
 - `AppHostTest` mit `FakeScheduler`: `start` gefolgt von `visible`, Zurück auf der ersten Seite schließt,
   500-ms-Grenze beendet, Timer ruhen im Hintergrund ohne `BACKGROUND`, Berechtigung verweigert → Fehler statt
   Stille, App-Menü „Apps“ verdeckt die App und der Starter holt sie zurück.
-- `InputRouterTest`: jede Zeile der Tabelle §5.1, doppelte Ring-Ereignisse.
+- `InputRouterTest`: jede Zeile der Tabelle §5.1, doppelte Ring-Ereignisse; Tastatur und Maus (§5.4).
 - `FlashingBoundaryTest` bleibt grün: Apps berühren den Firmware-Pfad nicht.
 
 ## 8. Warum Kotlin auf der Uhr und kein Skript-Interpreter?
@@ -381,7 +478,7 @@ Hardware-Decoder, Verkleinern die GPU der Uhr; die App gibt nur Befehle und blei
 ```
 YouTubeApp (G2App) ── video(block, Play) ──────────▶ AppHost ──▶ VideoEngine (HostPorts.video)
      ◀── AppEvent.Video (Zustand, Position) ────────┤             AndroidVideoEngine
-     ◀── Bild im image-Baustein (≤ alle 200 ms) ────┘              ├─ NewPipeCatalog: Suche; Video-Seite → Streams
+     ◀── Bild im image-Baustein (≤ alle 66 ms) ─────┘              ├─ NewPipeCatalog: Suche; Video-Seite → Streams
                                                                    ├─ StreamChooser: kleinste H.264-Fassung, die reicht
                                                                    ├─ ExoVideoPlayer (Media3, Thread „G2Watch-video“):
                                                                    │    Hardware-Decoder → SurfaceTexture → GlFrameGrabber
@@ -394,6 +491,7 @@ YouTubeApp (G2App) ── video(block, Play) ──────────▶ A
 | `Video.kt` | öffentliche Typen: `VideoProfile`, `VideoAction`, `VideoState`, `VideoItem`, `VideoSearchResult` |
 | `video/VideoEngine.kt` | Anschluss des Hosts: `search`, `open(VideoRequest, VideoListener) → VideoPlayer` (pause, resume, seekTo, setProfile, release) |
 | `video/FrameConverter.kt` | Helligkeitsraster → Raster des Bild-Bausteins (reines Kotlin, getestet) |
+| `video/FrameBeat.kt` | welche dekodierten Bilder der Player im Takt des Profils nimmt (reines Kotlin, getestet) |
 | `video/TestPattern.kt` | Testvideo der Uhr (`test:muster`, 16:9, 1 min) und sein Player |
 | `video/StreamChooser.kt` | welche Fassung (reines Kotlin, getestet) |
 | `video/NewPipeCatalog.kt` | YouTube-Suche und Stream-Adressen mit NewPipeExtractor (GPL-3.0) |
@@ -407,33 +505,68 @@ YouTubeApp (G2App) ── video(block, Play) ──────────▶ A
    Abtastungen), seitenrichtig mit schwarzen Rändern, und rechnet es in Helligkeit um. Zurückgelesen werden
    nur ein paar zehn KB statt eines ganzen Videobilds. Ein `ImageReader` wäre einfacher, lässt sich aber von
    vielen Qualcomm-Decodern nicht füttern (eigene YUV-Formate).
-2. **Kontrast** zwischen 2. und 98. Perzentil strecken (höchstens auf 72 Stufen Spanne), über die Zeit
-   geglättet (35 % je Bild), Mitteltöne leicht angehoben (Gamma 0,85): die dunkle Hälfte eines Bilds ist auf
-   dem Glas durchsichtig.
-3. Auf die Graustufen des Profils runden; ein Punkt wechselt seine Stufe erst, wenn der Wert **13/16 einer
-   Stufe** davon weg ist. Ruhige Bildteile bleiben so Byte für Byte gleich – das spart Funk, weil Faceclaws
-   Kern nur Änderungen schickt und zlib Wiederholungen findet.
-4. Jeder Rasterpunkt wird ein Quadrat aus `cell` × `cell` Pixeln.
+2. **Kontrast** zwischen 2. und 98. Perzentil strecken (höchstens auf 72 Stufen Spanne). Geglättet wird je
+   Sekunde, nicht je Bild (75 % des Wegs in einer Sekunde, bei 5 wie bei 15 Bildern pro Sekunde), mit einer
+   **Totzone** von 4 Helligkeitswerten (von 255): Rauschen in einer ruhigen Szene verschiebt die Kurve nicht,
+   sonst kippten Punkte nahe einer Schwelle von Bild zu Bild.
+3. **Tonkurve** `GAMMA = 1,4` (Stufe = gestreckte Helligkeit hoch 1,4): Videos sind für Bildschirme mit
+   Gamma ≈ 2,2 kodiert, die Brille gibt aber Licht fast linear ab (Stufe 1 ≈ 1/15 der vollen Helligkeit,
+   `firmware-uebergabe/wissen/02-display.md` §1). Unverändert wirken Mitteltöne zu hell, das Bild vor dem
+   durchsichtigen Hintergrund milchig; 1,4 nimmt sie ein Stück zurück, ein volles 2,2 ließe die dunkle Hälfte
+   im Hintergrund verschwinden. Bis v0.8 hob Gamma 0,85 die Mitteltöne sogar an. Auf der Brille nicht
+   verglichen.
+4. Auf die 16 Graustufen runden; ein Punkt wechselt seine Stufe erst, wenn der Wert **10/16 einer Stufe**
+   davon weg ist (bis v0.8 13/16; 8/16 wäre einfaches Runden). Ruhige Bildteile bleiben so Byte für Byte gleich
+   – das spart Funk, weil Faceclaws Kern nur Änderungen schickt und zlib Wiederholungen findet –, und langsame
+   Bewegungen kommen früher an als mit 13/16. Preis: Es hält weniger Rauschen still. In ruhigen Szenen der
+   erfundenen Videos lässt Rauschen von ±2 Helligkeitswerten 1–3 % der Punkte je Bild kippen, ±1 keine; in
+   einer flauen Szene, die auf 72 Stufen gestreckt wird, kippen schon bei ±1 etwa 4 %, bei ±2 etwa 16 %
+   (12/16: keine und 7 %, 13/16: keine und 4 %; simuliert). Flimmert das auf der Brille, ist 12/16 der
+   nächste Schritt.
+5. Jeder Rasterpunkt wird ein Quadrat aus `cell` × `cell` Pixeln.
 
-**Profile** (Budget: `VideoBudgetTest` rechnet mit Faceclaws eigener Kodierung – geändertes Rechteck, RLE
-Modus 3, zlib-Strom des Transports – für drei erfundene Videos; Bild-Baustein 416 × 234):
+**Profile.** Ein Profil legt das Raster fest und wie oft die Uhr ein Bild macht; wie viele davon ankommen,
+bestimmt die Verbindung zur Brille. Faceclaws Kern hält nur das neueste noch nicht geschickte Bild und plant
+es erst, wenn die Verbindung frei ist, gegen das zuletzt geschickte – ein schnelleres Profil staut also
+nichts, es kostet höchstens Rechenzeit auf der Uhr für Bilder, die verworfen werden. Gewählt mit
+`VideoBudgetTest`: erfundene Videos im Bild-Baustein der YouTube-App (512 × 288 bei x 64, y 96), durch
+Faceclaws echten Weg zur Custom-Firmware (`ScenePlanner`: je geändertem 32-Zeilen-Band ein RLE-Rechteck, dann
+PRESENT; jeder Befehl durch `CfwTransport` mit dem zlib-Strom und Paketen für MTU 244), über eine Verbindung mit
+41 KiB/s, die während eines Bilds das wartende durch das neueste ersetzt (`GlassesLink.kt` im Test):
 
-| Profil | Bild alle | Rasterpunkt | Stufen | Raster | Landschaft / viel Detail / Gespräch |
-|---|---|---|---|---|---|
-| `stable` Stabil | 1000 ms | 2 × 2 | 16 | 208 × 117 | 3,3 / 12,5 / 1,3 KB/s |
-| `balanced` Ausgewogen | 500 ms | 3 × 3 | 16 | 138 × 78 | 3,6 / 11,8 / 1,4 KB/s |
-| `fast` Schnell | 250 ms | 4 × 4 | 8 | 104 × 58 | 3,3 / 10,9 / 1,6 KB/s |
+| Profil | Bild alle | Rasterpunkt | Stufen | Raster | Landschaft | Gespräch | viel Detail |
+|---|---|---|---|---|---|---|---|
+| `stable` Stabil | 200 ms | 2 × 2 | 16 | 256 × 144 | 5/s, 3,1 KB, 37 % | 5/s, 0,9 KB, 11 % | 2,2/s |
+| `balanced` Ausgewogen | 100 ms | 2 × 2 | 16 | 256 × 144 | 10/s, 2,9 KB, 68 % | 10/s, 0,8 KB, 19 % | 2,2/s |
+| `fast` Schnell | 66 ms | 3 × 3 | 16 | 170 × 96 | 15/s, 1,9 KB, 69 % | 15/s, 0,6 KB, 23 % | 4,4/s |
 
-Der Test verlangt höchstens 16 KiB/s (≈ 40 % der ≈ 41 KiB/s, 01 §1) und für gewöhnliche Szenen 5 KiB/s.
-Ordered Dithering wurde verworfen: Es macht aus jeder Fläche abwechselnde Pixel und kostet ein Vielfaches.
+(Bilder pro Sekunde, die ankommen; Bytes je Bild auf der Leitung; Anteil der Verbindung.) Der Test verlangt,
+dass gewöhnliche Szenen jedes Bild jedes Profils durchbringen, Ausgewogen mindestens 8 pro Sekunde, Stabil
+höchstens die halbe Verbindung, und dass viel Detail mindestens 2 (Schnell: 4) pro Sekunde bewegt. Bis v0.8
+waren es 1, 2 und 4 Bilder pro Sekunde mit 2 × 2, 3 × 3 und 4 × 4 (8 Stufen) bei 416 × 234 – höchstens ein
+Drittel der Verbindung, und der Host zeichnete ohnehin nur alle 200 ms. Die YouTube-App zeigt das Bild seit
+v0.9.0 randlos in 512 × 288 statt 416 × 234 mit Statuszeile; der Zustand kommt als Hinweis (`toast`) über das
+Bild, der Titel mit dem ersten Bild. Ein Hinweis bleibt bis zu 10 s, auch über einer anderen Seite: Beim Zurück
+zur Liste ersetzt ihn darum kurz „Video beendet“ (sonst stünde dort noch „Pause … – tippen: weiter“). Der Test zeigt dafür bei gewöhnlichen Szenen weiter 10 Bilder pro Sekunde, nur viel Detail fällt von 3
+auf 2.
+
+**Dithering:** keines. Fehlerverteilung (Floyd–Steinberg) lässt ruhige Bildteile flimmern: Im Gespräch
+kippen in der Simulation 17–20 % der Punkte je Bild, jedes Bild kostet 5–15 KB. Ein festes Bayer-Muster
+4 × 4 kostet **kein Vielfaches**, wie hier früher stand, sondern je nach Szene etwa ein Fünftel bis ein
+Drittel mehr (mit halber Stärke 10–15 %); es glättet Verläufe wie den Himmel, legt aber ein feines Gitter
+über jede Fläche. Im Vergleich der simulierten Bilder nicht klar besser, darum aus.
 
 **Wiedergabe** (`ExoVideoPlayer`):
 
 - Video-Seiten fragt `NewPipeCatalog` nach Streams; `StreamChooser` nimmt die **kleinste H.264-Fassung mit
-  mindestens so vielen Zeilen wie das Raster** (meist 144p), sonst VP9, nie AV1 und nie über 480p; mit Ton die
+  mindestens doppelt so vielen Zeilen wie das Raster, mindestens 240p** (YouTube-App: 360p, in Schnell 240p;
+  bis v0.8 meist 144p, für das feinere Raster zu verwaschen), sonst VP9, nie AV1 und nie über 480p; mit Ton die
   kleinste AAC-Spur der Originalsprache ab 48 kbit/s. Reihenfolge der Versuche: Bild(+Ton) → HLS → Datei mit
   Ton. Schlägt ein Stream fehl (z. B. HTTP 403), kommt der nächste; sind alle durch, wird die Seite einmal neu
-  aufgelöst (Adressen verfallen). Live-Videos nur über HLS.
+  aufgelöst (Adressen verfallen). Live-Videos nur über HLS. Ein HLS-Stream bietet mehrere Fassungen; davon
+  nimmt ExoPlayer nach derselben Regel die mit der kleinsten Bitrate und mindestens so vielen Zeilen
+  (`ExoVideoPlayer.trackRules`; bis v0.8 einfach die kleinste, also 144p). Die Fassung gilt für das Profil
+  beim Start; wer während des Videos das Profil wechselt, behält sie.
 - YouTubes Videoserver bekommen, was NewPipe schickt: den User-Agent des Clients, der die Adresse bekam
   (Android, iOS, visionOS), bei Web-Adressen POST und Origin/Referer, und die Bytes stückweise als
   `range=a-b` mit Zähler `rn` (je 1 MiB).
@@ -445,26 +578,41 @@ Ordered Dithering wurde verworfen: Es macht aus jeder Fläche abwechselnde Pixel
 - Ein Sprung während des Ladens gilt ab dem Start; ein Live-Video, das länger pausiert war, als sein Fenster
   reicht, geht an der Live-Kante weiter.
 - Puffer 15–30 s, Ton nur mit `sound` (sonst ist die Tonspur abgeschaltet), Wake-Lock fürs Netz.
+- Vom Decoder nimmt der Player im Takt des Profils das erste Bild ab jedem Taktschlag (`FrameBeat`): So
+  bleiben es 10 pro Sekunde auch bei Videos mit 24 oder 25 Bildern pro Sekunde, nicht 8. Nach einer Pause
+  beginnt der Takt neu.
+- Nicht gebaut: den Takt an die Bestätigung der Brille koppeln (`onFrameFinished` des Kerns). Das spart
+  Rechenzeit für Bilder, die der Kern verwirft, braucht aber ein Signal durch `GlassesConnection`,
+  `CoreDisplay`, `DesktopController` und den Host. Zuerst auf der Uhr messen, was ein Bild kostet
+  (`FrameTimingsCore`: composite, pack-4bpp, compress-and-plan).
 
 **Im Host:** `video(block, …)` verlangt einen `image`-Baustein; `https://` braucht `network`, `test:` nicht.
 Ein neues Video beginnt schwarz und ersetzt ein altes im selben Baustein. Bilder gehen in den Baustein wie
-`setRaster` und werden höchstens alle 200 ms gezeichnet. Das Video **pausiert**, solange die App verdeckt ist
-oder die Brille weg ist, und läuft danach von selbst weiter – außer die App hat selbst pausiert. Ein Fehler
-beendet das Video (Eintrag im Protokoll, Ereignis `error`); mit der App endet es immer.
+`setRaster`. Ein neues Videobild zeichnet der Host nach höchstens **66 ms** (etwa 15 pro Sekunde), mit allen
+Befehlen bis dahin; Befehle allein weiter höchstens alle 200 ms (02 §6.2), ebenso Videobilder, solange das
+App-Menü oder ein Hinweis der Uhr das Bild verdeckt. Das Video **pausiert**, solange die
+App verdeckt ist oder die Brille weg ist, und läuft danach von selbst weiter – außer die App hat selbst
+pausiert. Ein Fehler beendet das Video (Eintrag im Protokoll, Ereignis `error`); mit der App endet es immer.
 
 **Weitere Änderungen am Host in v0.5.0:** Seiten können ihre Eingabeart wählen (`Page.input`, 02 §4.1).
 `askText` zeigt auf der Brille „Bitte auf der Uhr eingeben“ (bis zur Antwort), die Uhr vibriert; eine neue
 Frage beantwortet die offene mit `null`; endet die App, nimmt die Uhr die Frage zurück. Die Eingabe erscheint,
-sobald die G2-Watch-App im Vordergrund ist (während der Verbindung hält sie den Bildschirm an). Bekommt die
+sobald die G2-Watch-App im Vordergrund ist (während der Verbindung hält sie den Bildschirm an). Seit v0.9.0
+steht die Frage bei verbundener Bluetooth-Tastatur stattdessen auf der Brille (§5.4). Bekommt die
 angezeigte Seite neuen Inhalt und ist nichts fokussiert, fokussiert der Host den ersten sichtbaren Knopf –
 so spielt ein Tipp am Bügel den ersten Treffer ab, sobald die Liste da ist.
 
-**Tests (ohne Hardware):** `AppHostVideoTest`, `YouTubeAppTest`, `FrameConverterTest`, `StreamChooserTest`,
-`TestPatternPlayerTest`, `VideoBudgetTest`, Bilder `apps-youtube-*.png` und `video-profile.png`. Suche und
-Auflösen sind einmal mit echtem Netz gegen YouTube probiert (20 Treffer; 144p H.264 gewählt), nicht in der CI.
+**Tests (ohne Hardware):** `AppHostVideoTest` (auch: Bilder pro Sekunde bei 10 und 30 Videobildern),
+`YouTubeAppTest`, `FrameConverterTest` (auch: Glättung je Sekunde, Totzone), `FrameBeatTest`,
+`StreamChooserTest`, `TrackRulesTest` (welche HLS-Fassung), `TestPatternPlayerTest`, `VideoBudgetTest`, Bilder `apps-youtube-*.png` und
+`video-profile.png`. Suche und Auflösen sind einmal mit echtem Netz gegen YouTube probiert (20 Treffer; nach
+der damaligen Regel 144p H.264 gewählt), nicht in der CI.
 
 **Nicht erprobt:** alles auf der echten Uhr – GPU-Abgriff, Media3 mit dem Decoder der Pixel Watch 5,
-WLAN/LTE-Anforderung, Tastatur/Sprache, Akku. Ob YouTube die Videos an die Uhr ausliefert, ist offen: In der
+WLAN/LTE-Anforderung, Tastatur/Sprache, Akku. Offen ist auch, ob die Verbindung zur Brille mit Firmware 2.3.0
+wirklich ≈ 41 KiB/s trägt (gemessen hat Faceclaw auf 2.2.9), welche MTU die Brille gewährt, ob Brille und Uhr
+10–15 Bilder pro Sekunde schaffen, und wie Tonkurve und Raster auf dem grünen Glas wirken. Zuerst prüfen mit
+„Testbild“ und der Übertragungsstatistik der Uhr. Ob YouTube die Videos an die Uhr ausliefert, ist offen: In der
 Testumgebung antworteten YouTubes Videoserver mit 403, weil sie die Adresse an die IP binden und die
 Umgebung YouTube und die Videoserver über verschiedene Adressen erreicht.
 

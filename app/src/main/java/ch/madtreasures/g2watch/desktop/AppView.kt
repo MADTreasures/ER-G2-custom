@@ -61,4 +61,7 @@ interface AppScreen {
 
     /** A double tap on a temple while no app is open: closes the open window. */
     fun back()
+
+    /** An arrow key of a Bluetooth keyboard while no app is open: moves the pointer by glasses pixels. */
+    fun movePointer(dx: Float, dy: Float)
 }

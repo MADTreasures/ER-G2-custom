@@ -41,6 +41,9 @@ class FakeScreen : AppScreen {
     var desktopClicks = 0
     var desktopBacks = 0
 
+    /** Pointer moves of the arrow keys on the bare desktop. */
+    val pointerMoves = mutableListOf<Pair<Float, Float>>()
+
     val last: AppView get() = views.last()
 
     override fun showApp(view: AppView) {
@@ -57,6 +60,10 @@ class FakeScreen : AppScreen {
 
     override fun back() {
         desktopBacks++
+    }
+
+    override fun movePointer(dx: Float, dy: Float) {
+        pointerMoves += Pair(dx, dy)
     }
 }
 
@@ -125,6 +132,9 @@ class FakePorts : HostPorts {
     override fun cancelText() {
         textCancels++
     }
+
+    /** A Bluetooth keyboard is connected. */
+    override var hardwareKeyboard = false
 
     override val video = FakeVideoEngine()
 
@@ -215,6 +225,14 @@ class FakeWebPage(val request: WebRequest, val listener: WebListener) : WebPage 
 
     override fun type(text: String, enter: Boolean) {
         calls += "type $text${if (enter) " enter" else ""}"
+    }
+
+    override fun key(key: String, shift: Boolean, ctrl: Boolean, alt: Boolean) {
+        calls += "key " + listOfNotNull("shift".takeIf { shift }, "ctrl".takeIf { ctrl }, "alt".takeIf { alt }, key).joinToString("+")
+    }
+
+    override fun insert(text: String) {
+        calls += "insert $text"
     }
 
     override fun setReader(on: Boolean) {

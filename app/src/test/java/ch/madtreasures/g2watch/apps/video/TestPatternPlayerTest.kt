@@ -36,8 +36,8 @@ class TestPatternPlayerTest {
         assertEquals(VideoState.PLAYING, states.last().first)
         assertEquals(1, frames.size)
         scheduler.advanceBy(2_000)
-        // One picture every 500 ms.
-        assertEquals(5, frames.size)
+        // One picture every 100 ms.
+        assertEquals(21, frames.size)
         assertTrue(frames.all { it.width == 416 && it.height == 234 })
         assertEquals(listOf(0L, 1_000L, 2_000L), states.filter { it.first == VideoState.PLAYING }.map { it.second })
     }

@@ -50,6 +50,24 @@ sealed interface WebAction {
         override val json get() = "type"
     }
 
+    /**
+     * Presses [key] on the page, as a keyboard would: a [Keys] name such as "Enter", "Backspace" or
+     * "Tab", or one character. In the field with the cursor it edits ("Backspace" deletes, the arrows
+     * move the cursor, "Enter" sends the form); elsewhere "Tab" moves to the next link or field and
+     * "Enter" follows the link that has it. Since interface version 3.
+     */
+    data class Key(val key: String, val shift: Boolean = false, val ctrl: Boolean = false, val alt: Boolean = false) : WebAction {
+        override val json get() = "key"
+    }
+
+    /**
+     * Types [text] at the cursor of the field that has it ([AppEvent.Web.field]), like a keyboard; unlike
+     * [Type] it keeps what the field holds. Since interface version 3.
+     */
+    data class Insert(val text: String) : WebAction {
+        override val json get() = "insert"
+    }
+
     /** Reading mode on or off, for this page and the following ones. */
     data class Reader(val on: Boolean) : WebAction {
         override val json get() = "reader"

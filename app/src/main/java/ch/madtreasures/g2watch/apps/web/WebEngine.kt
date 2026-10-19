@@ -60,6 +60,12 @@ interface WebPage {
     /** Writes [text] into the field with the cursor; with [enter] then presses Enter. */
     fun type(text: String, enter: Boolean)
 
+    /** Presses [key] (a web key name or one character) on the page, in the field with the cursor if any. */
+    fun key(key: String, shift: Boolean, ctrl: Boolean, alt: Boolean)
+
+    /** Types [text] at the cursor of the field that has it, keeping what it holds. */
+    fun insert(text: String)
+
     fun setReader(on: Boolean)
 
     fun setContrast(contrast: WebContrast)
@@ -104,6 +110,10 @@ interface WebEngine {
         override fun tap(x: Int, y: Int) = Unit
 
         override fun type(text: String, enter: Boolean) = Unit
+
+        override fun key(key: String, shift: Boolean, ctrl: Boolean, alt: Boolean) = Unit
+
+        override fun insert(text: String) = Unit
 
         override fun setReader(on: Boolean) = Unit
 

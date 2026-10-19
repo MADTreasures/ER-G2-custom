@@ -104,6 +104,12 @@ enum class Sensor(val json: String, val permission: Permission?) {
     COMPASS("compass", Permission.COMPASS),
     LOCATION("location", Permission.LOCATION),
     GESTURES("gestures", null),
+
+    /**
+     * Keys of a Bluetooth keyboard as [AppEvent.Key] instead of the host's own use of them (focus,
+     * click, scrolling, 02 §7). Since interface version 3.
+     */
+    KEYS("keys", null),
     ;
 
     companion object {

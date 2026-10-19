@@ -6,17 +6,19 @@ import ch.madtreasures.g2watch.apps.FakeAppContext
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.Keys
+import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.VideoAction
 import ch.madtreasures.g2watch.apps.VideoItem
 import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
 import ch.madtreasures.g2watch.apps.VideoState
 import ch.madtreasures.youtube.YouTubeApp.Companion.PICTURE
-import ch.madtreasures.youtube.YouTubeApp.Companion.STATUS
 import ch.madtreasures.youtube.YouTubeApp.Companion.VIDEO
 import ch.madtreasures.g2watch.apps.textOf
 import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -55,7 +57,8 @@ class YouTubeAppTest {
         send(AppEvent.Video(PICTURE, state, positionMs, cats[index].durationS * 1000))
     }
 
-    private fun status() = ui.page(VIDEO).textOf(STATUS)
+    /** The latest note over the video. */
+    private fun note() = ui.toasts.last()
 
     @Test
     fun `the start page offers search, history, profile, sound and the test picture`() {
@@ -121,11 +124,13 @@ class YouTubeAppTest {
         assertEquals(VIDEO, page.id)
         assertEquals(false, page.statusBar)
         assertEquals(InputMode.GESTURES, page.input)
+        // The picture alone, as large as the screen allows; the title comes as a note over it.
+        assertEquals(listOf(PICTURE), page.blocks.map { it.id })
         val image = page.block(PICTURE) as Block.Image
-        assertEquals(YouTubeApp.VIDEO_W, image.w)
-        assertEquals(YouTubeApp.VIDEO_H, image.h)
+        assertEquals(Pair(512, 288), Pair(image.w, image.h))
+        assertTrue(image.bleed)
         assertEquals(VideoAction.Play(cats[0].url, VideoProfile.BALANCED, sound = false), ui.videos.first { it.second is VideoAction.Play }.second)
-        assertEquals("Katzen im Schnee", status())
+        assertEquals("Katzen im Schnee", note())
     }
 
     @Test
@@ -135,7 +140,7 @@ class YouTubeAppTest {
         send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RIGHT))
         assertEquals(VideoAction.Pause, ui.lastVideo(PICTURE))
         send(AppEvent.Video(PICTURE, VideoState.PAUSED, 31_000, 296_000))
-        assertEquals("Pause 0:31 / 4:56 – tippen: weiter", status())
+        assertEquals("Pause 0:31 / 4:56 – tippen: weiter", note())
         send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RING))
         assertEquals(VideoAction.Resume, ui.lastVideo(PICTURE))
 
@@ -149,7 +154,7 @@ class YouTubeAppTest {
         send(AppEvent.Gesture(GestureKind.LONG_PRESS, InputSource.RIGHT))
         assertEquals(VideoAction.Profile(VideoProfile.FAST), ui.lastVideo(PICTURE))
         assertEquals("Profil: Schnell", ui.page(YouTubeApp.START).textOf(YouTubeApp.PROFILE))
-        assertEquals("Schnell: 4 Bilder pro Sekunde", ui.toasts.last())
+        assertEquals("Schnell: bis 15 Bilder pro Sekunde, gröber", ui.toasts.last())
     }
 
     @Test
@@ -177,23 +182,47 @@ class YouTubeAppTest {
     }
 
     @Test
-    fun `the status line follows the video`() {
+    fun `notes over the picture follow the video`() {
         started()
         playHit(0, state = VideoState.LOADING)
-        assertEquals("Lädt … Tippen = Pause, Wischen = ±10 s", status())
+        assertEquals("Lädt … Tippen = Pause, Wischen = ±10 s", note())
+        val notes = ui.toasts.size
+        send(AppEvent.Video(PICTURE, VideoState.LOADING, 0, 296_000))
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 0, 296_000))
+        assertEquals("Katzen im Schnee", note())
+        // The position every second is no news.
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 1_000, 296_000))
+        assertEquals(notes + 1, ui.toasts.size)
         send(AppEvent.Video(PICTURE, VideoState.BUFFERING, 65_000, 296_000))
-        assertEquals("Lädt nach … 1:05 / 4:56", status())
+        assertEquals("Lädt nach … 1:05 / 4:56", note())
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 65_000, 296_000))
+        assertEquals("Weiter · 1:05 / 4:56", note())
         send(AppEvent.Video(PICTURE, VideoState.ENDED, 296_000, 296_000))
-        assertEquals("Ende – tippen: nochmal", status())
+        assertEquals("Ende – tippen: nochmal", note())
         send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RIGHT))
         assertEquals(VideoAction.Resume, ui.lastVideo(PICTURE))
         send(AppEvent.Video(PICTURE, VideoState.ERROR, 0, 0, "YouTube lässt das Video nicht laden (HTTP 403)"))
-        assertEquals("YouTube lässt das Video nicht laden (HTTP 403)", status())
-        assertEquals("Video geht nicht", ui.toasts.last())
+        assertEquals("YouTube lässt das Video nicht laden (HTTP 403)", note())
         // After an error a tap tries again from the start.
         val plays = ui.videos.count { it.second is VideoAction.Play }
         send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RIGHT))
         assertEquals(plays + 1, ui.videos.count { it.second is VideoAction.Play })
+    }
+
+    @Test
+    fun `the title comes with the first picture, also after buffering, and no note outlives the video`() {
+        started()
+        playHit(0, state = VideoState.LOADING)
+        // The player often shows its first picture while it still fills its buffer: still loading, not "again".
+        send(AppEvent.Video(PICTURE, VideoState.BUFFERING, 0, 296_000))
+        assertEquals("Lädt … Tippen = Pause, Wischen = ±10 s", note())
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 0, 296_000))
+        assertEquals("Katzen im Schnee", note())
+        // Paused, then back to the list: "tippen: weiter" must not stay over the list for seconds.
+        send(AppEvent.Gesture(GestureKind.CLICK, InputSource.RIGHT))
+        send(AppEvent.Video(PICTURE, VideoState.PAUSED, 31_000, 296_000))
+        send(AppEvent.Back(VIDEO))
+        assertEquals("Video beendet", note())
     }
 
     @Test
@@ -245,6 +274,9 @@ class YouTubeAppTest {
         send(AppEvent.Toggle(YouTubeApp.START, YouTubeApp.SOUND, true))
         assertEquals(VideoAction.Play(cats[0].url, VideoProfile.BALANCED, sound = true, startMs = 42_000), ui.lastVideo(PICTURE))
         assertEquals("Ton aus", ui.menu.last().text)
+        // The new start says nothing over the note.
+        send(AppEvent.Video(PICTURE, VideoState.LOADING, 42_000, 296_000))
+        assertEquals("Ton auf der Uhr an", note())
         send(AppEvent.Menu(YouTubeApp.MENU_SOUND))
         assertEquals(VideoAction.Play(cats[0].url, VideoProfile.BALANCED, sound = false, startMs = 42_000), ui.lastVideo(PICTURE))
     }
@@ -307,5 +339,84 @@ class YouTubeAppTest {
         assertEquals("Kanal", YouTubeApp.info(VideoItem("https://x", "t", "Kanal")))
         assertEquals("Ein sehr langer Titel…", YouTubeApp.shorten("Ein sehr langer Titel mit vielen Wörtern", 23))
         assertEquals("kurz", YouTubeApp.shorten("kurz", 23))
+    }
+
+    private fun key(key: String, text: String = "", shift: Boolean = false, ctrl: Boolean = false, repeat: Boolean = false) =
+        send(AppEvent.Key(key, text, shift = shift, ctrl = ctrl, repeat = repeat))
+
+    @Test
+    fun `held keys pause and switch once, the jumps go on`() {
+        started()
+        playHit(0, VideoState.PLAYING, 60_000)
+        ui.questionAnswered()
+        val before = ui.videos.size
+        key(Keys.SPACE, " ")
+        repeat(3) { key(Keys.SPACE, " ", repeat = true) }
+        key("m", "m")
+        repeat(3) { key("m", "m", repeat = true) }
+        assertEquals(listOf(VideoAction.Pause), ui.videos.drop(before).map { it.second }.filter { it !is VideoAction.Play })
+        assertEquals(1, ui.videos.drop(before).count { it.second is VideoAction.Play })
+        key("/", "/", repeat = true)
+        assertNull(ui.question?.takeIf { it.first == YouTubeApp.ASK_SEARCH })
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 60_000, 296_000))
+        key("l", "l")
+        key("l", "l", repeat = true)
+        assertEquals(VideoAction.Seek(80_000), ui.lastVideo(PICTURE))
+    }
+
+    @Test
+    fun `a keyboard works the video like on youtube com`() {
+        started()
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+        playHit(0, VideoState.PLAYING, 60_000)
+        assertTrue(Sensor.KEYS in ui.subscriptions)
+        key(Keys.SPACE, " ")
+        assertEquals(VideoAction.Pause, ui.lastVideo(PICTURE))
+        send(AppEvent.Video(PICTURE, VideoState.PAUSED, 60_000, 296_000))
+        key("k", "k")
+        assertEquals(VideoAction.Resume, ui.lastVideo(PICTURE))
+        send(AppEvent.Video(PICTURE, VideoState.PLAYING, 60_000, 296_000))
+        key(Keys.MEDIA_PLAY_PAUSE)
+        assertEquals(VideoAction.Pause, ui.lastVideo(PICTURE))
+        // Play while playing changes nothing.
+        val before = ui.videos.size
+        key(Keys.MEDIA_PLAY)
+        assertEquals(before, ui.videos.size)
+        key("l", "l")
+        assertEquals(VideoAction.Seek(70_000), ui.lastVideo(PICTURE))
+        key(Keys.ARROW_LEFT)
+        assertEquals(VideoAction.Seek(60_000), ui.lastVideo(PICTURE))
+        key("J", "J", shift = true)
+        assertEquals(VideoAction.Seek(50_000), ui.lastVideo(PICTURE))
+        key("p", "p")
+        assertTrue(ui.lastVideo(PICTURE) is VideoAction.Profile)
+        key("m", "m")
+        assertEquals(true, (ui.lastVideo(PICTURE) as VideoAction.Play).sound)
+        // Shortcuts with Ctrl are not YouTube's.
+        val now = ui.videos.size
+        key("k", ctrl = true)
+        assertEquals(now, ui.videos.size)
+        send(AppEvent.Back(VIDEO))
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+    }
+
+    @Test
+    fun `slash asks for a new search in the video, which ends it once entered`() {
+        started()
+        playHit(0)
+        ui.questionAnswered()
+        key("/", "/")
+        assertEquals(YouTubeApp.ASK_SEARCH, ui.question!!.first)
+        // Cancelled: the video goes on.
+        send(AppEvent.TextInput(YouTubeApp.ASK_SEARCH, null))
+        assertTrue(ui.lastVideo(PICTURE) is VideoAction.Play)
+        key("/", "/")
+        send(AppEvent.TextInput(YouTubeApp.ASK_SEARCH, "hunde"))
+        assertEquals(VideoAction.Stop, ui.lastVideo(PICTURE))
+        assertEquals("hunde", ui.searches.last().first)
+        // The hits take the video's place: back from them leads to the start.
+        assertEquals(listOf(YouTubeApp.START, YouTubeApp.RESULTS), ui.pages.historyIds)
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+        assertTrue("Neue Suche" in ui.menu.map { it.text })
     }
 }

@@ -121,6 +121,9 @@ class DesktopController(
         if (push != 0 && desktop.app != null) apps?.scrollBy(push)
     }
 
+    /** The arrow keys on the bare desktop (from the app host). */
+    override fun movePointer(dx: Float, dy: Float) = moveBy(dx, dy)
+
     fun centerPointer() = scheduler.post {
         pointer.center()
         afterPointerMoved()

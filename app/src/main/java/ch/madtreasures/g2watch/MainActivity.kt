@@ -1,6 +1,7 @@
 package ch.madtreasures.g2watch
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.RemoteInput
 import android.bluetooth.BluetoothAdapter
 import android.content.ActivityNotFoundException
@@ -9,20 +10,26 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.AppScaffold
@@ -35,16 +42,22 @@ import ch.madtreasures.g2watch.glasses.FirmwareInstall
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.Stage
+import ch.madtreasures.g2watch.input.KeyLayout
+import ch.madtreasures.g2watch.input.MouseBackGuard
+import ch.madtreasures.g2watch.input.MouseCapture
 import ch.madtreasures.g2watch.ui.AppsScreen
 import ch.madtreasures.g2watch.ui.DevicesScreen
 import ch.madtreasures.g2watch.ui.FirmwareConfirmScreen
 import ch.madtreasures.g2watch.ui.FirmwareProgressScreen
+import ch.madtreasures.g2watch.ui.InputDevicesScreen
 import ch.madtreasures.g2watch.ui.LogScreen
 import ch.madtreasures.g2watch.ui.PermissionScreen
 import ch.madtreasures.g2watch.ui.RisksScreen
 import ch.madtreasures.g2watch.ui.SettingsScreen
 import ch.madtreasures.g2watch.ui.StatusScreen
 import ch.madtreasures.g2watch.ui.TouchpadScreen
+import ch.madtreasures.g2watch.ui.inputHint
+import ch.madtreasures.g2watch.ui.inputSummary
 
 class MainActivity : ComponentActivity() {
 
@@ -63,8 +76,52 @@ class MainActivity : ComponentActivity() {
 
     private val app get() = application as G2WatchApp
 
+    /**
+     * A Bluetooth keyboard and mouse work the glasses only while the touchpad shows connected glasses;
+     * on every other screen they work the watch as usual (03 §5.4). Main thread.
+     */
+    private var hardwareActive = false
+
+    /** Pointer capture for the mouse on the touchpad. */
+    private val capture by lazy { MouseCapture { mouse(it, captured = true) } }
+
+    /** Swallows the one system back Android makes of the mouse's back button ([MouseBackGuard]). */
+    private val mouseBack: OnBackPressedCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() = backGuard.used()
+    }
+
+    private val backGuard: MouseBackGuard by lazy { MouseBackGuard(MainScheduler()) { mouseBack.isEnabled = it } }
+
+    /** A mouse event for the glasses; true if it was taken. */
+    private fun mouse(ev: MotionEvent, captured: Boolean): Boolean {
+        val taken = if (captured) app.hardware.captured(ev) else app.hardware.motion(ev)
+        if (taken) backGuard.buttons(ev.buttonState)
+        return taken
+    }
+
+    // androidx.core's ComponentActivity marks its dispatchKeyEvent as library-internal, so lint flags every
+    // override; overriding the Activity's key dispatch is still the way to see keys before Compose does.
+    @SuppressLint("RestrictedApi")
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        (hardwareActive && app.hardware.key(event)) || super.dispatchKeyEvent(event)
+
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean =
+        (hardwareActive && mouse(ev, captured = false)) || super.dispatchGenericMotionEvent(ev)
+
+    /** A mouse's button presses and drags arrive as touches; on the touchpad they are the mouse's, not a finger's. */
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean =
+        (hardwareActive && mouse(ev, captured = false)) || super.dispatchTouchEvent(ev)
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // Pointer capture ends with the focus (the watch's text input, a system dialog) and comes back with it.
+        capture.windowFocusChanged(hasFocus)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Added first, so every screen's own back handler comes before it; it is off unless armed.
+        onBackPressedDispatcher.addCallback(this, mouseBack)
         setContent {
             MaterialTheme {
                 AppScaffold(timeText = { TimeText() }) {
@@ -74,7 +131,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private enum class Screen { DEVICES, STATUS, TOUCHPAD, SETTINGS, LOG, FIRMWARE_CONFIRM, FIRMWARE_PROGRESS, RISKS, APPS }
+    private enum class Screen { DEVICES, STATUS, TOUCHPAD, SETTINGS, LOG, FIRMWARE_CONFIRM, FIRMWARE_PROGRESS, RISKS, APPS, INPUT }
 
     @Composable
     private fun Root() {
@@ -98,6 +155,11 @@ class MainActivity : ComponentActivity() {
         val waitingApps by packages.waiting.collectAsStateWithLifecycle()
         var protocolFileOn by remember { mutableStateOf(app.protocolFile.enabled) }
         val install by firmware.progress.collectAsStateWithLifecycle()
+        val inputDevices by app.inputDevices.devices.collectAsStateWithLifecycle()
+        val keyLayout by app.keyLayout.collectAsStateWithLifecycle()
+        val mouse = inputDevices.any { it.mouse }
+        val hardwareOn = screen == Screen.TOUCHPAD && state.stage == Stage.CONNECTED
+        SideEffect { hardwareActive = hardwareOn }
 
         val permissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -230,16 +292,23 @@ class MainActivity : ComponentActivity() {
                 onLog = { logReturn = Screen.STATUS; screen = Screen.LOG },
             )
 
-            Screen.TOUCHPAD -> TouchpadScreen(
-                glasses = state,
-                speed = speed,
-                onMove = { dx, dy -> desktop.moveBy(dx, dy) },
-                onSpeed = { desktop.setSpeed(it) },
-                onClick = { desktop.click() },
-                onOpenSettings = { settingsReturn = Screen.TOUCHPAD; screen = Screen.SETTINGS },
-                gestureMode = inputMode == InputMode.GESTURES,
-                onGesture = { app.input.onWatchGesture(it) },
-            )
+            Screen.TOUCHPAD -> {
+                // The mouse is captured by the view that has the focus: the touchpad's.
+                val view = LocalView.current
+                DisposableEffect(view) { onDispose { capture.clear(view) } }
+                LaunchedEffect(view, hardwareOn && mouse) { capture.set(view, hardwareOn && mouse) }
+                TouchpadScreen(
+                    glasses = state,
+                    speed = speed,
+                    onMove = { dx, dy -> desktop.moveBy(dx, dy) },
+                    onSpeed = { desktop.setSpeed(it) },
+                    onClick = { desktop.click() },
+                    onOpenSettings = { settingsReturn = Screen.TOUCHPAD; screen = Screen.SETTINGS },
+                    gestureMode = inputMode == InputMode.GESTURES,
+                    onGesture = { app.input.onWatchGesture(it) },
+                    inputHint = inputHint(inputDevices.any { it.keyboard }, mouse),
+                )
+            }
 
             Screen.SETTINGS -> {
                 BackHandler { screen = settingsReturn }
@@ -265,6 +334,33 @@ class MainActivity : ComponentActivity() {
                     onProtocolFile = { on -> app.setProtocolFile(on); protocolFileOn = on },
                     depth = depth,
                     onDepth = { app.setDepth(it) },
+                    inputSummary = inputSummary(inputDevices),
+                    onInput = { screen = Screen.INPUT },
+                )
+            }
+
+            Screen.INPUT -> {
+                val pairing = app.pairing
+                val pairingState by pairing.state.collectAsStateWithLifecycle()
+                DisposableEffect(Unit) { onDispose { pairing.stop() } }
+                BackHandler { screen = Screen.SETTINGS }
+                InputDevicesScreen(
+                    devices = inputDevices,
+                    layout = keyLayout,
+                    autoLayout = KeyLayout.forLocale(resources.configuration.locales[0]),
+                    pairing = pairingState,
+                    onLayout = { app.setKeyLayout(it) },
+                    // No search next to a firmware transfer: it would share the radio with it.
+                    onScan = { if (firmware.progress.value !is FirmwareInstall.Running) pairing.start() },
+                    onPair = { pairing.pair(it.address) },
+                    onBluetoothSettings = {
+                        try {
+                            startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
+                        } catch (e: ActivityNotFoundException) {
+                            app.glasses.note("Bluetooth-Einstellungen fehlen auf dieser Uhr")
+                        }
+                    },
+                    onBack = { screen = Screen.SETTINGS },
                 )
             }
 

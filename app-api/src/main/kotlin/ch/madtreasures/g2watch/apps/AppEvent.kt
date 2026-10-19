@@ -108,6 +108,74 @@ sealed interface AppEvent {
      * bottom edge. Comes for blocks that show a web page. Since interface version 2.
      */
     data class ImageScroll(val page: String, val block: String, val dy: Int) : AppEvent
+
+    /**
+     * A key of a Bluetooth keyboard on the watch, after subscribing to [Sensor.KEYS] (the host keeps
+     * Escape, Alt+Left and the keyboard's own back key for back, ContextMenu and F10 for the app menu).
+     * [key] is the name a web page sees as `KeyboardEvent.key`: a [Keys] name such as "Enter" or
+     * "ArrowUp", or the character the key stands for in the keyboard's layout, Shift and AltGr applied
+     * ("a", "A", "@", "é"; with Ctrl still "l" for Ctrl+L). [text] is what the key types into a field,
+     * empty for keys that type nothing and for shortcuts with Ctrl, Alt or Meta. [repeat] marks the
+     * repeats while a key is held; an app decides which keys may repeat (a toggle should not). Since
+     * interface version 3.
+     */
+    data class Key(
+        val key: String,
+        val text: String = "",
+        val shift: Boolean = false,
+        val ctrl: Boolean = false,
+        val alt: Boolean = false,
+        val meta: Boolean = false,
+        val repeat: Boolean = false,
+    ) : AppEvent
+}
+
+/**
+ * Names of keys that type nothing, for [AppEvent.Key] and [WebAction.Key]: the `KeyboardEvent.key`
+ * values of the web (W3C UI Events). A key that types something is named by its character. More names
+ * may come; an app ignores names it does not know. Since interface version 3.
+ */
+object Keys {
+    const val ENTER = "Enter"
+    const val ESCAPE = "Escape"
+    const val BACKSPACE = "Backspace"
+    const val DELETE = "Delete"
+    const val TAB = "Tab"
+
+    /** The space bar is named by its character, like any key that types. */
+    const val SPACE = " "
+    const val ARROW_UP = "ArrowUp"
+    const val ARROW_DOWN = "ArrowDown"
+    const val ARROW_LEFT = "ArrowLeft"
+    const val ARROW_RIGHT = "ArrowRight"
+    const val PAGE_UP = "PageUp"
+    const val PAGE_DOWN = "PageDown"
+    const val HOME = "Home"
+    const val END = "End"
+    const val INSERT = "Insert"
+    const val CONTEXT_MENU = "ContextMenu"
+    const val F1 = "F1"
+    const val F2 = "F2"
+    const val F3 = "F3"
+    const val F4 = "F4"
+    const val F5 = "F5"
+    const val F6 = "F6"
+    const val F7 = "F7"
+    const val F8 = "F8"
+    const val F9 = "F9"
+    const val F10 = "F10"
+    const val F11 = "F11"
+    const val F12 = "F12"
+    const val MEDIA_PLAY_PAUSE = "MediaPlayPause"
+    const val MEDIA_PLAY = "MediaPlay"
+    const val MEDIA_PAUSE = "MediaPause"
+    const val MEDIA_STOP = "MediaStop"
+    const val MEDIA_NEXT = "MediaTrackNext"
+    const val MEDIA_PREVIOUS = "MediaTrackPrevious"
+    const val MEDIA_FAST_FORWARD = "MediaFastForward"
+    const val MEDIA_REWIND = "MediaRewind"
+    const val BROWSER_BACK = "BrowserBack"
+    const val BROWSER_FORWARD = "BrowserForward"
 }
 
 /** Gesture names as in 02 §6.1. */

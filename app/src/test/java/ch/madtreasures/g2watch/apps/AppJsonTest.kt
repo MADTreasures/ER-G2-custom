@@ -42,6 +42,11 @@ class AppJsonTest {
         AppEvent.Web("seite", WebState.ERROR, "https://nirgends.example", message = "Adresse nicht gefunden"),
         AppEvent.ImageClick("p_seite", "seite", 120, 80),
         AppEvent.ImageScroll("p_seite", "seite", -195),
+        AppEvent.Key(Keys.ENTER),
+        AppEvent.Key("é", "é"),
+        AppEvent.Key("l", ctrl = true),
+        AppEvent.Key(Keys.ARROW_RIGHT, alt = true, repeat = true),
+        AppEvent.Key("A", "A", shift = true, meta = false),
     )
 
     @Test
@@ -148,6 +153,11 @@ class AppJsonTest {
         AppCommand.Web("seite", WebAction.Type("Katzen im Schnee", enter = false)),
         AppCommand.Web("seite", WebAction.Reader(false)),
         AppCommand.Web("seite", WebAction.Contrast(WebContrast.HALO)),
+        AppCommand.Web("seite", WebAction.Key(Keys.BACKSPACE)),
+        AppCommand.Web("seite", WebAction.Key(Keys.TAB, shift = true)),
+        AppCommand.Web("seite", WebAction.Key("a", ctrl = true, alt = false)),
+        AppCommand.Web("seite", WebAction.Insert("Grüezi")),
+        AppCommand.Subscribe(Sensor.KEYS),
         AppCommand.Web("seite", WebAction.Stop),
         AppCommand.Close,
     )
@@ -210,6 +220,30 @@ class AppJsonTest {
         assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "tap", "x": 3 }""")) }
         assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "contrast", "contrast": "neon" }""")) }
         assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "web", "block": "seite", "state": "schwebt", "url": "" }""")) }
+    }
+
+    @Test
+    fun `keys read as written in the app model chapter`() {
+        // 02 §6: the event and the web actions of interface version 3.
+        assertEquals(
+            json("""{ "kind": "key", "key": "l", "text": "", "shift": false, "ctrl": true, "alt": false, "meta": false, "repeat": false }"""),
+            AppJson.encodeEvent(AppEvent.Key("l", ctrl = true)),
+        )
+        assertEquals(AppEvent.Key("é", "é"), AppJson.decodeEvent(json("""{ "kind": "key", "key": "é", "text": "é" }""")))
+        assertEquals(AppEvent.Key(Keys.ARROW_DOWN), AppJson.decodeEvent(json("""{ "kind": "key", "key": "ArrowDown" }""")))
+        assertEquals(
+            AppCommand.Web("seite", WebAction.Key("Enter")),
+            AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "key", "key": "Enter" }""")),
+        )
+        assertEquals(
+            json("""{ "c": "web", "block": "seite", "action": "insert", "text": "ä" }"""),
+            AppJson.encodeCommand(AppCommand.Web("seite", WebAction.Insert("ä"))),
+        )
+        assertEquals(AppCommand.Subscribe(Sensor.KEYS), AppJson.decodeCommand(json("""{ "c": "subscribe", "sensor": "keys" }""")))
+        assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "key", "key": "" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "key" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "key" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "insert" }""")) }
     }
 
     @Test

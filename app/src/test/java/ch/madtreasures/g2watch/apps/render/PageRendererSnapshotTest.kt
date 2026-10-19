@@ -10,6 +10,7 @@ import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.HeadingSize
 import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.ListItem
 import ch.madtreasures.g2watch.apps.ListStyle
 import ch.madtreasures.g2watch.apps.MenuItem
@@ -39,6 +40,10 @@ import ch.madtreasures.g2watch.apps.launcher.Launcher
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.desktop.DesktopLayout
+import ch.madtreasures.g2watch.desktop.PointerSprite
+import ch.madtreasures.g2watch.input.KeyPress
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -156,7 +161,7 @@ class PageRendererSnapshotTest {
     fun launcher() {
         // The launcher with the YouTube and Browser packages and their icons; YouTube runs (the dot),
         // the pointer is on the browser.
-        ports.answers["$youtubeId@1.0.0"] = setOf(Permission.NETWORK)
+        ports.answers["$youtubeId@1.1.0"] = setOf(Permission.NETWORK)
         val host = host({ YouTubeApp() }, { BrowserApp() })
         host.launch("watch:$youtubeId")
         settle()
@@ -169,7 +174,7 @@ class PageRendererSnapshotTest {
     @Test
     fun appMenu() {
         // Tap-then-hold on the temple opens the app menu over YouTube's start page.
-        ports.answers["$youtubeId@1.0.0"] = setOf(Permission.NETWORK)
+        ports.answers["$youtubeId@1.1.0"] = setOf(Permission.NETWORK)
         val host = host({ YouTubeApp() })
         host.launch("watch:$youtubeId")
         settle()
@@ -240,7 +245,7 @@ class PageRendererSnapshotTest {
     )
 
     private fun youtube(): AppHost {
-        ports.answers["$youtubeId@1.0.0"] = setOf(Permission.NETWORK)
+        ports.answers["$youtubeId@1.1.0"] = setOf(Permission.NETWORK)
         val host = host({ YouTubeApp() })
         host.launch("watch:$youtubeId")
         settle()
@@ -273,6 +278,19 @@ class PageRendererSnapshotTest {
     }
 
     @Test
+    fun textOnGlasses() {
+        // A Bluetooth keyboard is connected: the search asks on the glasses, and the wearer types there.
+        ports.hardwareKeyboard = true
+        ports.storage(youtubeId).set("suchen", JsonArray(listOf(JsonPrimitive("Katzen im Schnee"), JsonPrimitive("Zugfahrt Albula"))))
+        val host = youtube()
+        host.gesture(GestureKind.CLICK)
+        for (c in "Alpenseen") host.key(KeyPress(c.toString(), c.toString(), shift = c.isUpperCase()))
+        repeat(2) { host.key(KeyPress(Keys.ARROW_LEFT)) }
+        settle()
+        save("apps-texteingabe")
+    }
+
+    @Test
     fun youtubeStart() {
         youtube()
         val page = Page(YouTubeApp.START, "YouTube", listOf(Block.Button(YouTubeApp.SEARCH, "Suchen")))
@@ -294,6 +312,8 @@ class PageRendererSnapshotTest {
     @Test
     fun youtubeVideo() {
         youtubeVideo(landscapeFrame(VideoProfile.BALANCED), VideoState.PLAYING, 83_000)
+        // Once the title note is gone: the picture alone.
+        scheduler.advanceBy(YouTubeApp.TITLE_NOTE_MS.toLong())
         save("apps-youtube-video")
     }
 
@@ -330,13 +350,14 @@ class PageRendererSnapshotTest {
         fake.listener.onFrame(frame!!)
         fake.listener.onState(VideoState.PLAYING, 12_500, TestPattern.DURATION_MS)
         settle()
+        scheduler.advanceBy(YouTubeApp.TITLE_NOTE_MS.toLong())
         save("apps-youtube-testbild")
     }
 
     private val browserId = "ch.madtreasures.browser"
 
     private fun browser(): AppHost {
-        ports.answers["$browserId@1.0.0"] = setOf(Permission.NETWORK)
+        ports.answers["$browserId@1.1.0"] = setOf(Permission.NETWORK)
         val host = host({ BrowserApp() })
         host.launch("watch:$browserId")
         settle()
@@ -379,14 +400,15 @@ class PageRendererSnapshotTest {
         save("apps-browser-lesemodus")
     }
 
-    /** The same picture in the three profiles, one above the other: Stabil, Ausgewogen, Schnell. */
+    /** The same picture in the rasters of the profiles, one above the other: fine (Stabil, Ausgewogen), coarse (Schnell). */
     @Test
     fun videoProfiles() {
         val w = YouTubeApp.VIDEO_W
         val h = YouTubeApp.VIDEO_H
         val gap = 12
-        val image = BufferedImage(w, 3 * h + 2 * gap, BufferedImage.TYPE_INT_RGB)
-        VideoProfile.entries.forEachIndexed { i, profile ->
+        val rasters = VideoProfile.entries.distinctBy { it.cell }
+        val image = BufferedImage(w, rasters.size * (h + gap) - gap, BufferedImage.TYPE_INT_RGB)
+        rasters.forEachIndexed { i, profile ->
             val raster = landscapeFrame(profile)
             for (y in 0 until h) for (x in 0 until w) image.setRGB(x, i * (h + gap) + y, green(raster[x, y]))
         }

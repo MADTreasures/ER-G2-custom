@@ -24,11 +24,12 @@ import java.util.concurrent.Executors
 
 /**
  * [HostPorts] on the watch. [logSink] receives lines for the watch log from any thread; [prompts] carries
- * text questions to the watch screen.
+ * text questions to the watch screen; [keyboard] tells whether a Bluetooth keyboard is connected.
  */
 class AndroidHostPorts(
     context: Context,
     private val prompts: TextPrompts,
+    private val keyboard: () -> Boolean = { false },
     private val logSink: (String) -> Unit,
 ) : HostPorts {
     private val context = context.applicationContext
@@ -133,6 +134,8 @@ class AndroidHostPorts(
     override fun askText(prompt: String, suggestions: List<String>, done: (String?) -> Unit) = prompts.ask(prompt, suggestions, done)
 
     override fun cancelText() = prompts.cancel()
+
+    override val hardwareKeyboard: Boolean get() = keyboard()
 
     override val video: VideoEngine by lazy { AndroidVideoEngine(context, logSink) }
 

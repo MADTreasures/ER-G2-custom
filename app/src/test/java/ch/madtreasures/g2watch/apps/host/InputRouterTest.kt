@@ -2,15 +2,50 @@ package ch.madtreasures.g2watch.apps.host
 
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.Keys
+import ch.madtreasures.g2watch.desktop.PointerMotion
+import ch.madtreasures.g2watch.input.KeyPress
+import ch.madtreasures.g2watch.input.MouseButton
 import com.faceclaw.app.BleProtocol
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Every row of the gesture table in 03 §5.1, and Faceclaw's ring filter (wissen/03 §2.11.3). */
+/** Every row of the gesture table in 03 §5.1, Faceclaw's ring filter (wissen/03 §2.11.3), keyboard and mouse (03 §5.4). */
 class InputRouterTest {
     private val routed = mutableListOf<Gesture>()
-    private val router = InputRouter { routed += it }
+
+    /** Records what keyboard and mouse ask of desktop and host. */
+    private val hardware = object : HardwareSink {
+        override var gestureMode = false
+        override var speed = 1f
+        val calls = mutableListOf<String>()
+
+        override fun movePointer(dx: Float, dy: Float) {
+            calls += "move %.2f %.2f".format(java.util.Locale.ROOT, dx, dy)
+        }
+
+        override fun click() {
+            calls += "click"
+        }
+
+        override fun menu() {
+            calls += "menu"
+        }
+
+        override fun back() {
+            calls += "back"
+        }
+
+        override fun wheel(notches: Int) {
+            calls += "wheel $notches"
+        }
+
+        override fun key(press: KeyPress) {
+            calls += "key ${press.key}"
+        }
+    }
+    private val router = InputRouter(hardware) { routed += it }
 
     private fun sys(type: Int, source: Int = BleProtocol.EVENT_SOURCE_GLASSES_R) = router.onGlassesEvent("sys-event", type, source)
 
@@ -96,5 +131,57 @@ class InputRouterTest {
     fun `watch gestures pass with their source`() {
         router.onWatchGesture(GestureKind.SWIPE_RIGHT)
         assertEquals(listOf(Gesture(GestureKind.SWIPE_RIGHT, InputSource.WATCH)), routed)
+    }
+
+    @Test
+    fun `keys go to the app host, whatever the page takes`() {
+        router.onKey(KeyPress(Keys.ENTER))
+        hardware.gestureMode = true
+        router.onKey(KeyPress(" ", " "))
+        assertEquals(listOf("key Enter", "key  "), hardware.calls)
+        assertEquals(emptyList<Gesture>(), routed)
+    }
+
+    @Test
+    fun `the mouse moves the pointer, faster with the pointer speed, and not without a pointer`() {
+        hardware.speed = 2f
+        router.onMouseMove(10f, -4f, 8f)
+        val (dx, dy) = PointerMotion.fromMouse(10f, -4f, 8f, 2f)
+        assertEquals(listOf("move %.2f %.2f".format(java.util.Locale.ROOT, dx, dy)), hardware.calls)
+        router.onMouseMove(0f, 0f, 8f)
+        hardware.gestureMode = true
+        router.onMouseMove(10f, 0f, 8f)
+        assertEquals(1, hardware.calls.size)
+    }
+
+    @Test
+    fun `mouse buttons click, open the menu and go back`() {
+        router.onMouseButton(MouseButton.PRIMARY)
+        router.onMouseButton(MouseButton.SECONDARY)
+        router.onMouseButton(MouseButton.TERTIARY)
+        router.onMouseButton(MouseButton.BACK)
+        router.onMouseButton(MouseButton.FORWARD)
+        assertEquals(listOf("click", "menu", "back", "back"), hardware.calls)
+        // Without a pointer the left button taps, like a tap on the watch.
+        hardware.gestureMode = true
+        router.onMouseButton(MouseButton.PRIMARY)
+        router.onMouseButton(MouseButton.SECONDARY)
+        assertEquals(listOf(Gesture(GestureKind.CLICK, InputSource.WATCH)), routed)
+        assertEquals("menu", hardware.calls.last())
+    }
+
+    @Test
+    fun `the wheel scrolls, or swipes on a page with gestures, at most three at once`() {
+        router.onWheel(2)
+        router.onWheel(0)
+        assertEquals(listOf("wheel 2"), hardware.calls)
+        hardware.gestureMode = true
+        router.onWheel(-1)
+        router.onWheel(5)
+        assertEquals(
+            listOf(GestureKind.SCROLL_UP) + List(InputRouter.MAX_WHEEL_GESTURES) { GestureKind.SCROLL_DOWN },
+            routed.map { it.kind },
+        )
+        assertEquals(setOf(InputSource.WATCH), routed.map { it.source }.toSet())
     }
 }

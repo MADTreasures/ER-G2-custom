@@ -148,4 +148,20 @@ object PointerMotion {
         val k = BASE_GAIN * speed.coerceIn(MIN_SPEED, MAX_SPEED) * accel
         return Pair(dxDp * k, dyDp * k)
     }
+
+    /** Glasses pixels per mouse count at speed 1.0 before acceleration. */
+    const val MOUSE_GAIN = 0.5f
+
+    /**
+     * A Bluetooth mouse's movement to glasses pixels: [dx]/[dy] in the mouse's own counts (raw, without
+     * Android's acceleration) over [dtMs]. At the usual 800 to 1000 counts per inch a slow move of
+     * about 5 cm crosses the 576 pixels of the app area; a quick flick gains up to 2.4 times as much.
+     * [speed] is the same factor as for the finger (crown, settings).
+     */
+    fun fromMouse(dx: Float, dy: Float, dtMs: Float, speed: Float): Pair<Float, Float> {
+        val velocity = hypot(dx, dy) / dtMs.coerceAtLeast(1f)
+        val accel = (0.6f + velocity * 0.3f).coerceIn(0.6f, 2.4f)
+        val k = MOUSE_GAIN * speed.coerceIn(MIN_SPEED, MAX_SPEED) * accel
+        return Pair(dx * k, dy * k)
+    }
 }

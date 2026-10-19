@@ -102,6 +102,11 @@ object AppJson {
             is AppEvent.ImageScroll -> {
                 put("kind", "imageScroll"); put("page", event.page); put("block", event.block); put("dy", event.dy)
             }
+            is AppEvent.Key -> {
+                put("kind", "key"); put("key", event.key); put("text", event.text)
+                put("shift", event.shift); put("ctrl", event.ctrl); put("alt", event.alt); put("meta", event.meta)
+                put("repeat", event.repeat)
+            }
         }
     }
 
@@ -155,6 +160,15 @@ object AppJson {
             )
             "imageClick" -> AppEvent.ImageClick(string(o, "page"), string(o, "block"), int(o, "x"), int(o, "y"))
             "imageScroll" -> AppEvent.ImageScroll(string(o, "page"), string(o, "block"), int(o, "dy"))
+            "key" -> AppEvent.Key(
+                string(o, "key").also { if (it.isEmpty()) bad("„key“ ist leer") },
+                optString(o, "text") ?: "",
+                optBool(o, "shift") ?: false,
+                optBool(o, "ctrl") ?: false,
+                optBool(o, "alt") ?: false,
+                optBool(o, "meta") ?: false,
+                optBool(o, "repeat") ?: false,
+            )
             else -> null
         }
     }
@@ -224,6 +238,10 @@ object AppJson {
                     is WebAction.Type -> {
                         put("text", a.text); put("enter", a.enter)
                     }
+                    is WebAction.Key -> {
+                        put("key", a.key); put("shift", a.shift); put("ctrl", a.ctrl); put("alt", a.alt)
+                    }
+                    is WebAction.Insert -> put("text", a.text)
                     is WebAction.Reader -> put("on", a.on)
                     is WebAction.Contrast -> put("contrast", a.contrast.json)
                     WebAction.Back, WebAction.Forward, WebAction.Reload, WebAction.Stop -> Unit
@@ -480,6 +498,13 @@ object AppJson {
         "scroll" -> WebAction.Scroll(int(o, "dy"))
         "tap" -> WebAction.Tap(int(o, "x"), int(o, "y"))
         "type" -> WebAction.Type(optString(o, "text") ?: bad("„text“ fehlt"), optBool(o, "enter") ?: true)
+        "key" -> WebAction.Key(
+            string(o, "key").also { if (it.isEmpty()) bad("„key“ ist leer") },
+            optBool(o, "shift") ?: false,
+            optBool(o, "ctrl") ?: false,
+            optBool(o, "alt") ?: false,
+        )
+        "insert" -> WebAction.Insert(optString(o, "text") ?: bad("„text“ fehlt"))
         "reader" -> WebAction.Reader(bool(o, "on"))
         "contrast" -> WebAction.Contrast(WebContrast.of(string(o, "contrast")) ?: bad("unbekannter Kontrast „${o["contrast"]}“"))
         "stop" -> WebAction.Stop

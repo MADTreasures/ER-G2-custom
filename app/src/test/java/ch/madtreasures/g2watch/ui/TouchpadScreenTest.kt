@@ -73,6 +73,7 @@ class TouchpadScreenTest {
 
     private var glasses by mutableStateOf(connected)
     private var gestureMode by mutableStateOf(false)
+    private var inputHint by mutableStateOf<String?>(null)
     private val gestures = mutableListOf<GestureKind>()
 
     private fun show(state: GlassesState = connected) {
@@ -88,6 +89,7 @@ class TouchpadScreenTest {
                     timeSource = FixedTime,
                     gestureMode = gestureMode,
                     onGesture = { gestures += it },
+                    inputHint = inputHint,
                 )
             }
         }
@@ -405,5 +407,29 @@ class TouchpadScreenTest {
         compose.onRoot().performTouchInput { down(gear().center) }
         compose.mainClock.advanceTimeBy(1_000)
         assertEquals(1, settings)
+    }
+
+    @Test
+    fun `a connected keyboard or mouse shows under the gear`() {
+        show()
+        compose.onNodeWithTag(INPUT_HINT_TAG).assertDoesNotExist()
+        inputHint = inputHint(keyboard = true, mouse = true)
+        compose.onNodeWithText("Tastatur · Maus").assertIsDisplayed()
+        assertEquals("Tastatur", inputHint(keyboard = true, mouse = false))
+        assertEquals("Maus", inputHint(keyboard = false, mouse = true))
+        assertEquals(null, inputHint(keyboard = false, mouse = false))
+        // The hint is no button: the finger still moves the pointer over it.
+        val hint = compose.onNodeWithTag(INPUT_HINT_TAG).fetchSemanticsNode().boundsInRoot.center
+        compose.onRoot().performTouchInput {
+            down(hint)
+            repeat(3) { moveBy(Offset(20f, 0f)) }
+            up()
+        }
+        compose.waitForIdle()
+        assertTrue(moved.x > 0f)
+        // A double tap still clicks.
+        compose.onRoot().performTouchInput { doubleClick(finger) }
+        compose.waitForIdle()
+        assertEquals(1, clicks)
     }
 }
