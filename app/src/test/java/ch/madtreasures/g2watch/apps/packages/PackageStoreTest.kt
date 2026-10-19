@@ -113,4 +113,15 @@ class PackageStoreTest {
         assertEquals(emptyList<AppManifest>(), packages.apps)
         assertEquals(4, changes)
     }
+
+    @Test
+    fun `the launcher gets the icon an installed package names`() {
+        val packages = AppPackages(store, null, loader = { _, m -> NoApp(m.app) }, io = Executor { it.run() }, reserved = emptySet())
+        val icon = pngBytes(64, value = 200)
+        packages.install(validPackage(tmp.root, icon = icon))
+        assertArrayEquals(icon, packages.icon("ch.test.paket"))
+        assertNull(packages.icon("ch.test.fehlt"))
+        packages.install(validPackage(tmp.root, name = "ohne.g2app", version = "1.1.0"))
+        assertNull("the new version has none", packages.icon("ch.test.paket"))
+    }
 }

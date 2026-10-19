@@ -29,8 +29,12 @@ class PackageFormatException(message: String) : Exception(message)
  * The file `g2app.json` inside an app package (docs/app-entwicklung/09 §2): which [api] version the
  * package was built for, the class that implements [G2App] ([main]) and the app's [AppManifest] as
  * that class reports it, so the watch can list and check a package without running its code.
+ *
+ * [icon] is the package file of the app's launcher icon under `assets/` (`apps/<app id>/icon.png`), if
+ * the package has one. It belongs to the package, not to the app interface: an older watch app ignores
+ * it, and [G2AppApi.VERSION] stays as it is.
  */
-data class PackageManifest(val api: Int, val main: String, val app: AppManifest) {
+data class PackageManifest(val api: Int, val main: String, val app: AppManifest, val icon: String? = null) {
 
     fun toJson(): String = buildJsonObject {
         put("format", FORMAT)
@@ -43,6 +47,7 @@ data class PackageManifest(val api: Int, val main: String, val app: AppManifest)
         put("permissions", buildJsonArray { app.permissions.forEach { add(JsonPrimitive(it.json)) } })
         app.ui?.let { put("ui", it) }
         put("description", app.description)
+        icon?.let { put("icon", it) }
     }.toString()
 
     companion object {
@@ -50,7 +55,43 @@ data class PackageManifest(val api: Int, val main: String, val app: AppManifest)
         const val FILE = "g2app.json"
         const val EXTENSION = "g2app"
 
+        /** The launcher icon: a square PNG of 16 to 256 px (64 × 64 recommended), at most 64 KiB (09 §2). */
+        const val ICON_FILE = "icon.png"
+        const val ICON_MAX_BYTES = 64 * 1024
+        const val ICON_MIN_PX = 16
+        const val ICON_MAX_PX = 256
+
         private val CLASS_NAME = Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_$]*)+")
+
+        private val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+
+        /** Where the build step looks for the icon of app [id], relative to `src/main/assets`. */
+        fun iconPath(id: String): String = "apps/$id/$ICON_FILE"
+
+        /**
+         * Why [bytes] cannot be the icon [path] (German, for the wearer), or null if it can. Only the
+         * bytes are checked, nothing is decoded: size, the PNG signature and the picture size in its
+         * IHDR chunk.
+         */
+        fun iconProblem(path: String, bytes: ByteArray): String? {
+            if (bytes.size > ICON_MAX_BYTES) return "Symbol $path ist zu groß (höchstens ${ICON_MAX_BYTES / 1024} KB)"
+            val header = bytes.size >= 24 && bytes.copyOf(8).contentEquals(PNG_SIGNATURE) &&
+                String(bytes, 12, 4, Charsets.US_ASCII) == "IHDR"
+            if (!header) return "Symbol $path ist kein PNG"
+            val w = bigEndian(bytes, 16)
+            val h = bigEndian(bytes, 20)
+            if (w != h) return "Symbol $path ist nicht quadratisch ($w × $h Pixel)"
+            if (w !in ICON_MIN_PX..ICON_MAX_PX) return "Symbol $path muss $ICON_MIN_PX bis $ICON_MAX_PX Pixel groß sein, nicht $w × $h"
+            return null
+        }
+
+        private fun bigEndian(b: ByteArray, at: Int): Int =
+            (b[at].toInt() and 0xFF shl 24) or (b[at + 1].toInt() and 0xFF shl 16) or (b[at + 2].toInt() and 0xFF shl 8) or (b[at + 3].toInt() and 0xFF)
+
+        /** A relative `.png` path inside the package, without `..`, `.`, empty parts, drive letters or backslashes. */
+        private fun safeIconPath(path: String): Boolean =
+            path.endsWith(".png") && !path.startsWith("/") && '\\' !in path && ':' !in path &&
+                path.split('/').none { it == ".." || it == "." || it.isEmpty() }
 
         /** Reads `g2app.json`; everything the watch relies on is checked here. */
         fun parse(text: String): PackageManifest {
@@ -87,7 +128,10 @@ data class PackageManifest(val api: Int, val main: String, val app: AppManifest)
             } catch (e: IllegalArgumentException) {
                 throw PackageFormatException(e.message ?: "Ungültiges Manifest")
             }
-            return PackageManifest(api, main, app)
+            val icon = str("icon")?.also {
+                if (!safeIconPath(it)) throw PackageFormatException("„icon“ ist kein Pfad zu einer PNG-Datei im Paket: $it")
+            }
+            return PackageManifest(api, main, app, icon)
         }
     }
 }

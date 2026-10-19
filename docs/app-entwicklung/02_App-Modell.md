@@ -18,7 +18,7 @@ und TypeScript-Typen werden daraus abgeleitet, nicht umgekehrt.
 | **App-Host** | Der Teil der Uhr-App, der Seiten zeichnet, Eingaben verteilt und Sitzungen verwaltet. |
 | **Rechner-Host** | `g2-host` auf einem Rechner: führt Rechner-Apps aus. |
 | **EvenHub-Laufzeit** | Teil der Uhr-App, der Even-Hub-Apps ausführt (Engine auf der Uhr oder auf dem Handy, [05](05_EvenHub-Apps.md)). |
-| **Starter** | Die Seite „Apps“ auf der Brille, vom App-Host selbst gezeichnet: alle Apps, laufende markiert. |
+| **Starter** | Die Seite „Apps“ auf der Brille, vom App-Host selbst gezeichnet: alle Apps als Symbol mit Namen in einem Raster (4 × 2 je Bildschirm), laufende mit einem Punkt markiert. |
 | **App-Menü** | Ein vom App-Host gezeichnetes Menü über jeder App: eigene Einträge der App (Befehl `menu`), dann „Apps“ (App bleibt im Hintergrund), „Zurück“, „Schließen“. |
 
 ## 2. Manifest `g2app.json`
@@ -53,7 +53,7 @@ als Datei im App-Ordner.
 | `input` | nein | `"pointer"` (Standard: Maus-Zeiger + Fokus) oder `"gestures"` (rohe Gesten, z. B. für Spiele und EvenHub-Apps), siehe §7 |
 | `permissions` | nein | siehe §8 |
 | `description` | nein | ein Satz für die App-Verwaltung |
-| `icon` | nein | PNG, 48 × 48, Graustufen |
+| `icon` | nein | Symbol im Starter: PNG, quadratisch, **64 × 64** empfohlen (16 bis 256 px, höchstens 64 KB), Graustufen. Schwarz und Transparenz sind auf dem Glas durchsichtig. Ruhige Strichzeichnung (2–3 px, Stufen 10–15), keine großen hellen Flächen (§9). Ohne Symbol zeigt der Starter die Anfangsbuchstaben in einem Rahmen. Uhr-Apps legen die Datei nur ins Paket, `apps/<app-id>/icon.png` ([09 §2](09_App-Pakete.md#2-das-paket)); im `AppManifest` steht es nicht. |
 
 ## 3. Lebenszyklus
 
@@ -68,7 +68,7 @@ als Datei im App-Ordner.
   bekommen eine Seite „Startet …“ und 20 s ([05 §4.4](05_EvenHub-Apps.md#44-lebenszyklus-rechte-netz)).
 - **visible / hidden**: Nur eine App ist auf der Brille sichtbar. Über das App-Menü → „Apps“ kommt der
   Träger zum Starter; die bisherige App bekommt `hidden` und läuft weiter. Im Starter sind laufende Apps
-  markiert; wählt der Träger eine davon, bekommt sie `visible` und erscheint mit ihrer aktuellen Seite.
+  mit einem Punkt rechts oben am Symbol markiert; wählt der Träger eine davon, bekommt sie `visible` und erscheint mit ihrer aktuellen Seite.
   Anzeige-Befehle einer verdeckten App speichert der Host (der neueste Stand gilt).
   Uhr-Apps dürfen verdeckt nur Timer ausführen, und nur mit `background`; Rechner-Apps unbegrenzt.
 - **stop**: „Schließen“ im App-Menü, Zurück auf der ersten Seite, `close()` durch die App oder Beenden

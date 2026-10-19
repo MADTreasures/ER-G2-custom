@@ -35,6 +35,7 @@ import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.FakePorts
 import ch.madtreasures.g2watch.apps.host.Gesture
 import ch.madtreasures.g2watch.apps.host.ScriptedApp
+import ch.madtreasures.g2watch.apps.launcher.Launcher
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.desktop.DesktopLayout
@@ -110,9 +111,9 @@ class PageRendererSnapshotTest {
         settle()
     }
 
-    /** Puts the pointer on block [id] of [page], shown below the header. */
-    private fun pointerOn(page: Page, id: String, row: Int = -1, dx: Int = 40) {
-        val rect = PageLayout.of(page, AndroidTextPainter(emojiFont)).focusables.first { it.target == FocusTarget(id, row) }.rect
+    /** Puts the pointer on block [id] of [page], shown below the header; [tiles] for the launcher's grid. */
+    private fun pointerOn(page: Page, id: String, row: Int = -1, dx: Int = 40, tiles: Boolean = false) {
+        val rect = PageLayout.of(page, AndroidTextPainter(emojiFont), tiles = tiles).focusables.first { it.target == FocusTarget(id, row) }.rect
         val area = desktop.layout.appArea(!page.statusBar)
         pointerTo(area.x + rect.x + dx, area.y + rect.y + rect.h / 2)
     }
@@ -153,15 +154,15 @@ class PageRendererSnapshotTest {
 
     @Test
     fun launcher() {
-        // The launcher with the YouTube package installed and running.
+        // The launcher with the YouTube and Browser packages and their icons; YouTube runs (the dot),
+        // the pointer is on the browser.
         ports.answers["$youtubeId@1.0.0"] = setOf(Permission.NETWORK)
-        val host = host({ YouTubeApp() })
+        val host = host({ YouTubeApp() }, { BrowserApp() })
         host.launch("watch:$youtubeId")
         settle()
         host.openLauncher()
         settle()
-        val page = Page("p_apps", "Apps", listOf(Block.Button("app0", "YouTube · läuft")))
-        pointerOn(page, "app0", dx = 140)
+        pointerOn(host.currentPageOf(Launcher.ID)!!, "app1", dx = 112, tiles = true)
         save("apps-starter")
     }
 

@@ -104,6 +104,90 @@ class PageLayoutTest {
         assertTrue(edge(a) in Levels.BORDER - 16..Levels.BORDER)
     }
 
+    private fun grid(vararg blocks: Block) = PageLayout.of(Page("p_apps", "Apps", blocks.toList()), text, tiles = true)
+
+    private fun apps(n: Int) = (0 until n).map { Block.Button("app$it", "App $it") }.toTypedArray()
+
+    @Test
+    fun `the launcher grid has four cells per row, in reading order and without gaps`() {
+        val l = grid(*apps(10))
+        assertTrue(l.tiles)
+        assertEquals((0 until 10).map { FocusTarget("app$it") }, l.focusables.map { it.target })
+        assertTrue(l.boxes.all { it.tile })
+        assertEquals(Rect(16, 8, 136, 120), l.focusable(FocusTarget("app0"))!!.rect)
+        assertEquals(Rect(16 + 3 * 136, 8, 136, 120), l.focusable(FocusTarget("app3"))!!.rect)
+        assertEquals(Rect(16, 8 + 120, 136, 120), l.focusable(FocusTarget("app4"))!!.rect)
+        assertEquals(Rect(16 + 136, 8 + 240, 136, 120), l.focusable(FocusTarget("app9"))!!.rect)
+        assertEquals(8 + 3 * 120 + 8, l.contentHeight)
+        // Neighbouring cells touch: every pixel of the grid belongs to one cell.
+        assertEquals(FocusTarget("app0"), l.hit(16 + 135, 8 + 119, 0)?.target)
+        assertEquals(FocusTarget("app1"), l.hit(16 + 136, 8, 0)?.target)
+        assertEquals(FocusTarget("app5"), l.hit(16 + 136, 8 + 120, 0)?.target)
+        assertEquals(FocusTarget("app8"), l.hit(20, 8 + 240 - 116, 116)?.target)
+        assertNull(l.hit(15, 50, 0))
+        assertNull(l.hit(16 + 544, 50, 0))
+    }
+
+    @Test
+    fun `eight apps fit without scrolling, headings and text end a row`() {
+        val eight = grid(*apps(8))
+        assertEquals(8 + 2 * 120 + 8, eight.contentHeight)
+        assertEquals(0, eight.maxScroll)
+
+        val l = grid(
+            Block.Heading("h1", "Auf der Uhr"), Block.Button("a", "A"), Block.Button("b", "B"),
+            Block.Heading("h2", "Even Hub"), Block.Button("c", "C"), Block.Text("t", "Ende"),
+        )
+        assertEquals(Rect(16, 8, 544, 35), l.box("h1")!!.rect)
+        assertEquals(Rect(16, 51, 136, 120), l.box("a")!!.rect)
+        assertEquals(Rect(16 + 136, 51, 136, 120), l.box("b")!!.rect)
+        assertEquals(51 + 120 + 8, l.box("h2")!!.rect.y)
+        assertEquals(Rect(16, 179 + 35 + 8, 136, 120), l.box("c")!!.rect)
+        assertEquals(222 + 120 + 8, l.box("t")!!.rect.y)
+        // The same page for an app: buttons stay full-width rows.
+        val rows = PageLayout.of(l.page, text)
+        assertEquals(Rect(16, 51, 544, 40), rows.box("a")!!.rect)
+        assertTrue(rows.boxes.none { it.tile })
+    }
+
+    @Test
+    fun `a launcher cell blends its icon over the focus fill and marks a running app`() {
+        val l = grid(Block.Button("a", "Eins"), Block.Button("b", "Zwei"), Block.Button("c", "Drei"))
+        val icon = GrayRaster(64, 64).also { it.fillRect(16, 16, 32, 32, 240) }
+        val raster = GrayRaster(l.width, l.height)
+        val looks = mapOf(
+            "a" to TileLook(icon, "E", running = true),
+            "b" to TileLook(icon, "Z", running = false),
+            "c" to TileLook(null, "D", running = false),
+        )
+        PageRenderer(text).render(raster, l, PageLook(focus = FocusTarget("a"), tiles = looks))
+        // Icons start 36 px into the cell and 14 px down: (52, 22) for the first cell.
+        fun px(cell: Int, x: Int, y: Int) = raster[16 + cell * 136 + 36 + x, 8 + 14 + y]
+        // The focused cell: the icon's black does not punch a hole into the fill, its light is kept.
+        assertEquals(Levels.SURFACE, px(0, 4, 4))
+        assertEquals(240, px(0, 32, 32))
+        // The focus frame, 4 px inside the cell, and the running dot right of the icon's top.
+        assertEquals(Levels.STRONG, (0 until 4).maxOf { raster[16 + 4 + it, 8 + 60] })
+        assertEquals(Levels.STRONG, px(0, 72, 6))
+        // Not focused: no fill, no frame, a dimmer icon, no dot.
+        assertEquals(0, px(1, 4, 4))
+        assertEquals(240 * 13 / 15, px(1, 32, 32))
+        assertEquals(0, px(1, 72, 6))
+        // Without an icon: a frame at DIM with the initials, and the names below.
+        assertEquals(Levels.DIM, px(2, 2, 32))
+        assertTrue(listOf("D", "Eins", "Zwei", "Drei").all { it in text.drawn })
+        assertTrue("E" !in text.drawn && "Z" !in text.drawn)
+    }
+
+    @Test
+    fun `initials are the first letters of the first two words`() {
+        assertEquals("Y", TileLook.initials("YouTube"))
+        assertEquals("HA", TileLook.initials("Hub-App"))
+        assertEquals("ML", TileLook.initials("mein langer Name"))
+        assertEquals("É", TileLook.initials("été"))
+        assertEquals("", TileLook.initials(" "))
+    }
+
     @Test
     fun `levels are drawn so the glasses round them back exactly`() {
         for (level in 0..15) assertEquals(level, minOf(15, (Levels.of(level) + 8) shr 4))

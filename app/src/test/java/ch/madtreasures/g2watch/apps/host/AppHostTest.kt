@@ -20,7 +20,9 @@ import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.launcher.Launcher
 import ch.madtreasures.g2watch.apps.render.FocusTarget
+import ch.madtreasures.g2watch.apps.render.Levels
 import ch.madtreasures.g2watch.apps.render.PageLayout
+import ch.madtreasures.g2watch.apps.render.PageMetrics
 import ch.madtreasures.g2watch.desktop.GrayRaster
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
@@ -152,7 +154,105 @@ class AppHostTest {
         settle()
         host.clickOn(menuPage(host), "host_apps")
         assertEquals(Launcher.ID, host.state.value.visible)
-        assertTrue("Eins · läuft" in text.drawn)
+        // A dot right of the icon's top marks the running app, no text.
+        assertEquals(Levels.STRONG, runningDot(cell = 0))
+        assertEquals(0, runningDot(cell = 1))
+        assertTrue(text.drawn.none { it.contains("läuft") })
+        // Without icons: the initials.
+        assertTrue("E" in text.drawn && "Z" in text.drawn)
+    }
+
+    /** The pixel where the launcher puts the dot of a running app in [cell] of the first row. */
+    private fun runningDot(cell: Int): Int {
+        val x = PageMetrics.MARGIN + cell * PageMetrics.TILE_W + (PageMetrics.TILE_W - PageMetrics.TILE_ICON) / 2 + PageMetrics.TILE_ICON + 8
+        return screen.last.pixels[(PageMetrics.PAD + 14 + 6) * 576 + x].toInt() and 0xFF
+    }
+
+    @Test
+    fun `the launcher is a grid that temples, ring and pointer walk in reading order`() {
+        val names = (1..10).map { "App$it" }
+        val host = host(*names.map { app(id = "ch.test.${it.lowercase()}", name = it) }.toTypedArray())
+        host.openLauncher()
+        settle()
+        assertEquals(FocusTarget("app0"), host.state.value.focus)
+        // Swipes go cell by cell, across the end of a row to the next one.
+        repeat(4) { host.tap(GestureKind.SCROLL_DOWN) }
+        assertEquals(FocusTarget("app4"), host.state.value.focus)
+        assertEquals(0, host.state.value.scroll)
+        // The third row is below the fold: the page scrolls to it.
+        repeat(4) { host.tap(GestureKind.SCROLL_DOWN) }
+        assertEquals(FocusTarget("app8"), host.state.value.focus)
+        assertEquals(8 + 3 * 120 + 8 - 260, host.state.value.scroll)
+        host.tap(GestureKind.SCROLL_UP)
+        assertEquals(FocusTarget("app7"), host.state.value.focus)
+        // The pointer: hovering a cell focuses it, a click there starts the app.
+        host.scrollBy(-500)
+        settle()
+        val cell = PageMetrics.TILE_W
+        host.pointerAt(PageMetrics.MARGIN + 2 * cell + 10, PageMetrics.PAD + 130)
+        settle()
+        assertEquals(FocusTarget("app6"), host.state.value.focus)
+        host.clickAt(PageMetrics.MARGIN + cell + 60, PageMetrics.PAD + 60)
+        settle()
+        assertEquals("ch.test.app2", host.state.value.visible)
+        // A temple tap starts the focused cell; back from the app shows the grid again.
+        host.back()
+        settle()
+        assertEquals(Launcher.ID, host.state.value.visible)
+        host.tap(GestureKind.SCROLL_DOWN)
+        host.tap()
+        assertEquals("ch.test.app3", host.state.value.visible)
+    }
+
+    @Test
+    fun `launcher icons are read once per app version and again after a package change`() {
+        var reads = 0
+        val icon = pngIcon(value = 200)
+        val installed = object : InstalledApps {
+            override val apps = listOf(AppManifest("ch.test.paket", "Paket", "1.0.0"), AppManifest("ch.test.kaputt", "Kaputt", "1.0.0"))
+
+            override fun open(id: String): InstalledApp? = null
+
+            override fun icon(id: String): ByteArray? {
+                reads++
+                return if (id == "ch.test.paket") icon else "kein Bild".toByteArray()
+            }
+        }
+        val host = AppHost(scheduler, screen, text, ports, emptyList(), installed = installed, nowMs = { scheduler.now })
+        host.openLauncher()
+        settle()
+        host.openLauncher()
+        settle()
+        assertEquals(2, reads)
+        // The first cell is focused, so its icon shows at full brightness; the broken one gets initials.
+        val iconAt = (PageMetrics.PAD + 14 + 32) * 576 + PageMetrics.MARGIN + 36 + 32
+        assertEquals(200, screen.last.pixels[iconAt].toInt() and 0xFF)
+        assertTrue("K" in text.drawn && "P" !in text.drawn)
+        assertEquals(1, ports.logs.count { it == "Kaputt: Symbol ließ sich nicht lesen" })
+
+        host.packagesChanged()
+        settle()
+        assertEquals(4, reads)
+    }
+
+    @Test
+    fun `a built-in app takes its icon from the APK`() {
+        ports.assets["apps/ch.test.eins/icon.png"] = pngIcon(size = 128, value = 255)
+        val host = host(app())
+        host.openLauncher()
+        settle()
+        // Scaled to 64 × 64: the whole icon square is lit, and nothing right of it.
+        val row = (PageMetrics.PAD + 14 + 32) * 576
+        assertEquals(255, screen.last.pixels[row + PageMetrics.MARGIN + 36].toInt() and 0xFF)
+        assertEquals(255, screen.last.pixels[row + PageMetrics.MARGIN + 36 + 63].toInt() and 0xFF)
+        assertEquals(Levels.SURFACE, screen.last.pixels[row + PageMetrics.MARGIN + 36 + 64].toInt() and 0xFF)
+        assertTrue("E" !in text.drawn)
+    }
+
+    private fun pngIcon(size: Int = 64, value: Int): ByteArray {
+        val image = BufferedImage(size, size, BufferedImage.TYPE_BYTE_GRAY)
+        image.raster.apply { for (y in 0 until size) for (x in 0 until size) setSample(x, y, 0, value) }
+        return ByteArrayOutputStream().also { ImageIO.write(image, "png", it) }.toByteArray()
     }
 
     /** The app menu as the host builds it, looked up through the focus order. */

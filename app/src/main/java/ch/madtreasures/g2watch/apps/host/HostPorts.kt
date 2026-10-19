@@ -109,6 +109,9 @@ interface InstalledApps {
     /** A new instance of app [id], or null if it is not installed; throws if its code does not load. */
     fun open(id: String): InstalledApp?
 
+    /** The launcher icon (PNG) of app [id], or null if its package has none (09 §2). */
+    fun icon(id: String): ByteArray? = null
+
     companion object {
         val NONE: InstalledApps = object : InstalledApps {
             override val apps: List<AppManifest> = emptyList()

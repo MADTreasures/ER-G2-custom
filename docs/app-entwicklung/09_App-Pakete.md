@@ -30,7 +30,7 @@ Eine ZIP-Datei mit der Endung `.g2app`:
 |---|---|
 | `g2app.json` | Beschreibung, beim Bauen aus dem Manifest der App erzeugt |
 | `classes.dex` (`classes2.dex` …) | der Code der App, für Android übersetzt; ohne Kotlin, kotlinx.serialization und die Schnittstelle, die hat die Uhr-App schon |
-| `assets/…` | Dateien der App, gleich angeordnet wie in einer APK: `assets/apps/<app-id>/ui.json` (Seiten aus dem Baukasten), Bilder |
+| `assets/…` | Dateien der App, gleich angeordnet wie in einer APK: `assets/apps/<app-id>/ui.json` (Seiten aus dem Baukasten), `assets/apps/<app-id>/icon.png` (Symbol im Starter), Bilder |
 
 ```json
 {
@@ -42,13 +42,22 @@ Eine ZIP-Datei mit der Endung `.g2app`:
   "version": "1.0.0",
   "input": "pointer",
   "permissions": ["network"],
-  "description": "YouTube-Videos suchen und als Graustufen-Raster auf der Brille ansehen."
+  "description": "YouTube-Videos suchen und als Graustufen-Raster auf der Brille ansehen.",
+  "icon": "apps/ch.madtreasures.youtube/icon.png"
 }
 ```
 
 `api` ist die Schnittstellen-Version, gegen die gebaut wurde (§5), `main` die Klasse, die `G2App`
 implementiert. Hat die App Seiten aus dem Baukasten, steht deren Datei in `ui` (etwa
-`"apps/<app-id>/ui.json"`). Die übrigen Felder sind das `AppManifest` der App ([02 §2](02_App-Modell.md), [03 §1](03_Uhr-Apps.md)).
+`"apps/<app-id>/ui.json"`). Die übrigen Felder sind das `AppManifest` der App ([02 §2](02_App-Modell.md), [03 §1](03_Uhr-Apps.md)),
+außer `icon`.
+
+`icon` (seit v0.9.0, freiwillig) ist das Symbol der App im Starter, ein Pfad unter `assets/`. Es gehört zum
+Paket, nicht zur Schnittstelle: Der Bau-Schritt trägt es ein, wenn `src/main/assets/apps/<app-id>/icon.png`
+existiert; am `AppManifest` ändert sich nichts. Format: PNG, quadratisch, 64 × 64 empfohlen (16 bis 256 px),
+höchstens 64 KB, Graustufen auf Schwarz oder transparent (beides ist auf dem Glas durchsichtig); Gestaltung
+siehe [02 §2](02_App-Modell.md#2-manifest-g2appjson). Das Format bleibt `g2app-paket@1` und die
+Schnittstelle Version 2: Eine ältere Uhr-App überliest `icon`.
 
 Grenzen: Datei höchstens 20 MB, entpackt höchstens 50 MB, höchstens 2000 Dateien, Pfade ohne `..`.
 
@@ -59,6 +68,7 @@ packages/<name>/
   build.gradle.kts                        ein Kommentar; nur für zusätzliche Bibliotheken mehr
   src/main/kotlin/…                       die App: genau eine Klasse, die G2App implementiert
   src/main/assets/apps/<app-id>/ui.json   Seiten aus dem Baukasten (wenn die App welche hat), Bilder
+  src/main/assets/apps/<app-id>/icon.png  Symbol im Starter (freiwillig, 64 × 64)
   src/test/kotlin/…                       Tests mit FakeAppContext (§6)
 ```
 
@@ -77,7 +87,8 @@ doppelklicken. Jeder Push baut außerdem alle Pakete auf GitHub (Actions → *Bu
 
 Beim Bauen sucht der Schritt `g2appManifest` die eine Klasse, die `G2App` implementiert, legt sie an,
 liest ihr Manifest und schreibt daraus `g2app.json`. Fehlt eine Seiten-Datei, die das Manifest nennt,
-bricht er ab. Dann übersetzt D8 (die Version aus AGP 9.4) den Code nach DEX, und alles zusammen wird gezippt.
+bricht er ab. Liegt ein `icon.png` bereit, prüft er es wie die Uhr (§4) und trägt es als `icon` ein.
+Dann übersetzt D8 (die Version aus AGP 9.4) den Code nach DEX, und alles zusammen wird gezippt.
 
 **Regeln für den Code:**
 
@@ -118,7 +129,8 @@ Speicher bleibt, falls sie wieder installiert wird.
 
 **Was die Uhr vor dem Installieren prüft:** ZIP lesbar, Größen und Pfade, `g2app.json` gültig, Format
 `g2app-paket@1`, Schnittstellen-Version nicht neuer als die der Uhr-App, keine `id` einer eingebauten App,
-`classes.dex` ist DEX, die Seiten-Datei aus dem Manifest liegt bei. Entpackt wird in einen neuen Ordner,
+`classes.dex` ist DEX, die Seiten-Datei aus dem Manifest liegt bei, und das Symbol aus `icon` (falls
+genannt) liegt bei, ist ein PNG, quadratisch, 16 bis 256 px und höchstens 64 KB groß. Entpackt wird in einen neuen Ordner,
 der erst am Ende den alten ersetzt; eine fehlgeschlagene Aktualisierung lässt die alte Version stehen.
 
 Installiert liegt jede App in `files/app-packages/<app-id>/` der Uhr-App, nicht von außen zugänglich.
@@ -159,7 +171,8 @@ Uhr-App nicht gibt, endet nur diese App („ist abgestürzt“), der App-Host l�
   installiert sie in einen echten App-Host und startet sie. Nur den DEX-Schritt ersetzt die JVM: Sie führt
   dieselben Klassen aus dem Test-Klassenpfad aus.
 - `PackageArchiveTest`, `PackageStoreTest` (Prüfen, Installieren, Aktualisieren, Entfernen, Ordner für
-  neue Apps), `AppsScreenTest` (die Seite „Apps“ auf der Uhr), `PackageManifestTest` in `app-api`.
+  neue Apps, Symbole), `AppsScreenTest` (die Seite „Apps“ auf der Uhr), `PackageManifestTest` in `app-api`
+  (`g2app.json` mit und ohne `icon`, Prüfung der Symbol-Datei).
 
 ## 7. Grenzen
 

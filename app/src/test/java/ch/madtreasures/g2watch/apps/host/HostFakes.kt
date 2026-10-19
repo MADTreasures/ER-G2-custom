@@ -29,6 +29,7 @@ import ch.madtreasures.g2watch.apps.web.WebStatus
 import ch.madtreasures.g2watch.desktop.AppScreen
 import ch.madtreasures.g2watch.desktop.AppView
 import ch.madtreasures.g2watch.desktop.GrayRaster
+import java.awt.color.ColorSpace
 import java.io.ByteArrayInputStream
 import java.io.File
 import javax.imageio.ImageIO
@@ -86,12 +87,25 @@ class FakePorts : HostPorts {
 
     override fun asset(path: String): ByteArray? = assets[path] ?: assetFile(path).takeIf { it.isFile }?.readBytes()
 
+    /**
+     * Like the watch: luminance times alpha, so transparent parts are black. Grey PNGs are read as they
+     * are stored, as Android does; Java's getRGB would treat their grey as linear and brighten it.
+     */
     override fun decodeImage(bytes: ByteArray): GrayRaster? {
         val image = ImageIO.read(ByteArrayInputStream(bytes)) ?: return null
         val out = GrayRaster(image.width, image.height)
+        val model = image.colorModel
+        val gray = model.colorSpace.type == ColorSpace.TYPE_GRAY
         for (y in 0 until image.height) for (x in 0 until image.width) {
-            val c = image.getRGB(x, y)
-            out[x, y] = ((c shr 16 and 0xFF) * 299 + (c shr 8 and 0xFF) * 587 + (c and 0xFF) * 114) / 1000
+            out[x, y] = if (gray) {
+                fun sample(band: Int) = image.raster.getSample(x, y, band) * 255 / ((1 shl model.getComponentSize(band)) - 1)
+                val alpha = if (model.hasAlpha()) sample(1) else 255
+                sample(0) * alpha / 255
+            } else {
+                val c = image.getRGB(x, y)
+                val luma = ((c shr 16 and 0xFF) * 299 + (c shr 8 and 0xFF) * 587 + (c and 0xFF) * 114) / 1000
+                luma * (c ushr 24 and 0xFF) / 255
+            }
         }
         return out
     }

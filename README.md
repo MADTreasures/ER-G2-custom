@@ -136,8 +136,11 @@ Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installi
 
 **Bedienen:**
 
-- Auf dem Desktop der Brille die Kachel **Apps** anklicken → der **Starter** listet alle Apps; laufende
-  sind mit „läuft“ markiert. Ohne Apps steht dort „Noch keine Apps“.
+- Auf dem Desktop der Brille die Kachel **Apps** anklicken → der **Starter** zeigt alle Apps als Symbol mit
+  Namen, vier nebeneinander, acht auf einen Blick (mehr scrollen). Ein Punkt rechts oben am Symbol heißt:
+  Die App läuft. Eine App ohne Symbol zeigt ihre Anfangsbuchstaben. Ohne Apps steht dort „Noch keine Apps“.
+  Bügel und Ring springen von Symbol zu Symbol (Zeile für Zeile), Tippen startet; mit dem Zeiger leuchtet
+  das Symbol darunter auf, Doppeltipp auf der Uhr startet es.
 - **Zeiger** (Finger auf der Uhr): Was unter dem Zeiger liegt, ist hervorgehoben; Doppeltipp auf der Uhr
   klickt es. Den Zeiger über den oberen oder unteren Rand hinaus schieben scrollt lange Seiten.
 - **Bügel oder Ring:** Wischen springt zum nächsten/vorigen Knopf, Schalter oder Häkchen (die Seite scrollt
@@ -197,7 +200,8 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
-zweimal antippen. Fertige Pakete: **YouTube** und **Browser**. Pakete ab 0.8.0 (Schnittstelle 2) brauchen
+zweimal antippen. Fertige Pakete: **YouTube** und **Browser**, beide mit Symbol für den Starter (ein Paket
+bringt sein Symbol als `assets/apps/<app-id>/icon.png` mit, [09 §2](docs/app-entwicklung/09_App-Pakete.md#2-das-paket)). Pakete ab 0.8.0 (Schnittstelle 2) brauchen
 die Uhr-App 0.8.0 oder neuer; ältere Pakete laufen weiter.
 
 ## YouTube auf der Brille
@@ -495,7 +499,7 @@ die Uhr offline ist.
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 4 + 439 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 7 + 448 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -519,7 +523,8 @@ Lint ohne Fehler. Die wichtigsten:
 - **`AppHostTest`** – der App-Host mit Test-Apps, simuliertem Desktop und virtueller Zeit: `start` vor
   `visible`, Zurück auf der ersten Seite schließt, Knopf-Ziele und `@back`, Schalter und Häkchen sofort, höchstens
   alle 200 ms zeichnen, Timer ruhen verdeckt ohne `background`, 2-s- und 10-s-Regel, 50/500-ms-Regel,
-  Absturz einer App, Berechtigungsfrage, App-Menü mit „Apps“ und Starter, Fokus per Bügel, Zeiger,
+  Absturz einer App, Berechtigungsfrage, App-Menü mit „Apps“ und Starter (Raster in Lesereihenfolge für Bügel
+  und Zeiger, Symbole einmal je App-Version gelesen, Punkt für laufende Apps), Fokus per Bügel, Zeiger,
   Gesten-Modus, abgelehnte Befehle im Protokoll, interne Sitzungen (Anschlüsse für Even-Hub-Apps).
 - **`AppHostWebTest`** – Web-Seiten im Bild-Baustein: Öffnen in Größe des Bausteins, Bilder, Zustände,
   Adressen und Berechtigung, Klicks (Uhr und Bügel) und Scrollen (Bügel, Zeiger über den Rand) als Ereignisse,
@@ -539,7 +544,7 @@ Lint ohne Fehler. Die wichtigsten:
 - **App-Pakete:** **`InstalledPackagesTest`** installiert die Dateien, die `:packages:<name>:g2app` wirklich
   baut, in einen echten App-Host und startet sie (nur den DEX-Schritt ersetzt die JVM);
   **`PackageArchiveTest`**, **`PackageStoreTest`** (Prüfen, Installieren, Aktualisieren, Entfernen, Ordner
-  für neue Apps), **`AppsScreenTest`**, in `app-api` **`PackageManifestTest`**; die Tests eines Pakets liegen in
+  für neue Apps, Symbole), **`AppsScreenTest`**, in `app-api` **`PackageManifestTest`**; die Tests eines Pakets liegen in
   `packages/<name>/src/test` und laufen mit `:app:testDebugUnitTest`.
 - Bilder neu erzeugen (Uhr, Desktop, Apps samt YouTube und Browser, Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
 - **`GlassesRasterizerTest`** (web-raster) – Grund, Bilder, lesbarer und negativer Text; **`LayoutParserTest`** –

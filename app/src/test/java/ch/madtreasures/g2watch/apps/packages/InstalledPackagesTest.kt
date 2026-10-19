@@ -12,6 +12,7 @@ import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.InputSource
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.PackageFormatException
+import ch.madtreasures.g2watch.apps.PackageManifest
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.FakePorts
@@ -42,6 +43,7 @@ class InstalledPackagesTest {
     private val scheduler = FakeScheduler()
     private val screen = FakeScreen()
     private val fakePorts = FakePorts()
+    private val text = FakeText()
 
     /** No APK assets: pages and pictures must come from the package itself. */
     private val ports: HostPorts = object : HostPorts by fakePorts {
@@ -78,6 +80,9 @@ class InstalledPackagesTest {
             assertEquals(G2AppApi.VERSION, m.api)
             assertEquals("${m.app.id}-${m.app.version}.g2app", file.name)
             assertEquals(m.app, DexPackageLoader.instantiate(javaClass.classLoader!!, m).manifest)
+            // Every package of ours brings its launcher icon (checked by PackageArchive.read above).
+            assertEquals(PackageManifest.iconPath(m.app.id), m.icon)
+            assertTrue("assets/${m.icon}" in archive.entries)
         }
     }
 
@@ -90,7 +95,7 @@ class InstalledPackagesTest {
             PackageStore(tmp.newFolder("app-packages"), emptySet()), inbox, classPath,
             io = Executor { it.run() }, reserved = emptySet(), onChange = { host?.packagesChanged() },
         )
-        host = AppHost(scheduler, screen, FakeText(), ports, builtIn = emptyList(), installed = packages, nowMs = { scheduler.now })
+        host = AppHost(scheduler, screen, text, ports, builtIn = emptyList(), installed = packages, nowMs = { scheduler.now })
         packages.rescan()
         packages.waiting.value.forEach { packages.install(it.file) }
         assertEquals(emptyList<File>(), inbox.listFiles()!!.toList())
@@ -98,6 +103,10 @@ class InstalledPackagesTest {
         host.openLauncher()
         settle()
         assertTrue(host.launcherButtons().any { it == "YouTube" })
+        // The icons come from the installed packages (the APK has none): no initials in place of them.
+        assertTrue(built.all { packages.icon(PackageArchive.read(it).manifest.app.id) != null })
+        assertTrue(listOf("YouTube", "Browser").all { it in text.drawn })
+        assertTrue("Y" !in text.drawn && "B" !in text.drawn)
 
         fakePorts.answers["$YOUTUBE@1.0.0"] = setOf(Permission.NETWORK)
         host.launch("watch:$YOUTUBE")

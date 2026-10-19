@@ -19,6 +19,7 @@ import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.InputSource
 import ch.madtreasures.g2watch.apps.ListStyle
 import ch.madtreasures.g2watch.apps.MenuItem
+import ch.madtreasures.g2watch.apps.PackageManifest
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.PatchBuilder
 import ch.madtreasures.g2watch.apps.Permission
@@ -127,6 +128,9 @@ class AppHost(
     private var cachedLayout: PageLayout? = null
     private var question: TextQuestion? = null
 
+    /** Launcher icons by "app id@version"; null for an app without one ([iconOf]). */
+    private val icons = HashMap<String, GrayRaster?>()
+
     /** The glasses went away while connected; videos and web pages wait until they are back. */
     private var glassesGone = false
 
@@ -161,7 +165,7 @@ class AppHost(
 
     override fun clickAt(x: Int, y: Int) = scheduler.post {
         val scr = currentScreen() ?: return@post
-        val layout = layoutOf(scr.page)
+        val layout = layoutOf(scr)
         val target = layout.hit(x, y, scr.view.scroll)?.target
         if (target == null) {
             // A web page takes the click itself, at that spot (05 §10).
@@ -175,7 +179,7 @@ class AppHost(
 
     override fun scrollBy(dy: Int) = scheduler.post {
         val scr = currentScreen() ?: return@post
-        val layout = layoutOf(scr.page)
+        val layout = layoutOf(scr)
         val next = (scr.view.scroll + dy).coerceIn(0, layout.maxScroll)
         if (next == scr.view.scroll) {
             // The page is at its end; a web page on it scrolls instead.
@@ -219,6 +223,7 @@ class AppHost(
      * another version now ends, and the launcher lists the installed apps again.
      */
     fun packagesChanged() = scheduler.post {
+        icons.clear()
         val current = installed.apps.associateBy { WATCH_PREFIX + it.id }
         for (s in sessions.values.toList()) {
             if (s.app == null || s.entryId in watchApps) continue
@@ -237,14 +242,38 @@ class AppHost(
     // --- Launcher -------------------------------------------------------------------------------
 
     override fun entries(): List<LaunchEntry> =
-        watchApps.map { (id, app) -> LaunchEntry(id, app.manifest.name, LaunchKind.WATCH, id in sessions) } +
-            installed.apps.map { WATCH_PREFIX + it.id to it }.filter { (id, _) -> id !in watchApps }.map { (id, manifest) ->
-                LaunchEntry(id, manifest.name, LaunchKind.WATCH, id in sessions)
+        watchApps.map { (id, app) ->
+            val m = app.manifest
+            LaunchEntry(id, m.name, LaunchKind.WATCH, id in sessions, icon = iconOf(m) { ports.asset(PackageManifest.iconPath(m.id)) })
+        } +
+            installed.apps.map { WATCH_PREFIX + it.id to it }.filter { (id, _) -> id !in watchApps }.map { (id, m) ->
+                LaunchEntry(id, m.name, LaunchKind.WATCH, id in sessions, icon = iconOf(m) { installed.icon(m.id) })
             } +
+            // Even Hub apps have no icon source yet (05 §3): their initials.
             evenHub.apps.map {
                 val id = EVEN_HUB_PREFIX + it.id
                 LaunchEntry(id, it.name, LaunchKind.EVEN_HUB, id in sessions, detail = it.location.label)
             }
+
+    /**
+     * The launcher icon of app [m], decoded and scaled to the cell's icon size once per app version
+     * (cleared by [packagesChanged]); null if it has none or it does not decode.
+     */
+    private fun iconOf(m: AppManifest, load: () -> ByteArray?): GrayRaster? {
+        val key = "${m.id}@${m.version}"
+        if (key in icons) return icons[key]
+        val bytes = try {
+            load()
+        } catch (e: Exception) {
+            ports.log("${m.name}: Symbol ließ sich nicht laden – ${e.message}")
+            null
+        }
+        val picture = bytes?.let { ports.decodeImage(it) }
+        if (bytes != null && picture == null) ports.log("${m.name}: Symbol ließ sich nicht lesen")
+        val icon = picture?.let { GrayImages.scale(it, PageMetrics.TILE_ICON, PageMetrics.TILE_ICON) }
+        icons[key] = icon
+        return icon
+    }
 
     private fun showLauncher(notice: String?) {
         var s = sessions[LAUNCHER_ENTRY]
@@ -651,7 +680,7 @@ class AppHost(
                     webClick(scr, w, at)
                     return
                 }
-                val layout = layoutOf(scr.page)
+                val layout = layoutOf(scr)
                 settle(layout, scr.view)
                 scr.view.focus?.let { activate(scr, it) }
             }
@@ -672,7 +701,7 @@ class AppHost(
             webScroll(scr, w, forward)
             return
         }
-        val layout = layoutOf(scr.page)
+        val layout = layoutOf(scr)
         val view = scr.view
         settle(layout, view)
         val targets = layout.focusables
@@ -711,7 +740,7 @@ class AppHost(
     private fun hover() {
         val p = pointer ?: return
         val scr = currentScreen() ?: return
-        val hit = layoutOf(scr.page).hit(p.first, p.second, scr.view.scroll) ?: return
+        val hit = layoutOf(scr).hit(p.first, p.second, scr.view.scroll) ?: return
         if (hit.target == scr.view.focus) return
         scr.view.focus = hit.target
         scr.view.fresh = false
@@ -1239,7 +1268,7 @@ class AppHost(
         if (scr.host != null) return null
         val s = scr.session ?: return null
         if (s.webs.isEmpty()) return null
-        val layout = layoutOf(scr.page)
+        val layout = layoutOf(scr)
         val py = y + scr.view.scroll
         for (w in s.webs.values) {
             val r = layout.box(w.block)?.rect ?: continue
@@ -1330,9 +1359,11 @@ class AppHost(
         return Page(PLACEHOLDER, "", if (text != null) listOf(Block.Text("host_starting", text, Align.CENTER)) else emptyList())
     }
 
-    private fun layoutOf(page: Page): PageLayout {
-        cachedLayout?.let { if (it.page === page) return it }
-        return renderer.layout(page).also { cachedLayout = it }
+    /** The layout of [scr]'s page; the launcher's buttons are cells of a grid (03 §5). */
+    private fun layoutOf(scr: Screen): PageLayout {
+        val tiles = scr.host == null && scr.session?.isLauncher == true
+        cachedLayout?.let { if (it.page === scr.page && it.tiles == tiles) return it }
+        return renderer.layout(scr.page, tiles).also { cachedLayout = it }
     }
 
     /** A page seen for the first time gets the focus on its first target in view. */
@@ -1364,7 +1395,7 @@ class AppHost(
             publish()
             return
         }
-        val layout = layoutOf(scr.page)
+        val layout = layoutOf(scr)
         settle(layout, scr.view)
         val raster = GrayRaster(layout.width, layout.height)
         val s = scr.session
@@ -1376,6 +1407,7 @@ class AppHost(
                 focus = scr.view.focus,
                 toast = if (scr.host == null) s?.toast else null,
                 images = if (scr.host == null && s != null) s.images else emptyMap(),
+                tiles = if (scr.host == null && s?.isLauncher == true) launcher?.tiles.orEmpty() else emptyMap(),
             ),
         )
         val subtitle = scr.page.name.takeIf { it.isNotBlank() && it != scr.title }

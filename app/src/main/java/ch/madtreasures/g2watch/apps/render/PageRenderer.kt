@@ -19,7 +19,22 @@ class PageLook(
     val toast: String? = null,
     /** Pixels of image blocks by block id, each exactly the block's size (w × h). */
     val images: Map<String, GrayRaster> = emptyMap(),
+    /** Icons and marks of the launcher's cells by block id ([PageLayout.tiles]). */
+    val tiles: Map<String, TileLook> = emptyMap(),
 )
+
+/**
+ * What a cell of the launcher shows besides the app's name: its [icon] ([PageMetrics.TILE_ICON] square,
+ * black is see-through) or, without one, its [initials] in a frame, and a dot while the app [running].
+ */
+class TileLook(val icon: GrayRaster?, val initials: String, val running: Boolean) {
+    companion object {
+        /** One or two capitals for an app without an icon: the first letter of its first two words. */
+        fun initials(name: String): String = name.split(' ', '-', '_').filter { it.isNotBlank() }.take(2)
+            .joinToString("") { word -> word.substring(0, TextFit.cuts(word)[1]) }
+            .uppercase()
+    }
+}
 
 /**
  * Draws a page into the app area (02 §4.2): text and outlines on black, because black is see-through on
@@ -27,7 +42,7 @@ class PageLook(
  */
 class PageRenderer(private val text: TextPainter) {
 
-    fun layout(page: Page): PageLayout = PageLayout.of(page, text)
+    fun layout(page: Page, tiles: Boolean = false): PageLayout = PageLayout.of(page, text, tiles = tiles)
 
     /** Draws [layout] into [target], which must be the viewport ([PageLayout.width] × [PageLayout.height]). */
     fun render(target: GrayRaster, layout: PageLayout, look: PageLook = PageLook()) {
@@ -53,7 +68,7 @@ class PageRenderer(private val text: TextPainter) {
                 lines(target, box.lines, r, size, bold = true, Levels.STRONG, b.align)
             }
             is Block.Text -> lines(target, box.lines, r, m.BODY, bold = false, Levels.TEXT, b.align)
-            is Block.Button -> button(target, b, r, focused != null)
+            is Block.Button -> if (box.tile) tile(target, b, r, focused != null, look.tiles[b.id]) else button(target, b, r, focused != null)
             is Block.List -> list(target, b, r, focused?.row)
             is Block.Toggle -> toggle(target, b, r, focused != null)
             is Block.Value -> {
@@ -106,6 +121,54 @@ class PageRenderer(private val text: TextPainter) {
         }
         val label = TextFit.ellipsize(text, b.text, PageMetrics.BODY, true, right - r.x - 20)
         textIn(target, label, r.x + 20, r, PageMetrics.BODY, true, if (focused) Levels.STRONG else Levels.TEXT)
+    }
+
+    /**
+     * A cell of the launcher: the icon with the name below it. The focused cell gets a frame like a
+     * focused button, and its icon and name the full brightness; the others stay a little dimmer.
+     */
+    private fun tile(target: GrayRaster, b: Block.Button, r: Rect, focused: Boolean, look: TileLook?) {
+        val m = PageMetrics
+        val tile = look ?: TileLook(null, TileLook.initials(b.text), running = false)
+        if (focused) {
+            val f = r.inset(TILE_INSET)
+            Shapes.fillRoundRect(target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, Levels.SURFACE)
+            Shapes.strokeRoundRect(target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, 3f, Levels.STRONG)
+        }
+        val ix = r.x + (r.w - m.TILE_ICON) / 2
+        val iy = r.y + TILE_ICON_TOP
+        val icon = tile.icon
+        if (icon != null) {
+            lighten(target, icon, ix, iy, if (focused) 15 else 13)
+        } else {
+            val size = m.TILE_ICON.toFloat()
+            Shapes.strokeRoundRect(target, ix + 1f, iy + 1f, size - 2f, size - 2f, 14f, 2f, Levels.DIM)
+            val letters = TextFit.ellipsize(text, tile.initials, INITIALS, true, m.TILE_ICON - 8)
+            if (letters.isNotEmpty()) {
+                val lx = ix + (m.TILE_ICON - text.measure(letters, INITIALS, true)) / 2
+                val ly = iy + (m.TILE_ICON - text.lineHeight(INITIALS)) / 2
+                text.draw(target, letters, lx, ly, INITIALS, if (focused) Levels.STRONG else Levels.TEXT, true)
+            }
+        }
+        if (tile.running) Shapes.fillCircle(target, ix + m.TILE_ICON + 8f, iy + 6f, 4f, Levels.STRONG)
+        val label = TextFit.ellipsize(text, b.text, m.TILE_LABEL, false, r.w - 12)
+        if (label.isNotEmpty()) {
+            val lx = r.x + (r.w - text.measure(label, m.TILE_LABEL)) / 2
+            text.draw(target, label, lx, r.y + TILE_LABEL_TOP, m.TILE_LABEL, if (focused) Levels.STRONG else Levels.TEXT)
+        }
+    }
+
+    /**
+     * Draws [image] with its top left at ([x], [y]), each pixel scaled by [level]/15 and kept only where
+     * it is brighter than what is there: the black (see-through) around an icon leaves the cell's fill.
+     */
+    private fun lighten(target: GrayRaster, image: GrayRaster, x: Int, y: Int, level: Int) {
+        for (row in 0 until image.height) {
+            for (col in 0 until image.width) {
+                val v = image[col, row]
+                if (v != 0) target.lighten(x + col, y + row, if (level >= 15) v else v * level / 15)
+            }
+        }
     }
 
     private fun list(target: GrayRaster, b: Block.List, r: Rect, focusedRow: Int?) {
@@ -215,5 +278,14 @@ class PageRenderer(private val text: TextPainter) {
         Shapes.fillRoundRect(target, x, y, w, h, h / 2, Levels.SURFACE)
         Shapes.strokeRoundRect(target, x, y, w, h, h / 2, 2f, Levels.BORDER)
         text.draw(target, s, (x + 20).toInt(), (y + (h - text.lineHeight(size)) / 2).toInt(), size, Levels.TEXT)
+    }
+
+    private companion object {
+        /** Inside a launcher cell: the focus frame's inset and corner, where the icon and the name start, the initials' size. */
+        const val TILE_INSET = 4
+        const val TILE_RADIUS = 12f
+        const val TILE_ICON_TOP = 14
+        const val TILE_LABEL_TOP = 84
+        const val INITIALS = 28
     }
 }

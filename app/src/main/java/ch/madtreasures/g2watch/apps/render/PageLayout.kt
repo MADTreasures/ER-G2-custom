@@ -32,6 +32,17 @@ object PageMetrics {
     const val DIVIDER = 2
     const val DIVIDER_SPACE = 6
     const val SCROLLBAR = 3
+
+    /**
+     * The launcher's grid (03 §5): cells of [TILE_W] × [TILE_H], [TILE_COLUMNS] per row across the
+     * inner width, so two rows (8 apps) fit below the header without scrolling. Each cell shows a
+     * [TILE_ICON] px icon with the app's name below it at [TILE_LABEL] px.
+     */
+    const val TILE_COLUMNS = 4
+    const val TILE_W = 136
+    const val TILE_H = 120
+    const val TILE_ICON = 64
+    const val TILE_LABEL = 18
 }
 
 /**
@@ -56,13 +67,17 @@ data class FocusTarget(val block: String, val row: Int = -1)
 /** A focusable target and where it is, in page coordinates. */
 data class Focusable(val target: FocusTarget, val rect: Rect)
 
-/** A block and its place on the page; [lines] is the wrapped text of headings and text blocks. */
-class BlockBox(val block: Block, val rect: Rect, val lines: List<String> = emptyList())
+/**
+ * A block and its place on the page; [lines] is the wrapped text of headings and text blocks. [tile]:
+ * a button laid out as a cell of the launcher's grid.
+ */
+class BlockBox(val block: Block, val rect: Rect, val lines: List<String> = emptyList(), val tile: Boolean = false)
 
 /**
  * A page laid out for a viewport of [width] × [height]: every block's box in page coordinates (y = 0 at
  * the top of the content, before scrolling), the focusable targets in reading order and the content
- * height. The same layout serves drawing ([PageRenderer]) and pointer hits ([hit]).
+ * height. The same layout serves drawing ([PageRenderer]) and pointer hits ([hit]). With [tiles] (the
+ * launcher), buttons are cells of a grid instead of full-width rows.
  */
 class PageLayout(
     val page: Page,
@@ -71,6 +86,7 @@ class PageLayout(
     val boxes: List<BlockBox>,
     val focusables: List<Focusable>,
     val contentHeight: Int,
+    val tiles: Boolean = false,
 ) {
     val maxScroll: Int get() = (contentHeight - height).coerceAtLeast(0)
 
@@ -79,15 +95,39 @@ class PageLayout(
     fun box(blockId: String): BlockBox? = boxes.firstOrNull { it.block.id == blockId }
 
     companion object {
-        /** Lays out [page] for the app area: [PageMetrics.HEIGHT] high with the header, else full height. */
-        fun of(page: Page, text: TextPainter, width: Int = PageMetrics.WIDTH, height: Int = viewportHeight(page)): PageLayout {
+        /**
+         * Lays out [page] for the app area: [PageMetrics.HEIGHT] high with the header, else full height.
+         * With [tiles] (only the launcher, which the host draws itself), buttons flow into a grid of
+         * [PageMetrics.TILE_COLUMNS] cells per row, row by row and without gaps, so the pointer finds no
+         * dead space between them and the focus order is the reading order. Any other block ends a row.
+         */
+        fun of(
+            page: Page,
+            text: TextPainter,
+            width: Int = PageMetrics.WIDTH,
+            height: Int = viewportHeight(page),
+            tiles: Boolean = false,
+        ): PageLayout {
             val m = PageMetrics
             val inner = width - 2 * m.MARGIN
             val boxes = ArrayList<BlockBox>()
             val focusables = ArrayList<Focusable>()
             var y = m.PAD
+            var column = 0
+            var rowTop = 0
             for (block in page.blocks) {
                 val x = m.MARGIN
+                if (tiles && block is Block.Button) {
+                    // A new row right below a full one, or below whatever came before.
+                    if (column == 0) rowTop = if (boxes.lastOrNull()?.tile == true) rowTop + m.TILE_H else y
+                    val box = BlockBox(block, Rect(x + column * m.TILE_W, rowTop, m.TILE_W, m.TILE_H), tile = true)
+                    focusables += Focusable(FocusTarget(block.id), box.rect)
+                    boxes += box
+                    column = (column + 1) % m.TILE_COLUMNS
+                    y = box.rect.bottom + m.GAP
+                    continue
+                }
+                column = 0
                 val box = when (block) {
                     is Block.Heading -> {
                         val size = if (block.size == HeadingSize.GROSS) m.HEADING_GROSS else m.HEADING
@@ -136,7 +176,7 @@ class PageLayout(
                 last.block is Block.Image && last.block.bleed -> last.rect.bottom
                 else -> last.rect.bottom + m.PAD
             }
-            return PageLayout(page, width, height, boxes, focusables, content)
+            return PageLayout(page, width, height, boxes, focusables, content, tiles)
         }
 
         fun viewportHeight(page: Page): Int = if (page.statusBar) PageMetrics.HEIGHT else PageMetrics.FULL_HEIGHT

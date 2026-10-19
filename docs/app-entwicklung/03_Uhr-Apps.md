@@ -88,6 +88,14 @@ Die App ist ein eigener Ordner `packages/<name>/` mit dem Code in `src/main/kotl
 Im Starter steht eine App, sobald ihr Paket installiert ist. Ohne
 Apps zeigt der Starter „Noch keine Apps“.
 
+Symbol im Starter: ein PNG nach `packages/<name>/src/main/assets/apps/<app-id>/icon.png` legen, quadratisch,
+64 × 64 empfohlen (16 bis 256 px, höchstens 64 KB), Graustufen auf Schwarz oder transparent. Gut sieht eine
+ruhige Strichzeichnung aus: Linien 2–3 px, Helligkeit der Stufen 10–15 (Grauwert Stufe × 16), keine großen
+hellen Flächen. Der Bau-Schritt findet die Datei selbst, prüft sie und trägt sie in `g2app.json` ein
+([09 §2](09_App-Pakete.md#2-das-paket)); am Manifest der App ändert sich nichts. Ohne Symbol zeigt der Starter
+die Anfangsbuchstaben des Namens in einem Rahmen. Die Symbole von YouTube und Browser zeichnet
+[`tools/app_symbole.py`](../../tools/app_symbole.py) (Python mit Pillow); es taugt als Vorlage.
+
 Seiten aus dem Baukasten statt aus Code: den Export nach `packages/<name>/src/main/assets/apps/<app-id>/ui.json`
 legen und im Manifest `ui = "apps/<app-id>/ui.json"` setzen. Der Host lädt die Datei aus dem Paket vor
 `Start`; die App ruft dann nur noch `show(...)` oder `patch(...)` auf.
@@ -226,7 +234,7 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 | `host/InputRouter.kt` | Gesten von Uhr und Brille nach §5.1 in Zeiger, Fokus oder `gesture`-Ereignisse |
 | `render/PageRenderer.kt` | Seite + Zustand (Fokus, Scroll, Zeiger) → Pixel der App-Fläche, Maße aus [02 §4.2](02_App-Modell.md#42-bausteine) |
 | `render/Hit.kt` | welcher Baustein unter dem Zeiger liegt |
-| `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), eingebaute Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; laufende markiert |
+| `launcher/Launcher.kt` | der Starter: vom Host gezeichnet (keine `G2App`), installierte Apps, ab M3 Even-Hub-Apps, ab M5 Rechner-Apps; Raster aus Symbolen mit Namen, laufende mit einem Punkt markiert |
 | `AppRegistry.kt` | fest eingebaute Apps (§1), zurzeit keine |
 | `packages/…` | App-Pakete prüfen, installieren, entfernen und laden ([09](09_App-Pakete.md)) |
 
@@ -359,6 +367,7 @@ dieselbe `G2App`-Schnittstelle gelegt werden.
 | Speicher | eine JSON-Datei je App unter `files/apps/<id>/store.json`, höchstens 256 KiB; mehr wird abgelehnt. |
 | Bilder | `data:image/…;base64,…` und `asset:<datei>` (aus `assets/apps/<app-id>/`), dekodiert mit Android, in Helligkeit umgerechnet (Transparenz = schwarz) und auf `w × h` skaliert. |
 | Interne Sitzungen (§5.2) | `InternalSession` + `InternalContext` (= `AppContext` + `setRaster`, `glasses`), `onGlassesStatus`, `startTimeoutMs`, `startingText`, `ownsDoubleClick` (Doppeltippen geht an die App). Der Starter ist selbst so eine Sitzung (`launcher/Launcher.kt`). `EvenHubRegistry.NONE` bis M3. |
+| Starter (seit v0.9.0) | Ein Raster statt einer Liste: Zellen 136 × 120, 4 je Zeile über die 544 px Innenbreite, ohne Lücken dazwischen; 2 Zeilen (8 Apps) passen ohne Scrollen unter die Kopfzeile. Der Starter bleibt eine Seite aus Knöpfen; nur für ihn legt der Host Knöpfe als Zellen aus (`PageLayout.of(…, tiles = true)`, gewählt in `AppHost.layoutOf`), Apps können das nicht. In der Zelle: Symbol 64 × 64 oben, Name in 18 px darunter (mit „…“ gekürzt). Fokus = Fläche `SURFACE` und 3-px-Rahmen `STRONG`; das Symbol wird mit dem Maximum gemischt, sein Schwarz stanzt also kein Loch in die Fläche; nicht fokussierte Symbole und Namen etwas dunkler (13/15). Laufende App: Punkt rechts oben am Symbol statt „läuft“. Ohne Symbol: Rahmen mit den Anfangsbuchstaben. Bügel und Ring gehen Zelle für Zelle in Lesereihenfolge (über das Zeilenende in die nächste Zeile, eine dritte Zeile scrollt herein), der Zeiger fokussiert die Zelle darunter, Tippen startet. Symbole: Pakete über `InstalledApps.icon`, eingebaute Apps aus `assets/apps/<id>/icon.png` der APK, Even-Hub-Apps noch keine; je `id@version` einmal dekodiert und auf 64 × 64 skaliert, `packagesChanged()` leert den Speicher. |
 | Brillen-Status | `AppHost.glassesStatus` (verbunden, Akku, Laden, getragen); die Uhr schaltet beim Verbinden die Trageerkennung ein (`enableWearDetectionAndRequestState`). |
 | Beobachtbar | `AppHost.inputMode` schaltet das Touchpad; `AppHost.state` (sichtbare App, Seite, Fokus, Scroll, laufende Apps) für die Uhr-Oberfläche und Tests. |
 

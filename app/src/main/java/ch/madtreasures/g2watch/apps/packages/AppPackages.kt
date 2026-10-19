@@ -103,6 +103,11 @@ class AppPackages(
 
     override val apps: List<AppManifest> get() = _installed.value.map { it.app }
 
+    override fun icon(id: String): ByteArray? {
+        val manifest = _installed.value.firstOrNull { it.app.id == id } ?: return null
+        return manifest.icon?.let { store.asset(id, it) }
+    }
+
     override fun open(id: String): InstalledApp? {
         val manifest = _installed.value.firstOrNull { it.app.id == id } ?: return null
         val app = loader.load(store.dir(id), manifest)

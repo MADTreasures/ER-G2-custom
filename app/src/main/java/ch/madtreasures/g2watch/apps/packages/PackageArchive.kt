@@ -10,7 +10,8 @@ import java.util.zip.ZipFile
 
 /**
  * An app package file (`.g2app`, docs/app-entwicklung/09 §2), checked before anything of it is unpacked
- * or run: a ZIP with `g2app.json`, `classes.dex` (plus `classes2.dex` …) and files under `assets/`.
+ * or run: a ZIP with `g2app.json`, `classes.dex` (plus `classes2.dex` …) and files under `assets/`, among
+ * them the pages and the launcher icon the manifest names.
  * Every problem ends in a [PackageFormatException] with a German message for the watch.
  */
 class PackageArchive private constructor(val file: File, val manifest: PackageManifest, val entries: List<String>) {
@@ -61,6 +62,13 @@ class PackageArchive private constructor(val file: File, val manifest: PackageMa
                     if (!magic.contentEquals("dex\n".toByteArray())) throw PackageFormatException("classes.dex ist kein DEX")
                     manifest.app.ui?.let { ui ->
                         if ("assets/$ui" !in names) throw PackageFormatException("Seiten $ui fehlen im Paket")
+                    }
+                    manifest.icon?.let { icon ->
+                        val entry = zip.getEntry("assets/$icon")?.takeIf { "assets/$icon" in names }
+                            ?: throw PackageFormatException("Symbol $icon fehlt im Paket")
+                        // One byte more than allowed is enough to tell a file that is too large.
+                        val bytes = zip.getInputStream(entry).use { it.readNBytes(PackageManifest.ICON_MAX_BYTES + 1) }
+                        PackageManifest.iconProblem(icon, bytes)?.let { throw PackageFormatException(it) }
                     }
                     return PackageArchive(file, manifest, names)
                 }

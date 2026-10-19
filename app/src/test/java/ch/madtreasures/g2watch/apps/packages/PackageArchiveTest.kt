@@ -50,6 +50,21 @@ class PackageArchiveTest {
     }
 
     @Test
+    fun `the launcher icon the manifest names is checked`() {
+        val archive = PackageArchive.read(validPackage(tmp.root, icon = pngBytes(64)))
+        assertEquals(ICON_PATH, archive.manifest.icon)
+        assertTrue("assets/$ICON_PATH" in archive.entries)
+
+        val withIcon = PackageManifest.FILE to manifestJson(icon = ICON_PATH).toByteArray()
+        refused("Symbol $ICON_PATH fehlt im Paket", mapOf(withIcon, dex))
+        refused("ist kein PNG", mapOf(withIcon, dex, "assets/$ICON_PATH" to "<svg/>".toByteArray()))
+        refused("nicht quadratisch (64 × 32 Pixel)", mapOf(withIcon, dex, "assets/$ICON_PATH" to pngBytes(64, 32)))
+        refused("16 bis 256 Pixel", mapOf(withIcon, dex, "assets/$ICON_PATH" to pngBytes(8)))
+        refused("zu groß (höchstens 64 KB)", mapOf(withIcon, dex, "assets/$ICON_PATH" to pngBytes(64) + ByteArray(PackageManifest.ICON_MAX_BYTES)))
+        refused("kein Pfad zu einer PNG-Datei", mapOf(PackageManifest.FILE to manifestJson(icon = ICON_PATH).replace(".png", ".gif").toByteArray(), dex))
+    }
+
+    @Test
     fun `not a zip and too large files are refused`() {
         val text = tmp.newFile("text.g2app").apply { writeText("hallo") }
         assertTrue(runCatching { PackageArchive.read(text) }.exceptionOrNull()!!.message!!.contains("keine ZIP-Datei"))
