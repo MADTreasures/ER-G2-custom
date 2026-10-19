@@ -241,9 +241,9 @@ class GlassesConnectionTest {
         assertEquals(RIGHT, session.right)
         assertEquals(LEFT, session.left)
         assertTrue(session.listening)
-        // The desktop is mirrored to the session's compositor.
+        // The desktop is mirrored to the session's compositor, at the chosen depth.
         assertTrue(session.display.submitsOf("desktop").isNotEmpty())
-        assertTrue(session.display.submitsOf("pointer").isNotEmpty())
+        assertEquals(listOf("desktop" to 0), session.display.depths)
     }
 
     @Test

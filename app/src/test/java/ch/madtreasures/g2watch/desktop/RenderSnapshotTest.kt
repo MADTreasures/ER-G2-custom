@@ -56,13 +56,7 @@ class RenderSnapshotTest {
         fun tile(app: AppId) = controller.layout.tiles.first { it.first == app }.second
 
         fun save(name: String) {
-            val frame = controller.frame.value
-            val pointer = display.submitsOf("pointer").last().pixels
-            ImageIO.write(
-                glassesImage(display.submitsOf("desktop").last().pixels, frame.pointerX, frame.pointerY, pointer),
-                "png",
-                File(out, "$name.png"),
-            )
+            ImageIO.write(glassesImage(display.content("desktop").pixels), "png", File(out, "$name.png"))
         }
 
         moveTo(tile(AppId.CLOCK).x + 60, tile(AppId.CLOCK).y + 40)
@@ -95,12 +89,12 @@ class RenderSnapshotTest {
         }
 
         // The pointer up close: over dark pixels, over the lit digits of the clock, half over an edge.
-        moveTo(15, 250)
+        moveTo(controller.layout.stage.x + 1, tile(AppId.APPS).bottom + 2)
         val overDark = zoom(display, controller.frame.value)
         moveTo(tile(AppId.CLOCK).x + 60, tile(AppId.CLOCK).y + 40)
         controller.click()
         scheduler.runPending()
-        val desktop = raster(display.submitsOf("desktop").last().pixels)
+        val desktop = raster(controller.frame.value)
         val digits = Rect(200, 190, 240, 90)
         val mostlyLit = positions(digits).maxBy { litShare(desktop, it) }
         moveTo(mostlyLit.first, mostlyLit.second)
@@ -111,8 +105,12 @@ class RenderSnapshotTest {
         ImageIO.write(sideBySide(listOf(overDark, overLit, overEdge)), "png", File(out, "zeiger-lupe.png"))
     }
 
-    private fun raster(pixels: ByteArray) =
-        GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT).also { pixels.copyInto(it.pixels) }
+    /** The desktop without the pointer, as last rendered. */
+    private fun raster(frame: DesktopFrame) = GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT).also {
+        for (row in 0 until frame.band.h) {
+            System.arraycopy(frame.pixels, row * frame.band.w, it.pixels, (frame.band.y + row) * it.width + frame.band.x, frame.band.w)
+        }
+    }
 
     private fun positions(area: Rect) = sequence {
         for (y in area.y until area.bottom step 2) for (x in area.x until area.right step 2) yield(Pair(x, y))
@@ -133,9 +131,7 @@ class RenderSnapshotTest {
 
     /** 8× enlarged 40 × 30 cut around the pointer, from what the glasses were sent. */
     private fun zoom(display: FakeDisplay, frame: DesktopFrame): BufferedImage {
-        val full = glassesImage(
-            display.submitsOf("desktop").last().pixels, frame.pointerX, frame.pointerY, display.submitsOf("pointer").last().pixels,
-        )
+        val full = glassesImage(display.content("desktop").pixels)
         val scale = 8
         val cut = BufferedImage(40 * scale, 30 * scale, BufferedImage.TYPE_INT_RGB)
         for (y in 0 until 30) for (x in 0 until 40) {
@@ -162,8 +158,8 @@ class RenderSnapshotTest {
         return out
     }
 
-    /** The composite as the lens shows it: 16 shades of green, the pointer as sent on top with its color key. */
-    private fun glassesImage(desktop: ByteArray, pointerX: Int, pointerY: Int, pointer: ByteArray): BufferedImage {
+    /** The desktop surface as the lens shows it, pointer included: 16 shades of green. */
+    private fun glassesImage(desktop: ByteArray): BufferedImage {
         val w = DesktopLayout.SCREEN_WIDTH
         val h = DesktopLayout.SCREEN_HEIGHT
         fun green(v: Int): Int {
@@ -172,12 +168,6 @@ class RenderSnapshotTest {
         }
         val image = BufferedImage(w, h, BufferedImage.TYPE_INT_RGB)
         for (y in 0 until h) for (x in 0 until w) image.setRGB(x, y, green(desktop[y * w + x].toInt() and 0xFF))
-        for (y in 0 until PointerSprite.height) for (x in 0 until PointerSprite.width) {
-            val v = pointer[y * PointerSprite.width + x].toInt() and 0xFF
-            val px = pointerX + x
-            val py = pointerY + y
-            if (v != 0 && px < w && py < h) image.setRGB(px, py, if (v == 1) 0 else green(v))
-        }
         return image
     }
 }

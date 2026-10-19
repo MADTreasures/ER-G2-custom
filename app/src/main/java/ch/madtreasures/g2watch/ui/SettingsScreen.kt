@@ -59,9 +59,11 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ListSubHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.OutlinedButton
+import androidx.wear.compose.material3.RadioButton
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.SwitchButton
 import androidx.wear.compose.material3.Text
+import ch.madtreasures.g2watch.desktop.Depth
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.glasses.FirmwareInstall
 import ch.madtreasures.g2watch.glasses.FirmwareRequirement
@@ -76,7 +78,8 @@ import kotlin.math.PI
 /**
  * The settings, opened by holding the gear on the touchpad (or from the status page when the
  * firmware does not fit or the connection failed). First how fast frames go from the watch to the
- * glasses, then the firmware (original or custom), then the pointer and the connection.
+ * glasses, then the firmware (original or custom), then the picture's depth, the pointer and the
+ * connection.
  */
 @Composable
 fun SettingsScreen(
@@ -97,6 +100,8 @@ fun SettingsScreen(
     appsSummary: String? = null,
     protocolFile: Boolean = false,
     onProtocolFile: (Boolean) -> Unit = {},
+    depth: Depth = Depth.DEFAULT,
+    onDepth: (Depth) -> Unit = {},
 ) {
     val listState = rememberScalingLazyListState()
     val watchBattery = rememberWatchBattery()
@@ -140,6 +145,18 @@ fun SettingsScreen(
             item {
                 OutlinedButton(onClick = onRisks, modifier = Modifier.fillMaxWidth().testTag(RISKS_TAG)) { Text("Risiken & Rückweg") }
             }
+
+            item { ListSubHeader { Text("Bildtiefe") } }
+            items(Depth.entries) { level ->
+                RadioButton(
+                    selected = level == depth,
+                    onSelect = { onDepth(level) },
+                    modifier = Modifier.fillMaxWidth().testTag(DEPTH_TAG_PREFIX + level.name),
+                    label = { Text(level.label) },
+                    secondaryLabel = if (level == Depth.DEFAULT) ({ Text("Standard", fontSize = 11.sp) }) else null,
+                )
+            }
+            item { CenterText(DEPTH_HINT, color = MaterialTheme.colorScheme.onSurfaceVariant, size = 11) }
 
             item { ListSubHeader { Text("Zeiger") } }
             item {
@@ -449,6 +466,11 @@ internal const val RISKS_TAG = "firmware-risks"
 internal const val APPS_TAG = "settings-apps"
 internal const val PROTOCOL_FILE_TAG = "settings-protocol-file"
 internal const val PROGRESS_RING_TAG = "progress-ring"
+
+/** Followed by the [Depth] name, e.g. "settings-depth-NEAR". */
+internal const val DEPTH_TAG_PREFIX = "settings-depth-"
+
+internal const val DEPTH_HINT = "Wie nah das Bild der Brille wirkt, wie in der Even-App. Gilt sofort."
 
 private val RING_SIZE = 96.dp
 private val RING_STROKE = 9.dp

@@ -38,7 +38,6 @@ import ch.madtreasures.g2watch.apps.host.ScriptedApp
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.desktop.DesktopLayout
-import ch.madtreasures.g2watch.desktop.PointerSprite
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -85,8 +84,8 @@ class PageRendererSnapshotTest {
         desktop.updateStatus { it.copy(watchBattery = 76, glassesBattery = 81, connection = "Verbunden") }
         desktop.attach(display)
         scheduler.runPending()
-        // Off the app area, so it focuses nothing until a picture puts it somewhere.
-        pointerTo(620, 380)
+        // In the bottom right corner, so it focuses nothing until a picture puts it somewhere.
+        pointerTo(PARKED.first, PARKED.second)
     }
 
     private fun host(vararg apps: () -> G2App) = AppHost(
@@ -120,9 +119,7 @@ class PageRendererSnapshotTest {
 
     private fun save(name: String) {
         settle()
-        val frame = desktop.frame.value
-        val pointer = if (display.visibility["pointer"] == false) null else display.submitsOf("pointer").last().pixels
-        ImageIO.write(glassesImage(display.submitsOf("desktop").last().pixels, frame.pointerX, frame.pointerY, pointer), "png", File(dir!!, "$name.png"))
+        ImageIO.write(glassesImage(display.content("desktop").pixels), "png", File(dir!!, "$name.png"))
     }
 
     private val blocksPage = Page(
@@ -186,7 +183,7 @@ class PageRendererSnapshotTest {
         settle()
         pointerOn(blocksPage, "knopf2", dx = 300)
         save("apps-bausteine")
-        pointerTo(620, 380)
+        pointerTo(PARKED.first, PARKED.second)
         repeat(9) { host.gesture(GestureKind.SCROLL_DOWN) }
         save("apps-bausteine-gescrollt")
     }
@@ -421,19 +418,17 @@ class PageRendererSnapshotTest {
         return ((0x7C * level / 255) shl 16) or ((0xFF * level / 255) shl 8) or (0xA0 * level / 255)
     }
 
-    private fun glassesImage(desktop: ByteArray, pointerX: Int, pointerY: Int, pointer: ByteArray?): BufferedImage {
+    /** The desktop surface as the lens shows it, pointer included. */
+    private fun glassesImage(desktop: ByteArray): BufferedImage {
         val w = DesktopLayout.SCREEN_WIDTH
         val h = DesktopLayout.SCREEN_HEIGHT
         val image = BufferedImage(w, h, BufferedImage.TYPE_INT_RGB)
         for (y in 0 until h) for (x in 0 until w) image.setRGB(x, y, green(desktop[y * w + x].toInt() and 0xFF))
-        if (pointer != null) {
-            for (y in 0 until PointerSprite.height) for (x in 0 until PointerSprite.width) {
-                val v = pointer[y * PointerSprite.width + x].toInt() and 0xFF
-                val px = pointerX + x
-                val py = pointerY + y
-                if (v != 0 && px < w && py < h) image.setRGB(px, py, if (v == 1) 0 else green(v))
-            }
-        }
         return image
+    }
+
+    private companion object {
+        /** The pointer's tip in the bottom right corner of the stage, where only a sliver of it shows. */
+        val PARKED = Pair(605, 381)
     }
 }

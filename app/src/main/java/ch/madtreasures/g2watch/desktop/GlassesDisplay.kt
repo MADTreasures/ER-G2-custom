@@ -9,13 +9,17 @@ interface GlassesDisplay {
     fun configureSurface(id: String, x: Int, y: Int, width: Int, height: Int, zOrder: Int, colorKey: Boolean)
 
     /**
-     * Replaces the whole content of surface [id]. [fingerprint] identifies that content: the
-     * compositor treats an unchanged fingerprint with unchanged geometry as "nothing to send".
+     * Replaces the [width] × [height] block at ([x], [y]) of surface [id] (surface coordinates); the rest
+     * of the surface keeps its content. [fingerprint] identifies the surface's whole content after the
+     * update: the compositor treats an unchanged fingerprint with unchanged geometry as "nothing to send".
      */
-    fun submit(id: String, pixels: ByteArray, width: Int, height: Int, fingerprint: String)
+    fun submit(id: String, pixels: ByteArray, x: Int, y: Int, width: Int, height: Int, fingerprint: String)
 
-    /** Shows or hides surface [id] without forgetting its content (the pointer in gesture mode). */
-    fun setSurfaceVisible(id: String, visible: Boolean)
+    /**
+     * Stereo depth of surface [id]: the lenses show it [depth] px apart, positive = nearer. It applies
+     * while [id] is the topmost visible surface and opaquely covers the screen, and takes effect at once.
+     */
+    fun setDepth(id: String, depth: Int)
 }
 
 /** Draws text into a [GrayRaster]; Android's font renderer on the watch, a stub in tests. */

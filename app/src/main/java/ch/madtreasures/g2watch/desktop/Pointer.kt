@@ -4,11 +4,11 @@ import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 /**
- * The arrow pointer for a color-key surface: 0 is transparent, [DARK] is opaque black, [BRIGHT]
- * is lit. The tip is at (0, 0). The arrow has an outline and a fill, and each pixel is drawn
- * against what lies beneath it: over dark desktop pixels the outline is bright and the fill
- * dark, over lit ones the other way round (the "negative"). So the pointer stays visible over
- * text, frames and pictures, and the switch happens in the same frame as the move.
+ * The arrow pointer: 0 is transparent, [DARK] is opaque black, [BRIGHT] is lit. The tip is at
+ * (0, 0). The arrow has an outline and a fill, and each pixel is drawn against what lies beneath
+ * it: over dark desktop pixels the outline is bright and the fill dark, over lit ones the other way
+ * round (the "negative"). So the pointer stays visible over text, frames and pictures, and the
+ * switch happens in the same frame as the move. [drawInto] puts it into the desktop's frame.
  */
 object PointerSprite {
     private val SHAPE = arrayOf(
@@ -68,8 +68,24 @@ object PointerSprite {
         if (bx in 0 until background.width && by in 0 until background.height) background[bx, by] else 0
     }
 
-    /** Identifies a rendered pointer for Faceclaw's compositor; its position is surface geometry. */
+    /** Identifies a rendered pointer; part of the desktop frame's fingerprint. */
     fun fingerprint(pixels: ByteArray): String = "pointer:" + java.lang.Long.toHexString(fnv1a64(pixels))
+
+    /**
+     * Draws [pixels] (a rendered pointer) with its tip at ([x], [y]) into [target], only inside [clip]:
+     * transparent pixels leave the target as it is, [DARK] ones turn black. Returns the block it
+     * covered, or null if no part of it lies in [clip].
+     */
+    fun drawInto(target: GrayRaster, pixels: ByteArray, x: Int, y: Int, clip: Rect): Rect? {
+        val box = Rect(x, y, width, height).intersect(clip) ?: return null
+        for (py in box.y until box.bottom) {
+            for (px in box.x until box.right) {
+                val v = pixels[(py - y) * width + (px - x)].toInt() and 0xFF
+                if (v != 0) target[px, py] = if (v == DARK) 0 else v
+            }
+        }
+        return box
+    }
 
     private inline fun draw(background: (Int, Int) -> Int): ByteArray {
         val out = ByteArray(width * height)
@@ -86,7 +102,7 @@ object PointerSprite {
     }
 }
 
-/** Pointer position in screen pixels, kept inside [bounds] (the part of the screen the wearer sees). */
+/** Pointer position (its tip) in screen pixels, kept inside [bounds]: the stage, where the desktop draws. */
 class PointerPosition(private val bounds: Rect) {
     private var fx = bounds.x + bounds.w / 2f
     private var fy = bounds.y + bounds.h / 2f

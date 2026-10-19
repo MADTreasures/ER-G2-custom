@@ -5,12 +5,19 @@ import ch.madtreasures.g2watch.apps.render.TextFit
 
 /**
  * Paints the desktop into a 640×480 gray raster. Lit pixels are what the wearer sees and what
- * costs power, so the look is outlines and text on black rather than filled areas.
+ * costs power, so the look is outlines and text on black rather than filled areas. Nothing is lit
+ * outside the layout's stage ([DesktopLayout.stage]).
  */
 class DesktopRenderer(private val text: TextPainter) {
 
     fun render(desktop: Desktop, target: GrayRaster) {
         target.clear()
+        draw(desktop, target)
+        // The stage is a hard limit: text that would run past it must not reach the edge columns.
+        target.clearOutside(desktop.layout.stage)
+    }
+
+    private fun draw(desktop: Desktop, target: GrayRaster) {
         val layout = desktop.layout
         desktop.app?.let {
             drawApp(desktop, it, target)
@@ -30,7 +37,7 @@ class DesktopRenderer(private val text: TextPainter) {
     private fun drawTopBar(status: DesktopStatus, layout: DesktopLayout, target: GrayRaster) {
         val bar = layout.topBar
         val y = drawBarBase(status, bar, target)
-        text.draw(target, "G2 Watch", bar.x + 12, y, SMALL, TEXT, bold = true)
+        text.draw(target, "G2 Watch", bar.x + DesktopLayout.BAR_MARGIN, y, SMALL, TEXT, bold = true)
     }
 
     /** The line under the bar, the time in the middle and the batteries on the right; returns the text row. */
@@ -40,7 +47,7 @@ class DesktopRenderer(private val text: TextPainter) {
         centered(target, status.time, Rect(bar.x, y, bar.w, bar.h), SMALL, TEXT, bold = true)
         val batteries = "Uhr ${percent(status.watchBattery)}   Brille ${percent(status.glassesBattery)}" +
             if (status.glassesCharging) " +" else ""
-        text.draw(target, batteries, bar.right - 12 - text.measure(batteries, SMALL), y, SMALL, TEXT)
+        text.draw(target, batteries, bar.right - DesktopLayout.BAR_MARGIN - text.measure(batteries, SMALL), y, SMALL, TEXT)
         return y
     }
 

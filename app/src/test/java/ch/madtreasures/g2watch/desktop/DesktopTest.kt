@@ -16,12 +16,14 @@ class DesktopTest {
     private fun button(app: AppId, id: ButtonId) = layout.buttons(app).first { it.first == id }.second
 
     @Test
-    fun `everything lies in the visible band and nothing overlaps`() {
-        val band = layout.band
-        val rects = layout.tiles.map { it.second } + layout.window +
-            AppId.entries.flatMap { app -> layout.buttons(app).map { it.second } }
+    fun `everything lies on the stage, the middle 576 px of the visible band, and nothing overlaps`() {
+        val stage = layout.stage
+        assertEquals(Rect(32, 96, 576, 288), stage)
+        assertEquals(stage, layout.appArea(fullScreen = true))
+        val rects = layout.tiles.map { it.second } + layout.window + layout.topBar + layout.appBack + layout.appTitle +
+            layout.closeButton + AppId.entries.flatMap { app -> layout.buttons(app).map { it.second } }
         for (r in rects) {
-            assertTrue("$r outside $band", r.x >= band.x && r.y >= band.y && r.right <= band.right && r.bottom <= band.bottom)
+            assertTrue("$r outside $stage", r.x >= stage.x && r.y >= stage.y && r.right <= stage.right && r.bottom <= stage.bottom)
         }
         val tiles = layout.tiles.map { it.second }
         for (i in tiles.indices) for (j in i + 1 until tiles.size) {

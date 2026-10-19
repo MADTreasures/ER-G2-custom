@@ -49,6 +49,21 @@ class GrayRaster(val width: Int, val height: Int) {
         if (value > (pixels[i].toInt() and 0xFF)) pixels[i] = value.toByte()
     }
 
+    /** Sets every pixel outside [keep] to [value]. */
+    fun clearOutside(keep: Rect, value: Int = 0) {
+        fillRect(0, 0, width, keep.y, value)
+        fillRect(0, keep.bottom, width, height - keep.bottom, value)
+        fillRect(0, keep.y, keep.x, keep.h, value)
+        fillRect(keep.right, keep.y, width - keep.right, keep.h, value)
+    }
+
+    /** Copies the block [rect] of [source], a raster of the same size, to the same place in this one. */
+    fun copyFrom(source: GrayRaster, rect: Rect) {
+        require(source.width == width && source.height == height)
+        require(rect.x >= 0 && rect.y >= 0 && rect.right <= width && rect.bottom <= height)
+        for (row in rect.y until rect.bottom) System.arraycopy(source.pixels, row * width + rect.x, pixels, row * width + rect.x, rect.w)
+    }
+
     /** Copies a [w]×[h] block starting at ([x], [y]) into a new array. */
     fun copyRegion(x: Int, y: Int, w: Int, h: Int): ByteArray {
         require(x >= 0 && y >= 0 && x + w <= width && y + h <= height)
@@ -79,4 +94,20 @@ data class Rect(val x: Int, val y: Int, val w: Int, val h: Int) {
     fun contains(px: Int, py: Int): Boolean = px >= x && px < x + w && py >= y && py < y + h
 
     fun inset(d: Int): Rect = Rect(x + d, y + d, w - 2 * d, h - 2 * d)
+
+    /** The smallest rectangle that covers both. */
+    fun union(other: Rect): Rect {
+        val left = minOf(x, other.x)
+        val top = minOf(y, other.y)
+        return Rect(left, top, maxOf(right, other.right) - left, maxOf(bottom, other.bottom) - top)
+    }
+
+    /** The part that lies in [other] too, or null if they do not overlap. */
+    fun intersect(other: Rect): Rect? {
+        val left = maxOf(x, other.x)
+        val top = maxOf(y, other.y)
+        val r = minOf(right, other.right)
+        val b = minOf(bottom, other.bottom)
+        return if (left < r && top < b) Rect(left, top, r - left, b - top) else null
+    }
 }

@@ -218,6 +218,9 @@ class WatchSnapshotTest {
     fun settingsPointer() = settingsSnapshot("uhr-einstellungen-zeiger", "Protokoll")
 
     @Test
+    fun settingsDepth() = settingsSnapshot("uhr-einstellungen-bildtiefe", "Nah")
+
+    @Test
     fun firmwareConfirm() = snapshot("uhr-firmware-bestaetigen") {
         FirmwareConfirmScreen(FirmwareTarget.CUSTOM, "Faceclaw/35 · Basis 2.3.0.24", "Original 2.3.0.24", {}, {})
     }

@@ -3,6 +3,9 @@ package ch.madtreasures.g2watch.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.hasScrollToNodeAction
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -15,6 +18,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.wear.compose.material3.MaterialTheme
+import ch.madtreasures.g2watch.desktop.Depth
 import ch.madtreasures.g2watch.glasses.FirmwareInstall
 import ch.madtreasures.g2watch.glasses.FirmwareTarget
 import ch.madtreasures.g2watch.glasses.GlassesState
@@ -226,6 +230,28 @@ class SettingsScreenTest {
         compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasTestTag(PROTOCOL_FILE_TAG))
         compose.onNodeWithText("Als Datei speichern").performClick()
         assertEquals(listOf(true), switched)
+    }
+
+    @Test
+    fun `offers the three depths, marks the chosen one and passes a new choice on`() {
+        val chosen = mutableListOf<Depth>()
+        show {
+            SettingsScreen(
+                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {}, {},
+                depth = Depth.MIDDLE, onDepth = { chosen += it },
+            )
+        }
+        for (level in Depth.entries) {
+            scrollTo(hasTestTag(DEPTH_TAG_PREFIX + level.name))
+            val choice = compose.onNodeWithTag(DEPTH_TAG_PREFIX + level.name)
+            choice.assertTextContains(level.label)
+            if (level == Depth.MIDDLE) choice.assertIsSelected().assertTextContains("Standard") else choice.assertIsNotSelected()
+        }
+        scrollTo(hasText(DEPTH_HINT))
+        compose.onNodeWithTag(DEPTH_TAG_PREFIX + Depth.FAR.name).performClick()
+        scrollTo(hasTestTag(DEPTH_TAG_PREFIX + Depth.NEAR.name))
+        compose.onNodeWithTag(DEPTH_TAG_PREFIX + Depth.NEAR.name).performClick()
+        assertEquals(listOf(Depth.FAR, Depth.NEAR), chosen)
     }
 
     @Test

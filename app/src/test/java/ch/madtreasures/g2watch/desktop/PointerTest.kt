@@ -116,6 +116,28 @@ class PointerTest {
     }
 
     @Test
+    fun `drawn into a frame, dark pixels turn black and transparent ones leave it as it was`() {
+        val frame = GrayRaster(640, 480).apply { clear(200) }
+        val pointer = PointerSprite.render(frame, 100, 100)
+        val box = PointerSprite.drawInto(frame, pointer, 100, 100, Rect(0, 0, 640, 480))
+        assertEquals(Rect(100, 100, PointerSprite.width, PointerSprite.height), box)
+        assertEquals(0, frame[100, 100]) // the tip, negative over lit pixels
+        assertEquals(PointerSprite.BRIGHT, frame[101, 102]) // a fill pixel
+        assertEquals(200, frame[110, 100]) // beside the arrow
+    }
+
+    @Test
+    fun `drawn into a frame, it is cut off at the clip`() {
+        val frame = GrayRaster(640, 480)
+        val clip = Rect(32, 96, 576, 288)
+        val box = PointerSprite.drawInto(frame, PointerSprite.normal, 605, 380, clip)
+        assertEquals(Rect(605, 380, 3, 4), box)
+        for (y in 0 until 480) for (x in 0 until 640) if (!clip.contains(x, y)) assertEquals(0, frame[x, y])
+        assertEquals(PointerSprite.BRIGHT, frame[605, 380])
+        assertEquals(null, PointerSprite.drawInto(frame, PointerSprite.normal, 608, 380, clip))
+    }
+
+    @Test
     fun `the fingerprint follows the pixels`() {
         val negative = PointerSprite.render(GrayRaster(20, 20).apply { clear(255) }, 0, 0)
         assertNotEquals(PointerSprite.fingerprint(PointerSprite.normal), PointerSprite.fingerprint(negative))

@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
         val scanner = app.scanner
         val state by glasses.state.collectAsStateWithLifecycle()
         val speed by desktop.speed.collectAsStateWithLifecycle()
+        val depth by desktop.depth.collectAsStateWithLifecycle()
         val inputMode by app.apps.inputMode.collectAsStateWithLifecycle()
         var permissionTick by remember { mutableIntStateOf(0) }
         val missing = remember(permissionTick) { missingPermissions() }
@@ -262,6 +263,8 @@ class MainActivity : ComponentActivity() {
                     appsSummary = appsSummary(installedApps.size, waitingApps.size),
                     protocolFile = protocolFileOn,
                     onProtocolFile = { on -> app.setProtocolFile(on); protocolFileOn = on },
+                    depth = depth,
+                    onDepth = { app.setDepth(it) },
                 )
             }
 

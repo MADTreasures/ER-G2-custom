@@ -47,13 +47,17 @@ data class DesktopStatus(
 )
 
 /**
- * Geometry of the desktop on the 640×480 glasses screen. Everything lives in [band], the part
- * the wearer actually sees: like Faceclaw's default layout a 288 px high strip in the middle,
- * because the optics do not show the whole panel height.
+ * Geometry of the desktop on the 640×480 glasses screen. [band] is the part the wearer actually
+ * sees: like Faceclaw's default layout a 288 px high strip in the middle, because the optics do not
+ * show the whole panel height. Everything, the pointer included, lives in [stage], the middle 576 px
+ * of the band: exactly where Even's firmware puts its own picture at the middle depth (x 32…607).
+ * Stock never lights a pixel outside x 24…615, so the panel edges may look different to each eye
+ * (each lens has its own factory offset), and a stereo depth of ±16 crops 8 columns per lens.
  */
 class DesktopLayout(val band: Rect) {
-    val topBar = Rect(band.x, band.y, band.w, TOP_BAR_HEIGHT)
-    private val content = Rect(band.x, band.y + TOP_BAR_HEIGHT, band.w, band.h - TOP_BAR_HEIGHT)
+    val stage = Rect(band.x + APP_AREA_X, band.y, APP_AREA_WIDTH, band.h)
+    val topBar = Rect(stage.x, band.y, stage.w, TOP_BAR_HEIGHT)
+    private val content = Rect(stage.x, band.y + TOP_BAR_HEIGHT, stage.w, band.h - TOP_BAR_HEIGHT)
 
     val tiles: List<Pair<AppId, Rect>> = run {
         val cols = 3
@@ -68,11 +72,11 @@ class DesktopLayout(val band: Rect) {
         }
     }
 
-    val window = Rect(content.x + 28, content.y + 4, content.w - 56, content.h - 12)
+    val window = Rect(content.x + 4, content.y + 4, content.w - 8, content.h - 12)
 
     /** In an app's header: the back arrow and the title (app name and page). */
-    val appBack = Rect(band.x + APP_AREA_X - 8, band.y, 36, TOP_BAR_HEIGHT)
-    val appTitle = Rect(appBack.right + 4, band.y, 232, TOP_BAR_HEIGHT)
+    val appBack = Rect(stage.x, band.y, 36, TOP_BAR_HEIGHT)
+    val appTitle = Rect(appBack.right + 4, band.y, 224, TOP_BAR_HEIGHT)
 
     /** Where an app draws: 576 × 260 below the header, or 576 × 288 without it (02 §4). */
     fun appArea(fullScreen: Boolean): Rect =
@@ -107,6 +111,9 @@ class DesktopLayout(val band: Rect) {
         const val BUTTON_HEIGHT = 40
         const val APP_AREA_X = 32
         const val APP_AREA_WIDTH = 576
+
+        /** Space between the stage's edge and the top bar's texts, the same as a page's margin. */
+        const val BAR_MARGIN = 16
 
         /** Faceclaw's default: the band centred vertically (y = 96). */
         fun centered(): DesktopLayout =

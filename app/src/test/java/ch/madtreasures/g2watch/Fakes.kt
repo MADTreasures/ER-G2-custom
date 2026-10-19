@@ -3,6 +3,8 @@ package ch.madtreasures.g2watch
 import ch.madtreasures.g2watch.desktop.GlassesDisplay
 import ch.madtreasures.g2watch.desktop.GrayRaster
 import ch.madtreasures.g2watch.desktop.TextPainter
+import com.faceclaw.app.ArrayByteReader
+import com.faceclaw.app.SurfaceCompositor
 
 /** A [Scheduler] on virtual time: nothing runs until the test says so. */
 class FakeScheduler : Scheduler {
@@ -58,19 +60,25 @@ class FakeScheduler : Scheduler {
         tasks.filter { it.due <= limit }.minWithOrNull(compareBy<Task>({ it.due }, { it.seq }))
 }
 
-/** Records what the desktop sends to the glasses. */
+/** Records what the desktop sends to the glasses, and keeps each surface's content like the compositor does. */
 class FakeDisplay : GlassesDisplay {
     data class Config(val id: String, val x: Int, val y: Int, val w: Int, val h: Int, val z: Int, val colorKey: Boolean)
 
-    class Submit(val id: String, val w: Int, val h: Int, val fingerprint: String, val pixels: ByteArray)
+    /** One update: the [w] × [h] block at ([x], [y]) of surface [id]. */
+    class Submit(val id: String, val x: Int, val y: Int, val w: Int, val h: Int, val fingerprint: String, val pixels: ByteArray)
 
     val configs = mutableListOf<Config>()
     val submits = mutableListOf<Submit>()
 
-    /** Surface id → shown, as last set with [setSurfaceVisible] (surfaces start shown). */
-    val visibility = mutableMapOf<String, Boolean>()
+    /** Every [setDepth] call: surface id and depth. */
+    val depths = mutableListOf<Pair<String, Int>>()
+
+    private val surfaces = mutableMapOf<String, GrayRaster>()
 
     fun submitsOf(id: String) = submits.filter { it.id == id }
+
+    /** What surface [id] holds after all updates so far. */
+    fun content(id: String): GrayRaster = surfaces.getValue(id)
 
     fun clear() {
         configs.clear()
@@ -79,14 +87,59 @@ class FakeDisplay : GlassesDisplay {
 
     override fun configureSurface(id: String, x: Int, y: Int, width: Int, height: Int, zOrder: Int, colorKey: Boolean) {
         configs += Config(id, x, y, width, height, zOrder, colorKey)
+        val old = surfaces[id]
+        if (old == null || old.width != width || old.height != height) surfaces[id] = GrayRaster(width, height)
     }
 
-    override fun submit(id: String, pixels: ByteArray, width: Int, height: Int, fingerprint: String) {
-        submits += Submit(id, width, height, fingerprint, pixels)
+    override fun submit(id: String, pixels: ByteArray, x: Int, y: Int, width: Int, height: Int, fingerprint: String) {
+        require(pixels.size == width * height)
+        val surface = surfaces.getValue(id)
+        require(x >= 0 && y >= 0 && x + width <= surface.width && y + height <= surface.height)
+        submits += Submit(id, x, y, width, height, fingerprint, pixels)
+        for (row in 0 until height) System.arraycopy(pixels, row * width, surface.pixels, (y + row) * surface.width + x, width)
     }
 
-    override fun setSurfaceVisible(id: String, visible: Boolean) {
-        visibility[id] = visible
+    override fun setDepth(id: String, depth: Int) {
+        require(id in surfaces)
+        depths += id to depth
+    }
+}
+
+/**
+ * [GlassesDisplay] over Faceclaw's real compositor, used the way [ch.madtreasures.g2watch.glasses.CoreDisplay]
+ * uses it inside the session: shows which stereo depth the glasses would get and what each lens shows.
+ */
+class CompositorDisplay : GlassesDisplay {
+    private val compositor = SurfaceCompositor().also { it.configureScreen(SCREEN_W, SCREEN_H) }
+    private var composite: SurfaceCompositor.Composite? = null
+
+    /** The depth of the last composite's root display list, as the glasses would run it. */
+    val screenDepth: Int get() = composite!!.shellScene.screenDepth
+
+    /** The last composite, before the glasses shift it. */
+    val screen: ByteArray get() = composite!!.screenGray
+
+    /** What one lens shows of the last composite, after the glasses ran its root display list. */
+    fun lens(right: Boolean): ByteArray = composite!!.let { it.shellScene.preview(it.screenGray, SCREEN_W, SCREEN_H, right) }
+
+    override fun configureSurface(id: String, x: Int, y: Int, width: Int, height: Int, zOrder: Int, colorKey: Boolean) {
+        val transparency = if (colorKey) SurfaceCompositor.TRANSPARENCY_COLOR_KEY else SurfaceCompositor.TRANSPARENCY_OPAQUE
+        compositor.configureSurface(id, x, y, width, height, zOrder, transparency)
+    }
+
+    override fun submit(id: String, pixels: ByteArray, x: Int, y: Int, width: Int, height: Int, fingerprint: String) {
+        composite = compositor.applyAndComposite(id, ArrayByteReader(pixels), x, y, width, height, fingerprint)
+    }
+
+    override fun setDepth(id: String, depth: Int) {
+        compositor.setSurfaceDepth(id, depth)
+        compositor.setSurfaceVisible(id, true)
+        composite = compositor.composite()
+    }
+
+    private companion object {
+        const val SCREEN_W = 640
+        const val SCREEN_H = 480
     }
 }
 

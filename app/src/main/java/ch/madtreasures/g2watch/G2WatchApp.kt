@@ -23,6 +23,7 @@ import ch.madtreasures.g2watch.apps.packages.DexPackageLoader
 import ch.madtreasures.g2watch.apps.packages.PackageStore
 import ch.madtreasures.g2watch.ble.G2Scanner
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
+import ch.madtreasures.g2watch.desktop.Depth
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.firmware.AndroidFirmwareEnvironment
 import ch.madtreasures.g2watch.firmware.LensPair
@@ -42,7 +43,15 @@ class G2WatchApp : Application() {
     /** The black-and-white emoji font of both text painters; loaded once, it is 2 MB. */
     private val emojiFont: Typeface? by lazy { AndroidTextPainter.emojiFont(assets) }
 
-    val desktop: DesktopController by lazy { DesktopController(AndroidTextPainter(emojiFont)).also { it.startClock() } }
+    val desktop: DesktopController by lazy {
+        DesktopController(AndroidTextPainter(emojiFont), depth = Depth.of(prefs.getString(DEPTH, null))).also { it.startClock() }
+    }
+
+    /** Settings → "Bildtiefe": kept for the next start, and the glasses show it at once. */
+    fun setDepth(depth: Depth) {
+        prefs.edit { putString(DEPTH, depth.name) }
+        desktop.setDepth(depth)
+    }
 
     /** Text questions of the apps, answered on the watch screen (keyboard or voice). */
     val textPrompts = TextPrompts()
@@ -193,5 +202,8 @@ class G2WatchApp : Application() {
 
         /** Preference: protocol also as a file (Settings → "Protokoll als Datei"). */
         const val PROTOCOL_FILE = "protocolFile"
+
+        /** Preference: the name of the [Depth] level (Settings → "Bildtiefe"). */
+        const val DEPTH = "depth"
     }
 }

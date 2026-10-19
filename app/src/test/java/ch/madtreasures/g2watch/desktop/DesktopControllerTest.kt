@@ -1,5 +1,6 @@
 package ch.madtreasures.g2watch.desktop
 
+import ch.madtreasures.g2watch.CompositorDisplay
 import ch.madtreasures.g2watch.FakeDisplay
 import ch.madtreasures.g2watch.FakeScheduler
 import ch.madtreasures.g2watch.FakeText
@@ -44,15 +45,46 @@ class DesktopControllerTest {
         scheduler.runPending()
     }
 
-    /** The pointer drawn against the desktop the glasses were last sent, with its tip at ([x], [y]). */
-    private fun pointerOverSentDesktop(x: Int, y: Int): ByteArray {
-        val desktop = display.submitsOf("desktop").last()
-        val raster = GrayRaster(desktop.w, desktop.h)
-        desktop.pixels.copyInto(raster.pixels)
-        return PointerSprite.render(raster, x, y)
+    private val stage get() = controller.layout.stage
+
+    /** What the desktop surface should hold now: the rendered desktop with the pointer drawn in. */
+    private fun expectedScreen(): GrayRaster {
+        val frame = controller.frame.value
+        val screen = GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT)
+        for (row in 0 until frame.band.h) {
+            System.arraycopy(frame.pixels, row * frame.band.w, screen.pixels, (frame.band.y + row) * screen.width + frame.band.x, frame.band.w)
+        }
+        PointerSprite.drawInto(screen, frame.pointerPixels, frame.pointerX, frame.pointerY, stage)
+        return screen
     }
 
+    /** The desktop without the pointer, as last rendered. */
+    private fun desktopOnly(): GrayRaster {
+        val frame = controller.frame.value
+        val raster = GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT)
+        for (row in 0 until frame.band.h) {
+            System.arraycopy(frame.pixels, row * frame.band.w, raster.pixels, (frame.band.y + row) * raster.width + frame.band.x, frame.band.w)
+        }
+        return raster
+    }
+
+    private fun assertShowsExpected() = assertArrayEquals(expectedScreen().pixels, display.content("desktop").pixels)
+
+    private fun isFullScreen(submit: FakeDisplay.Submit) = submit.x == 0 && submit.y == 0 && submit.w == 640 && submit.h == 480
+
     private fun tileOf(app: AppId) = controller.layout.tiles.first { it.first == app }.second
+
+    /** Lit pixels of [raster] outside the stage, as "x,y" (empty when everything lies inside). */
+    private fun litOutsideStage(raster: GrayRaster): List<String> {
+        val out = mutableListOf<String>()
+        for (y in 0 until raster.height) for (x in 0 until raster.width) {
+            if (!stage.contains(x, y) && raster[x, y] != 0) out += "$x,$y"
+        }
+        return out
+    }
+
+    /** An empty spot between the two rows of tiles, for a pointer over nothing lit. */
+    private val empty get() = Pair(stage.x + 1, tileOf(AppId.APPS).bottom + 2)
 
     @Test
     fun `renders the frame before any glasses are attached`() {
@@ -66,40 +98,35 @@ class DesktopControllerTest {
     }
 
     @Test
-    fun `attach configures both surfaces and sends both`() {
+    fun `attach configures one opaque full-screen surface and sends it with the pointer drawn in`() {
         attached()
-        assertEquals(
-            listOf(
-                FakeDisplay.Config("desktop", 0, 0, 640, 480, 0, colorKey = false),
-                FakeDisplay.Config("pointer", 320, 240, 11, 17, 100, colorKey = true),
-                FakeDisplay.Config("pointer", 320, 240, 11, 17, 100, colorKey = true),
-            ),
-            display.configs,
-        )
-        val desktop = display.submitsOf("desktop").single()
-        assertEquals(640, desktop.w)
-        assertEquals(480, desktop.h)
+        assertEquals(listOf(FakeDisplay.Config("desktop", 0, 0, 640, 480, 0, colorKey = false)), display.configs)
+        val desktop = display.submits.single()
+        assertEquals("desktop", desktop.id)
+        assertTrue(isFullScreen(desktop))
         assertTrue(desktop.fingerprint.startsWith("desktop:"))
-        val pointer = display.submitsOf("pointer").single()
-        assertArrayEquals(PointerSprite.normal, pointer.pixels)
-        assertEquals(PointerSprite.fingerprint(PointerSprite.normal), pointer.fingerprint)
+        assertShowsExpected()
+        // The tip of the arrow is lit right in the middle of the screen.
+        assertEquals(PointerSprite.BRIGHT, display.content("desktop")[320, 240])
+        assertEquals(listOf("desktop" to 0), display.depths)
     }
 
     @Test
-    fun `pointer moves are coalesced`() {
+    fun `pointer moves are coalesced and sent as the small block around it`() {
         attached()
-        // Left of the tiles: nothing to hover, nothing lit.
-        moveTo(15, 250)
+        moveTo(empty.first, empty.second)
         display.clear()
         repeat(5) {
             controller.moveBy(1f, 0f)
             scheduler.runPending()
         }
-        assertTrue(display.submitsOf("pointer").isEmpty())
+        assertTrue(display.submits.isEmpty())
         scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
-        assertEquals(1, display.submitsOf("pointer").size)
-        assertEquals(20, display.configs.last { it.id == "pointer" }.x)
-        assertEquals(20, controller.frame.value.pointerX)
+        val sent = display.submits.single()
+        // Old and new place of the arrow, 5 px apart: one block, not the whole screen.
+        assertEquals(Rect(empty.first, empty.second, PointerSprite.width + 5, PointerSprite.height), Rect(sent.x, sent.y, sent.w, sent.h))
+        assertEquals(empty.first + 5, controller.frame.value.pointerX)
+        assertShowsExpected()
     }
 
     @Test
@@ -108,17 +135,16 @@ class DesktopControllerTest {
         // Tip on the corner of the tile; hovering lights the tile's frame there.
         val tile = tileOf(AppId.CLOCK)
         moveTo(tile.x, tile.y)
-        val sent = display.submitsOf("pointer").last()
-        assertEquals(PointerSprite.DARK, sent.pixels[0].toInt() and 0xFF)
-        assertArrayEquals(pointerOverSentDesktop(tile.x, tile.y), sent.pixels)
-        assertEquals(tile.x, display.configs.last { it.id == "pointer" }.x)
-        assertEquals(tile.y, display.configs.last { it.id == "pointer" }.y)
-        // The published frame carries the same pointer.
-        assertArrayEquals(sent.pixels, controller.frame.value.pointerPixels)
+        val pointer = controller.frame.value.pointerPixels
+        assertEquals(PointerSprite.DARK, pointer[0].toInt() and 0xFF)
+        assertArrayEquals(PointerSprite.render(desktopOnly(), tile.x, tile.y), pointer)
+        // On the glasses the dark tip is a black pixel in the bright frame.
+        assertEquals(0, display.content("desktop")[tile.x, tile.y])
+        assertShowsExpected()
 
-        moveTo(15, 250)
-        assertArrayEquals(PointerSprite.normal, display.submitsOf("pointer").last().pixels)
+        moveTo(empty.first, empty.second)
         assertArrayEquals(PointerSprite.normal, controller.frame.value.pointerPixels)
+        assertShowsExpected()
     }
 
     @Test
@@ -126,28 +152,31 @@ class DesktopControllerTest {
         attached()
         val tile = tileOf(AppId.CLOCK)
         moveTo(tile.x, tile.y)
-        val before = display.submitsOf("pointer")
+        val before = controller.frame.value.pointerPixels
+        val submits = display.submits.size
         val at = scheduler.now
         // The window opens where the tile was; what lies under the pointer changes.
         controller.click()
         scheduler.runPending()
         assertEquals(at, scheduler.now)
-        val after = display.submitsOf("pointer")
-        assertEquals(before.size + 1, after.size)
-        assertArrayEquals(pointerOverSentDesktop(tile.x, tile.y), after.last().pixels)
-        assertFalse(after.last().pixels.contentEquals(before.last().pixels))
+        assertEquals(submits + 1, display.submits.size)
+        assertTrue(isFullScreen(display.submits.last()))
+        assertFalse(controller.frame.value.pointerPixels.contentEquals(before))
+        assertShowsExpected()
     }
 
     @Test
-    fun `an unchanged pointer is not sent again`() {
+    fun `a resting pointer is not sent again`() {
         attached()
-        moveTo(15, 250)
-        val count = display.submitsOf("pointer").size
-        // A status change redraws the desktop but nothing under the pointer.
+        moveTo(empty.first, empty.second)
+        val count = display.submits.size
+        // A status change redraws the desktop but nothing under the pointer: one frame, then nothing.
         controller.updateStatus { it.copy(glassesBattery = 50) }
         scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
-        assertEquals(2, display.submitsOf("desktop").size)
-        assertEquals(count, display.submitsOf("pointer").size)
+        assertEquals(count + 1, display.submits.size)
+        scheduler.advanceBy(10 * DesktopController.POINTER_INTERVAL_MS)
+        assertEquals(count + 1, display.submits.size)
+        assertShowsExpected()
     }
 
     @Test
@@ -155,10 +184,12 @@ class DesktopControllerTest {
         attached()
         val (x, y) = tileCenter(AppId.CLOCK)
         moveTo(x, y)
-        // Hovering highlights the tile: one new desktop frame.
-        assertEquals(2, display.submitsOf("desktop").size)
+        // Hovering highlights the tile: one new full frame.
+        assertEquals(2, display.submits.count { isFullScreen(it) })
         moveTo(x + 3, y + 2)
-        assertEquals(2, display.submitsOf("desktop").size)
+        assertEquals(2, display.submits.count { isFullScreen(it) })
+        assertFalse(isFullScreen(display.submits.last()))
+        assertShowsExpected()
     }
 
     @Test
@@ -280,10 +311,11 @@ class DesktopControllerTest {
         text.drawn.clear()
         controller.showApp(appView())
         scheduler.runPending()
-        val desktop = display.submitsOf("desktop").last().pixels
+        val desktop = display.content("desktop")
         // The app area as the host drew it; the band's edges stay dark.
-        assertEquals(90, desktop[200 * 640 + 320].toInt() and 0xFF)
-        assertEquals(0, desktop[200 * 640 + 10].toInt() and 0xFF)
+        assertEquals(90, desktop[300, 200])
+        assertEquals(0, desktop[10, 200])
+        assertEquals(0, desktop[630, 200])
         assertTrue("YouTube" in text.drawn)
         assertTrue(" · Liste" in text.drawn)
         assertTrue("14:05" in text.drawn)
@@ -336,17 +368,152 @@ class DesktopControllerTest {
     @Test
     fun `in gesture mode the pointer is hidden, and shown again afterwards`() {
         attached()
-        controller.showApp(appView(pointer = false, fullScreen = true))
+        controller.showApp(appView(pointer = false, fullScreen = true, value = 0))
         scheduler.runPending()
-        assertEquals(false, display.visibility["pointer"])
+        // Nothing but the black app: no arrow in the frame.
+        assertTrue(display.content("desktop").pixels.all { it.toInt() == 0 })
+        assertFalse(display.submits.last().fingerprint.contains(":p"))
         // A new connection keeps it hidden.
         val again = FakeDisplay()
         controller.attach(again)
         scheduler.runPending()
-        assertEquals(false, again.visibility["pointer"])
+        assertTrue(again.content("desktop").pixels.all { it.toInt() == 0 })
         controller.closeApp()
         scheduler.runPending()
-        assertEquals(true, again.visibility["pointer"])
+        assertArrayEquals(expectedScreen().pixels, again.content("desktop").pixels)
+        assertFalse(again.content("desktop").pixels.contentEquals(desktopOnly().pixels))
+    }
+
+    @Test
+    fun `the pointer's tip reaches every pixel of the stage and no further`() {
+        controller.moveBy(-10_000f, -10_000f)
+        scheduler.runPending()
+        assertEquals(Pair(stage.x, stage.y), Pair(controller.frame.value.pointerX, controller.frame.value.pointerY))
+        controller.moveBy(10_000f, 10_000f)
+        scheduler.runPending()
+        assertEquals(Pair(stage.right - 1, stage.bottom - 1), Pair(controller.frame.value.pointerX, controller.frame.value.pointerY))
+        assertEquals(Rect(32, 96, 576, 288), stage)
+    }
+
+    @Test
+    fun `nothing is lit outside the stage, wherever the pointer is and whatever is open`() {
+        val apps = Apps()
+        controller.connectApps(apps)
+        controller.startClock()
+        controller.updateStatus {
+            it.copy(watchBattery = 100, glassesBattery = 100, glassesCharging = true, connection = "Verbunden", firmware = "Faceclaw/35 · Basis 2.3.0.24")
+        }
+        attached()
+        val corners = listOf(
+            Pair(stage.x, stage.y), Pair(stage.right - 1, stage.y), Pair(stage.x, stage.bottom - 1), Pair(stage.right - 1, stage.bottom - 1),
+        )
+        fun check(what: String) {
+            for ((x, y) in corners) {
+                moveTo(x, y)
+                assertEquals("$what, pointer at $x,$y", emptyList<String>(), litOutsideStage(display.content("desktop")))
+            }
+        }
+        check("tiles")
+        for (app in AppId.entries - AppId.APPS) {
+            val (x, y) = tileCenter(app)
+            moveTo(x, y)
+            controller.click()
+            scheduler.runPending()
+            check("window ${app.title}")
+            controller.back()
+            scheduler.runPending()
+        }
+        controller.showApp(AppView("Eine App mit einem sehr langen Namen", "und einer langen Seite", false, ByteArray(576 * 260) { -1 }, 576, 260, true))
+        scheduler.runPending()
+        check("app with header")
+        controller.showApp(appView(fullScreen = true, value = 255))
+        scheduler.runPending()
+        check("full-screen app")
+    }
+
+    @Test
+    fun `the depth is set on every attach`() {
+        val near = DesktopController(text, scheduler, nowMs = { scheduler.now }, now = { LocalDateTime.of(2026, 9, 25, 14, 5) }, depth = Depth.NEAR)
+        near.attach(display)
+        scheduler.runPending()
+        assertEquals(listOf("desktop" to 16), display.depths)
+        // A new session has a new compositor at depth 0: it gets the depth again.
+        val again = FakeDisplay()
+        near.attach(again)
+        scheduler.runPending()
+        assertEquals(listOf("desktop" to 16), again.depths)
+        assertEquals(Depth.NEAR, near.depth.value)
+    }
+
+    @Test
+    fun `a new depth applies at once, and only when it is new`() {
+        controller.setDepth(Depth.FAR)
+        scheduler.runPending()
+        assertEquals(Depth.FAR, controller.depth.value)
+        // Not attached yet: it waits for the glasses.
+        attached()
+        assertEquals(listOf("desktop" to -16), display.depths)
+        controller.setDepth(Depth.NEAR)
+        controller.setDepth(Depth.NEAR)
+        scheduler.runPending()
+        assertEquals(listOf("desktop" to -16, "desktop" to 16), display.depths)
+        assertEquals(Depth.NEAR, controller.depth.value)
+    }
+
+    @Test
+    fun `with Faceclaw's compositor the depth reaches the glasses, with and without the pointer`() {
+        val glasses = CompositorDisplay()
+        controller.setDepth(Depth.NEAR)
+        controller.attach(glasses)
+        scheduler.runPending()
+        assertEquals(16, glasses.screenDepth)
+        // Pointer mode: the arrow is in the one surface, so it cannot hide the depth.
+        moveTo(200, 200)
+        assertEquals(16, glasses.screenDepth)
+        controller.setDepth(Depth.FAR)
+        scheduler.runPending()
+        assertEquals(-16, glasses.screenDepth)
+        controller.showApp(appView(pointer = false, fullScreen = true))
+        scheduler.runPending()
+        assertEquals(-16, glasses.screenDepth)
+        controller.setDepth(Depth.MIDDLE)
+        scheduler.runPending()
+        assertEquals(0, glasses.screenDepth)
+        // The frame on the glasses is the same as on the fake display: desktop plus arrow.
+        controller.closeApp()
+        scheduler.runPending()
+        moveTo(100, 300)
+        assertArrayEquals(expectedScreen().pixels, glasses.screen)
+    }
+
+    @Test
+    fun `at every depth each lens shows the whole picture, shifted by half the depth`() {
+        val glasses = CompositorDisplay()
+        controller.startClock()
+        controller.attach(glasses)
+        scheduler.runPending()
+        moveTo(stage.right - 1, stage.bottom - 1)
+        fun level(v: Int) = minOf(15, (v + 8) shr 4)
+        for (depth in Depth.entries) {
+            controller.setDepth(depth)
+            scheduler.runPending()
+            val screen = glasses.screen
+            val lit = screen.count { level(it.toInt() and 0xFF) > 0 }
+            for (right in listOf(false, true)) {
+                val lens = glasses.lens(right)
+                val shift = if (right) -depth.disparity / 2 else depth.disparity / 2
+                var wrong = 0
+                for (y in 0 until 480) for (x in 0 until 640) {
+                    val from = x - shift
+                    val want = if (from in 0 until 640) level(screen[y * 640 + from].toInt() and 0xFF) else 0
+                    if (want != (lens[y * 640 + x].toInt() and 0xFF) / 16) wrong++
+                }
+                val which = "$depth, ${if (right) "right" else "left"} lens"
+                assertEquals(which, 0, wrong)
+                // Nothing fell off the edge.
+                assertEquals(which, lit, lens.count { it.toInt() != 0 })
+            }
+        }
     }
 
     @Test

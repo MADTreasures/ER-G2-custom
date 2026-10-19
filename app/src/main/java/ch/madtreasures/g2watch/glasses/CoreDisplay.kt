@@ -7,8 +7,8 @@ import com.faceclaw.app.GlassesSessionCore
 import com.faceclaw.app.SurfaceCompositor
 
 /**
- * [GlassesDisplay] over the compositor inside Faceclaw's session. Every submit replaces a whole
- * surface; the session compares the new composite with what the glasses show and sends only
+ * [GlassesDisplay] over the compositor inside Faceclaw's session. Every submit updates a block of
+ * one surface; the session compares the new composite with what the glasses show and sends only
  * the changed region.
  */
 class CoreDisplay(private val core: GlassesSessionCore, private val timings: FrameTimingsCore) : GlassesDisplay {
@@ -18,10 +18,14 @@ class CoreDisplay(private val core: GlassesSessionCore, private val timings: Fra
         core.configureSurface(id, x, y, width, height, zOrder, transparency)
     }
 
-    override fun submit(id: String, pixels: ByteArray, width: Int, height: Int, fingerprint: String) {
+    override fun submit(id: String, pixels: ByteArray, x: Int, y: Int, width: Int, height: Int, fingerprint: String) {
         val frameId = timings.startFrame("g2watch:$id")
-        core.submitSurfaceFrame(ArrayByteReader(pixels), id, 0, 0, width, height, fingerprint, 0, frameId, null)
+        core.submitSurfaceFrame(ArrayByteReader(pixels), id, x, y, width, height, fingerprint, 0, frameId, null)
     }
 
-    override fun setSurfaceVisible(id: String, visible: Boolean) = core.setSurfaceVisible(id, visible)
+    override fun setDepth(id: String, depth: Int) {
+        core.setSurfaceDepth(id, depth)
+        // The depth applies from the next composite; showing the (already shown) surface composites at once.
+        core.setSurfaceVisible(id, true)
+    }
 }
