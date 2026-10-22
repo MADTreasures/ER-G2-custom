@@ -128,6 +128,13 @@ sealed interface AppEvent {
         val meta: Boolean = false,
         val repeat: Boolean = false,
     ) : AppEvent
+
+    /**
+     * The connection to an app on the phone ([AppContext.phone]): it stands ([PhoneState.CONNECTED]),
+     * the partner sent [text] ([PhoneState.MESSAGE]), or it ended or did not come about
+     * ([PhoneState.DISCONNECTED], [message] says why, German). Since interface version 4.
+     */
+    data class Phone(val state: PhoneState, val text: String? = null, val message: String? = null) : AppEvent
 }
 
 /**

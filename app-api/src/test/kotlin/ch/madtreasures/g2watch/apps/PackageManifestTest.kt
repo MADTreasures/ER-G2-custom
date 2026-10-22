@@ -47,6 +47,21 @@ class PackageManifestTest {
     }
 
     @Test
+    fun `the phone permissions of interface 4 are read, unknown ones of a newer interface ask for a newer watch app`() {
+        val base = """{"format":"g2app-paket@1","main":"a.B","id":"ch.a.b","name":"Übersetzer","version":"1.0.0""""
+        val m = PackageManifest.parse("""$base,"api":4,"permissions":["phone","watch-mic"]}""")
+        assertEquals(setOf(Permission.PHONE, Permission.WATCH_MIC), m.app.permissions)
+        assertEquals(
+            "Übersetzer braucht eine neuere Uhr-App (Schnittstelle ${G2AppApi.VERSION + 1})",
+            assertFailsWith<PackageFormatException> { PackageManifest.parse("""$base,"api":${G2AppApi.VERSION + 1},"permissions":["teleport"]}""") }.message,
+        )
+        assertEquals(
+            "Unbekannte Berechtigung „teleport“",
+            assertFailsWith<PackageFormatException> { PackageManifest.parse("""$base,"api":${G2AppApi.VERSION},"permissions":["teleport"]}""") }.message,
+        )
+    }
+
+    @Test
     fun `the icon is written only when there is one and must be a png path inside the package`() {
         val plain = PackageManifest(G2AppApi.VERSION, "a.B", SampleApp().manifest)
         assertFalse(plain.toJson().contains("icon"))

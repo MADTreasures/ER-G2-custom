@@ -9,6 +9,7 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.phone.PhoneEngine
 import ch.madtreasures.g2watch.apps.video.VideoEngine
 import ch.madtreasures.g2watch.apps.web.WebEngine
 import ch.madtreasures.g2watch.desktop.GrayRaster
@@ -58,6 +59,9 @@ interface HostPorts {
 
     /** Web pages in image blocks (05 §10, M7). */
     val web: WebEngine
+
+    /** Apps on the phone, through G2 Handy (interface 4, [ch.madtreasures.g2watch.apps.AppContext.phone]). */
+    val phone: PhoneEngine get() = PhoneEngine.NONE
 }
 
 /** The glasses as apps may know them (03 §5.2). */

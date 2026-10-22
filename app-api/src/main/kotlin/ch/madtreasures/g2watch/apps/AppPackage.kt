@@ -19,9 +19,10 @@ object G2AppApi {
      * 1: the first app packages (v0.6.0). 2: web pages in image blocks ([AppContext.web], [WebAction],
      * [AppEvent.Web], [AppEvent.ImageClick], [AppEvent.ImageScroll]; v0.8.0). 3: Bluetooth keyboards
      * ([Sensor.KEYS], [AppEvent.Key], [Keys], [WebAction.Key], [WebAction.Insert], [AppContext.keyboard];
-     * v0.9.0).
+     * v0.9.0). 4: an app on the phone ([AppContext.phone], [PhoneAction], [AppEvent.Phone], [PhoneState],
+     * [Permission.PHONE], [Permission.WATCH_MIC]; v0.10.0).
      */
-    const val VERSION = 3
+    const val VERSION = 4
 }
 
 /** A broken or unsuitable app package; [message] is German and meant for the wearer. */
@@ -116,7 +117,11 @@ data class PackageManifest(val api: Int, val main: String, val app: AppManifest,
                 ?: InputMode.POINTER
             val permissions = (o["permissions"] as? JsonArray ?: JsonArray(emptyList())).map { e ->
                 val name = (e as? JsonPrimitive)?.contentOrNull
-                Permission.of(name) ?: throw PackageFormatException("Unbekannte Berechtigung „$name“")
+                Permission.of(name) ?: throw PackageFormatException(
+                    // A newer interface brings new permissions: say what the wearer can do about it.
+                    if (api > G2AppApi.VERSION) "${str("name") ?: "Die App"} braucht eine neuere Uhr-App (Schnittstelle $api)"
+                    else "Unbekannte Berechtigung „$name“",
+                )
             }.toSet()
             val app = try {
                 AppManifest(

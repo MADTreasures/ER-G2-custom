@@ -189,6 +189,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // An app streams the watch's microphone to the phone (interface 4): Android's question, over any screen.
+        val micWanted by app.micPrompt.wanted.collectAsStateWithLifecycle()
+        val micLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted -> app.micPrompt.answered(granted) }
+        LaunchedEffect(micWanted) {
+            if (!micWanted) return@LaunchedEffect
+            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                app.micPrompt.answered(true)
+            } else {
+                micLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
+        }
+
         // Keep the watch awake while it talks to the glasses: the touchpad stops working once
         // Wear OS dims into ambient mode. Not while the glasses charge or are out of reach
         // (that can last hours), and not without glasses: then the screen times out as usual.

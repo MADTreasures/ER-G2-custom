@@ -107,6 +107,15 @@ interface AppContext {
      */
     fun web(block: String, action: WebAction)
 
+    /**
+     * Talks to an app on the phone the watch is paired with ([PhoneAction]): connect to it, send it
+     * messages, stream the watch's microphone to it. "G2 Handy" on the phone passes the connection on to
+     * the partner app. [AppEvent.Phone] reports the connection and brings the partner's messages. Needs
+     * [Permission.PHONE], the microphone [Permission.WATCH_MIC]. The connection ends with the app; while
+     * the app is hidden it stays, but the microphone stops. Since interface version 4.
+     */
+    fun phone(action: PhoneAction) {}
+
     /** A small store of this app, at most 256 KiB, kept across restarts. */
     val storage: AppStorage
 

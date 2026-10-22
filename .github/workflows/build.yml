@@ -24,7 +24,7 @@ jobs:
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "platforms;android-37.1" "build-tools;36.0.0" > /dev/null
 
       - name: Tests, debug APK and app packages
-        run: ./gradlew --no-daemon :firmware-image:test :faceclaw-core:testAndroidHostTest :web-raster:test :app-api:test :app:testDebugUnitTest :app:assembleDebug :app:lintDebug g2appPackages
+        run: ./gradlew --no-daemon :firmware-image:test :faceclaw-core:testAndroidHostTest :web-raster:test :app-api:test :phone-link:test :app:testDebugUnitTest :app:assembleDebug :app:lintDebug g2appPackages
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -37,6 +37,16 @@ jobs:
         with:
           name: g2-apps
           path: build/g2app/*.g2app
+
+      # G2 Handy, the phone half: the watch app's id and key, so only with -Pg2.phone=true (settings.gradle.kts).
+      - name: G2 Handy APK
+        run: ./gradlew --no-daemon -Pg2.phone=true :phone:testDebugUnitTest :phone:lintDebug :phone:assembleDebug
+
+      - name: Upload G2 Handy APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: g2-handy-debug-apk
+          path: phone/build/outputs/apk/debug/phone-debug.apk
 
       # M2: the GeckoView measuring APK for the Pixel Watch 5 (armeabi-v7a, about 117 MB).
       - name: Gecko test APK

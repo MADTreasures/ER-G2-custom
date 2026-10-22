@@ -52,6 +52,7 @@ class FluencySnapshotTest {
     @Before
     fun setUp() {
         assumeTrue("no -PsnapshotDir", !dir.isNullOrBlank())
+        FluencyApp().manifest.let { ports.answers["${it.id}@${it.version}"] = it.permissions }
         desktop = DesktopController(AndroidTextPainter(emojiFont), scheduler, nowMs = { scheduler.now }, now = { LocalDateTime.of(2026, 10, 22, 14, 5) })
         desktop.startClock()
         desktop.updateStatus { it.copy(watchBattery = 76, glassesBattery = 81, connection = "Verbunden") }
@@ -119,7 +120,9 @@ class FluencySnapshotTest {
 
     @Test
     fun start() {
-        host()
+        host(link)
+        fromLink(LinkEvent.Connected)
+        fromLink(LinkEvent.Message(Harness.welcome()))
         save("fluency-start")
     }
 

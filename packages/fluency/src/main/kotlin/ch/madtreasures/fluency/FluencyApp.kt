@@ -11,6 +11,7 @@ import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
+import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Sensor
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -27,21 +28,22 @@ import java.util.Locale
  * it too: Space, Enter or K = pause or go on, + and − or ↑ and ↓ = text size, O = original, T = swap the
  * languages, V = history; Escape is back. The app menu holds the same, so watch and temples always do.
  *
- * The watch app cannot reach the phone yet (interface version 3, PLATTFORM.md): [linkFor] gives
- * [NoPhoneLink] and the start page says so. "Probelauf" plays a made-up conversation through the same
- * captions ([Demo]), to try them on the glasses already.
+ * The way to the phone is the watch app's (interface version 4, [WatchPhoneLink]): G2 Handy passes it on
+ * to Fluency (PLATTFORM.md §6). "Probelauf" plays a made-up conversation through the same captions
+ * ([Demo]), also without a phone.
  */
 class FluencyApp(
     private val clock: () -> Long = System::currentTimeMillis,
-    /** The connection to Fluency for a session; there is none in interface version 3. */
-    private val linkFor: (AppContext) -> PhoneLink = { NoPhoneLink },
+    /** The connection to Fluency for a session. */
+    private val linkFor: (AppContext) -> PhoneLink = { WatchPhoneLink(it) },
 ) : G2App {
 
     override val manifest = AppManifest(
         id = "ch.madtreasures.fluency",
         name = "Fluency",
-        version = "1.0.1",
+        version = "1.1.0",
         description = "Live-Übersetzung von Fluency (Handy) als Untertitel auf der Brille, Ton vom Uhr- oder Handy-Mikrofon.",
+        permissions = setOf(Permission.PHONE, Permission.WATCH_MIC),
     )
 
     // --- Settings, kept in the app's store ---------------------------------------------------------
@@ -110,14 +112,12 @@ class FluencyApp(
             is AppEvent.Key -> key(event, ui)
             is AppEvent.Menu -> menu(event.item, ui)
             is AppEvent.Timer -> timer(event.tag, ui)
+            is AppEvent.Phone -> onLink(WatchPhoneLink.event(event), ui)
             else -> Unit
         }
     }
 
-    /**
-     * What the connection to Fluency reports. With interface version 3 nothing does; a later version of
-     * this package passes the watch app's phone events on to here (PLATTFORM.md).
-     */
+    /** What the connection to Fluency reports: the watch app's phone events, or a test. */
     fun onLink(event: LinkEvent, ui: AppContext) {
         when (event) {
             LinkEvent.Connected -> {
@@ -132,7 +132,12 @@ class FluencyApp(
                 linkState = Link.LOST
                 lostReason = event.reason?.takeIf { it.isNotBlank() }
                 running = false
-                if (mode == Mode.LIVE && wasReady) ui.toast("Verbindung zum Handy unterbrochen", LONG_NOTE_MS)
+                when {
+                    mode == Mode.LIVE && wasReady -> ui.toast("Verbindung zum Handy unterbrochen", LONG_NOTE_MS)
+                    // The start page only says "getrennt"; why is worth a note there.
+                    mode == Mode.NONE -> lostReason?.let { ui.toast(it, LONG_NOTE_MS) }
+                    else -> Unit
+                }
                 statusChanged(ui)
             }
         }
@@ -167,7 +172,7 @@ class FluencyApp(
     )
 
     private fun phoneText() = when (linkState) {
-        Link.MISSING -> "fehlt noch"
+        Link.MISSING -> "fehlt"
         Link.CONNECTING, Link.HELLO -> "verbindet …"
         Link.READY -> if (fluencyVersion.isBlank()) "verbunden" else "Fluency $fluencyVersion"
         Link.LOST -> "getrennt"
@@ -891,8 +896,8 @@ class FluencyApp(
         const val DEFAULT_TO = "de-CH"
 
         const val MISSING_TEXT =
-            "Die Uhr-App kann noch nicht mit Fluency auf dem Handy sprechen. Der Probelauf zeigt schon, wie es auf der Brille aussieht."
-        const val NO_LINK_NOTE = "Uhr-App kann Fluency noch nicht erreichen"
+            "Diese Uhr-App erreicht Fluency auf dem Handy nicht. Der Probelauf zeigt, wie es auf der Brille aussieht."
+        const val NO_LINK_NOTE = "Uhr-App erreicht Fluency nicht"
 
         private const val KEY_SOURCE = "quelle"
         private const val KEY_FROM = "von"

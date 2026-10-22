@@ -268,6 +268,15 @@ dort `render-seite.png` (was GeckoView gezeichnet hat), `render-ohne-schrift.png
 
 ## 6. Engine auf dem Handy: „G2 Handy“
 
+**Stand v0.10.0:** Der Unterbau ist gebaut, für die Verbindung von Uhr-Apps zu Apps auf dem Handy
+([03 §13](03_Uhr-Apps.md#13-apps-auf-dem-handy-v0100-schnittstelle-4)): Modul `phone/` mit der App-ID der
+Uhr-App, gemeinsamer Debug-Schlüssel in [`signing/`](../../signing/README.md) (auch für CI-Builds),
+`play-services-wearable`, die Fähigkeiten `g2_watch` und `g2_handy`, ein `WearableListenerService` (Pfade
+`/g2/link/…`) und ein Vordergrund-Dienst. Anders als unten geplant läuft der Dienst dauernd, solange auf dem
+Handy „Für die Uhr bereit“ an ist: Android 12+ lässt einen Vordergrund-Dienst nicht aus dem Hintergrund starten,
+also auch nicht, wenn der `WearableListenerService` geweckt wird. Die Engine für Even-Hub-Apps, die Nachrichten
+auf `/g2/evenhub` und die App-Verwaltung fehlen noch (M4). Nichts davon ist auf Hardware erprobt.
+
 **Die App:**
 - Eine kleine **Android-App fürs Handy** im selben Repo (Modul `phone/`). Sie muss **dieselbe
   `applicationId`** (`ch.madtreasures.g2watch`) und **denselben Signaturschlüssel** haben wie die Uhr-App,
