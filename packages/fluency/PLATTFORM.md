@@ -1,8 +1,8 @@
 # Fluency auf der Brille – was dafür noch fehlt
 
 Für den **Hauptchat** (Uhr-App G2 Watch) und für den Chat, der **Fluency** auf dem Handy erweitert (Repo
-`MADTreasures/playground`). Stand: App-Paket Fluency 1.0.0, Schnittstelle 3, Uhr-App 0.9.0. Nichts davon
-ist auf Hardware erprobt.
+`MADTreasures/playground`). Stand: App-Paket Fluency 1.0.1, Schnittstelle 3, Uhr-App 0.9.0; Fluency 1.9.0 hat
+sein Gegenstück (Teil C, §8). Nichts davon ist auf Hardware erprobt.
 
 ## 1. Worum es geht
 
@@ -26,7 +26,7 @@ aus einer von zwei Quellen:
 |---|---|---|---|
 | **A** Verbindung eines Pakets zu einer App auf dem Handy | fehlt ganz | groß (Empfehlung, §4) | Hauptchat |
 | **B** Mikrofon der Uhr als Tonquelle für das Handy | fehlt ganz | mittel | Hauptchat |
-| **C** Gegenstück in Fluency (Nachrichten, Ton von der Uhr, Ergebnisse zurück) | fehlt ganz | mittel | Chat im Repo `playground` |
+| **C** Gegenstück in Fluency (Nachrichten, Ton von der Uhr, Ergebnisse zurück) | gebaut in Fluency 1.9.0, mit Tests ohne Hardware (§8) | – | erledigt (Repo `playground`) |
 | **D** Anschluss im Paket | vorbereitet (`PhoneLink`) | klein, ≈ 30 Zeilen und Tests | App-Chat, sobald A da ist |
 
 Ohne A läuft nur der **Probelauf** des Pakets (erfundenes Gespräch, gleiche Untertitel). Ohne B geht nur die
@@ -130,12 +130,25 @@ WATCH_MIC("watch-mic", "Mikrofon der Uhr"),
 ### 6.2 „G2 Handy“ ⇄ Partner-App (Android-IPC)
 
 - Der Partner exportiert einen Dienst mit der Intent-Aktion **`ch.madtreasures.g2watch.action.LINK`**;
-  „G2 Handy“ bindet ihn mit `setPackage(partner)`.
-- `Messenger`: `what` = `OPEN` (Bundle: `app`, `version`), `MSG` (`text`), `CLOSE`, `AUDIO_START` (Bundle:
-  `pfd` – ein `ParcelFileDescriptor` einer Pipe mit dem PCM-Strom, `rate` = 16000), `AUDIO_STOP`. Der Partner
-  antwortet über `replyTo` mit `OPENED`, `MSG`, `CLOSE`.
-- Der Partner prüft den Aufrufer: `Binder.getCallingUid()` → Paket `ch.madtreasures.g2watch` mit dem
-  erwarteten Zertifikat (SHA-256; bei eigenen Builds der Schlüssel von G2 Watch/G2 Handy).
+  „G2 Handy“ bindet ihn mit `setPackage(partner)` und `BIND_AUTO_CREATE`. Damit G2 Handy die Partner sieht
+  (Android 11+), braucht sein Manifest `<queries><intent><action android:name="ch.madtreasures.g2watch.action.LINK" /></intent></queries>`.
+- `Messenger`, jede Nachricht mit `replyTo` = dem Messenger von G2 Handy. So umgesetzt in Fluency
+  (`GlassesService`):
+
+  | `what` | Wert | Richtung | Bundle |
+  |---|---|---|---|
+  | `OPEN` | 1 | G2 Handy → Partner | `app` (Paket-ID auf der Uhr), `version` (seine Version) |
+  | `OPENED` | 2 | Partner → G2 Handy | – |
+  | `MSG` | 3 | beide | `text`: eine Nachricht der App, unverändert |
+  | `CLOSE` | 4 | beide | `message` (optional): warum. Lehnt der Partner ein `OPEN` ab, antwortet er mit `CLOSE` statt `OPENED` → auf der Uhr `failed` |
+  | `AUDIO_START` | 5 | G2 Handy → Partner | `pfd`: Leseende einer Pipe (`ParcelFileDescriptor`) mit dem PCM-Strom, `rate` = 16000 |
+  | `AUDIO_STOP` | 6 | G2 Handy → Partner | – |
+
+- Der Partner prüft den Aufrufer an `Message.sendingUid` (nicht `Binder.getCallingUid()`: Ein `Messenger`
+  bearbeitet die Nachricht später auf seinem Looper, dort ist das die eigene UID): Paket
+  `ch.madtreasures.g2watch`. Fluency merkt sich dessen Zertifikat (SHA-256) beim ersten Verbinden und nimmt
+  danach nur noch dieses an; einen gemeinsamen Schlüssel braucht es dafür nicht. Spätere Nachrichten müssen von
+  derselben UID kommen wie das `OPEN`.
 - „G2 Handy“ hält einen Vordergrund-Dienst (`connectedDevice`), solange eine Verbindung offen ist, und zeigt
   in einer kleinen Seite, welche Partner verbunden sind.
 
@@ -207,25 +220,33 @@ Beispiele:
 sich mit jedem Token); fertige Sätze, `gone`, `state` und `error` sofort. Das Paket zeichnet Teilergebnisse
 höchstens alle 400 ms (02 §9: ruhig).
 
-## 8. Was Fluency dafür braucht (Teil C)
+## 8. Teil C: in Fluency gebaut (1.9.0)
 
-Fluency hat die passenden Stellen schon: `AudioSource` (für Tests gedacht) und `LivePipeline` mit
-`PipelineState` (Äußerungen mit Teil- und Endergebnissen).
+Im Repo `MADTreasures/playground`, Ordner `fluency/app/src/main/java/ch/madtreasures/fluency/glasses/`; noch
+nicht auf Hardware erprobt.
 
-- **Partner-Dienst** `G2LinkService` (exportiert, Aktion `ch.madtreasures.g2watch.action.LINK`, §6.2) mit der
-  Prüfung des Aufrufers.
-- **`RemoteAudioSource : AudioSource`:** liest den PCM-Strom der Uhr aus dem `ParcelFileDescriptor` und gibt
-  Float-Blöcke zu 512 Samples weiter, wie `MicrophoneSource`; Lücken werden nicht aufgefüllt.
-- **Brücke:** `start`/`config`/`stop` steuern eine `LivePipeline` wie der Live-Modus (Modelle warm halten wie
-  `PipelineHost`; Quelle `watch` → `RemoteAudioSource`, `phone` → `MicrophoneSource`); `PipelineState`
-  beobachten und als `utt` (gedrosselt, §7) und `state` schicken; Utterance-Ids wie in der Pipeline.
-- **Vordergrund-Dienst** `connectedDevice`, bei Quelle `phone` zusätzlich `microphone`. Weil Android 14+ das
-  Handy-Mikrofon nur aus dem Vordergrund starten lässt, gibt es in Fluency einen Schalter „Brille (G2 Watch)“,
-  der den Dienst startet, solange Fluency offen ist.
-- **Vorlesen** wie im Live-Modus: Der Eingang ist stumm, solange vorgelesen wird – das gilt auch für den Ton
-  von der Uhr.
-- **Größe:** ≈ 600–900 Zeilen mit Tests (Robolectric für den Dienst, Fakes für die Pipeline wie in
-  `LivePipelineTest`).
+- **`GlassesService`**: der Partner-Dienst nach §6.2 (exportiert, Aktion `…LINK`, Prüfung des Aufrufers wie
+  oben). Er läuft als Vordergrund-Dienst (`connectedDevice`, mit Mikrofon-Erlaubnis auch `microphone`),
+  solange in Fluency der Schalter **Optionen → „Brille (G2 Watch)“** an ist. Weil Android 14+ das
+  Handy-Mikrofon im Hintergrund nur so erlaubt, startet ihn der Schalter und jedes Öffnen von Fluency.
+  Ist der Schalter aus, lehnt der Dienst jedes `OPEN` ab („In Fluency ist „Brille (G2 Watch)“ aus“).
+- **`WatchAudio`**: liest den PCM-Strom der Uhr aus dem `ParcelFileDescriptor` und gibt Float-Blöcke zu
+  512 Samples weiter, wie `MicrophoneSource`; Lücken werden nicht aufgefüllt. Endet ein Strom
+  (`AUDIO_STOP`, Pipe zu), hört dieselbe Pipeline beim nächsten `AUDIO_START` weiter.
+- **`GlassesBridge`**: `start`/`config`/`stop` steuern eine `LivePipeline` wie der Live-Modus, mit denselben
+  Modellen und Einstellungen (`PipelineFactory`, auch vom Live- und Gesprächsmodus benutzt). Quelle `watch` →
+  `WatchAudio`, `phone` → `MicrophoneSource`. `PipelineState` geht als `utt` (unfertige höchstens alle
+  250 ms, fertige sofort) und `state`; Utterance-Ids wie in der Pipeline. Ein `config`, das nur `speak` oder
+  `partials` ändert, lässt die Pipeline laufen; andere Quelle oder Sprache startet eine neue (die Sätze der
+  alten gehen als `gone`). Nach `stop` wird der angefangene Satz fertig übersetzt; ein `start` gleich danach
+  wartet nicht darauf. Kommt 5 s lang kein Ton von der Uhr: einmal `error` `audio`.
+- **Vorlesen** wie im Live-Modus: Der Eingang ist stumm, solange vorgelesen wird – auch der Ton von der Uhr.
+- **Größe:** ≈ 1.050 Zeilen Code (davon ≈ 100 in bestehenden Dateien) und ≈ 950 Zeilen Tests, mehr als die
+  geschätzten 600–900: Prüfung des Aufrufers, Vordergrund-Dienst, Schalter und Tests für die Abläufe
+  (Stopp mitten im Satz, Neustart beim Laden) kamen dazu.
+- **Tests** (ohne Uhr, Brille und G2 Handy): `G2ProtocolTest`, `WatchAudioTest`, `GlassesBridgeTest`
+  (simulierte Pipeline, virtuelle Zeit), `GlassesServiceTest` (Robolectric: wer hereinkommt, „hello“ →
+  „welcome“ über den Messenger, Ausschalten trennt).
 - **Später denkbar:** Ton anderer Apps auf dem Handy (ein Video) über `AudioPlaybackCapture` (Android 10+,
   Erlaubnis zur Bildschirmaufnahme bei jedem Start, Apps können es verbieten) als Quelle `phone-media`.
 

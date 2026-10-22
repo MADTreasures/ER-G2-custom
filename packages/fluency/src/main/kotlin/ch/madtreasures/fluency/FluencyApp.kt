@@ -40,7 +40,7 @@ class FluencyApp(
     override val manifest = AppManifest(
         id = "ch.madtreasures.fluency",
         name = "Fluency",
-        version = "1.0.0",
+        version = "1.0.1",
         description = "Live-Übersetzung von Fluency (Handy) als Untertitel auf der Brille, Ton vom Uhr- oder Handy-Mikrofon.",
     )
 

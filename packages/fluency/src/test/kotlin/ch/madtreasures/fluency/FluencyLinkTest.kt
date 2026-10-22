@@ -54,7 +54,7 @@ class FluencyLinkTest {
         h.link(LinkEvent.Connected)
         assertEquals(listOf("hello"), link.types)
         assertEquals(JsonPrimitive(Protocol.NAME), link.last("hello")["proto"])
-        assertEquals(JsonPrimitive("1.0.0"), link.last("hello")["app"])
+        assertEquals(JsonPrimitive("1.0.1"), link.last("hello")["app"])
         h.fluency(welcome(app = "1.9.0"))
         assertEquals("Fluency 1.9.0", ui.page(START).valueOf(FluencyApp.PHONE))
     }

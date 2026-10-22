@@ -6,9 +6,10 @@ dieses Paket zeigt die Übersetzung als **rollenden Untertitel auf der Brille** 
 und den Bügeln aus. Der Ton kommt vom **Mikrofon der Uhr** (die Uhr-App streamt ihn zu Fluency) oder vom
 **Mikrofon des Handys**.
 
-> **Ehrlicher Stand (1.0.0):** Die Uhr-App kann noch nicht mit einer App auf dem Handy sprechen, und das
-> Mikrofon der Uhr ist für Pakete noch nicht zu haben. Beides muss der Hauptchat in die Uhr-App bauen, dazu
-> braucht Fluency ein Gegenstück – was genau und wie groß: [PLATTFORM.md](PLATTFORM.md). Bis dahin zeigt die
+> **Ehrlicher Stand (1.0.1):** Die Uhr-App kann noch nicht mit einer App auf dem Handy sprechen, und das
+> Mikrofon der Uhr ist für Pakete noch nicht zu haben. Beides muss der Hauptchat in die Uhr-App bauen – was
+> genau und wie groß: [PLATTFORM.md](PLATTFORM.md). Fluencys Gegenstück ist gebaut (Fluency 1.9.0, Optionen →
+> „Brille (G2 Watch)“, ebenfalls nur mit Tests geprüft). Bis dahin zeigt die
 > Startseite „Handy: fehlt noch“, und es geht nur der **Probelauf**: ein erfundenes Gespräch, das über
 > denselben Weg wie Fluencys Nachrichten läuft. Damit lassen sich Lesbarkeit, Schriftgröße und Takt der
 > Untertitel auf der echten Brille prüfen. Nichts davon ist auf Hardware erprobt.
@@ -61,8 +62,8 @@ Ton-Quelle (Standard: Uhr-Mikrofon), Von (Standard: Automatisch), Nach (Standard
 ## Bauen, auf die Uhr legen, installieren
 
 ```sh
-./gradlew :packages:fluency:g2app   # → packages/fluency/build/g2app/ch.madtreasures.fluency-1.0.0.g2app
-adb push packages/fluency/build/g2app/ch.madtreasures.fluency-1.0.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
+./gradlew :packages:fluency:g2app   # → packages/fluency/build/g2app/ch.madtreasures.fluency-1.0.1.g2app
+adb push packages/fluency/build/g2app/ch.madtreasures.fluency-1.0.1.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
 ```
 
 Dann auf der Uhr: Zahnrad halten → *Einstellungen → Apps installieren* → unter „Neu auf der Uhr“ antippen
