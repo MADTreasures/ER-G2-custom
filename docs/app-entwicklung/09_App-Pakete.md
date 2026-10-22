@@ -7,7 +7,8 @@ Die Uhr-App muss dafür weder neu gebaut noch neu installiert werden.
 
 Stand v0.6.0: fertig und mit Tests abgesichert, **nicht auf echter Uhr erprobt**. Nur das Laden des
 DEX-Codes auf der Uhr (`DexClassLoader`) lässt sich ohne Uhr nicht testen. Seit v0.8.0 Schnittstelle
-Version 2 (§5) und das Paket Browser, seit v0.9.0 Version 3 (Tastatur, §5).
+Version 2 (§5) und das Paket Browser, seit v0.9.0 Version 3 (Tastatur, §5), seit v0.10.0 Version 4 (Apps auf
+dem Handy, §5).
 
 ## 1. Wer macht was
 
@@ -58,7 +59,7 @@ existiert; am `AppManifest` ändert sich nichts. Format: PNG, quadratisch, 64 ×
 höchstens 64 KB, Graustufen auf Schwarz oder transparent (beides ist auf dem Glas durchsichtig); Gestaltung
 siehe [02 §2](02_App-Modell.md#2-manifest-g2appjson). Das Format bleibt `g2app-paket@1`, und `icon` allein
 braucht keine neue Schnittstellen-Version: Eine ältere Uhr-App überliest das Feld. Ein Paket, das jetzt gebaut
-wird, trägt aber Version 3 und braucht damit die Uhr-App 0.9.0 (§5).
+wird, trägt aber Version 4 und braucht damit die Uhr-App 0.10.0 (§5).
 
 Grenzen: Datei höchstens 20 MB, entpackt höchstens 50 MB, höchstens 2000 Dateien, Pfade ohne `..`.
 
@@ -139,7 +140,7 @@ Die DEX-Dateien sind schreibgeschützt, wie es Android ab Version 14 für gelade
 
 ## 5. Schnittstellen-Version
 
-`G2AppApi.VERSION` in [`app-api/`](../../app-api) ist zurzeit **3**. Jedes Paket merkt sich, gegen welche
+`G2AppApi.VERSION` in [`app-api/`](../../app-api) ist zurzeit **4**. Jedes Paket merkt sich, gegen welche
 Version es gebaut ist. Die Uhr-App führt Pakete mit dieser oder einer älteren Version aus.
 
 | Version | Uhr-App | Neu |
@@ -147,19 +148,21 @@ Version es gebaut ist. Die Uhr-App führt Pakete mit dieser oder einer älteren 
 | 1 | 0.6.0 | die ersten App-Pakete |
 | 2 | 0.8.0 | Web-Seiten in Bild-Bausteinen: `AppContext.web`, `WebAction`, `WebState`, `WebField`, `WebContrast`, Ereignisse `AppEvent.Web`, `ImageClick`, `ImageScroll` (03 §12) |
 | 3 | 0.9.0 | Bluetooth-Tastatur: `Sensor.KEYS`, Ereignis `AppEvent.Key` mit den Namen in `Keys`, `WebAction.Key`, `WebAction.Insert`, `AppContext.keyboard` (03 §5.4) |
+| 4 | 0.10.0 | Apps auf dem Handy: `AppContext.phone`, `PhoneAction`, `PhoneState`, Ereignis `AppEvent.Phone`, Berechtigungen `Permission.PHONE` und `WATCH_MIC` (03 §13) |
 
-Ein Paket, das jetzt gebaut wird, trägt Version 3, auch wenn es nichts Neues benutzt: Es braucht dann die
-Uhr-App 0.9.0. Schon installierte Pakete mit Version 1 oder 2 laufen weiter; die Tastatur bedient sie über die
-Tasten des Hosts (Fokus, Klick, zurück, scrollen), und das neue Ereignis bekommen sie nie, weil sie `keys` nicht
-abonnieren.
+Ein Paket, das jetzt gebaut wird, trägt Version 4, auch wenn es nichts Neues benutzt: Es braucht dann die
+Uhr-App 0.10.0. Schon installierte Pakete mit Version 1 bis 3 laufen weiter; die Tastatur bedient Pakete der
+Versionen 1 und 2 über die Tasten des Hosts (Fokus, Klick, zurück, scrollen), und die neuen Ereignisse bekommen
+sie nie, weil sie `keys` nicht abonnieren und nicht `phone` rufen.
 
 Deshalb **wächst die Schnittstelle nur**: neue Befehle, Ereignisse, Bausteine oder Felder mit Vorgabewert
 kommen dazu, nichts wird umbenannt oder entfernt. Vorsicht bei Feldern: Eine Klasse, die Pakete selbst
 anlegen (etwa `Block.Image`), bekommt kein neues Feld – ein Kotlin-Konstruktor mit einem Parameter mehr hat
 eine andere Signatur, und ältere Pakete fänden den alten nicht mehr. Version 2 kam deshalb nur mit neuen
 Klassen, einer neuen Methode und neuen Ereignissen aus, Version 3 mit einem neuen Sensor-Wert, neuen Klassen und
-einer Eigenschaft von `AppContext`, die die Uhr-App bereitstellt. Neue Ereignisse bekommt eine App nur auf
-Bestellung (`subscribe`): Ein altes Paket, dessen `when` jeden ihm bekannten Fall abdeckt, sähe sonst einen
+einer Eigenschaft von `AppContext`, die die Uhr-App bereitstellt, Version 4 mit neuen Klassen, einer Methode
+mit leerem Vorgabe-Rumpf und zwei Berechtigungen am Ende der Aufzählung. Neue Ereignisse bekommt eine App nur
+auf Bestellung (`subscribe`, `AppEvent.Phone` nur nach dem eigenen `phone(Connect)`): Ein altes Paket, dessen `when` jeden ihm bekannten Fall abdeckt, sähe sonst einen
 unbekannten und stürzte ab. Mit jeder Erweiterung steigt `VERSION` um eins. Ein Paket
 für eine neuere Version lehnt die Uhr ab („braucht eine neuere Uhr-App“). Dann zuerst die Uhr-App
 aktualisieren.

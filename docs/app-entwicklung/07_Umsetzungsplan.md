@@ -138,6 +138,12 @@ Im Zweig „GeckoView nein“: dieselben Tests ohne Engine (SDK-Aufrufe als JSON
 **Abnahme:** Unit- und UI-Tests nach 06 §4; `RemoteEngine` mit Fake-Datenschicht; Handy-Engine im
 Android-Emulator mit der Test-App aus M3; Anleitung „Handy-App installieren“ im README.
 
+**Stand (v0.10.0): erster Teil gebaut**, für Apps auf dem Handy ([03 §13](03_Uhr-Apps.md#13-apps-auf-dem-handy-v0100-schnittstelle-4)):
+Modul `phone/`, gemeinsamer Schlüssel, `play-services-wearable`, `wear.xml`, `WearableListenerService`,
+Vordergrund-Dienst, Datenschicht auf der Uhr mit simulierten Tests; die CI baut beide APKs; die Anleitung „Handy-App
+installieren“ steht im README. Offen: `evenhub-webview`, `RemoteEngine`, App-Verwaltung, der Test im Emulator.
+Nicht auf Hardware erprobt.
+
 ## M5 – Rechner-Apps: Protokoll `g2-remote@1`, `g2-host`, Web-Seite
 
 **Ziel:** Eine TypeScript-App auf dem PC erscheint im Starter der Brille und reagiert auf Klicks; Apps lassen

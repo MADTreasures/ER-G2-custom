@@ -47,6 +47,9 @@ class AppJsonTest {
         AppEvent.Key("l", ctrl = true),
         AppEvent.Key(Keys.ARROW_RIGHT, alt = true, repeat = true),
         AppEvent.Key("A", "A", shift = true, meta = false),
+        AppEvent.Phone(PhoneState.CONNECTED),
+        AppEvent.Phone(PhoneState.MESSAGE, """{"t":"utt","text":"Grüezi"}"""),
+        AppEvent.Phone(PhoneState.DISCONNECTED, message = "Fluency wurde auf dem Handy beendet"),
     )
 
     @Test
@@ -159,6 +162,10 @@ class AppJsonTest {
         AppCommand.Web("seite", WebAction.Insert("Grüezi")),
         AppCommand.Subscribe(Sensor.KEYS),
         AppCommand.Web("seite", WebAction.Stop),
+        AppCommand.Phone(PhoneAction.Connect("ch.madtreasures.fluency")),
+        AppCommand.Phone(PhoneAction.Send("""{"t":"hello"}""")),
+        AppCommand.Phone(PhoneAction.Microphone(true)),
+        AppCommand.Phone(PhoneAction.Disconnect),
         AppCommand.Close,
     )
 
@@ -244,6 +251,30 @@ class AppJsonTest {
         assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "key" }""")) }
         assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "key" }""")) }
         assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "insert" }""")) }
+    }
+
+    @Test
+    fun `the phone reads as written in the app model chapter`() {
+        // 02 §6: the command and the event of interface version 4.
+        assertEquals(
+            json("""{ "c": "phone", "action": "connect", "partner": "ch.madtreasures.fluency" }"""),
+            AppJson.encodeCommand(AppCommand.Phone(PhoneAction.Connect("ch.madtreasures.fluency"))),
+        )
+        assertEquals(
+            AppCommand.Phone(PhoneAction.Microphone(false)),
+            AppJson.decodeCommand(json("""{ "c": "phone", "action": "microphone", "on": false }""")),
+        )
+        assertEquals(AppCommand.Phone(PhoneAction.Send("")), AppJson.decodeCommand(json("""{ "c": "phone", "action": "send", "text": "" }""")))
+        assertEquals(
+            json("""{ "kind": "phone", "state": "message", "text": "{}", "message": null }"""),
+            AppJson.encodeEvent(AppEvent.Phone(PhoneState.MESSAGE, "{}")),
+        )
+        assertEquals(AppEvent.Phone(PhoneState.CONNECTED), AppJson.decodeEvent(json("""{ "kind": "phone", "state": "connected" }""")))
+        assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "phone", "state": "ringing" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "phone", "action": "call" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "phone", "action": "connect" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "phone", "action": "send" }""")) }
+        assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "phone", "action": "microphone" }""")) }
     }
 
     @Test

@@ -22,12 +22,23 @@ android {
         // Wear OS 4 (API 33) and newer: Faceclaw's GATT code uses the API 33 write call.
         minSdk = 33
         targetSdk = 37
-        versionCode = 12
-        versionName = "0.9.0"
+        versionCode = 13
+        versionName = "0.10.0"
         // GeckoView ships one native build per ABI (~90 MB each in the APK): only the Pixel Watch 5's,
         // which runs 32-bit apps. For another watch: adb shell getprop ro.product.cpu.abilist, and
         // change this and the geckoview artifact below (05 §5).
         ndk { abiFilters += "armeabi-v7a" }
+    }
+
+    // One key for the watch app and G2 Handy on the phone, here and in CI: Wear OS passes messages only
+    // between apps with the same id and key (signing/README.md).
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("signing/g2-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
@@ -85,6 +96,9 @@ dependencies {
     // page-layout.js of web-raster goes into assets/webbridge/ (root build.gradle.kts).
     implementation(project(":web-raster"))
     implementation(libs.geckoview.armeabi.v7a)
+    // Apps on the phone through G2 Handy (interface 4): the wire both apps speak, and the Wear OS Data Layer.
+    implementation(project(":phone-link"))
+    implementation(libs.play.services.wearable)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

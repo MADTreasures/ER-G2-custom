@@ -9,13 +9,18 @@ import ch.madtreasures.g2watch.apps.HeadingSize
 import ch.madtreasures.g2watch.apps.InputMode
 import ch.madtreasures.g2watch.apps.InputSource
 import ch.madtreasures.g2watch.apps.Keys
+import ch.madtreasures.g2watch.apps.PhoneState
 import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.FakePorts
 import ch.madtreasures.g2watch.apps.host.FakeScreen
 import ch.madtreasures.g2watch.apps.host.Gesture
 import ch.madtreasures.g2watch.apps.render.FocusTarget
+import ch.madtreasures.g2watch.apps.valueOf
 import ch.madtreasures.g2watch.input.KeyPress
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -30,6 +35,9 @@ class FluencyHostTest {
     private val link = FakePhoneLink()
     private var withLink = false
 
+    /** The real link through the watch app ([WatchPhoneLink]), to the host's fake phone engine. */
+    private var throughWatch = false
+
     /** The app the host made, and the context it gave it. */
     private var app: FluencyApp? = null
     private var context: AppContext? = null
@@ -41,7 +49,11 @@ class FluencyHostTest {
                 clock = { scheduler.now },
                 linkFor = { ui ->
                     context = ui
-                    if (withLink) link else NoPhoneLink
+                    when {
+                        throughWatch -> WatchPhoneLink(ui)
+                        withLink -> link
+                        else -> NoPhoneLink
+                    }
                 },
             ).also { app = it }
         }),
@@ -77,6 +89,8 @@ class FluencyHostTest {
     private fun caption() = (page().block(FluencyApp.NOW) as Block.Heading).text
 
     private fun launch() {
+        // The wearer allowed what the app asks for on its first start (02 §8).
+        FluencyApp().manifest.let { ports.answers["${it.id}@${it.version}"] = it.permissions }
         host.launch("watch:$id")
         settle()
         assertEquals(id, host.state.value.visible)
@@ -158,6 +172,46 @@ class FluencyHostTest {
         settle()
         scheduler.advanceBy(2_000)
         assertTrue(link.closed)
+        noComplaints()
+    }
+
+    @Test
+    fun `through the watch app's link, G2 Handy's line carries hello, start, the microphone and the end`() {
+        throughWatch = true
+        launch()
+        val line = ports.phone.lines.single()
+        assertEquals(Triple(id, "1.1.0", WatchPhoneLink.PARTNER), Triple(line.app, line.version, line.partner))
+        line.state(PhoneState.CONNECTED)
+        settle()
+        assertEquals(listOf("hello"), line.sent.map { Json.parseToJsonElement(it).jsonObject.type })
+        line.state(PhoneState.MESSAGE, text = Harness.welcome(app = "1.9.0"))
+        settle()
+        assertEquals("Fluency 1.9.0", page().valueOf(FluencyApp.PHONE))
+
+        temple(GestureKind.CLICK) // "Übersetzen"
+        assertEquals(FluencyApp.LIVE, host.state.value.page)
+        assertEquals("start", Json.parseToJsonElement(line.sent.last()).jsonObject.type)
+        assertEquals(listOf(true), line.mic)
+        line.state(PhoneState.MESSAGE, text = Harness.state(running = true, re = 1))
+        line.state(PhoneState.MESSAGE, text = Harness.utt(1, "Where is the station?", "Wo ist der Bahnhof?", final = true, from = "en"))
+        settle()
+        assertEquals("Wo ist der Bahnhof?", caption())
+
+        // Hidden, Fluency rests and the microphone with it; the connection stays.
+        host.openLauncher()
+        settle()
+        assertEquals("stop", Json.parseToJsonElement(line.sent.last()).jsonObject.type)
+        assertEquals(listOf(true, false), line.mic)
+        assertFalse(line.closed)
+        host.launch("watch:$id")
+        settle()
+        assertEquals(listOf(true, false, true), line.mic)
+
+        // Fluency goes away on the phone: the app hears it from the watch app.
+        line.state(PhoneState.DISCONNECTED, message = "Fluency wurde auf dem Handy beendet")
+        settle()
+        assertEquals("Getrennt", page().name)
+        assertTrue(line.closed)
         noComplaints()
     }
 }

@@ -222,6 +222,7 @@ nicht über die Leitung):
 { "c": "audio", "on": true }
 { "c": "askText", "tag": "suche", "prompt": "Wonach suchen?", "suggestions": ["Katzen"] }
 { "c": "video", "block": "bild", "action": "play", "src": "https://…", "profile": "balanced", "sound": false, "start": 0 }
+{ "c": "phone", "action": "connect", "partner": "ch.madtreasures.fluency" }
 { "c": "close" }
 ```
 

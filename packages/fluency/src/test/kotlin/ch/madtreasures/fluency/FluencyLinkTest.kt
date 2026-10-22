@@ -23,9 +23,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The app with a connection to Fluency, as a later watch app will offer it (PLATTFORM.md): the protocol
- * from hello to the captions, pausing, hiding, losing the connection. [FakePhoneLink] stands for the
- * watch app's link; nothing of this can run on the watch yet.
+ * The app with a connection to Fluency (PLATTFORM.md): the protocol from hello to the captions, pausing,
+ * hiding, losing the connection. [FakePhoneLink] stands for the watch app's link ([WatchPhoneLink],
+ * tested in [WatchPhoneLinkTest]).
  */
 class FluencyLinkTest {
     private val link = FakePhoneLink()
@@ -54,7 +54,7 @@ class FluencyLinkTest {
         h.link(LinkEvent.Connected)
         assertEquals(listOf("hello"), link.types)
         assertEquals(JsonPrimitive(Protocol.NAME), link.last("hello")["proto"])
-        assertEquals(JsonPrimitive("1.0.1"), link.last("hello")["app"])
+        assertEquals(JsonPrimitive("1.1.0"), link.last("hello")["app"])
         h.fluency(welcome(app = "1.9.0"))
         assertEquals("Fluency 1.9.0", ui.page(START).valueOf(FluencyApp.PHONE))
     }
