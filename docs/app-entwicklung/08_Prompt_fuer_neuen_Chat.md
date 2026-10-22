@@ -37,7 +37,9 @@ So gehst du vor:
    eine Rechner-App nur, wenn sie viel rechnet; Even-Hub-Apps laufen auf der Uhr oder dem Handy, nie auf
    dem Rechner.
 2. Bau die App als App-Paket nach 09 in packages/<name>/ (Vorlage: packages/youtube; mit Web-Seite:
-   packages/browser).
+   packages/browser). Gib ihr ein Symbol für den Starter (assets/apps/<app-id>/icon.png, 64 × 64, ruhige
+   graue Linien, 09 §2) und lass sie, wo es passt, mit einer Bluetooth-Tastatur bedienen (Sensor.KEYS,
+   02 §7). Die Bedienung an der Uhr und an den Bügeln muss immer gehen.
    Die Uhr-App selbst (app/, app-api/, die Bau-Logik im Hauptordner) änderst du nicht.
 3. Braucht die App etwas, das die Schnittstelle nicht kann, oder einen Plattform-Teil, der noch fehlt
    (Rechner = M5, Mikrofon/Sensoren = M6 usw.), sag mir das zuerst: was genau fehlt und wie groß es ist.
