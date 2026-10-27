@@ -1,5 +1,10 @@
 package ch.madtreasures.fluency
 
+import ch.madtreasures.g2watch.apps.AppContext
+import ch.madtreasures.g2watch.apps.AppEvent
+import ch.madtreasures.g2watch.apps.PhoneAction
+import ch.madtreasures.g2watch.apps.PhoneState
+
 /** Where the sound Fluency translates comes from. */
 enum class Source(val json: String, val label: String) {
     /** The watch's microphone; the watch app streams it to the phone. */
@@ -26,9 +31,8 @@ sealed interface LinkEvent {
 }
 
 /**
- * The connection to Fluency on the phone. The interface of the watch app (version 3) has no way to the
- * phone yet (PLATTFORM.md): [NoPhoneLink] stands in until it has, and a later version of this package
- * gets a real link from it. All calls come from the app thread.
+ * The connection to Fluency on the phone: [WatchPhoneLink] through the watch app, [NoPhoneLink] without
+ * one, a fake in the tests. All calls come from the app thread.
  */
 interface PhoneLink {
     /** False while the watch app cannot reach the phone at all. */
@@ -46,7 +50,35 @@ interface PhoneLink {
     fun close()
 }
 
-/** No way to the phone: what interface version 3 offers. */
+/**
+ * The connection to Fluency through the watch app (interface version 4, [AppContext.phone]): G2 Handy on
+ * the phone passes it on to Fluency's link service (PLATTFORM.md §6). The watch app reports what happens
+ * as [AppEvent.Phone]; [event] says what that means here.
+ */
+class WatchPhoneLink(private val ui: AppContext) : PhoneLink {
+    override val available = true
+
+    override fun open() = ui.phone(PhoneAction.Connect(PARTNER))
+
+    override fun send(message: String) = ui.phone(PhoneAction.Send(message))
+
+    override fun microphone(on: Boolean) = ui.phone(PhoneAction.Microphone(on))
+
+    override fun close() = ui.phone(PhoneAction.Disconnect)
+
+    companion object {
+        /** Fluency's package name on the phone. */
+        const val PARTNER = "ch.madtreasures.fluency"
+
+        fun event(phone: AppEvent.Phone): LinkEvent = when (phone.state) {
+            PhoneState.CONNECTED -> LinkEvent.Connected
+            PhoneState.MESSAGE -> LinkEvent.Message(phone.text.orEmpty())
+            PhoneState.DISCONNECTED -> LinkEvent.Disconnected(phone.message)
+        }
+    }
+}
+
+/** No way to the phone (the tests of the pages and the Probelauf). */
 object NoPhoneLink : PhoneLink {
     override val available = false
 

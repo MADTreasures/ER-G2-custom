@@ -14,7 +14,7 @@ ob GeckoView auf der Uhr gut genug läuft.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.9.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
+> **Ehrlicher Stand (v0.11.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
 > Custom-Firmware**: Pixel Watch 5 und G2, linkes Glas im ersten Anlauf; beim rechten brach der erste Anlauf
 > ab, nach dem angezeigten Weg (Brille laden, neu starten, erneut aufspielen) klappte es. Alles andere läuft
 > bisher nur gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
@@ -36,6 +36,15 @@ ob GeckoView auf der Uhr gut genug läuft.
 > statt einer Liste; **YouTube** schärfer und mit bis zu 15 Bildern pro Sekunde (randlos, 512 × 288);
 > **[Bluetooth-Tastatur und -Maus](#tastatur-und-maus)** zusätzlich zur Bedienung an der Uhr. Pakete YouTube
 > und Browser 1.1.0 (Schnittstelle 3). Nichts davon ist auf Hardware erprobt.
+> Neu in 0.10.0: **[Apps auf dem Handy](#apps-auf-dem-handy-g2-handy-und-fluency)** – eine App auf der Brille
+> spricht mit einer App auf dem gekoppelten Handy und bekommt das Mikrofon der Uhr (Schnittstelle 4), über die
+> neue Handy-App **„G2 Handy“**. Erste Nutzerin: das Paket **Fluency** 1.1.0, die Live-Übersetzung des
+> Übersetzers Fluency auf dem Handy als Untertitel auf der Brille. Uhr-App und G2 Handy haben dafür einen
+> **gemeinsamen Schlüssel**: Eine ältere Uhr-App einmal deinstallieren (ihre Einstellungen und Pakete gehen
+> dabei verloren). Nichts davon ist auf Hardware erprobt.
+> Neu in 0.11.0: Der **[Starter](#apps-auf-der-brille)** ist das Hauptmenü der Brille. Er steht nach dem
+> Verbinden auf der Brille, jede App kehrt zu ihm zurück, und Zurück bleibt auf ihm stehen. Die Kacheln Uhr,
+> Notiz, Zähler, Info und Hilfe sind weg. Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -73,7 +82,7 @@ die Brille auch mit der Faceclaw-Handy-App verwendbar, ohne hin und her zu flash
    Brille nicht ins Etui legen.
 6. **Kontrolle:** Nach dem Neustart fragt die Uhr jedes Glas einzeln und meldet z. B.
    „Beide Gläser melden Faceclaw/35“. Mit **OK** verbindet sie sich neu – mit Custom-Firmware startet
-   dann das Touchpad mit dem Maus-Zeiger auf der Brille. Die Even-App auf dem Handy muss danach
+   dann das Touchpad mit dem Maus-Zeiger und dem Starter auf der Brille. Die Even-App auf dem Handy muss danach
    eventuell neu mit der Brille gekoppelt werden.
 
 Verbunden zeigt die Uhr unter dem Akku, welche Firmware die Brille hat und was jeder Bügel meldet
@@ -99,9 +108,9 @@ Bildtiefe* → **Nah**, **Mittel** (Standard) oder **Fern**, die drei Stufen der
 sofort; die Uhr merkt sie sich und stellt sie bei jeder Verbindung wieder ein. Wer vom Bild Kopfweh
 bekommt, probiert eine andere Stufe.
 
-| Bildtiefe auf der Uhr | Desktop auf der Brille, alles zwischen x = 32 und 607 |
+| Bildtiefe auf der Uhr | Starter auf der Brille, alles zwischen x = 32 und 607 |
 |---|---|
-| ![Bildtiefe](docs/bilder/uhr-einstellungen-bildtiefe.png) | ![Desktop](docs/bilder/desktop-start.png) |
+| ![Bildtiefe](docs/bilder/uhr-einstellungen-bildtiefe.png) | ![Starter](docs/bilder/apps-starter.png) |
 
 So geht es: Evens Firmware schiebt ihr Bild je nach Stufe in jedem Glas um 8 Pixel zur Nase hin oder nach
 außen. Diese Einstellung übernimmt die Custom-Firmware nicht; sie zeigt das Bild der Uhr
@@ -128,8 +137,9 @@ welche Stufe die Even-App „Nah“ nennt, ist nicht belegt. Details:
 Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
 [`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)): Apps beschreiben ihre Oberfläche als
 Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
-verteilt die Eingaben. Jede App ist ein App-Paket, zurzeit **YouTube** ([YouTube auf der Brille](#youtube-auf-der-brille))
-und **Browser** ([Web-Browser auf der Brille](#web-browser-auf-der-brille)).
+verteilt die Eingaben. Jede App ist ein App-Paket, zurzeit **YouTube** ([YouTube auf der Brille](#youtube-auf-der-brille)),
+**Browser** ([Web-Browser auf der Brille](#web-browser-auf-der-brille)) und **Fluency**
+([Apps auf dem Handy](#apps-auf-dem-handy-g2-handy-und-fluency)).
 Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installieren](#eigene-apps-installieren)).
 
 | Starter | App-Menü | Berechtigung beim ersten Start |
@@ -142,7 +152,8 @@ Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installi
 
 **Bedienen:**
 
-- Auf dem Desktop der Brille die Kachel **Apps** anklicken → der **Starter** zeigt alle Apps als Symbol mit
+- Der **Starter** ist das Hauptmenü der Brille (seit 0.11.0): Er steht nach dem Verbinden auf der Brille, jede
+  App, die endet, kehrt zu ihm zurück, und Zurück bleibt auf ihm stehen. Er zeigt alle Apps als Symbol mit
   Namen, vier nebeneinander, acht auf einen Blick (mehr scrollen). Ein Punkt rechts oben am Symbol heißt:
   Die App läuft. Eine App ohne Symbol zeigt ihre Anfangsbuchstaben. Ohne Apps steht dort „Noch keine Apps“.
   Bügel und Ring springen von Symbol zu Symbol (Zeile für Zeile), Tippen startet; mit dem Zeiger leuchtet
@@ -187,7 +198,7 @@ kennt die Schrift noch nicht; sie bleiben Kleckse. Details: [03 §11](docs/app-e
 ## Tastatur und Maus
 
 Eine Bluetooth-Tastatur und eine Bluetooth-Maus (etwa eine Magic Mouse) bedienen die Brille, sobald die Uhr
-sie verbunden hat: den Desktop, den Starter, den Browser, YouTube und jede andere App. **Nicht auf Hardware
+sie verbunden hat: den Starter, den Browser, YouTube und jede andere App. **Nicht auf Hardware
 erprobt** – und ob Wear OS auf der Pixel Watch Tastaturen und Mäuse überhaupt annimmt, ist offen (unten).
 Wie es gebaut ist: [03 §5.4](docs/app-entwicklung/03_Uhr-Apps.md#54-tastatur-und-maus).
 
@@ -215,12 +226,11 @@ Im Gesten-Modus (Video) ist links ein Tippen und das Rad ein Wischen (10 s vor o
 | Menütaste, F10 | App-Menü |
 | Leertaste, Bild↓, Bild↑ | scrollen (über einer Web-Seite die Seite) |
 | Play/Pause, Leertaste, Pfeile | im Video: Pause/weiter, 10 s vor oder zurück |
-| auf dem Desktop: Pfeile, Enter, Esc | Zeiger um 8 Pixel (mit Umschalt 32), Klick, Fenster zu |
 
 Apps können die Tasten auch selbst nehmen (Schnittstelle 3): der [Browser](#web-browser-auf-der-brille) und
-[YouTube](#youtube-auf-der-brille) tun es. Esc, Alt+←, die Menütaste und F10 bleiben aber immer beim Host. Das
-Hilfe-Fenster auf dem Desktop der Brille listet die wichtigsten Tasten. Hält man eine Taste, wiederholen sich
-Pfeile, Tab, Leertaste und Bild↑/↓; zurück, App-Menü und Klick gelten einmal je Druck.
+[YouTube](#youtube-auf-der-brille) tun es. Esc, Alt+←, die Menütaste und F10 bleiben aber immer beim Host. Hält
+man eine Taste, wiederholen sich Pfeile, Tab, Leertaste und Bild↑/↓; zurück, App-Menü und Klick gelten einmal
+je Druck.
 
 **Text tippen:** Fragt eine App nach Text, erscheint die Frage auf der Brille statt auf der Uhr: die Zeile mit
 Cursor, darunter die Vorschläge. ← und →, Pos1 und Ende bewegen den Cursor, Rücktaste und Entf löschen,
@@ -278,10 +288,57 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
-zweimal antippen. Fertige Pakete: **YouTube** und **Browser**, beide mit Symbol für den Starter (ein Paket
-bringt sein Symbol als `assets/apps/<app-id>/icon.png` mit, [09 §2](docs/app-entwicklung/09_App-Pakete.md#2-das-paket)).
+zweimal antippen. Fertige Pakete: **YouTube**, **Browser** und **Fluency**, alle mit Symbol für den Starter (ein
+Paket bringt sein Symbol als `assets/apps/<app-id>/icon.png` mit, [09 §2](docs/app-entwicklung/09_App-Pakete.md#2-das-paket)).
 Pakete ab 0.8.0 (Schnittstelle 2) brauchen die Uhr-App 0.8.0 oder neuer, Pakete mit Schnittstelle 3 (Tastatur,
-seit 0.9.0) die Uhr-App 0.9.0; ältere Pakete laufen weiter.
+seit 0.9.0) die Uhr-App 0.9.0, Pakete mit Schnittstelle 4 (Apps auf dem Handy, seit 0.10.0; jedes Paket, das ab
+jetzt gebaut wird) die Uhr-App 0.10.0; ältere Pakete laufen weiter.
+
+## Apps auf dem Handy: „G2 Handy“ und Fluency
+
+Seit 0.10.0 kann eine App auf der Brille mit einer **App auf dem gekoppelten Handy** sprechen und ihr das
+**Mikrofon der Uhr** geben (Schnittstelle 4, [03 §13](docs/app-entwicklung/03_Uhr-Apps.md#13-apps-auf-dem-handy-v0100-schnittstelle-4)).
+Den Weg auf dem Handy macht die kleine Handy-App **„G2 Handy“** (Modul [`phone/`](phone)). Google Play Services
+stellt zwischen Uhr und Handy nur Nachrichten zwischen Apps mit derselben App-ID und demselben Schlüssel zu;
+deshalb hat G2 Handy die App-ID der Uhr-App, und beide werden mit dem Schlüssel aus [`signing/`](signing/README.md)
+gebaut, auf jedem Rechner und in GitHub Actions gleich.
+
+Erste Nutzerin ist das Paket **Fluency** ([`packages/fluency`](packages/fluency/README.md)): Der Übersetzer
+[Fluency](https://github.com/MADTreasures/playground) auf dem Handy hört über das Mikrofon der Uhr oder das des
+Handys zu und übersetzt offline; die Brille zeigt die Übersetzung als rollenden Untertitel.
+
+| Fluency: Start | Fluency: Live (Verbindung simuliert) |
+|---|---|
+| ![Fluency, Start](packages/fluency/bilder/fluency-start.png) | ![Fluency, Live](packages/fluency/bilder/fluency-live.png) |
+
+**Einmal einrichten:**
+
+1. **Uhr-App ab 0.10.0 installieren** ([App auf die Uhr bringen](#app-auf-die-uhr-bringen)). Sie hat jetzt einen
+   festen Schlüssel; eine ältere Uhr-App mit anderem Schlüssel vorher deinstallieren (Uhr verbunden:
+   `adb uninstall ch.madtreasures.g2watch`, oder Android Studio fragt beim ▶ Run selbst). Dabei gehen ihre
+   Einstellungen und die installierten App-Pakete verloren; die Pakete danach neu installieren
+   ([Eigene Apps installieren](#eigene-apps-installieren)). Nur einmal: Spätere Versionen passen wieder darüber.
+2. **G2 Handy aufs Handy**, mit dem die Uhr gekoppelt ist: die APK aus GitHub (Actions → *Build* → Artefakt
+   `g2-handy-debug-apk`) aufs Handy kopieren und dort öffnen (Installation aus dieser Quelle erlauben), oder
+   per ADB:
+   ```sh
+   ./gradlew -Pg2.phone=true :phone:assembleDebug   # → phone/build/outputs/apk/debug/phone-debug.apk
+   adb -s <handy> install -r phone/build/outputs/apk/debug/phone-debug.apk
+   ```
+   Aus Android Studio: in `gradle.properties` die Zeile `g2.phone=true` ergänzen, *Sync Project with Gradle
+   Files*, das Handy als Gerät wählen, **▶ Run**; danach die Zeile wieder entfernen, sonst fehlt die Uhr-App.
+   G2 Handy **einmal öffnen**: Es fragt nach Mitteilungen (die dauernde Mitteilung „Bereit für die Uhr“ hält es
+   wach) und zeigt, ob die Uhr erreichbar ist. „Für die Uhr bereit“ bleibt an, auch nach einem Neustart.
+3. **Fluency 1.9.0** auf dem Handy, dort **Optionen → „Brille (G2 Watch)“** einschalten.
+4. **Paket Fluency 1.1.0** auf die Uhr legen und installieren (Artefakt `g2-apps`). Beim ersten Start fragt die
+   Brille nach „Verbindung zum Handy“ und „Mikrofon der Uhr“; beim ersten Einschalten des Uhr-Mikrofons fragt
+   zusätzlich Android auf dem Bildschirm der Uhr.
+
+Steht alles, zeigt die Startseite des Pakets „Handy: Fluency 1.9.0“; sonst „getrennt“ und einen Hinweis, woran
+es liegt (etwa „Kein Handy mit G2 Handy erreichbar“ oder „In Fluency ist „Brille (G2 Watch)“ aus“).
+**Übersetzen** startet Fluency mit dem Mikrofon der Uhr (oder, unter *Ton*, dem des Handys). Wie die Teile
+zusammenhängen und was auf echter Hardware zu klären ist: [PLATTFORM.md](packages/fluency/PLATTFORM.md).
+**Nicht auf Hardware erprobt.**
 
 ## YouTube auf der Brille
 
@@ -541,7 +598,7 @@ dieses Projekts noch nicht):
    Versionen*, 7× auf *Build-Nummer* tippen), dort *ADB-Debugging* und *Debugging über WLAN* einschalten.
    Uhr und Rechner im selben WLAN. In Android Studio in der Geräteauswahl *Pair Devices Using Wi-Fi →
    Pair using pairing code*; den Code zeigt die Uhr unter *Debugging über WLAN → Neues Gerät koppeln*.
-3. Oben die Uhr als Gerät wählen, **▶ Run** (das Projekt enthält nur die Uhr-App, es gibt nichts anderes auszuwählen): Android Studio baut die App,
+3. Oben die Uhr als Gerät wählen, **▶ Run** (das Projekt enthält nur die Uhr-App, es gibt nichts anderes auszuwählen; G2 Handy fürs Handy nur auf Wunsch, siehe [Apps auf dem Handy](#apps-auf-dem-handy-g2-handy-und-fluency)): Android Studio baut die App,
    installiert sie auf der Uhr und startet sie. Seit 0.8.0 ist die APK ≈ 137 MB groß (GeckoView); über WLAN
    dauert das Installieren ein paar Minuten. Die APK läuft nur auf Uhren mit `armeabi-v7a` (Pixel Watch 5);
    für eine andere Uhr `adb shell getprop ro.product.cpu.abilist` prüfen und `abiFilters` sowie das
@@ -552,6 +609,7 @@ dieses Projekts noch nicht):
 ```sh
 ./gradlew :app:assembleDebug            # → app/build/outputs/apk/debug/app-debug.apk
 ./gradlew -Pg2.geckoTest=true :gecko-probe:assembleRelease  # Gecko-Test → tools/gecko-probe/build/outputs/apk/release/
+./gradlew -Pg2.phone=true :phone:assembleDebug              # G2 Handy → phone/build/outputs/apk/debug/phone-debug.apk
 ./gradlew g2appPackages                 # alle App-Pakete → build/g2app/
 ```
 
@@ -577,9 +635,12 @@ die Uhr offline ist.
 
 | Modul | Inhalt |
 |---|---|
-| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der Video-Wiedergabe `apps/video`, der Browser-Engine `apps/web` (GeckoView, Erweiterung in `assets/webbridge/`), der Installation von App-Paketen `apps/packages` und Bluetooth-Tastatur und -Maus `input` |
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der Video-Wiedergabe `apps/video`, der Browser-Engine `apps/web` (GeckoView, Erweiterung in `assets/webbridge/`), der Installation von App-Paketen `apps/packages`, Bluetooth-Tastatur und -Maus `input` und den Verbindungen zu Apps auf dem Handy samt Mikrofon der Uhr `apps/phone` |
 | [`app-api/`](app-api) | Die Schnittstelle der Apps (`G2App`, `AppContext`, Ereignisse, Seiten), reines Kotlin; App-Pakete werden dagegen gebaut ([09](docs/app-entwicklung/09_App-Pakete.md)) |
-| [`packages/`](packages) | Ein Ordner je App-Paket, zurzeit [`youtube`](packages/youtube) und [`browser`](packages/browser). `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
+| [`packages/`](packages) | Ein Ordner je App-Paket, zurzeit [`youtube`](packages/youtube), [`browser`](packages/browser) und [`fluency`](packages/fluency). `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
+| [`phone/`](phone) | Handy-App „G2 Handy“: vermittelt zwischen Uhr-Apps und Apps auf dem Handy (Wear-OS-Datenschicht ⇄ Android-IPC). Hat die App-ID der Uhr-App, wird deshalb nur mit `-Pg2.phone=true` gebaut |
+| [`phone-link/`](phone-link) | Reines Kotlin: was Uhr-App und G2 Handy einander über die Datenschicht schicken (Pfade, Inhalte); beide benutzen es |
+| [`signing/`](signing/README.md) | Der gemeinsame Debug-Schlüssel von Uhr-App und G2 Handy |
 | [`firmware-image/`](firmware-image) | Reines Kotlin ohne Android: EVENOTA-Prüfung mit Speichergrenze, Patch-Set von g2flash, Allow-List. Auf dem PC testbar |
 | [`faceclaw-core/`](faceclaw-core), [`faceclaw-android/`](faceclaw-android) | Faceclaw **0.8.0**, unverändert übernommen ([Herkunft](faceclaw-core/UPSTREAM.md), [`scripts/sync-faceclaw.sh`](scripts/sync-faceclaw.sh)) |
 | [`web-raster/`](web-raster) | Reines Kotlin ohne Android: gezeichnete Web-Seite → Brillenbild mit lesbarem, bei Bedarf negativem Text; dazu `LayoutParser` und das Layout-Skript `src/main/js/page-layout.js`, das Browser und Gecko-Test in der Seite ausführen |
@@ -594,11 +655,12 @@ die Uhr offline ist.
 ## Testen
 
 ```sh
-./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :web-raster:test :app-api:test :app:testDebugUnitTest
+./gradlew :firmware-image:test :faceclaw-core:testAndroidHostTest :web-raster:test :app-api:test :phone-link:test :app:testDebugUnitTest
+./gradlew -Pg2.phone=true :phone:testDebugUnitTest
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 7 + 542 Tests grün, dazu 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 8 + 6 + 639 Tests grün, dazu 22 in G2 Handy und 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -618,9 +680,10 @@ Lint ohne Fehler. Die wichtigsten:
   **Bildtiefe** bei jeder Verbindung und sofort bei einer Änderung. Mit Faceclaws echtem
   Compositor: die Tiefe kommt auch mit Zeiger an, und jedes Glas zeigt das ganze Bild um die halbe Tiefe
   verschoben, ohne dass etwas über den Rand fällt; nichts leuchtet außerhalb von x = 32 bis 607.
-  **`DesktopTextFitTest`** – mit Androids Schrift passt jeder Text in Kopfzeile oder Fenster.
+  **`DesktopTextFitTest`** – mit Androids Schrift passt jeder Text in die Kopfzeile, mit und ohne App.
 - **`AppHostTest`** – der App-Host mit Test-Apps, simuliertem Desktop und virtueller Zeit: `start` vor
-  `visible`, Zurück auf der ersten Seite schließt, Knopf-Ziele und `@back`, Schalter und Häkchen sofort, höchstens
+  `visible`, der Starter als Hauptmenü vom ersten Bild an (Zurück bleibt dort, nach einem Absturz holt ihn ein
+  Tippen zurück), Zurück auf der ersten Seite schließt, Knopf-Ziele und `@back`, Schalter und Häkchen sofort, höchstens
   alle 200 ms zeichnen, Timer ruhen verdeckt ohne `background`, 2-s- und 10-s-Regel, 50/500-ms-Regel,
   Absturz einer App, Berechtigungsfrage, App-Menü mit „Apps“ und Starter (Raster in Lesereihenfolge für Bügel
   und Zeiger, Symbole einmal je App-Version gelesen, Punkt für laufende Apps), Fokus per Bügel, Zeiger,
@@ -653,7 +716,11 @@ Lint ohne Fehler. Die wichtigsten:
   **`PackageArchiveTest`**, **`PackageStoreTest`** (Prüfen, Installieren, Aktualisieren, Entfernen, Ordner
   für neue Apps, Symbole), **`AppsScreenTest`**, in `app-api` **`PackageManifestTest`**; die Tests eines Pakets liegen in
   `packages/<name>/src/test` und laufen mit `:app:testDebugUnitTest`.
-- Bilder neu erzeugen (Uhr, Desktop, Apps samt YouTube und Browser, Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
+- **Apps auf dem Handy:** **`AppHostPhoneTest`** (Berechtigungen, Grenzen, Mikrofon nur sichtbar, Ende mit der
+  App), **`PhoneLinksTest`** (die Uhr-Seite mit simulierter Datenschicht, Mikrofon und Zeit: Öffnen, Ablehnen,
+  Zeitlimit, Lebenszeichen, Übernahme, Ton-Kanal), **`PhoneLinkWireTest`**, in G2 Handy **`RelayTest`** und
+  **`MessengerPartnersTest`** (Robolectric mit simuliertem Partner-Dienst, Ton durch eine echte Pipe).
+- Bilder neu erzeugen (Uhr, Zeiger, Apps samt Starter, YouTube und Browser, Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
 - **`GlassesRasterizerTest`** (web-raster) – Grund, Bilder, lesbarer und negativer Text; **`LayoutParserTest`** –
   der Layout-Bericht von `page-layout.js`; die Tests des Gecko-Tests (`tools/gecko-probe`) prüfen Brücke,
   Auswertung und Bildschirm ohne Uhr.

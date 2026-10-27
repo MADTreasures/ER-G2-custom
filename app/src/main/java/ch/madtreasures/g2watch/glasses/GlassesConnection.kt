@@ -92,7 +92,6 @@ class GlassesConnection internal constructor(
         recentTransmitMs.clear()
         setState(GlassesState(stage = Stage.CHECKING, title = title, detail = "Warte auf die Brille …"))
         log("Verbinde mit $title (R $right" + (left?.let { ", L $it" } ?: "") + ")")
-        desktop.updateStatus { it.copy(connection = Stage.CHECKING.label) }
         parts.showForeground("Firmware wird geprüft")
         // Queued behind any teardown that is still running, so the old links are closed first.
         worker.post { main.post { if (gen == generation) startProbe(gen) } }
@@ -125,7 +124,6 @@ class GlassesConnection internal constructor(
             main.post {
                 if (gen == generation) {
                     setState(_state.value.copy(stage = Stage.IDLE))
-                    desktop.updateStatus { it.copy(connection = Stage.IDLE.label) }
                     parts.stopForeground()
                 }
                 released()
@@ -182,7 +180,6 @@ class GlassesConnection internal constructor(
 
     private fun onFirmwareChecked(gen: Int, verdict: FirmwareVerdict) {
         log("Firmware: ${verdict.summary}" + (verdict.message?.let { " – $it" } ?: ""))
-        desktop.updateStatus { it.copy(firmware = verdict.summary) }
         if (!verdict.compatible) {
             stopWith(Stage.INCOMPATIBLE, verdict.message.orEmpty(), verdict)
             return
@@ -192,7 +189,6 @@ class GlassesConnection internal constructor(
             return
         }
         setState(_state.value.copy(stage = Stage.CONNECTING, firmware = verdict, detail = "Starte die Sitzung …"))
-        desktop.updateStatus { it.copy(connection = Stage.CONNECTING.label) }
         parts.updateForeground("Verbinde mit der Brille")
         // The probe closes its links on its own thread; give the stack a moment before the
         // session dials the same arms again.
@@ -286,7 +282,6 @@ class GlassesConnection internal constructor(
                 else -> "Verbinde mit der Brille …"
             }
             setState(_state.value.copy(stage = stage, detail = detail))
-            desktop.updateStatus { it.copy(connection = stage.label) }
             parts.updateForeground(stage.label)
         }
 
@@ -354,7 +349,6 @@ class GlassesConnection internal constructor(
             if (!current) return
             val verdict = FirmwareRequirement.check(leftVersion, rightVersion, extension)
             log("Firmware laut Sitzung: ${verdict.summary}")
-            desktop.updateStatus { it.copy(firmware = verdict.summary) }
             // Like Faceclaw: no data is no evidence, but a definite mismatch ends the session.
             if (!verdict.compatible && verdict.kind != FirmwareKind.UNKNOWN) {
                 stopWith(Stage.INCOMPATIBLE, verdict.message.orEmpty(), verdict)
@@ -394,7 +388,7 @@ class GlassesConnection internal constructor(
         a.closed = true
         desktop.detach()
         a.session.stopListening()
-        desktop.updateStatus { it.copy(connection = Stage.IDLE.label, glassesBattery = null, glassesCharging = false) }
+        desktop.updateStatus { it.copy(glassesBattery = null, glassesCharging = false) }
         worker.post {
             try {
                 // Faceclaw's cleanup message lets the firmware return to its normal screen.
@@ -412,7 +406,6 @@ class GlassesConnection internal constructor(
             main.post {
                 if (gen != generation) return@post
                 action()
-                desktop.updateStatus { it.copy(connection = _state.value.stage.label) }
                 parts.stopForeground()
             }
         }

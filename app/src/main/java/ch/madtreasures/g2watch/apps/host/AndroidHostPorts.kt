@@ -10,6 +10,7 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.phone.PhoneEngine
 import ch.madtreasures.g2watch.apps.video.AndroidVideoEngine
 import ch.madtreasures.g2watch.apps.video.VideoEngine
 import ch.madtreasures.g2watch.apps.web.GeckoWebEngine
@@ -24,12 +25,14 @@ import java.util.concurrent.Executors
 
 /**
  * [HostPorts] on the watch. [logSink] receives lines for the watch log from any thread; [prompts] carries
- * text questions to the watch screen; [keyboard] tells whether a Bluetooth keyboard is connected.
+ * text questions to the watch screen; [keyboard] tells whether a Bluetooth keyboard is connected; [phoneEngine]
+ * makes the connection to the phone when the first app wants one.
  */
 class AndroidHostPorts(
     context: Context,
     private val prompts: TextPrompts,
     private val keyboard: () -> Boolean = { false },
+    phoneEngine: () -> PhoneEngine = { PhoneEngine.NONE },
     private val logSink: (String) -> Unit,
 ) : HostPorts {
     private val context = context.applicationContext
@@ -141,6 +144,8 @@ class AndroidHostPorts(
 
     /** GeckoView starts only when an app opens its first web page. */
     override val web: WebEngine by lazy { GeckoWebEngine(context, logSink) }
+
+    override val phone: PhoneEngine by lazy(phoneEngine)
 
     private companion object {
         const val TIMEOUT_MS = 10_000

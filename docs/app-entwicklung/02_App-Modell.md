@@ -18,7 +18,7 @@ und TypeScript-Typen werden daraus abgeleitet, nicht umgekehrt.
 | **App-Host** | Der Teil der Uhr-App, der Seiten zeichnet, Eingaben verteilt und Sitzungen verwaltet. |
 | **Rechner-Host** | `g2-host` auf einem Rechner: führt Rechner-Apps aus. |
 | **EvenHub-Laufzeit** | Teil der Uhr-App, der Even-Hub-Apps ausführt (Engine auf der Uhr oder auf dem Handy, [05](05_EvenHub-Apps.md)). |
-| **Starter** | Die Seite „Apps“ auf der Brille, vom App-Host selbst gezeichnet: alle Apps als Symbol mit Namen in einem Raster (4 × 2 je Bildschirm), laufende mit einem Punkt markiert. |
+| **Starter** | Die Seite „Apps“ auf der Brille, vom App-Host selbst gezeichnet: alle Apps als Symbol mit Namen in einem Raster (4 × 2 je Bildschirm), laufende mit einem Punkt markiert. Seit v0.11.0 das Hauptmenü der Brille: Er steht nach dem Verbinden auf ihr, jede App kehrt zu ihm zurück, und Zurück bleibt auf ihm stehen. |
 | **App-Menü** | Ein vom App-Host gezeichnetes Menü über jeder App: eigene Einträge der App (Befehl `menu`), dann „Apps“ (App bleibt im Hintergrund), „Zurück“, „Schließen“. |
 
 ## 2. Manifest `g2app.json`
@@ -72,7 +72,8 @@ als Datei im App-Ordner.
   Anzeige-Befehle einer verdeckten App speichert der Host (der neueste Stand gilt).
   Uhr-Apps dürfen verdeckt nur Timer ausführen, und nur mit `background`; Rechner-Apps unbegrenzt.
 - **stop**: „Schließen“ im App-Menü, Zurück auf der ersten Seite, `close()` durch die App oder Beenden
-  durch den Host. Die App bekommt `stop` und hat **1 s** zum Aufräumen.
+  durch den Host. Die App bekommt `stop` und hat **1 s** zum Aufräumen; auf der Brille steht danach der
+  Starter.
 - Verbindungsabbruch Uhr ↔ Rechner: Rechner-Apps laufen weiter; nach dem Wiederverbinden zeigt die
   Uhr die aktuelle Seite erneut ([04 §5.6](04_Rechner-Apps_und_Protokoll.md#56-verbindung-verloren-und-wieder-da)).
 
@@ -196,6 +197,7 @@ Gleiche JSON-Form in beiden Laufzeiten:
 { "kind": "imageClick",  "page": "p_seite", "block": "seite", "x": 120, "y": 80 }
 { "kind": "imageScroll", "page": "p_seite", "block": "seite", "dy": 195 }
 { "kind": "key",      "key": "é", "text": "é", "shift": false, "ctrl": false, "alt": false, "meta": false, "repeat": false }
+{ "kind": "phone",    "state": "message", "text": "{\"t\":\"state\",\"running\":true}", "message": null }
 { "kind": "error",    "command": "patch", "code": "unknown_block", "message": "…" }
 ```
 
@@ -235,6 +237,11 @@ Gleiche JSON-Form in beiden Laufzeiten:
   `alt` meint nur die linke Alt-Taste, AltGr steckt im Zeichen; `repeat` die Wiederholungen einer gehaltenen
   Taste. Eine Akzent-Taste (^ ´ ` ~ ¨) meldet sich nicht selbst, sondern mit dem nächsten Buchstaben (`é`).
   Unbekannte Namen ignoriert eine App.
+- `phone` (seit Schnittstelle 4): die Verbindung zu einer App auf dem Handy, nur nach dem Befehl `phone` mit
+  `connect` (§6.2): `connected` (sie steht), `message` (eine Nachricht der App auf dem Handy in `text`,
+  unverändert), `disconnected` (zu Ende oder nicht zustande gekommen, auch ohne Berechtigung; der Grund deutsch
+  in `message`). Jedes `connect` endet in `connected` oder `disconnected`; danach verbindet nur ein neues
+  `connect` wieder.
 - `error`: nur bei Rechner-Apps; die Uhr hat einen Befehl abgelehnt (§6.2 „Fehler“).
 - Unbekannte `kind`-Werte ignoriert eine App. So kann die Plattform neue Ereignisse ergänzen.
 
@@ -259,6 +266,7 @@ Gleiche JSON-Form in beiden Laufzeiten:
 | `askText` | `tag`, `prompt` (≤ 100 Zeichen), `suggestions` (≤ 5, je ≤ 40 Zeichen) | Tastatur/Spracheingabe auf der Uhr, auf der Brille der Hinweis „Bitte auf der Uhr eingeben“; Antwort als Ereignis `text` (seit v0.5.0). Ist eine Bluetooth-Tastatur verbunden, steht die Frage auf der Brille und wird dort getippt (seit v0.9.0, für die App gleich) |
 | `video` | `block` (ein `image`), `action`: `play` (`src`, `profile` `stable`/`balanced`/`fast`, `sound`, `start` in ms), `pause`, `resume`, `seek` (`position`), `profile` (`profile`), `stop` | Video in einen Bild-Baustein; `src` ist eine Video-Seite (YouTube …), eine Video-Datei/HLS-Adresse (`https://`, Berechtigung `network`) oder `test:muster`. Zustand als Ereignis `video`. Details [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050) (seit v0.5.0) |
 | `web` | `block` (ein `image`), `action`: `open` (`url` `https://`/`http://`, `reader`), `back`, `forward`, `reload`, `scroll` (`dy`), `tap` (`x`, `y`), `type` (`text`, `enter`), `key` (`key` wie beim Ereignis `key`, `shift`, `ctrl`, `alt`; seit Schnittstelle 3), `insert` (`text`: an der Stelle des Cursors, ohne zu ersetzen; seit Schnittstelle 3), `reader` (`on`), `contrast` (`outline`/`halo`/`plate`), `stop` | Web-Seite in einem Bild-Baustein (Berechtigung `network`): die Uhr lädt sie, zeichnet sie in der Größe des Bausteins und schreibt das Brillenbild hinein; Zustand als Ereignis `web`. `open` in einem Baustein mit Seite lädt die neue Adresse als nächste Seite ihres Verlaufs. Verdeckt ruht die Seite, mit der App endet sie. Details [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080) (seit Schnittstelle 2, v0.8.0) |
+| `phone` | `action`: `connect` (`partner`: Android-Paketname der App auf dem Handy), `send` (`text`, ≤ 64 KiB), `microphone` (`on`), `disconnect` | Verbindung zu einer App auf dem gekoppelten Handy, über die Handy-App „G2 Handy“ (Berechtigung `phone`, für das Mikrofon der Uhr zusätzlich `watch-mic`). Eine Verbindung je App, sie endet mit der App; ein zweites `connect` zum selben Partner tut nichts. Nachrichten nur, solange sie steht, höchstens 20 je Sekunde. Das Mikrofon der Uhr (16 kHz, mono) geht zum Partner, nur solange die App zu sehen ist; verdeckt geht es aus und bleibt aus. Ergebnis als Ereignis `phone`. Details [03 §13](03_Uhr-Apps.md#13-apps-auf-dem-handy-v0100-schnittstelle-4) (seit Schnittstelle 4, v0.10.0) |
 | `close` | – | App beenden |
 
 `patch`-Felder je Baustein: `heading`/`text`: `text`, `align`; `button`: `text`, `target`;
@@ -280,7 +288,7 @@ App-Menü verdeckt es ([03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050)).
 
 Zwei Eingabearten, im Manifest gewählt (und seit v0.5.0 je Seite mit `input` überschreibbar, §4.1):
 
-**`pointer` (Standard)** – wie der heutige Desktop:
+**`pointer` (Standard)** – wie der Starter:
 - Uhr-Touchpad bewegt den Maus-Zeiger; Doppeltippen = Klick auf den Baustein unter dem Zeiger;
   ein Baustein unter dem Zeiger ist hervorgehoben (Rand heller).
 - Bügel/Ring: Wischen hoch/runter bewegt den **Fokus** zum vorigen/nächsten fokussierbaren Baustein
@@ -324,8 +332,7 @@ ohne ihr Zutun, solange die Uhr das Touchpad zeigt:
 Die Gesten von Tastatur und Maus kommen mit `source: "watch"`. Nach `subscribe` mit `keys` bekommt die App
 stattdessen jede Taste als Ereignis `key`; nur Esc, Alt+← und die Zurück-Taste der Tastatur (zurück), die
 Menütaste und F10 (App-Menü) behält der Host, ebenso alle Tasten, solange eine Seite des Hosts (App-Menü, Frage)
-darüber liegt. Maus und Rad bleiben beim Host. Auf dem Desktop ohne App bewegen die Pfeile den Zeiger, Enter
-klickt, Esc schließt das Fenster. Eine gehaltene Taste wiederholt sich (beim Ereignis `key` mit `repeat`); was
+darüber liegt. Maus und Rad bleiben beim Host. Eine gehaltene Taste wiederholt sich (beim Ereignis `key` mit `repeat`); was
 der Host selbst damit tut, wiederholt er nur bei Pfeilen, Tab, Leertaste und Bild↑/↓, zurück, App-Menü und
 Klick gelten einmal je Druck.
 
@@ -339,6 +346,8 @@ Klick gelten einmal je Druck.
 | `location` | Standort der Uhr (GPS) als Sensor-Ereignis |
 | `buzzer` | Summer der Brille |
 | `background` | Uhr-Apps: Timer auch verdeckt |
+| `phone` | Verbindung zu einer App auf dem Handy (Befehl `phone`, seit Schnittstelle 4) |
+| `watch-mic` | Mikrofon der Uhr, zur App auf dem Handy gestreamt (Befehl `phone` mit `microphone`, seit Schnittstelle 4) |
 
 Die Berechtigungen stehen im Manifest und in der App-Liste, die der Host der Uhr meldet. Beim ersten
 Start einer App fragt die Uhr einmal auf der Brille („Einkauf möchte: Mikrofon. Erlauben?“). Die Antwort

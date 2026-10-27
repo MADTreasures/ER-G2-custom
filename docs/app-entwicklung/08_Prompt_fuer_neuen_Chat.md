@@ -39,7 +39,8 @@ So gehst du vor:
 2. Bau die App als App-Paket nach 09 in packages/<name>/ (Vorlage: packages/youtube; mit Web-Seite:
    packages/browser). Gib ihr ein Symbol für den Starter (assets/apps/<app-id>/icon.png, 64 × 64, ruhige
    graue Linien, 09 §2) und lass sie, wo es passt, mit einer Bluetooth-Tastatur bedienen (Sensor.KEYS,
-   02 §7). Die Bedienung an der Uhr und an den Bügeln muss immer gehen.
+   02 §7). Die Bedienung an der Uhr und an den Bügeln muss immer gehen. Spricht die App mit einer App
+   auf dem Handy oder braucht sie das Mikrofon der Uhr, nimm ui.phone (03 §13; Vorlage: packages/fluency).
    Die Uhr-App selbst (app/, app-api/, die Bau-Logik im Hauptordner) änderst du nicht.
 3. Braucht die App etwas, das die Schnittstelle nicht kann, oder einen Plattform-Teil, der noch fehlt
    (Rechner = M5, Mikrofon/Sensoren = M6 usw.), sag mir das zuerst: was genau fehlt und wie groß es ist.
@@ -96,5 +97,6 @@ Für einen Meilenstein aus dem [Umsetzungsplan](07_Umsetzungsplan.md) nach „Au
 | M7 | Der Browser (M7, v0.8.0) lief auf meiner Uhr; das fiel auf: <Beobachtungen, Adressen, Protokollzeilen „Browser: …“>. Behebe es nach 05 §10.2 und 03 §12. |
 
 M1 (App-Host) und M1b (App-Pakete) sind fertig, von M2 die Test-APK (es fehlen die Messwerte der Uhr),
-M7 (Browser) ist gebaut, aber nicht auf Hardware erprobt. In claude.ai kann Claude einen Entwurf auch direkt aus dem
+M7 (Browser) ist gebaut, aber nicht auf Hardware erprobt, von M4 der erste Teil (G2 Handy als Vermittler zu
+Apps auf dem Handy, v0.10.0, 03 §13). In claude.ai kann Claude einen Entwurf auch direkt aus dem
 Baukasten lesen („Schau dir meinen Baukasten an“).

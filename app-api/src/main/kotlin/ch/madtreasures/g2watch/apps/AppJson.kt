@@ -107,6 +107,9 @@ object AppJson {
                 put("shift", event.shift); put("ctrl", event.ctrl); put("alt", event.alt); put("meta", event.meta)
                 put("repeat", event.repeat)
             }
+            is AppEvent.Phone -> {
+                put("kind", "phone"); put("state", event.state.json); put("text", event.text); put("message", event.message)
+            }
         }
     }
 
@@ -168,6 +171,11 @@ object AppJson {
                 optBool(o, "alt") ?: false,
                 optBool(o, "meta") ?: false,
                 optBool(o, "repeat") ?: false,
+            )
+            "phone" -> AppEvent.Phone(
+                PhoneState.of(string(o, "state")) ?: bad("unbekannter Verbindungszustand „${o["state"]}“"),
+                optString(o, "text"),
+                optString(o, "message"),
             )
             else -> null
         }
@@ -247,6 +255,15 @@ object AppJson {
                     WebAction.Back, WebAction.Forward, WebAction.Reload, WebAction.Stop -> Unit
                 }
             }
+            is AppCommand.Phone -> {
+                put("action", command.action.json)
+                when (val a = command.action) {
+                    is PhoneAction.Connect -> put("partner", a.partner)
+                    is PhoneAction.Send -> put("text", a.text)
+                    is PhoneAction.Microphone -> put("on", a.on)
+                    PhoneAction.Disconnect -> Unit
+                }
+            }
             AppCommand.Close -> Unit
         }
     }
@@ -296,6 +313,7 @@ object AppJson {
             )
             "video" -> AppCommand.Video(string(o, "block"), videoAction(o))
             "web" -> AppCommand.Web(string(o, "block"), webAction(o))
+            "phone" -> AppCommand.Phone(phoneAction(o))
             "close" -> AppCommand.Close
             else -> bad("unbekannter Befehl „$c“")
         }
@@ -509,6 +527,14 @@ object AppJson {
         "contrast" -> WebAction.Contrast(WebContrast.of(string(o, "contrast")) ?: bad("unbekannter Kontrast „${o["contrast"]}“"))
         "stop" -> WebAction.Stop
         else -> bad("unbekannte Web-Aktion „$action“")
+    }
+
+    private fun phoneAction(o: JsonObject): PhoneAction = when (val action = string(o, "action")) {
+        "connect" -> PhoneAction.Connect(string(o, "partner"))
+        "send" -> PhoneAction.Send(optString(o, "text") ?: bad("„text“ fehlt"))
+        "microphone" -> PhoneAction.Microphone(bool(o, "on"))
+        "disconnect" -> PhoneAction.Disconnect
+        else -> bad("unbekannte Handy-Aktion „$action“")
     }
 
     private fun sensor(o: JsonObject): Sensor =

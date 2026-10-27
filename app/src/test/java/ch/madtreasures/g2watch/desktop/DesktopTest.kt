@@ -13,97 +13,55 @@ class DesktopTest {
 
     private fun Rect.centerX() = x + w / 2
     private fun Rect.centerY() = y + h / 2
-    private fun tile(app: AppId) = layout.tiles.first { it.first == app }.second
-    private fun button(app: AppId, id: ButtonId) = layout.buttons(app).first { it.first == id }.second
+
+    private fun view(title: String = "YouTube", fullScreen: Boolean = false, home: Boolean = false): AppView {
+        val h = if (fullScreen) 288 else 260
+        return AppView(title, null, fullScreen, ByteArray(576 * h), 576, h, pointer = !fullScreen, home = home)
+    }
 
     @Test
-    fun `everything lies on the stage, the middle 576 px of the visible band, and nothing overlaps`() {
+    fun `everything lies on the stage, the middle 576 px of the visible band`() {
         val stage = layout.stage
         assertEquals(Rect(32, 96, 576, 288), stage)
         assertEquals(stage, layout.appArea(fullScreen = true))
-        val rects = layout.tiles.map { it.second } + layout.window + layout.topBar + layout.appBack + layout.appTitle +
-            layout.closeButton + AppId.entries.flatMap { app -> layout.buttons(app).map { it.second } }
-        for (r in rects) {
+        for (r in listOf(layout.topBar, layout.appBack, layout.appTitle, layout.appArea(fullScreen = false))) {
             assertTrue("$r outside $stage", r.x >= stage.x && r.y >= stage.y && r.right <= stage.right && r.bottom <= stage.bottom)
         }
-        val tiles = layout.tiles.map { it.second }
-        for (i in tiles.indices) for (j in i + 1 until tiles.size) {
-            val a = tiles[i]
-            val b = tiles[j]
-            assertFalse("$a overlaps $b", a.x < b.right && b.x < a.right && a.y < b.bottom && b.y < a.bottom)
-        }
-        for (app in AppId.entries) {
-            for ((_, r) in layout.buttons(app)) {
-                val body = layout.windowBody
-                assertTrue(r.x >= body.x && r.right <= body.right && r.bottom <= body.bottom)
-            }
-        }
-    }
-
-    @Test
-    fun `clicking a tile opens its window`() {
-        val r = tile(AppId.CLOCK)
-        assertEquals(Target.Tile(AppId.CLOCK), desktop.hitTest(r.centerX(), r.centerY()))
-        assertEquals(ClickEffect.REDRAW, desktop.click(r.centerX(), r.centerY()))
-        assertEquals(AppId.CLOCK, desktop.openApp)
-    }
-
-    @Test
-    fun `an open window is modal`() {
-        desktop.click(tile(AppId.NOTE).centerX(), tile(AppId.NOTE).centerY())
-        // Where another tile would be, the window body answers nothing.
-        val other = tile(AppId.HELP)
-        assertNull(desktop.hitTest(other.centerX(), other.centerY()))
-        assertEquals(ClickEffect.NONE, desktop.click(other.centerX(), other.centerY()))
-        assertEquals(AppId.NOTE, desktop.openApp)
-    }
-
-    @Test
-    fun `the close box and back close the window`() {
-        desktop.click(tile(AppId.INFO).centerX(), tile(AppId.INFO).centerY())
-        val close = layout.closeButton
-        assertEquals(ClickEffect.REDRAW, desktop.click(close.centerX(), close.centerY()))
-        assertNull(desktop.openApp)
-
-        desktop.click(tile(AppId.INFO).centerX(), tile(AppId.INFO).centerY())
-        assertTrue(desktop.back())
-        assertNull(desktop.openApp)
-        assertFalse(desktop.back())
-    }
-
-    @Test
-    fun `counter buttons count`() {
-        desktop.click(tile(AppId.COUNTER).centerX(), tile(AppId.COUNTER).centerY())
-        val plus = button(AppId.COUNTER, ButtonId.PLUS)
-        val minus = button(AppId.COUNTER, ButtonId.MINUS)
-        val reset = button(AppId.COUNTER, ButtonId.RESET)
-        desktop.click(plus.centerX(), plus.centerY())
-        desktop.click(plus.centerX(), plus.centerY())
-        desktop.click(minus.centerX(), minus.centerY())
-        assertEquals(1, desktop.counter)
-        desktop.click(reset.centerX(), reset.centerY())
-        assertEquals(0, desktop.counter)
-    }
-
-    @Test
-    fun `the apps tile opens the launcher instead of a window`() {
-        assertEquals(ClickEffect.OPEN_APPS, desktop.click(tile(AppId.APPS).centerX(), tile(AppId.APPS).centerY()))
-        assertNull(desktop.openApp)
     }
 
     @Test
     fun `over an app only the header answers, with back arrow and title`() {
-        desktop.app = AppView("YouTube", null, fullScreen = false, ByteArray(576 * 260), 576, 260, pointer = true)
+        desktop.app = view()
         assertEquals(Target.AppBack, desktop.hitTest(layout.appBack.centerX(), layout.appBack.centerY()))
         assertEquals(Target.AppTitle, desktop.hitTest(layout.appTitle.centerX(), layout.appTitle.centerY()))
         val area = layout.appArea(fullScreen = false)
         assertNull(desktop.hitTest(area.centerX(), area.centerY()))
-        // Tiles under the app do not react.
-        assertEquals(ClickEffect.NONE, desktop.click(tile(AppId.COUNTER).centerX(), tile(AppId.COUNTER).centerY()))
-        assertNull(desktop.openApp)
         // Full screen: no header at all.
-        desktop.app = AppView("YouTube", null, fullScreen = true, ByteArray(576 * 288), 576, 288, pointer = false)
+        desktop.app = view(fullScreen = true)
         assertNull(desktop.hitTest(layout.appBack.centerX(), layout.appBack.centerY()))
+    }
+
+    @Test
+    fun `the launcher is home, so its header has no back arrow and no menu`() {
+        desktop.app = view("Apps", home = true)
+        assertNull(desktop.hitTest(layout.appBack.centerX(), layout.appBack.centerY()))
+        assertNull(desktop.hitTest(layout.appTitle.centerX(), layout.appTitle.centerY()))
+        val text = FakeText()
+        DesktopRenderer(text).render(desktop, GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT))
+        assertTrue("Apps" in text.drawn)
+    }
+
+    @Test
+    fun `without an app nothing answers, and the bar stands alone`() {
+        assertNull(desktop.hitTest(layout.appBack.centerX(), layout.appBack.centerY()))
+        assertNull(desktop.hitTest(layout.stage.centerX(), layout.stage.centerY()))
+        val text = FakeText()
+        val raster = GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT)
+        DesktopRenderer(text).render(desktop, raster)
+        assertTrue("G2 Watch" in text.drawn)
+        // Below the bar the stage is dark.
+        val content = layout.appArea(fullScreen = false)
+        for (y in content.y until content.bottom) for (x in content.x until content.right) assertEquals("$x,$y", 0, raster[x, y])
     }
 
     @Test
@@ -114,23 +72,12 @@ class DesktopTest {
 
     @Test
     fun `hover reports only changes`() {
-        val r = tile(AppId.COUNTER)
-        assertTrue(desktop.updateHover(r.centerX(), r.centerY()))
-        assertFalse(desktop.updateHover(r.centerX() + 1, r.centerY()))
-        assertEquals(Target.Tile(AppId.COUNTER), desktop.hover)
+        desktop.app = view()
+        val back = layout.appBack
+        assertTrue(desktop.updateHover(back.centerX(), back.centerY()))
+        assertFalse(desktop.updateHover(back.centerX() + 1, back.centerY()))
+        assertEquals(Target.AppBack, desktop.hover)
         assertTrue(desktop.updateHover(0, 0))
         assertNull(desktop.hover)
-    }
-
-    @Test
-    fun `the help window says that the arrows move the pointer on the desktop`() {
-        // The window shows only on the bare desktop, where the arrows move the pointer (AppHost.desktopKey);
-        // only inside apps do they move to the next button.
-        val text = FakeText()
-        val r = tile(AppId.HELP)
-        desktop.click(r.centerX(), r.centerY())
-        DesktopRenderer(text).render(desktop, GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT))
-        val keyboard = text.drawn.single { it.startsWith("Tastatur:") }
-        assertTrue(keyboard, keyboard.startsWith("Tastatur: Pfeile = Zeiger (in Apps: Knopf)"))
     }
 }

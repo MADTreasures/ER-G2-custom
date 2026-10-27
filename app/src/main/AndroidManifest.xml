@@ -28,6 +28,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 
+    <!-- The watch's microphone for apps that stream it to an app on the phone (interface 4,
+         AppContext.phone); asked for when the first such app wants it. With the screen dark only
+         through the foreground service's type "microphone". -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
     <application
         android:name=".G2WatchApp"
         android:allowBackup="false"
@@ -61,7 +67,7 @@
         <service
             android:name=".glasses.GlassesService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
+            android:foregroundServiceType="connectedDevice|microphone" />
 
         <!-- Keeps the watch awake while firmware is prepared and transferred. -->
         <service

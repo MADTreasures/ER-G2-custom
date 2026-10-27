@@ -15,7 +15,9 @@ import java.time.LocalDateTime
 import javax.imageio.ImageIO
 
 /**
- * Writes PNGs of what the glasses would show, with the app's own renderer and Android's fonts:
+ * Writes the pointer up close as the glasses show it (zeiger-lupe.png), with the app's own renderer and
+ * Android's fonts. The other pictures of the glasses, the launcher at home among them, come from the
+ * app host's snapshot tests.
  *
  *     ./gradlew :app:testDebugUnitTest --tests '*RenderSnapshotTest*' -PsnapshotDir=$PWD/docs/bilder
  *
@@ -34,16 +36,10 @@ class RenderSnapshotTest {
 
         val scheduler = FakeScheduler()
         val display = FakeDisplay()
-        val controller = DesktopController(
-            AndroidTextPainter(AndroidTextPainter.emojiFont(RuntimeEnvironment.getApplication().assets)),
-            scheduler,
-            nowMs = { scheduler.now },
-            now = { LocalDateTime.of(2026, 9, 25, 14, 5) },
-        )
+        val painter = AndroidTextPainter(AndroidTextPainter.emojiFont(RuntimeEnvironment.getApplication().assets))
+        val controller = DesktopController(painter, scheduler, nowMs = { scheduler.now }, now = { LocalDateTime.of(2026, 9, 25, 14, 5) })
         controller.startClock()
-        controller.updateStatus {
-            it.copy(watchBattery = 76, glassesBattery = 81, connection = "Verbunden", firmware = "Faceclaw/35 · Basis 2.3.0.24")
-        }
+        controller.updateStatus { it.copy(watchBattery = 76, glassesBattery = 81) }
         controller.attach(display)
         scheduler.runPending()
 
@@ -53,53 +49,24 @@ class RenderSnapshotTest {
             scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
         }
 
-        fun tile(app: AppId) = controller.layout.tiles.first { it.first == app }.second
-
-        fun save(name: String) {
-            ImageIO.write(glassesImage(display.content("desktop").pixels), "png", File(out, "$name.png"))
-        }
-
-        moveTo(tile(AppId.CLOCK).x + 60, tile(AppId.CLOCK).y + 40)
-        save("desktop-start")
-
-        fun button(app: AppId, id: ButtonId) = controller.layout.buttons(app).first { it.first == id }.second
-
-        moveTo(tile(AppId.COUNTER).x + 60, tile(AppId.COUNTER).y + 40)
-        controller.click()
-        scheduler.runPending()
-        val plus = button(AppId.COUNTER, ButtonId.PLUS)
-        moveTo(plus.x + plus.w / 2, plus.y + plus.h / 2)
-        repeat(3) { controller.click() }
-        scheduler.runPending()
-        save("desktop-zaehler")
-        controller.back()
+        // An app showing large lit digits; the pointer over dark pixels, over the digits, half over an edge.
+        val area = controller.layout.appArea(fullScreen = false)
+        val clock = GrayRaster(area.w, area.h)
+        val size = 72
+        val width = painter.measure("14:05", size, true)
+        val digits = Rect((area.w - width) / 2, 60, width, painter.lineHeight(size))
+        painter.draw(clock, "14:05", digits.x, digits.y, size, 255, bold = true)
+        controller.showApp(AppView("Uhr", null, false, clock.pixels, area.w, area.h, pointer = true))
         scheduler.runPending()
 
-        // The other windows with the pointer on their close box.
-        val close = controller.layout.closeButton
-        val names = mapOf(AppId.CLOCK to "uhr", AppId.NOTE to "notiz", AppId.INFO to "info", AppId.HELP to "hilfe")
-        for ((app, name) in names) {
-            moveTo(tile(app).x + 60, tile(app).y + 40)
-            controller.click()
-            scheduler.runPending()
-            moveTo(close.x + close.w / 2, close.y + close.h / 2)
-            save("desktop-$name")
-            controller.back()
-            scheduler.runPending()
-        }
-
-        // The pointer up close: over dark pixels, over the lit digits of the clock, half over an edge.
-        moveTo(controller.layout.stage.x + 1, tile(AppId.APPS).bottom + 2)
+        moveTo(area.x + 8, area.bottom - 30)
         val overDark = zoom(display, controller.frame.value)
-        moveTo(tile(AppId.CLOCK).x + 60, tile(AppId.CLOCK).y + 40)
-        controller.click()
-        scheduler.runPending()
         val desktop = raster(controller.frame.value)
-        val digits = Rect(200, 190, 240, 90)
-        val mostlyLit = positions(digits).maxBy { litShare(desktop, it) }
+        val onScreen = Rect(area.x + digits.x, area.y + digits.y, digits.w, digits.h)
+        val mostlyLit = positions(onScreen).maxBy { litShare(desktop, it) }
         moveTo(mostlyLit.first, mostlyLit.second)
         val overLit = zoom(display, controller.frame.value)
-        val halfLit = positions(digits).minBy { kotlin.math.abs(litShare(desktop, it) - 0.5f) }
+        val halfLit = positions(onScreen).minBy { kotlin.math.abs(litShare(desktop, it) - 0.5f) }
         moveTo(halfLit.first, halfLit.second)
         val overEdge = zoom(display, controller.frame.value)
         ImageIO.write(sideBySide(listOf(overDark, overLit, overEdge)), "png", File(out, "zeiger-lupe.png"))

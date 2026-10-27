@@ -15,7 +15,7 @@ interface GlassesListener {
     fun onStatus(status: GlassesStatus) = Unit
 
     companion object {
-        /** Without the app host: a tap clicks at the pointer, a double tap closes the window. */
+        /** Without the app host: a tap clicks at the pointer, a double tap goes back. */
         fun desktopOnly(desktop: DesktopController): GlassesListener {
             val router = InputRouter { g ->
                 when (g.kind) {

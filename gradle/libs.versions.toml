@@ -22,6 +22,10 @@ r8 = "9.4.28"
 # GeckoView for the browser of the watch app (M7) and the M2 probe (tools/gecko-probe), from
 # maven.mozilla.org; one artifact per ABI.
 geckoview = "157.0.20260924084938"
+# The Wear OS Data Layer between the watch app and G2 Handy (05 §6); GeckoView brings the Play Services base anyway.
+playServicesWearable = "20.0.1"
+# G2 Handy's page (Compose on the phone; the watch uses Wear Compose).
+material3 = "1.4.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -43,6 +47,8 @@ wear-input = { group = "androidx.wear", name = "wear-input", version.ref = "wear
 newpipe-extractor = { group = "com.github.teamnewpipe", name = "NewPipeExtractor", version.ref = "newpipeExtractor" }
 r8 = { group = "com.android.tools", name = "r8", version.ref = "r8" }
 geckoview-armeabi-v7a = { group = "org.mozilla.geckoview", name = "geckoview-armeabi-v7a", version.ref = "geckoview" }
+play-services-wearable = { group = "com.google.android.gms", name = "play-services-wearable", version.ref = "playServicesWearable" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

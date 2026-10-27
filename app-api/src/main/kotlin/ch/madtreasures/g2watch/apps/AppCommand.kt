@@ -76,6 +76,11 @@ sealed interface AppCommand {
         override val name get() = "web"
     }
 
+    /** Talks to an app on the phone; reported with [AppEvent.Phone]. Since interface version 4. */
+    data class Phone(val action: PhoneAction) : AppCommand {
+        override val name get() = "phone"
+    }
+
     data object Close : AppCommand {
         override val name get() = "close"
     }

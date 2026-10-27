@@ -2,9 +2,11 @@
 > Firmware. Inzwischen ist der Weg zum Aufspielen eingebaut (`WatchFirmwareInstaller`, siehe
 > [`../FIRMWARE.md`](../FIRMWARE.md)), `NoFlashingTest` ist durch `FlashingBoundaryTest` ersetzt und die
 > App verlangt genau Faceclaw-Firmware **Revision 35** (Faceclaw 0.8.0) statt „34 oder neuer“.
-> Alles zu Maus, Touchpad und Einstellungen gilt weiter, mit einer Ausnahme: Seit 0.9.0 ist der Zeiger
+> Alles zu Maus, Touchpad und Einstellungen gilt weiter, mit zwei Ausnahmen: Seit 0.9.0 ist der Zeiger
 > keine eigene Fläche mehr, sondern in die Desktop-Fläche gezeichnet, und alles liegt zwischen x = 32 und
 > 607 – nötig für die Bildtiefe ([README](../../README.md#bildtiefe), [03 §5.3](../app-entwicklung/03_Uhr-Apps.md#53-bildtiefe-und-bildrand)).
+> Und seit 0.11.0 gibt es die Kacheln des Desktops und in den Einstellungen „Fenster schließen“ nicht mehr:
+> Der Starter des App-Hosts ist das Hauptmenü der Brille ([README](../../README.md#apps-auf-der-brille)).
 
 # Maus und Uhr-Oberfläche – Nachbau und Einbau in ein anderes Projekt
 
@@ -44,7 +46,7 @@ Die Bilder stammen aus dem eigenen Renderer der App und aus Robolectric. Wo ein 
 | `desktop/GrayRaster.kt` | 8-Bit-Graubild mit Zeichenfunktionen und FNV-1a-Hash | – | unverändert |
 | `desktop/GlassesDisplay.kt` | Schnittstelle `GlassesDisplay` (Flächen konfigurieren, Inhalt senden) und `TextPainter` | – | unverändert |
 | `desktop/DesktopController.kt` | Hält Desktop und Zeiger auf einem eigenen Thread. Bündelt Zeigerbilder und zieht den Zeiger nach, wenn sich das Bild ändert. `frame` liefert das zuletzt gezeichnete Bild, nur für Tests und Werkzeuge. | alles oben, `Scheduler.kt` | unverändert oder als Vorlage |
-| `desktop/Desktop.kt`, `DesktopRenderer.kt`, `AndroidTextPainter.kt`, `EmojiText.kt` | Der Beispiel-Desktop: Kacheln, Fenster, Knöpfe, Schrift; Emoji mit `assets/fonts/NotoEmoji.ttf` (SIL OFL 1.1, Lizenz daneben) | Android-Grafik | optional, durch eigene Inhalte ersetzbar; ohne die Schrift zeichnet Android Emoji als Klecks |
+| `desktop/Desktop.kt`, `DesktopRenderer.kt`, `AndroidTextPainter.kt`, `EmojiText.kt` | Der Desktop: Kopfzeile und App-Fläche (seit G2 Watch 0.11.0 ohne Kacheln), Schrift; Emoji mit `assets/fonts/NotoEmoji.ttf` (SIL OFL 1.1, Lizenz daneben) | Android-Grafik | optional, durch eigene Inhalte ersetzbar; ohne die Schrift zeichnet Android Emoji als Klecks |
 | `Scheduler.kt` | `Scheduler`, `ThreadScheduler`, `MainScheduler` | – | unverändert |
 | `glasses/CoreDisplay.kt` | `GlassesDisplay` über Faceclaws `GlassesSessionCore` | Faceclaw-Kern | nur mit Faceclaw-Kern |
 | `glasses/GlassesState.kt` | Was die Uhr über die Brille zeigt, dazu `TransferStats`: die Übertragungszeiten der letzten 30 Bilder | `FirmwareRequirement.kt` | unverändert |
@@ -80,12 +82,12 @@ Pixel außerhalb des Bildschirms zählen als dunkel. Weil jedes Pixel für sich 
 
 **Ohne Verzögerung:**
 - Bei jeder Bewegung wird der Zeiger sofort gegen das aktuelle Bild neu gezeichnet. Die Brille bekommt ihn mit dem nächsten Zeigerbild. Zeigerbilder gehen höchstens alle 33 ms raus (`POINTER_INTERVAL_MS`, etwa 30 pro Sekunde). Position und Negativ kommen im selben Bild an.
-- Ändert sich das Bild unter einem stehenden Zeiger, zieht der Zeiger ebenfalls sofort nach. Das passiert etwa, wenn ein Fenster aufgeht oder ein Knopf hervorgehoben wird. `flushDesktop()` zeichnet dann den Zeiger neu und sendet ihn im selben Schritt, ohne auf den 33-ms-Takt zu warten.
+- Ändert sich das Bild unter einem stehenden Zeiger, zieht der Zeiger ebenfalls sofort nach. Das passiert etwa, wenn eine App ein neues Bild zeigt oder der Zurück-Pfeil hervorgehoben wird. `flushDesktop()` zeichnet dann den Zeiger neu und sendet ihn im selben Schritt, ohne auf den 33-ms-Takt zu warten.
 - Ein unveränderter Zeiger an unveränderter Stelle wird nicht erneut gesendet. Das prüfen Fingerabdruck und Position.
 
 **Fingerabdruck:** Er lautet `pointer:` plus ein 64-Bit-FNV-1a-Hash über die Zeigerpixel. Ändern sich die Pixel, ändert sich der Fingerabdruck. Die Position gehört zur Geometrie der Fläche.
 
-**Bewegung:** `PointerMotion.toGlasses` rechnet die Fingerbewegung in Brillenpixel um. Die Formel lautet `dp × 2,6 × Tempo × Beschleunigung`. Die Beschleunigung ist `0,55 + Geschwindigkeit × 1,2`, begrenzt auf 0,55 bis 2,6. Das Tempo liegt zwischen 0,3 und 4 und lässt sich über die Krone, das Menü oder das Fenster „Zeiger“ einstellen. Der Zeiger bleibt im sichtbaren Streifen: 640 × 288 Pixel, bei y = 96 bis 383.
+**Bewegung:** `PointerMotion.toGlasses` rechnet die Fingerbewegung in Brillenpixel um. Die Formel lautet `dp × 2,6 × Tempo × Beschleunigung`. Die Beschleunigung ist `0,55 + Geschwindigkeit × 1,2`, begrenzt auf 0,55 bis 2,6. Das Tempo liegt zwischen 0,3 und 4 und lässt sich an der Krone und in den Einstellungen der Uhr einstellen. Der Zeiger bleibt im sichtbaren Streifen: 640 × 288 Pixel, bei y = 96 bis 383.
 
 **Bekannte Grenze:** Desktop und Zeiger gehen als zwei Sendungen raus. Dazwischen kann für ein Bild die neue Oberfläche mit dem alten Zeiger entstehen. Mit Faceclaws Kern wird dieses Zwischenbild meist schon vor dem Senden vom nächsten ersetzt.
 
@@ -124,7 +126,7 @@ Pixel außerhalb des Bildschirms zählen als dunkel. Weil jedes Pixel für sich 
        state = state, speed = speed,
        describeFirmware = firmware::describe,
        onBack = { screen = Screen.TOUCHPAD },
-       onCloseWindow = { desktop.back() }, onCenter = { desktop.centerPointer() },
+       onCenter = { desktop.centerPointer() },
        onSpeed = { desktop.setSpeed(it) },
        onConnect = { … }, onDisconnect = { … },
        onFirmware = { target -> firmwareTarget = target; screen = Screen.FIRMWARE_CONFIRM },
@@ -299,7 +301,7 @@ private fun DrawScope.drawGlassDisc(center: Offset, radius: Float, glow: Float) 
 | Kopf | „Einstellungen“, die Akku-Zeile, die Verbindungsstufe mit dem Namen der Brille |
 | **Übertragung Uhr → Brille** | Die letzte Übertragungszeit groß („42 ms“, 26 sp), darunter „zuletzt · Ø 35 ms“. Dann ein Balken-Log der letzten 30 Bilder, das älteste links, das neueste hellste rechts; volle Höhe bei mindestens 50 ms, damit kleine Unterschiede nicht dramatisch wirken. Darunter „Spanne 21 – 95 ms“ und „1234 Bilder übertragen“. Ohne Bilder: „Noch keine Bilder übertragen.“ |
 | **Firmware** | Zuerst „Auf der Brille: …“ mit der gelesenen Firmware. Dann je ein Knopf „Original-Firmware“ und „Custom-Firmware“. Ihre zweite Zeile zeigt, was `FirmwareInstaller.describe` meldet, sonst „nicht eingerichtet“. |
-| **Zeiger** | Tempo − / + (Schritt 0,2). Mit Verbindung außerdem „Zeiger zentrieren“ und „Fenster schließen“. |
+| **Zeiger** | Tempo − / + (Schritt 0,2). Mit Verbindung außerdem „Zeiger zentrieren“. |
 | **Verbindung** | „Trennen“ (rot, heller Text) oder „Brille verbinden“ |
 | Protokoll | die Textzeilen der Verbindung, neueste oben |
 
@@ -344,7 +346,7 @@ interface FirmwareInstaller {
 
 | Einstellung | Wozu | Mit Custom-Firmware (Faceclaws Kanal) | Empfehlung |
 |---|---|---|---|
-| **Tempo** 0,3–4× (Krone, Einstellungen, Fenster „Zeiger“) | Wie weit der Zeiger pro Fingerweg fährt | Bleibt sinnvoll. Es geht um die Bedienung, nicht um die Übertragung. Mit Custom-Firmware sitzt der Zeiger pixelgenau und bewegt sich bis zu 30-mal pro Sekunde, da hilft ein gutes Tempo für feines Zielen noch mehr. | behalten; den Startwert 1,0 nach dem Hardwaretest nachjustieren |
+| **Tempo** 0,3–4× (Krone, Einstellungen) | Wie weit der Zeiger pro Fingerweg fährt | Bleibt sinnvoll. Es geht um die Bedienung, nicht um die Übertragung. Mit Custom-Firmware sitzt der Zeiger pixelgenau und bewegt sich bis zu 30-mal pro Sekunde, da hilft ein gutes Tempo für feines Zielen noch mehr. | behalten; den Startwert 1,0 nach dem Hardwaretest nachjustieren |
 | **Beschleunigung** 0,55–2,6 | Langsam = präzise, schnell = weite Wege | Unabhängig von der Firmware | behalten, fest eingebaut |
 | **Parallel 1/2/3/4/6/8** („eins bis acht“ aus G2 Direct) | Wie viele Text-Updates gleichzeitig unterwegs sind. Das war nötig, weil die Original-Firmware jedes Text-Update erst nach etwa 140 ms bestätigt. | Nicht sinnvoll. Faceclaws Transport schickt bereits bis zu drei Nachrichten gleichzeitig (`ConnectionOptions.WINDOW_SIZE = 3`). Dieses Fenster ist auf die Firmware abgestimmt: Zwischenspeicher der Firmware, Ring für 16 Frame-IDs, Bestätigung p99 63 ms, Wiederholung nach 500 ms. Veraltete Bilder verwirft der Kern ohnehin, gesendet wird immer das neueste. Eine Einstellung dafür bringt bestenfalls nichts und kann schlimmstenfalls die Puffer der Firmware überfahren. | weglassen; in G2 Watch gibt es sie nicht |
 | **Zeigertakt** 33 ms (`POINTER_INTERVAL_MS`) | Höchstens etwa 30 Zeigerbilder pro Sekunde | Die Custom-Firmware schafft etwa 41 KiB/s. Eine Zeigerbewegung kostet nur zwei kleine Rechtecke. | interne Konstante, nach Messung auf Hardware ggf. auf 16–25 ms senken |

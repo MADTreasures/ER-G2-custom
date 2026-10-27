@@ -4,11 +4,9 @@ import ch.madtreasures.g2watch.CompositorDisplay
 import ch.madtreasures.g2watch.FakeDisplay
 import ch.madtreasures.g2watch.FakeScheduler
 import ch.madtreasures.g2watch.FakeText
-import ch.madtreasures.g2watch.apps.host.AppHost
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDateTime
@@ -24,16 +22,6 @@ class DesktopControllerTest {
         nowMs = { scheduler.now },
         now = { LocalDateTime.of(2026, 9, 25, 14, 5) },
     )
-
-    private fun tileCenter(app: AppId): Pair<Int, Int> {
-        val r = controller.layout.tiles.first { it.first == app }.second
-        return Pair(r.x + r.w / 2, r.y + r.h / 2)
-    }
-
-    private fun buttonCenter(app: AppId, id: ButtonId): Pair<Int, Int> {
-        val r = controller.layout.buttons(app).first { it.first == id }.second
-        return Pair(r.x + r.w / 2, r.y + r.h / 2)
-    }
 
     /** Moves the pointer onto ([x], [y]) and lets the pointer throttle pass. */
     private fun moveTo(x: Int, y: Int) {
@@ -71,8 +59,6 @@ class DesktopControllerTest {
 
     private fun isFullScreen(submit: FakeDisplay.Submit) = submit.x == 0 && submit.y == 0 && submit.w == 640 && submit.h == 480
 
-    private fun tileOf(app: AppId) = controller.layout.tiles.first { it.first == app }.second
-
     /** Lit pixels of [raster] outside the stage, as "x,y" (empty when everything lies inside). */
     private fun litOutsideStage(raster: GrayRaster): List<String> {
         val out = mutableListOf<String>()
@@ -82,8 +68,15 @@ class DesktopControllerTest {
         return out
     }
 
-    /** An empty spot between the two rows of tiles, for a pointer over nothing lit. */
-    private val empty get() = Pair(stage.x + 1, tileOf(AppId.APPS).bottom + 2)
+    /** A spot below the top bar: dark, as long as no app lights it. */
+    private val empty get() = Pair(stage.x + 1, stage.y + 100)
+
+    /** The app area below the header. */
+    private val area get() = controller.layout.appArea(fullScreen = false)
+
+    /** An app lit in its left half, dark in its right half. */
+    private fun halfLit(): AppView =
+        AppView("Halb", null, false, ByteArray(576 * 260) { i -> if (i % 576 < 288) 200.toByte() else 0 }, 576, 260, pointer = true)
 
     @Test
     fun `renders the frame before any glasses are attached`() {
@@ -131,17 +124,19 @@ class DesktopControllerTest {
     @Test
     fun `over lit pixels the pointer turns negative with the same move`() {
         attached()
-        // Tip on the corner of the tile; hovering lights the tile's frame there.
-        val tile = tileOf(AppId.CLOCK)
-        moveTo(tile.x, tile.y)
+        controller.showApp(halfLit())
+        scheduler.runPending()
+        // Tip on the lit half of the app.
+        val (x, y) = Pair(area.x + 20, area.y + 20)
+        moveTo(x, y)
         val pointer = controller.frame.value.pointerPixels
         assertEquals(PointerSprite.DARK, pointer[0].toInt() and 0xFF)
-        assertArrayEquals(PointerSprite.render(desktopOnly(), tile.x, tile.y), pointer)
-        // On the glasses the dark tip is a black pixel in the bright frame.
-        assertEquals(0, display.content("desktop")[tile.x, tile.y])
+        assertArrayEquals(PointerSprite.render(desktopOnly(), x, y), pointer)
+        // On the glasses the dark tip is a black pixel in the lit area.
+        assertEquals(0, display.content("desktop")[x, y])
         assertShowsExpected()
 
-        moveTo(empty.first, empty.second)
+        moveTo(area.x + 400, area.y + 100)
         assertArrayEquals(PointerSprite.normal, controller.frame.value.pointerPixels)
         assertShowsExpected()
     }
@@ -149,13 +144,12 @@ class DesktopControllerTest {
     @Test
     fun `when the desktop changes under a resting pointer it follows without waiting`() {
         attached()
-        val tile = tileOf(AppId.CLOCK)
-        moveTo(tile.x, tile.y)
+        moveTo(area.x + 20, area.y + 20)
         val before = controller.frame.value.pointerPixels
         val submits = display.submits.size
         val at = scheduler.now
-        // The window opens where the tile was; what lies under the pointer changes.
-        controller.click()
+        // An app comes, lit where the pointer rests: what lies under it changes.
+        controller.showApp(halfLit())
         scheduler.runPending()
         assertEquals(at, scheduler.now)
         assertEquals(submits + 1, display.submits.size)
@@ -181,34 +175,31 @@ class DesktopControllerTest {
     @Test
     fun `the desktop is sent again only when its pixels change`() {
         attached()
-        val (x, y) = tileCenter(AppId.CLOCK)
+        controller.showApp(appView())
+        scheduler.runPending()
+        val back = controller.layout.appBack
+        val (x, y) = Pair(back.x + back.w / 2 - 4, back.y + back.h / 2)
+        val frames = display.submits.count { isFullScreen(it) }
         moveTo(x, y)
-        // Hovering highlights the tile: one new full frame.
-        assertEquals(2, display.submits.count { isFullScreen(it) })
+        // Hovering highlights the back arrow: one new full frame.
+        assertEquals(frames + 1, display.submits.count { isFullScreen(it) })
         moveTo(x + 3, y + 2)
-        assertEquals(2, display.submits.count { isFullScreen(it) })
+        assertEquals(frames + 1, display.submits.count { isFullScreen(it) })
         assertFalse(isFullScreen(display.submits.last()))
         assertShowsExpected()
     }
 
     @Test
-    fun `click opens a window and back closes it`() {
-        controller.startClock()
+    fun `with nothing on the glasses a click asks the app host for the launcher, and back does nothing`() {
+        val apps = Apps()
+        controller.connectApps(apps)
         attached()
-        val (x, y) = tileCenter(AppId.CLOCK)
-        moveTo(x, y)
-        val hovered = display.submitsOf("desktop").last().fingerprint
+        val frames = display.submits.size
         controller.click()
-        scheduler.runPending()
-        val window = display.submitsOf("desktop").last().fingerprint
-        assertNotEquals(hovered, window)
-        assertTrue("14:05" in text.drawn)
-        assertTrue("Freitag, 25. September" in text.drawn)
-
         controller.back()
         scheduler.runPending()
-        // Same pixels as before the click, so the same fingerprint.
-        assertEquals(hovered, display.submitsOf("desktop").last().fingerprint)
+        assertEquals(listOf("launcher"), apps.calls)
+        assertEquals(frames, display.submits.size)
     }
 
     @Test
@@ -230,9 +221,8 @@ class DesktopControllerTest {
         scheduler.runPending()
         display.clear()
         val version = controller.frame.value.version
-        val (x, y) = tileCenter(AppId.HELP)
-        moveTo(x, y)
-        controller.click()
+        moveTo(empty.first, empty.second)
+        controller.showApp(appView())
         scheduler.runPending()
         assertTrue(display.submits.isEmpty())
         assertTrue(controller.frame.value.version > version)
@@ -255,20 +245,6 @@ class DesktopControllerTest {
         scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
         assertEquals(320, controller.frame.value.pointerX)
         assertEquals(240, controller.frame.value.pointerY)
-    }
-
-    @Test
-    fun `the arrow keys of a keyboard move the pointer on the desktop and hover the tiles`() {
-        attached()
-        val (x, y) = tileCenter(AppId.CLOCK)
-        moveTo(x - 40, y)
-        controller.movePointer(AppHost.DESKTOP_KEY_STEP * 5, 0f)
-        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
-        assertEquals(x, controller.frame.value.pointerX)
-        controller.movePointer(0f, -10_000f)
-        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
-        // It stays on the visible band, like the finger's pointer.
-        assertEquals(controller.layout.band.y, controller.frame.value.pointerY)
     }
 
     /** Records what the desktop hands to the app host. */
@@ -300,25 +276,14 @@ class DesktopControllerTest {
         }
     }
 
-    private fun appView(pointer: Boolean = true, fullScreen: Boolean = false, value: Int = 90): AppView {
+    private fun appView(pointer: Boolean = true, fullScreen: Boolean = false, value: Int = 90, home: Boolean = false): AppView {
         val h = if (fullScreen) 288 else 260
-        return AppView("YouTube", "Liste", fullScreen, ByteArray(576 * h) { value.toByte() }, 576, h, pointer)
+        val title = if (home) "Apps" else "YouTube"
+        return AppView(title, if (home) null else "Liste", fullScreen, ByteArray(576 * h) { value.toByte() }, 576, h, pointer, home)
     }
 
     @Test
-    fun `the apps tile asks the app host for the launcher`() {
-        val apps = Apps()
-        controller.connectApps(apps)
-        attached()
-        val (x, y) = tileCenter(AppId.APPS)
-        moveTo(x, y)
-        controller.click()
-        scheduler.runPending()
-        assertEquals(listOf("launcher"), apps.calls)
-    }
-
-    @Test
-    fun `an app replaces the tiles, under a header with its name`() {
+    fun `an app shows under a header with its name, and without one the bar stands alone`() {
         controller.startClock()
         attached()
         text.drawn.clear()
@@ -332,11 +297,37 @@ class DesktopControllerTest {
         assertTrue("YouTube" in text.drawn)
         assertTrue(" · Liste" in text.drawn)
         assertTrue("14:05" in text.drawn)
-        assertFalse("Uhr" in text.drawn)
+        assertFalse("G2 Watch" in text.drawn)
 
         controller.closeApp()
         scheduler.runPending()
-        assertTrue("Uhr" in text.drawn)
+        assertTrue("G2 Watch" in text.drawn)
+    }
+
+    @Test
+    fun `at home, the launcher, the header has no back arrow and clicks there go nowhere`() {
+        val apps = Apps()
+        controller.connectApps(apps)
+        attached()
+        // The tip of the back arrow, lit in an app's header.
+        val back = controller.layout.appBack
+        val (tipX, tipY) = Pair(back.x + back.w / 2 - 4, back.y + back.h / 2 - 1)
+        controller.showApp(appView(value = 0))
+        scheduler.runPending()
+        assertTrue(desktopOnly()[tipX, tipY] != 0)
+        text.drawn.clear()
+        controller.showApp(appView(value = 0, home = true))
+        scheduler.runPending()
+        assertTrue("Apps" in text.drawn)
+        assertEquals(0, desktopOnly()[tipX, tipY])
+        apps.calls.clear()
+        moveTo(back.x + back.w / 2, back.y + back.h / 2)
+        controller.click()
+        val title = controller.layout.appTitle
+        moveTo(title.x + 20, title.y + 10)
+        controller.click()
+        scheduler.runPending()
+        assertEquals(listOf("pointer -1,-1"), apps.calls)
     }
 
     @Test
@@ -458,9 +449,7 @@ class DesktopControllerTest {
         val apps = Apps()
         controller.connectApps(apps)
         controller.startClock()
-        controller.updateStatus {
-            it.copy(watchBattery = 100, glassesBattery = 100, glassesCharging = true, connection = "Verbunden", firmware = "Faceclaw/35 · Basis 2.3.0.24")
-        }
+        controller.updateStatus { it.copy(watchBattery = 100, glassesBattery = 100, glassesCharging = true) }
         attached()
         val corners = listOf(
             Pair(stage.x, stage.y), Pair(stage.right - 1, stage.y), Pair(stage.x, stage.bottom - 1), Pair(stage.right - 1, stage.bottom - 1),
@@ -471,16 +460,10 @@ class DesktopControllerTest {
                 assertEquals("$what, pointer at $x,$y", emptyList<String>(), litOutsideStage(display.content("desktop")))
             }
         }
-        check("tiles")
-        for (app in AppId.entries - AppId.APPS) {
-            val (x, y) = tileCenter(app)
-            moveTo(x, y)
-            controller.click()
-            scheduler.runPending()
-            check("window ${app.title}")
-            controller.back()
-            scheduler.runPending()
-        }
+        check("bar alone")
+        controller.showApp(appView(value = 255, home = true))
+        scheduler.runPending()
+        check("launcher")
         controller.showApp(AppView("Eine App mit einem sehr langen Namen", "und einer langen Seite", false, ByteArray(576 * 260) { -1 }, 576, 260, true))
         scheduler.runPending()
         check("app with header")

@@ -47,6 +47,12 @@ class FakeAppContext(
     /** Web commands in order: block → action. */
     val webs = mutableListOf<Pair<String, WebAction>>()
 
+    /** Phone commands in order (interface 4); the app hears back through [phoneEvent]. */
+    val phones = mutableListOf<PhoneAction>()
+
+    /** Whether the phone connection stands, as the host would know it; [phoneEvent] keeps it. */
+    var phoneConnected = false
+
     /** Searches the app made; answer them with [answerSearch]. */
     val searches = mutableListOf<Pair<String, (VideoSearchResult) -> Unit>>()
     var closed = false
@@ -203,6 +209,44 @@ class FakeAppContext(
         }
         webs += Pair(block, action)
     }
+
+    override fun phone(action: PhoneAction) {
+        when (action) {
+            is PhoneAction.Connect -> {
+                require(Permission.PHONE)
+                require(Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+").matches(action.partner)) {
+                    "${CommandException.BAD_VALUE}: no package name: ${action.partner}"
+                }
+            }
+            is PhoneAction.Send -> {
+                require(Permission.PHONE)
+                require(phoneConnected) { "${CommandException.BAD_VALUE}: Keine Verbindung zum Handy" }
+                require(action.text.encodeToByteArray().size <= PhoneAction.MAX_TEXT_BYTES) { "at most 64 KiB" }
+            }
+            is PhoneAction.Microphone -> {
+                require(Permission.WATCH_MIC)
+                require(phoneConnected) { "${CommandException.BAD_VALUE}: Keine Verbindung zum Handy" }
+            }
+            PhoneAction.Disconnect -> phoneConnected = false
+        }
+        phones += action
+    }
+
+    /** What the host reports about the connection, for `app.onEvent(…)`; it also keeps [phoneConnected]. */
+    fun phoneEvent(state: PhoneState, text: String? = null, message: String? = null): AppEvent.Phone {
+        when (state) {
+            PhoneState.CONNECTED -> phoneConnected = true
+            PhoneState.DISCONNECTED -> phoneConnected = false
+            PhoneState.MESSAGE -> Unit
+        }
+        return AppEvent.Phone(state, text, message)
+    }
+
+    /** The messages the app sent to the phone. */
+    fun phoneMessages(): List<String> = phones.filterIsInstance<PhoneAction.Send>().map { it.text }
+
+    /** Whether the app has the watch's microphone on, after its last command. */
+    fun phoneMicOn(): Boolean = phoneConnected && (phones.lastOrNull { it is PhoneAction.Microphone } as? PhoneAction.Microphone)?.on == true
 
     override fun videoSearch(query: String, onResult: (VideoSearchResult) -> Unit) {
         require(Permission.NETWORK)

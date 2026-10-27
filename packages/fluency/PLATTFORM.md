@@ -1,8 +1,9 @@
-# Fluency auf der Brille – was dafür noch fehlt
+# Fluency auf der Brille – wie Uhr, Handy und Paket zusammenhängen
 
 Für den **Hauptchat** (Uhr-App G2 Watch) und für den Chat, der **Fluency** auf dem Handy erweitert (Repo
-`MADTreasures/playground`). Stand: App-Paket Fluency 1.0.1, Schnittstelle 3, Uhr-App 0.9.0; Fluency 1.9.0 hat
-sein Gegenstück (Teil C, §8). Nichts davon ist auf Hardware erprobt.
+`MADTreasures/playground`). Stand: App-Paket Fluency 1.1.0, Schnittstelle 4, Uhr-App und „G2 Handy“ 0.10.0,
+Fluency 1.9.0. Alle vier Teile sind gebaut und ohne Hardware getestet (simulierte Datenschicht, Fakes,
+Robolectric); **nichts davon ist auf Hardware erprobt** (§10).
 
 ## 1. Worum es geht
 
@@ -20,19 +21,21 @@ aus einer von zwei Quellen:
 - **Uhr-Mikrofon:** G2 Watch nimmt auf und streamt den Ton zu Fluency (Gegenüber, Durchsagen, Fernseher).
 - **Handy-Mikrofon:** Fluency nimmt selbst auf, wie in seinem Live-Modus (Personen oder Medien beim Handy).
 
-## 2. Was fehlt – Kurzfassung
+## 2. Die Teile – Kurzfassung
 
-| Teil | Stand | Größe | Wer |
-|---|---|---|---|
-| **A** Verbindung eines Pakets zu einer App auf dem Handy | fehlt ganz | groß (Empfehlung, §4) | Hauptchat |
-| **B** Mikrofon der Uhr als Tonquelle für das Handy | fehlt ganz | mittel | Hauptchat |
-| **C** Gegenstück in Fluency (Nachrichten, Ton von der Uhr, Ergebnisse zurück) | gebaut in Fluency 1.9.0, mit Tests ohne Hardware (§8) | – | erledigt (Repo `playground`) |
-| **D** Anschluss im Paket | vorbereitet (`PhoneLink`) | klein, ≈ 30 Zeilen und Tests | App-Chat, sobald A da ist |
+| Teil | Stand | Wo |
+|---|---|---|
+| **A** Verbindung eines Pakets zu einer App auf dem Handy | gebaut in G2 Watch 0.10.0 (Schnittstelle 4, §5–§6) | `app-api`, `app/…/apps/phone/`, `phone-link/`, `phone/` („G2 Handy“) |
+| **B** Mikrofon der Uhr als Tonquelle für das Handy | gebaut in G2 Watch 0.10.0 (§6.3) | `app/…/apps/phone/WatchMicrophone.kt` |
+| **C** Gegenstück in Fluency (Nachrichten, Ton von der Uhr, Ergebnisse zurück) | gebaut in Fluency 1.9.0 (§8) | Repo `playground` |
+| **D** Anschluss im Paket | gebaut im Paket 1.1.0 (§9) | `WatchPhoneLink` in `PhoneLink.kt` |
 
-Ohne A läuft nur der **Probelauf** des Pakets (erfundenes Gespräch, gleiche Untertitel). Ohne B geht nur die
-Quelle „Handy-Mikrofon“.
+Was es zum Ausprobieren braucht: G2 Watch ab 0.10.0 auf der Uhr, „G2 Handy“ 0.10.0 und Fluency 1.9.0 auf dem
+gekoppelten Handy, beide G2-Apps mit dem Schlüssel aus `signing/` gebaut (`signing/README.md`), in Fluency
+**Optionen → „Brille (G2 Watch)“** an. Der **Probelauf** des Pakets (erfundenes Gespräch, gleiche Untertitel)
+geht weiter ohne Handy.
 
-## 3. Warum es mit Schnittstelle 3 nicht geht
+## 3. Warum es Schnittstelle 4 braucht (mit 3 ging es nicht)
 
 - **`fetch`** erreicht nur `https://`-Adressen im Internet (10 s, 1 MB). Fluency läuft offline auf dem Handy;
   ein Umweg über einen Server im Netz wäre langsam und schlecht für die Privatsphäre.
@@ -54,14 +57,15 @@ Quelle „Handy-Mikrofon“.
 | 3 WLAN | WebSocket von der Uhr zu Fluency, gefunden per mDNS (wie der Rechner-Client in M5, 01 §4) | bekannte Technik, viel Bandbreite | nur im selben WLAN oder am Hotspot des Handys; WLAN kostet Akku auf der Uhr | mittel, überschneidet sich mit M5 |
 | 4 Bluetooth klassisch (RFCOMM) | Socket direkt zwischen Uhr und Handy | einfach | auf Wear-OS-Uhren unsicher ([Fehlschläge auf einer Galaxy Watch](https://forum.developer.samsung.com/t/galaxy-watch3-send-data-to-android-app-through-bluetooth-rfcomm-fail/10273)) | nicht empfohlen |
 
-**Empfehlung: Weg 1.** Er ist der einzige, den Google für Uhr ⇄ Handy vorsieht, und er braucht keine
-Annahme über die Hardware, die erst getestet werden müsste. Die Handy-App „G2 Handy“ kann zunächst nur
-vermitteln (dieses Dokument) und bekommt die Even-Hub-Engine von M4 später dazu.
+**Gewählt und gebaut: Weg 1.** Er ist der einzige, den Google für Uhr ⇄ Handy vorsieht, und er braucht keine
+Annahme über die Hardware, die erst getestet werden müsste. Die Handy-App „G2 Handy“ vermittelt zunächst nur
+(dieses Dokument) und bekommt die Even-Hub-Engine von M4 später dazu.
 
-## 5. Vorschlag: Schnittstelle 4 für Pakete
+## 5. Schnittstelle 4 für Pakete (gebaut, G2 Watch 0.10.0)
 
 Die Schnittstelle wächst nur (09 §5): neue Klassen, eine neue Methode, ein neues Ereignis, zwei neue
-Berechtigungen; `G2AppApi.VERSION` = 4.
+Berechtigungen; `G2AppApi.VERSION` = 4. Im Code: `app-api/…/apps/Phone.kt`, `AppContext.phone`,
+`AppEvent.Phone`, `AppCommand.Phone`, `Permission.PHONE` und `WATCH_MIC`.
 
 ```kotlin
 // AppContext
@@ -92,21 +96,29 @@ WATCH_MIC("watch-mic", "Mikrofon der Uhr"),
 **Regeln im Host:**
 
 - Eine Verbindung je Sitzung; sie endet mit der App (`Disconnect` implizit). Ein zweites `Connect` mit
-  demselben Partner während einer bestehenden Verbindung tut nichts.
+  demselben Partner während einer bestehenden Verbindung tut nichts; eines mit einem anderen Partner ersetzt
+  sie.
 - Verdeckt bleibt die Verbindung, aber **das Mikrofon stoppt** (Akku, Privatsphäre) und läuft beim nächsten
-  `visible` nicht von selbst weiter; das Paket schaltet es wieder ein (es tut das schon, §9).
-- Ist das Handy nicht erreichbar, „G2 Handy“ oder die Partner-App nicht installiert oder nicht bereit:
-  `Phone(DISCONNECTED, message = "Fluency auf dem Handy ist nicht bereit")` o. Ä. Wiederverbinden versucht der
-  Host nicht von selbst; das Paket ruft `Connect` erneut (auf Tippen).
-- Nachrichten höchstens ≈ 20 je Sekunde je Richtung; größere Mengen zusammenfassen (der Partner tut das schon,
-  §7).
+  `visible` nicht von selbst weiter; das Paket schaltet es wieder ein (§9). `Microphone(true)` geht nur,
+  solange die App zu sehen ist.
+- Jedes `Connect` hat ein Ergebnis, das die App hört: `Phone(CONNECTED)` oder `Phone(DISCONNECTED, message)`,
+  auch wenn der Träger die Berechtigung nicht gab („Verbindung zum Handy nicht erlaubt“). Gründe, die so
+  kommen: „Kein Handy mit G2 Handy erreichbar“, „Das Handy antwortet nicht“ (15 s), „Fluency ist auf dem
+  Handy nicht installiert oder nimmt keine Verbindung an“, „Die App auf dem Handy antwortet nicht“ (10 s),
+  „Keine Verbindung zum Handy“ (zwei Lebenszeichen ohne Antwort), oder was die Partner-App selbst sagt.
+  Wiederverbinden versucht der Host nicht von selbst; das Paket ruft `Connect` erneut (auf Tippen).
+- Hinweise auf der Brille statt Ereignisse: Mikrofon der Uhr ohne Android-Erlaubnis („Mikrofon der Uhr:
+  bitte auf der Uhr erlauben“, die Uhr fragt dann auf ihrem Bildschirm), ohne Berechtigung der App
+  („Mikrofon der Uhr nicht erlaubt“), Ton-Kanal ging nicht auf.
+- Nachrichten höchstens 64 KiB und 20 je Sekunde von der App ans Handy; größere Mengen zusammenfassen (der
+  Partner tut das schon, §7).
 - JSON-Formen für Rechner-Apps (M5), wie die übrigen Befehle: `{ "c": "phone", "action": "connect", "partner": "ch.madtreasures.fluency" }`,
   `{ "c": "phone", "action": "send", "text": "…" }`, `{ "c": "phone", "action": "microphone", "on": true }`,
   `{ "c": "phone", "action": "disconnect" }`; Ereignis `{ "kind": "phone", "state": "message", "text": "…" }`.
-- Tests ohne Hardware: ein `FakePhonePort` in den Host-Fakes; `FakeAppContext` zeichnet `phone`-Befehle auf
-  und lässt Tests antworten.
+- Tests ohne Hardware: `FakePhoneEngine` und `FakePhoneLine` in den Host-Fakes (`AppHostPhoneTest`);
+  `FakeAppContext` zeichnet `phone`-Befehle auf und lässt Tests antworten (`phoneEvent`).
 
-## 6. Vorschlag: Übertragung über Weg 1
+## 6. Übertragung über Weg 1 (gebaut)
 
 ### 6.1 Uhr ⇄ „G2 Handy“ (Wear-OS-Datenschicht)
 
@@ -119,9 +131,12 @@ WATCH_MIC("watch-mic", "Mikrofon der Uhr"),
   | `open` | Uhr → Handy | `{ "app": "<paket-id>", "version": "1.1.0" }`; „G2 Handy“ bindet den Dienst des Partners (§6.2) |
   | `opened` / `failed` | Handy → Uhr | Verbindung steht, oder `{ "message": "…" }` (Partner fehlt, lehnt ab, Bindung scheitert) |
   | `msg` | beide | eine Nachricht der App (UTF-8), unverändert durchgereicht |
-  | `close` | beide | Verbindung zu Ende |
+  | `close` | beide | Verbindung zu Ende, `{ "message": "…" }` oder leer |
+  | `ping` | Uhr → Handy, als `sendRequest` alle 10 s | Antwort `alive` oder `gone` („G2 Handy“ kennt die Verbindung nicht mehr, etwa nach einem Neustart) |
 
-  Lebenszeichen wie in 05 §6: `MessageClient.sendRequest` alle 10 s; ohne Antwort → `DISCONNECTED`.
+  Zwei Lebenszeichen ohne Antwort → `DISCONNECTED`. Eine `msg` für eine Verbindung, die „G2 Handy“ nicht
+  kennt, beantwortet es mit `close`. Pfade und Inhalte stehen an einer Stelle, im Modul `phone-link`
+  (`PhoneLinkWire`), das beide Apps benutzen.
 - `ChannelClient`, Pfad `/g2/link/<partner>/audio`: der Ton der Uhr als Strom, **PCM s16le, 16 kHz, mono**, in
   Blöcken zu 20 ms (640 Byte), roh hintereinander. 32 KB/s; über Bluetooth gibt die Datenschicht grob
   50–200 KB/s (01 §3). Wird es eng (das Funkmodul teilt sich die Uhr mit der Brille), kommt später Opus
@@ -149,31 +164,36 @@ WATCH_MIC("watch-mic", "Mikrofon der Uhr"),
   `ch.madtreasures.g2watch`. Fluency merkt sich dessen Zertifikat (SHA-256) beim ersten Verbinden und nimmt
   danach nur noch dieses an; einen gemeinsamen Schlüssel braucht es dafür nicht. Spätere Nachrichten müssen von
   derselben UID kommen wie das `OPEN`.
-- „G2 Handy“ hält einen Vordergrund-Dienst (`connectedDevice`), solange eine Verbindung offen ist, und zeigt
-  in einer kleinen Seite, welche Partner verbunden sind.
+- „G2 Handy“ hält einen Vordergrund-Dienst (`connectedDevice`), solange sein Schalter **„Für die Uhr bereit“**
+  an ist (Standard; auch nach einem Neustart des Handys), und zeigt auf seiner Seite, ob die Uhr erreichbar ist
+  und welche Partner verbunden sind. Dauernd, weil Android 12+ einen Vordergrund-Dienst nicht aus dem
+  Hintergrund starten lässt; ohne ihn könnte Android G2 Handy mitten im Gespräch beenden.
+- „G2 Handy“ hat die App-ID der Uhr-App (`ch.madtreasures.g2watch`, sonst stellt die Datenschicht nichts zu)
+  und deshalb im Projekt ein eigenes Gradle-Modul `phone/`, das nur mit `-Pg2.phone=true` gebaut wird: So
+  landet es nie aus Versehen auf der Uhr.
 
 ### 6.3 Mikrofon der Uhr (Teil B)
 
 - `AudioRecord` mit `MediaRecorder.AudioSource.VOICE_RECOGNITION` (ohne automatische Pegelregelung, wie
   Fluency auf dem Handy), 16 kHz mono, 16 Bit.
-- Laufzeit-Berechtigung `RECORD_AUDIO` auf der Uhr (einmal fragen, wenn das erste Paket `WATCH_MIC` will), im
-  Vordergrund-Dienst der Uhr-App zusätzlich der Typ `microphone` (Android 14+: nur starten, solange G2 Watch
-  im Vordergrund ist – das ist sie, solange die Brille verbunden ist).
-- Nur solange die App sichtbar ist (§5); bei Verbindungsverlust stoppen.
+- Laufzeit-Berechtigung `RECORD_AUDIO` auf der Uhr: Die Uhr fragt auf ihrem Bildschirm, sobald ein Paket das
+  Mikrofon zum ersten Mal einschaltet, und startet es nach dem Ja. Der Vordergrund-Dienst der Uhr-App
+  (`GlassesService`) hat dann zusätzlich den Typ `microphone`.
+- Nur solange die App sichtbar ist (§5); bei Verbindungsverlust stoppen. Endet der Ton-Kanal, öffnet das
+  nächste `Microphone(true)` einen neuen.
 - Später (M6) kann `Microphone` eine Quelle bekommen (`WATCH`/`GLASSES`); das Brillen-Mikrofon liefert LC3, das
   dann auf der Uhr zu PCM wird.
 
-### 6.4 Größe (Weg 1, A + B)
+### 6.4 Wo was liegt (Weg 1, A + B)
 
-| Teil | Zeilen ca. |
-|---|---|
-| `app-api`: Schnittstelle 4, JSON-Formen | 150 |
-| Host: Anschluss, Berechtigungen, Lebenszyklus, Fakes | 300 |
-| Uhr: Datenschicht-Verbindung, Lebenszeichen | 350 |
-| Uhr: Mikrofon (Teil B) | 250 |
-| Handy: „G2 Handy“ (Modul `phone/`, Dienst, Vermittler, Statusseite) | 450 |
-| Gemeinsamer Signaturschlüssel, Gradle, Versionskatalog (`play-services-wearable`) | 50 |
-| Tests | 800 |
+| Teil | Dateien | Tests (ohne Hardware) |
+|---|---|---|
+| Schnittstelle 4, JSON-Formen | `app-api/…/apps/Phone.kt` und die bestehenden Dateien | `PackageManifestTest`, `AppJsonTest` |
+| Host: Anschluss, Berechtigungen, Lebenszyklus | `AppHost.kt`, `apps/phone/PhoneEngine.kt` | `AppHostPhoneTest` |
+| Uhr: Datenschicht, Lebenszeichen, Mikrofon | `apps/phone/PhoneLinks.kt`, `WearTransport.kt`, `WatchMicrophone.kt` | `PhoneLinksTest` (simulierte Datenschicht und Zeit) |
+| Pfade und Inhalte | `phone-link/…/PhoneLinkWire.kt` | `PhoneLinkWireTest` |
+| „G2 Handy“ | `phone/…/Relay.kt`, `MessengerPartners.kt`, `LinkListenerService.kt`, `RelayService.kt`, `MainActivity.kt` | `RelayTest`, `MessengerPartnersTest` (Robolectric, falscher Partner-Dienst) |
+| Gemeinsamer Schlüssel | `signing/g2-debug.keystore`, `signing/README.md` | – |
 
 ## 7. App-Protokoll `fluency-g2@1` (Paket ⇄ Fluency)
 
@@ -250,15 +270,24 @@ nicht auf Hardware erprobt.
 - **Später denkbar:** Ton anderer Apps auf dem Handy (ein Video) über `AudioPlaybackCapture` (Android 10+,
   Erlaubnis zur Bildschirmaufnahme bei jedem Start, Apps können es verbieten) als Quelle `phone-media`.
 
-## 9. Was danach im Paket passiert (Teil D)
+## 9. Teil D: im Paket gebaut (1.1.0)
 
-- Eine Klasse `WatchPhoneLink(ui)` setzt `PhoneLink` mit `ui.phone(...)` um (`open` → `Connect`, `send` →
-  `Send`, `microphone` → `Microphone`, `close` → `Disconnect`), und `onEvent` reicht `AppEvent.Phone` an
-  `onLink` weiter. Alles andere (Protokoll, Wiederverbinden auf Tippen, Mikrofon an/aus bei Start, Pause,
-  Verdecken) ist gebaut und mit `FakePhoneLink` getestet (`FluencyLinkTest`).
-- Manifest: Berechtigungen `PHONE` und `WATCH_MIC`; Version 1.1.0 (Schnittstelle 4).
+- `WatchPhoneLink(ui)` setzt `PhoneLink` mit `ui.phone(...)` um (`open` → `Connect`, `send` → `Send`,
+  `microphone` → `Microphone`, `close` → `Disconnect`), und `onEvent` reicht `AppEvent.Phone` an `onLink`
+  weiter. Protokoll, Wiederverbinden auf Tippen, Mikrofon an/aus bei Start, Pause und Verdecken waren schon
+  da und mit `FakePhoneLink` getestet (`FluencyLinkTest`).
+- Neu: Kommt die Verbindung nicht zustande, zeigt die Startseite den Grund als Hinweis (sie selbst sagt nur
+  „getrennt“).
+- Manifest: Berechtigungen `PHONE` und `WATCH_MIC`; Version 1.1.0, braucht Schnittstelle 4 (G2 Watch 0.10.0).
+- Tests: `WatchPhoneLinkTest` (mit `FakeAppContext`) und in `FluencyHostTest` der ganze Weg durch den echten
+  Host bis zur Leitung von „G2 Handy“ (`FakePhoneLine`).
 
 ## 10. Auf der echten Hardware zu klären
+
+- Findet die Uhr „G2 Handy“ (Fähigkeit `g2_handy`), und kommt die erste Verbindung innert 15 s zustande?
+  Hält der Vordergrund-Dienst von „G2 Handy“ über Stunden, auch mit Akku-Sparen des Herstellers?
+- Läuft das Mikrofon der Uhr, während der Bildschirm der Uhr aus ist (Vordergrund-Dienst mit Typ
+  `microphone`)?
 
 - Datenschicht über Bluetooth: Verzögerung und Durchsatz für 32 KB/s Ton, während die Brille ihre ≈ 41 KiB/s
   braucht (dasselbe Funkmodul).

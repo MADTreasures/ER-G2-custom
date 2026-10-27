@@ -14,6 +14,10 @@ Uhr-Apps stehen in keiner Verwaltung: Sie sind Teil der APK und kommen mit einem
 Die Begleit-App aus [05 §6](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy). Gleiche `applicationId` und
 Signatur wie die Uhr-App (sonst keine Datenschicht). Oberfläche mit Jetpack Compose, deutsch, hell/dunkel.
 
+**Stand v0.10.0:** Die App gibt es (Modul `phone/`), bisher mit einer einzigen Seite („Für die Uhr bereit“, ob
+die Uhr erreichbar ist, welche Partner verbunden sind) und nur als Vermittler zwischen Uhr-Apps und Apps auf
+dem Handy ([03 §13](03_Uhr-Apps.md#13-apps-auf-dem-handy-v0100-schnittstelle-4)). Die Seiten unten kommen mit M4.
+
 | Seite | Inhalt |
 |---|---|
 | **Übersicht** | Uhr verbunden ja/nein (über die Datenschicht), Akku von Uhr und Brille, laufende Even-Hub-Apps mit Ort (Uhr/Handy) |

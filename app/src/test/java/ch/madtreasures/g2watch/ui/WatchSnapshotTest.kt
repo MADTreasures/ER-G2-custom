@@ -152,7 +152,7 @@ class WatchSnapshotTest {
     }
 
     @Composable
-    private fun Settings() = SettingsScreen(connected, 1.2f, ::example, {}, {}, {}, {}, {}, {}, {}, {})
+    private fun Settings() = SettingsScreen(connected, 1.2f, ::example, {}, {}, {}, {}, {}, {}, {})
 
     @Composable
     private fun Touchpad(glasses: GlassesState = connected, gestureMode: Boolean = false) =

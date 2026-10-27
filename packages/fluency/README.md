@@ -6,13 +6,17 @@ dieses Paket zeigt die Übersetzung als **rollenden Untertitel auf der Brille** 
 und den Bügeln aus. Der Ton kommt vom **Mikrofon der Uhr** (die Uhr-App streamt ihn zu Fluency) oder vom
 **Mikrofon des Handys**.
 
-> **Ehrlicher Stand (1.0.1):** Die Uhr-App kann noch nicht mit einer App auf dem Handy sprechen, und das
-> Mikrofon der Uhr ist für Pakete noch nicht zu haben. Beides muss der Hauptchat in die Uhr-App bauen – was
-> genau und wie groß: [PLATTFORM.md](PLATTFORM.md). Fluencys Gegenstück ist gebaut (Fluency 1.9.0, Optionen →
-> „Brille (G2 Watch)“, ebenfalls nur mit Tests geprüft). Bis dahin zeigt die
-> Startseite „Handy: fehlt noch“, und es geht nur der **Probelauf**: ein erfundenes Gespräch, das über
-> denselben Weg wie Fluencys Nachrichten läuft. Damit lassen sich Lesbarkeit, Schriftgröße und Takt der
-> Untertitel auf der echten Brille prüfen. Nichts davon ist auf Hardware erprobt.
+> **Ehrlicher Stand (1.1.0):** Der ganze Weg ist gebaut und ohne Hardware getestet: Paket → Uhr-App
+> (Schnittstelle 4, G2 Watch 0.10.0) → Wear-OS-Datenschicht → „G2 Handy“ auf dem Handy → Fluency 1.9.0, dazu
+> das Mikrofon der Uhr. **Nichts davon ist auf Hardware erprobt.** Wie die Teile zusammenhängen und was auf
+> der echten Hardware zu klären ist: [PLATTFORM.md](PLATTFORM.md). Der **Probelauf** (ein erfundenes
+> Gespräch über denselben Weg wie Fluencys Nachrichten) geht auch ohne Handy, um Lesbarkeit, Schriftgröße und
+> Takt der Untertitel auf der echten Brille zu prüfen.
+
+**Was es braucht:** G2 Watch ab 0.10.0 auf der Uhr; auf dem gekoppelten Handy „G2 Handy“ 0.10.0 (einmal öffnen,
+„Für die Uhr bereit“ bleibt an) und Fluency 1.9.0 mit **Optionen → „Brille (G2 Watch)“** an. Beim ersten
+Start fragt die Brille nach „Verbindung zum Handy“ und „Mikrofon der Uhr“; beim ersten Einschalten des
+Uhr-Mikrofons fragt zusätzlich Android auf dem Bildschirm der Uhr.
 
 | Start | Probelauf: Untertitel rollen, darunter das Original | Mit Fluency (simuliert): „Live“ |
 |---|---|---|
@@ -21,13 +25,13 @@ und den Bügeln aus. Der Ton kommt vom **Mikrofon der Uhr** (die Uhr-App streamt
 | ![Große Schrift](bilder/fluency-gross.png) | ![Ohne Original](bilder/fluency-ohne-original.png) | ![Verlauf](bilder/fluency-verlauf.png) |
 
 Gezeichnet vom echten App-Host und Desktop der Uhr-App mit Androids Schrift, in den 16 Grünstufen der Brille
-(`FluencySnapshotTest`); „Live“ mit einer simulierten Verbindung, wie sie die Uhr-App noch nicht hat.
+(`FluencySnapshotTest`); „Start“ und „Live“ mit einer simulierten Verbindung zu Fluency.
 
 ## Seiten
 
 | Seite | Inhalt |
 |---|---|
-| **Start** | Zustand der Verbindung („Handy: fehlt noch / verbindet … / Fluency 1.9.0 / getrennt“), **Übersetzen**, **Probelauf**, **Ton:** Uhr- oder Handy-Mikrofon, **Sprachen** („Automatisch → Deutsch (Schweiz)“), **Anzeige**, **Verlauf** |
+| **Start** | Zustand der Verbindung („Handy: verbindet … / Fluency 1.9.0 / getrennt“; kommt sie nicht zustande, sagt ein Hinweis warum), **Übersetzen**, **Probelauf**, **Ton:** Uhr- oder Handy-Mikrofon, **Sprachen** („Automatisch → Deutsch (Schweiz)“), **Anzeige**, **Verlauf** |
 | **Live** (Untertitel) | Oben die Übersetzung groß und hell: die letzten fertigen Sätze, jeder auf eigener Zeile, darunter der Satz, der gerade gesprochen wird; wird es zu viel, rollt der Text, die neuesten Wörter bleiben immer sichtbar („…“ vorne). Darunter kleiner das Original des neuesten Satzes („EN: Where is …“). Die Kopfzeile sagt, was los ist: „Fluency · Live / Pause / Startet … / Verbindet … / Getrennt / Probelauf / Ende“. |
 | **Sprachen** | Von (Automatisch und die 54 Sprachen von Fluency, die sieben wichtigsten zuerst, der Rest unter „Weitere Sprachen“), Nach, Tauschen |
 | **Anzeige** | Original zeigen, Große Schrift, Schon beim Sprechen zeigen (sonst nur fertige Sätze, ruhiger), Am Handy vorlesen |
@@ -62,13 +66,13 @@ Ton-Quelle (Standard: Uhr-Mikrofon), Von (Standard: Automatisch), Nach (Standard
 ## Bauen, auf die Uhr legen, installieren
 
 ```sh
-./gradlew :packages:fluency:g2app   # → packages/fluency/build/g2app/ch.madtreasures.fluency-1.0.1.g2app
-adb push packages/fluency/build/g2app/ch.madtreasures.fluency-1.0.1.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
+./gradlew :packages:fluency:g2app   # → packages/fluency/build/g2app/ch.madtreasures.fluency-1.1.0.g2app
+adb push packages/fluency/build/g2app/ch.madtreasures.fluency-1.1.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
 ```
 
 Dann auf der Uhr: Zahnrad halten → *Einstellungen → Apps installieren* → unter „Neu auf der Uhr“ antippen
 ([09 §4](../../docs/app-entwicklung/09_App-Pakete.md#4-auf-die-uhr-bringen-und-installieren)). Braucht die
-Uhr-App 0.9.0 (Schnittstelle 3).
+Uhr-App 0.10.0 (Schnittstelle 4); eine ältere lehnt das Paket mit einer Meldung ab.
 
 ## Aufbau
 
@@ -78,7 +82,7 @@ Uhr-App 0.9.0 (Schnittstelle 3).
 | `Captions.kt` | welche Äußerungen die Live-Seite zeigt, in welcher Reihenfolge; der Verlauf |
 | `TextBudget.kt` | schätzt die Breite von Text auf der Brille (großzügig), damit der Untertitel nie mehr Zeilen braucht, als Platz ist |
 | `Protocol.kt` | die Nachrichten zwischen Paket und Fluency, `fluency-g2@1` ([PLATTFORM.md §7](PLATTFORM.md#7-app-protokoll-fluency-g21-paket--fluency)) |
-| `PhoneLink.kt` | die Verbindung zum Handy als Schnittstelle; heute `NoPhoneLink`, später die der Uhr-App |
+| `PhoneLink.kt` | die Verbindung zum Handy: `WatchPhoneLink` über die Uhr-App (Schnittstelle 4), `NoPhoneLink` ohne |
 | `Demo.kt` | der Probelauf: ein kurzes Gespräch auf Englisch, Französisch, Italienisch, Spanisch, im Takt von Fluency |
 | `Languages.kt` | Fluencys Sprachen mit ihren Codes |
 | `symbol.py` | zeichnet das Symbol im Starter (`python3 packages/fluency/symbol.py`, braucht Pillow) |
@@ -86,7 +90,8 @@ Uhr-App 0.9.0 (Schnittstelle 3).
 Tests (`src/test/kotlin`, laufen mit `./gradlew :app:testDebugUnitTest`): `FluencyAppTest` (Seiten, Probelauf,
 Bügel, Uhr, Tastatur, Einstellungen, Sprachen, Verlauf), `FluencyLinkTest` (mit simulierter Verbindung:
 hello/welcome, Start mit Mikrofon der Uhr, Untertitel, Pause, Verdecken, verlorene Verbindung, alte Antworten),
-`FluencyHostTest` (im echten App-Host: Bügel, Gesten-Seite, Tasten, Timer, Zurück), `ProtocolTest`,
+`WatchPhoneLinkTest` (die Verbindung über die Uhr-App, Gründe auf der Startseite), `FluencyHostTest` (im echten
+App-Host: Bügel, Gesten-Seite, Tasten, Timer, Zurück, und der ganze Weg bis zur Leitung von „G2 Handy“), `ProtocolTest`,
 `CaptionsTest`, `TextBudgetTest` und `LivePageFitTest` (mit Androids echter Schrift und dem Layout des Hosts:
 Der Untertitel passt in jeder Einstellung in die App-Fläche, auch mit Chinesisch, Emoji und langen Wörtern; die
 Breitenschätzung ist nie schmaler als der echte Text und nur etwa 8–10 % breiter).

@@ -1,9 +1,9 @@
 package ch.madtreasures.g2watch.desktop
 
 /**
- * What the glasses show while an app (or the launcher) has the screen: the header with back arrow,
- * title and page name, and below it the app area the app host drew. Immutable; the app host hands
- * a new one to [DesktopController.showApp] whenever the picture changes.
+ * What the glasses show: the header with back arrow, title and page name, and below it the app area
+ * the app host drew; at home, the launcher. Immutable; the app host hands a new one to
+ * [DesktopController.showApp] whenever the picture changes.
  */
 class AppView(
     /** App name, shown bold next to the back arrow. */
@@ -18,6 +18,8 @@ class AppView(
     val height: Int,
     /** Whether the pointer is shown (pointer mode) or hidden (gesture mode). */
     val pointer: Boolean,
+    /** The launcher, the glasses' home: nothing lies below it, so its header has no back arrow and no menu. */
+    val home: Boolean = false,
 ) {
     init {
         require(pixels.size == width * height)
@@ -29,7 +31,7 @@ class AppView(
  * desktop thread; the host moves the work to its own thread. Coordinates are relative to the app area.
  */
 interface AppInput {
-    /** The "Apps" tile: open the launcher. */
+    /** A click while nothing is on the glasses: the launcher again. */
     fun openLauncher()
 
     /** The pointer is at ([x], [y]) in the app area; (-1, -1) when it left the area. */
@@ -53,15 +55,6 @@ interface AppScreen {
     /** Shows (or updates) the app on the glasses. */
     fun showApp(view: AppView)
 
-    /** Back to the desktop tiles. */
+    /** Nothing to show (the launcher is not up yet, or it crashed): the top bar alone. */
     fun closeApp()
-
-    /** A tap on a temple while no app is open: a click at the pointer. */
-    fun click()
-
-    /** A double tap on a temple while no app is open: closes the open window. */
-    fun back()
-
-    /** An arrow key of a Bluetooth keyboard while no app is open: moves the pointer by glasses pixels. */
-    fun movePointer(dx: Float, dy: Float)
 }

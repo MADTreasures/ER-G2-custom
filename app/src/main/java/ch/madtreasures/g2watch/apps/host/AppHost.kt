@@ -24,6 +24,8 @@ import ch.madtreasures.g2watch.apps.PackageManifest
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.PatchBuilder
 import ch.madtreasures.g2watch.apps.Permission
+import ch.madtreasures.g2watch.apps.PhoneAction
+import ch.madtreasures.g2watch.apps.PhoneState
 import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.Vibration
 import ch.madtreasures.g2watch.apps.VideoAction
@@ -36,6 +38,8 @@ import ch.madtreasures.g2watch.apps.launcher.LaunchEntry
 import ch.madtreasures.g2watch.apps.launcher.LaunchKind
 import ch.madtreasures.g2watch.apps.launcher.Launcher
 import ch.madtreasures.g2watch.apps.launcher.LauncherHost
+import ch.madtreasures.g2watch.apps.phone.PhoneLine
+import ch.madtreasures.g2watch.apps.phone.PhoneListener
 import ch.madtreasures.g2watch.apps.render.FocusTarget
 import ch.madtreasures.g2watch.apps.render.GrayImages
 import ch.madtreasures.g2watch.apps.render.PageLayout
@@ -57,6 +61,7 @@ import ch.madtreasures.g2watch.desktop.GrayRaster
 import ch.madtreasures.g2watch.desktop.Rect
 import ch.madtreasures.g2watch.desktop.TextPainter
 import ch.madtreasures.g2watch.input.KeyPress
+import ch.madtreasures.g2watch.link.PhoneLinkWire
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,7 +71,7 @@ import kotlin.math.abs
 
 /** What the host shows and runs, for the watch UI and for tests. */
 data class HostState(
-    /** App id of the session on the glasses (the launcher included); null while the desktop shows. */
+    /** App id of the session on the glasses (the launcher at home); null only until the launcher is up. */
     val visible: String? = null,
     /** Id of the page on the glasses; host pages start with "host.". */
     val page: String? = null,
@@ -92,6 +97,9 @@ data class HostState(
  * its first page, the app menu (tap-then-hold, or the title in the header) always offers "Apps", "Zurück"
  * and "Schließen", an app that takes over 500 ms for an event or throws is ended, and a command it may
  * not give is refused and logged instead of silently dropped.
+ *
+ * The launcher is home: the host shows it as soon as it exists, every app that ends hands back to it,
+ * and back on it stays there.
  */
 class AppHost(
     private val scheduler: Scheduler,
@@ -160,6 +168,11 @@ class AppHost(
 
     /** Battery, charging and wearing of the glasses, as apps see them (03 §5.2). */
     val glassesStatus: StateFlow<GlassesStatus> = _glasses.asStateFlow()
+
+    init {
+        // Home is the launcher, from the first picture on.
+        scheduler.post { showLauncher(null) }
+    }
 
     // --- Input, from any thread -------------------------------------------------------------------
 
@@ -457,6 +470,7 @@ class AppHost(
                 deliver(old, AppEvent.Hidden)
                 pauseTimers(old)
                 syncMedia(old)
+                phoneMicOff(old)
             }
         }
         visible = s
@@ -485,6 +499,8 @@ class AppHost(
         s.videos.clear()
         s.webs.values.forEach { it.page.release() }
         s.webs.clear()
+        s.phone?.line?.close()
+        s.phone = null
         if (question?.session === s) {
             question = null
             ports.cancelText()
@@ -641,14 +657,14 @@ class AppHost(
             it.onBack()
             return
         }
-        val s = visible ?: return screen.back()
+        val s = visible ?: return
         s.notice?.let {
             it.onBack()
             return
         }
         val page = s.pages.current
         if (page == null) {
-            stop(s)
+            if (!s.isLauncher) stop(s)
             return
         }
         // A web page on this page goes back in its own history first, like any browser (05 §10).
@@ -659,9 +675,9 @@ class AppHost(
         val history = s.pages.historyIds
         deliver(s, AppEvent.Back(page.id))
         if (s.ended) return
-        // Whatever the app did meanwhile, back leaves the page it was on (02 §5).
+        // Whatever the app did meanwhile, back leaves the page it was on (02 §5); the launcher is home and stays.
         if (history.size <= 1) {
-            stop(s)
+            if (!s.isLauncher) stop(s)
             return
         }
         s.pages.resetHistory(history.dropLast(1))
@@ -671,12 +687,8 @@ class AppHost(
     private fun gestureNow(g: Gesture) {
         val s = visible
         if (s == null && overlay == null) {
-            // No app on the glasses: the temples work the desktop as before.
-            when (g.kind) {
-                GestureKind.CLICK -> screen.click()
-                GestureKind.DOUBLE_CLICK -> screen.back()
-                else -> Unit
-            }
+            // Nothing on the glasses (the launcher crashed): a tap brings it back.
+            if (g.kind == GestureKind.CLICK) showLauncher(null)
             return
         }
         val scr = currentScreen() ?: return
@@ -721,7 +733,8 @@ class AppHost(
         }
         val s = visible
         if (s == null && overlay == null) {
-            desktopKey(k)
+            // Nothing on the glasses (the launcher crashed): Enter or Space brings it back.
+            if (!k.repeat && (k.key == Keys.ENTER || k.key == Keys.SPACE)) showLauncher(null)
             return
         }
         val scr = currentScreen() ?: return
@@ -789,20 +802,6 @@ class AppHost(
 
     /** The context menu key and F10 (for keyboards without one). */
     private fun isMenu(k: KeyPress) = k.key == Keys.CONTEXT_MENU || k.key == Keys.F10
-
-    /** The bare desktop: the arrows move the pointer (also held), Enter clicks, Escape closes the window. */
-    private fun desktopKey(k: KeyPress) {
-        val step = if (k.shift) DESKTOP_KEY_STEP_FAST else DESKTOP_KEY_STEP
-        when {
-            k.key == Keys.ARROW_LEFT && !k.alt -> screen.movePointer(-step, 0f)
-            k.key == Keys.ARROW_RIGHT -> screen.movePointer(step, 0f)
-            k.key == Keys.ARROW_UP -> screen.movePointer(0f, -step)
-            k.key == Keys.ARROW_DOWN -> screen.movePointer(0f, step)
-            k.repeat -> Unit
-            k.key == Keys.ENTER || k.key == Keys.SPACE -> screen.click()
-            isBack(k) || k.key == Keys.BACKSPACE -> screen.back()
-        }
-    }
 
     /**
      * A page that takes gestures (a video) and did not subscribe to keys: the keys a remote has become
@@ -1006,6 +1005,7 @@ class AppHost(
             is AppCommand.AskText -> askText(s, command)
             is AppCommand.Video -> video(s, command.block, command.action)
             is AppCommand.Web -> web(s, command.block, command.action)
+            is AppCommand.Phone -> phone(s, command.action)
             AppCommand.Close -> scheduler.post { stop(s) }
         }
     }
@@ -1659,6 +1659,121 @@ class AppHost(
         }
     }
 
+    // --- The phone (interface 4) -------------------------------------------------------------------
+
+    /** An app's connection to [partner] on the phone; [line] goes through G2 Handy ([HostPorts.phone]). */
+    private class ActivePhone(val partner: String) {
+        var line: PhoneLine? = null
+        var connected = false
+
+        /** The app has the watch's microphone on. */
+        var mic = false
+
+        /** Messages sent in the current second, for [MAX_PHONE_MESSAGES]. */
+        var sent = 0
+        var secondStart = 0L
+    }
+
+    private fun phone(s: Session, action: PhoneAction) {
+        when (action) {
+            is PhoneAction.Connect -> {
+                if (Permission.PHONE !in s.granted) {
+                    // A connect always has an outcome the app hears, also this one.
+                    scheduler.post { deliver(s, AppEvent.Phone(PhoneState.DISCONNECTED, message = PHONE_DENIED)) }
+                }
+                requirePermission(s, Permission.PHONE)
+                if (!PhoneLinkWire.isPackageName(action.partner)) {
+                    throw CommandException.badValue("„${action.partner.take(60)}“ ist kein Paketname einer App auf dem Handy")
+                }
+                s.phone?.let { old ->
+                    if (old.partner == action.partner) return // connected or connecting already
+                    old.line?.close()
+                    s.phone = null
+                }
+                val p = ActivePhone(action.partner)
+                val listener = object : PhoneListener {
+                    override fun onState(state: PhoneState, text: String?, message: String?) =
+                        scheduler.post { phoneState(s, p, state, text, message) }
+
+                    override fun onNotice(message: String) = scheduler.post { phoneNotice(s, p, message) }
+                }
+                s.phone = p
+                p.line = try {
+                    ports.phone.connect(s.manifest.id, s.manifest.version, action.partner, listener)
+                } catch (e: RuntimeException) {
+                    s.phone = null
+                    throw CommandException.badValue("Verbindung zum Handy ging nicht: ${e.message}")
+                }
+            }
+            is PhoneAction.Send -> {
+                requirePermission(s, Permission.PHONE)
+                val p = connectedPhone(s)
+                if (action.text.encodeToByteArray().size > PhoneAction.MAX_TEXT_BYTES) {
+                    throw CommandException.badValue("Eine Nachricht ans Handy darf höchstens ${PhoneAction.MAX_TEXT_BYTES / 1024} KiB haben")
+                }
+                val now = nowMs()
+                if (now - p.secondStart >= 1_000) {
+                    p.secondStart = now
+                    p.sent = 0
+                }
+                if (++p.sent > MAX_PHONE_MESSAGES) {
+                    throw CommandException.badValue("Höchstens $MAX_PHONE_MESSAGES Nachrichten je Sekunde ans Handy")
+                }
+                p.line?.send(action.text)
+            }
+            is PhoneAction.Microphone -> {
+                // Without it the app would wait for sound that never comes: the wearer reads why.
+                if (action.on && Permission.WATCH_MIC !in s.granted && s === visible) showToast(s, MIC_DENIED, NOTICE_MS)
+                requirePermission(s, Permission.WATCH_MIC)
+                val p = connectedPhone(s)
+                if (action.on && !s.visible) throw CommandException.badValue("Das Mikrofon der Uhr gibt es nur, solange die App zu sehen ist")
+                if (p.mic != action.on) {
+                    p.mic = action.on
+                    p.line?.microphone(action.on)
+                }
+            }
+            PhoneAction.Disconnect -> {
+                s.phone?.line?.close()
+                s.phone = null
+            }
+        }
+    }
+
+    private fun connectedPhone(s: Session): ActivePhone =
+        s.phone?.takeIf { it.connected } ?: throw CommandException.badValue("Keine Verbindung zum Handy")
+
+    private fun phoneState(s: Session, p: ActivePhone, state: PhoneState, text: String?, message: String?) {
+        if (s.ended || s.phone !== p) return
+        when (state) {
+            PhoneState.CONNECTED -> {
+                if (p.connected) return
+                p.connected = true
+            }
+            PhoneState.MESSAGE -> if (!p.connected) return
+            PhoneState.DISCONNECTED -> {
+                s.phone = null
+                p.line?.close()
+                message?.let { ports.log("${s.manifest.name}: Handy – $it") }
+            }
+        }
+        deliver(s, AppEvent.Phone(state, text, message))
+    }
+
+    /** Something about the connection the wearer should know (the microphone is not allowed …): a note on the glasses. */
+    private fun phoneNotice(s: Session, p: ActivePhone, message: String) {
+        if (s.ended || s.phone !== p) return
+        ports.log("${s.manifest.name}: Handy – $message")
+        if (s === visible) showToast(s, message, NOTICE_MS)
+    }
+
+    /** Hidden, an app does not hear: its microphone stops and stays off until the app turns it on again. */
+    private fun phoneMicOff(s: Session) {
+        val p = s.phone ?: return
+        if (!p.mic) return
+        p.mic = false
+        p.line?.microphone(false)
+    }
+
     // --- Drawing --------------------------------------------------------------------------------
 
     /** A page the host draws itself (menu, question, notice), with its own focus and scroll. */
@@ -1761,6 +1876,7 @@ class AppHost(
                 width = raster.width,
                 height = raster.height,
                 pointer = _inputMode.value == InputMode.POINTER,
+                home = scr.host == null && s?.isLauncher == true,
             ),
         )
         appOnScreen = true
@@ -1831,6 +1947,7 @@ class AppHost(
         val notedMissing = HashSet<String>()
         val videos = LinkedHashMap<String, ActiveVideo>()
         val webs = LinkedHashMap<String, ActiveWeb>()
+        var phone: ActivePhone? = null
         var project: BaukastenProject? = null
         var granted: Set<Permission> = emptySet()
         var menu: List<MenuItem> = emptyList()
@@ -1896,6 +2013,8 @@ class AppHost(
 
         override fun web(block: String, action: WebAction) = command(AppCommand.Web(block, action))
 
+        override fun phone(action: PhoneAction) = command(AppCommand.Phone(action))
+
         override val storage: AppStorage = object : AppStorage {
             private val store by lazy { ports.storage(s.manifest.id) }
 
@@ -1946,6 +2065,13 @@ class AppHost(
         const val MAX_MENU_TEXT = 32
         const val MAX_BUZZ = 48
         const val NOTICE_MS = 3_000
+
+        /** Messages an app may send to the phone per second (interface 4). */
+        const val MAX_PHONE_MESSAGES = 20
+
+        /** The wearer did not allow it when the app asked (02 §8); the answer holds until the app's version changes. */
+        const val PHONE_DENIED = "Verbindung zum Handy nicht erlaubt"
+        const val MIC_DENIED = "Mikrofon der Uhr nicht erlaubt"
         const val MAX_TAG = 40
         const val MAX_PROMPT = 100
         const val MAX_SUGGESTIONS = 5
@@ -1982,10 +2108,6 @@ class AppHost(
 
         /** Pixels the page scrolls per notch of the mouse wheel. */
         const val WHEEL_STEP = 48
-
-        /** Pixels an arrow key moves the pointer on the bare desktop; with Shift. */
-        const val DESKTOP_KEY_STEP = 8f
-        const val DESKTOP_KEY_STEP_FAST = 32f
 
         /** Longest key name of [WebAction.Key] ("MediaTrackPrevious" and the like). */
         const val MAX_KEY_NAME = 32

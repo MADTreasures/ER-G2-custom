@@ -18,6 +18,7 @@ import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.youtube.YouTubeApp
 import ch.madtreasures.browser.BrowserApp
+import ch.madtreasures.fluency.FluencyApp
 import ch.madtreasures.g2watch.apps.WebState
 import ch.madtreasures.g2watch.apps.web.SyntheticPage
 import ch.madtreasures.g2watch.apps.web.WebStatus
@@ -87,7 +88,7 @@ class PageRendererSnapshotTest {
         assumeTrue("no -PsnapshotDir", !dir.isNullOrBlank())
         desktop = DesktopController(AndroidTextPainter(emojiFont), scheduler, nowMs = { scheduler.now }, now = { LocalDateTime.of(2026, 9, 25, 14, 5) })
         desktop.startClock()
-        desktop.updateStatus { it.copy(watchBattery = 76, glassesBattery = 81, connection = "Verbunden") }
+        desktop.updateStatus { it.copy(watchBattery = 76, glassesBattery = 81) }
         desktop.attach(display)
         scheduler.runPending()
         // In the bottom right corner, so it focuses nothing until a picture puts it somewhere.
@@ -159,10 +160,10 @@ class PageRendererSnapshotTest {
 
     @Test
     fun launcher() {
-        // The launcher with the YouTube and Browser packages and their icons; YouTube runs (the dot),
-        // the pointer is on the browser.
+        // Home: the launcher with the YouTube, Browser and Fluency packages and their icons; YouTube runs
+        // (the dot), the pointer is on the browser.
         ports.answers["$youtubeId@1.1.0"] = setOf(Permission.NETWORK)
-        val host = host({ YouTubeApp() }, { BrowserApp() })
+        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() })
         host.launch("watch:$youtubeId")
         settle()
         host.openLauncher()

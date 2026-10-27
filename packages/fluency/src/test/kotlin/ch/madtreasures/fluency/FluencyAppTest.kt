@@ -22,8 +22,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The app as the watch app runs it today (interface version 3, no way to the phone): its pages, the
- * Probelauf through the captions, temple, watch and keyboard on the live page, the settings.
+ * The app without a way to the phone ([NoPhoneLink]): its pages, the Probelauf through the captions,
+ * temple, watch and keyboard on the live page, the settings.
  */
 class FluencyAppTest {
     private var h = Harness()
@@ -40,11 +40,11 @@ class FluencyAppTest {
     }
 
     @Test
-    fun `the start page says the phone cannot be reached yet and offers the Probelauf`() {
+    fun `without a way to the phone the start page says so and offers the Probelauf`() {
         h.started()
         val page = ui.current!!
         assertEquals(START, page.id)
-        assertEquals("fehlt noch", page.valueOf(FluencyApp.PHONE))
+        assertEquals("fehlt", page.valueOf(FluencyApp.PHONE))
         assertEquals(FluencyApp.MISSING_TEXT, page.textOf(FluencyApp.MISSING_NOTE))
         assertEquals(
             listOf("Übersetzen", "Probelauf", "Ton: Uhr-Mikrofon", "Automatisch → Deutsch (Schweiz)", "Anzeige", "Verlauf"),

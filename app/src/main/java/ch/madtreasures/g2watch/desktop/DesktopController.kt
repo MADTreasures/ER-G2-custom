@@ -121,50 +121,31 @@ class DesktopController(
         if (push != 0 && desktop.app != null) apps?.scrollBy(push)
     }
 
-    /** The arrow keys on the bare desktop (from the app host). */
-    override fun movePointer(dx: Float, dy: Float) = moveBy(dx, dy)
-
     fun centerPointer() = scheduler.post {
         pointer.center()
         afterPointerMoved()
     }
 
-    /** A click at the pointer; over an app it goes to the app host. */
-    override fun click() = scheduler.post {
+    /** A click at the pointer: to the app host, in the app's coordinates; with nothing shown, the launcher. */
+    fun click() = scheduler.post {
         val app = desktop.app
-        if (app != null) {
-            when (desktop.hitTest(pointer.x, pointer.y)) {
-                Target.AppBack -> apps?.back()
-                Target.AppTitle -> apps?.openMenu()
-                else -> {
-                    val area = layout.appArea(app.fullScreen)
-                    if (area.contains(pointer.x, pointer.y)) apps?.clickAt(pointer.x - area.x, pointer.y - area.y)
-                }
-            }
+        if (app == null) {
+            apps?.openLauncher()
             return@post
         }
-        when (desktop.click(pointer.x, pointer.y)) {
-            ClickEffect.NONE -> return@post
-            ClickEffect.REDRAW -> Unit
-            ClickEffect.OPEN_APPS -> {
-                apps?.openLauncher()
-                return@post
+        when (desktop.hitTest(pointer.x, pointer.y)) {
+            Target.AppBack -> apps?.back()
+            Target.AppTitle -> apps?.openMenu()
+            null -> {
+                val area = layout.appArea(app.fullScreen)
+                if (area.contains(pointer.x, pointer.y)) apps?.clickAt(pointer.x - area.x, pointer.y - area.y)
             }
         }
-        desktop.updateHover(pointer.x, pointer.y)
-        invalidate()
     }
 
-    /** Closes the open window; over an app, back in the app. */
-    override fun back() = scheduler.post {
-        if (desktop.app != null) {
-            apps?.back()
-            return@post
-        }
-        if (desktop.back()) {
-            desktop.updateHover(pointer.x, pointer.y)
-            invalidate()
-        }
+    /** Back in the app on the glasses (the launcher stays where it is). */
+    fun back() = scheduler.post {
+        if (desktop.app != null) apps?.back()
     }
 
     /** Shows [view] (an app with its header) instead of the desktop, or updates it. */
@@ -179,7 +160,7 @@ class DesktopController(
         invalidate()
     }
 
-    /** Back to the desktop tiles. */
+    /** Nothing to show: the top bar alone, until the app host shows the launcher again. */
     override fun closeApp() = scheduler.post {
         if (desktop.app == null) return@post
         desktop.app = null
@@ -219,11 +200,9 @@ class DesktopController(
     fun startClock() = scheduler.post { tickClock() }
 
     private fun tickClock() {
-        val t = now()
-        val time = t.format(TIME)
-        val date = t.format(DATE)
-        if (time != desktop.status.time || date != desktop.status.date) {
-            desktop.status = desktop.status.copy(time = time, date = date)
+        val time = now().format(TIME)
+        if (time != desktop.status.time) {
+            desktop.status = desktop.status.copy(time = time)
             invalidate()
         }
         scheduler.postDelayed(CLOCK_INTERVAL_MS) { tickClock() }
@@ -331,6 +310,5 @@ class DesktopController(
 
         private val FULL_SCREEN = Rect(0, 0, DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT)
         private val TIME = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMANY)
-        private val DATE = DateTimeFormatter.ofPattern("EEEE, d. MMMM", Locale.GERMANY)
     }
 }

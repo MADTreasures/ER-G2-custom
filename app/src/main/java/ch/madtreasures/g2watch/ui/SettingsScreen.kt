@@ -87,7 +87,6 @@ fun SettingsScreen(
     speed: Float,
     describeFirmware: (FirmwareTarget) -> String?,
     onBack: () -> Unit,
-    onCloseWindow: () -> Unit,
     onCenter: () -> Unit,
     onSpeed: (Float) -> Unit,
     onConnect: () -> Unit,
@@ -175,9 +174,6 @@ fun SettingsScreen(
             if (state.stage.hasSession) {
                 item {
                     FilledTonalButton(onClick = onCenter, modifier = Modifier.fillMaxWidth()) { Text("Zeiger zentrieren") }
-                }
-                item {
-                    FilledTonalButton(onClick = onCloseWindow, modifier = Modifier.fillMaxWidth()) { Text("Fenster schließen") }
                 }
             }
 

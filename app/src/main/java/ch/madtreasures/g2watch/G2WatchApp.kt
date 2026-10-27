@@ -23,6 +23,10 @@ import ch.madtreasures.g2watch.apps.launcher.Launcher
 import ch.madtreasures.g2watch.apps.packages.AppPackages
 import ch.madtreasures.g2watch.apps.packages.DexPackageLoader
 import ch.madtreasures.g2watch.apps.packages.PackageStore
+import ch.madtreasures.g2watch.apps.phone.MicPrompt
+import ch.madtreasures.g2watch.apps.phone.PhoneLinks
+import ch.madtreasures.g2watch.apps.phone.WatchMicrophone
+import ch.madtreasures.g2watch.apps.phone.WearTransport
 import ch.madtreasures.g2watch.ble.G2Scanner
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.Depth
@@ -33,6 +37,7 @@ import ch.madtreasures.g2watch.firmware.WatchFirmwareInstaller
 import ch.madtreasures.g2watch.glasses.FirmwareInstaller
 import ch.madtreasures.g2watch.glasses.GlassesConnection
 import ch.madtreasures.g2watch.glasses.GlassesListener
+import ch.madtreasures.g2watch.glasses.GlassesService
 import ch.madtreasures.g2watch.glasses.ProtocolFile
 import ch.madtreasures.g2watch.input.HardwareEvents
 import ch.madtreasures.g2watch.input.HidPairing
@@ -66,15 +71,33 @@ class G2WatchApp : Application() {
     /** Text questions of the apps, answered on the watch screen (keyboard or voice). */
     val textPrompts = TextPrompts()
 
+    /** The question for the watch's microphone (apps that stream it to the phone), asked on the watch screen. */
+    val micPrompt = MicPrompt()
+
     private val appsLazy = lazy {
         val main = MainScheduler()
+        val log: (String) -> Unit = { line -> main.post { glasses.note(line) } }
         AppHost(
             scheduler = AppThread.scheduler(),
             screen = desktop,
             text = AndroidTextPainter(emojiFont),
-            ports = AndroidHostPorts(this, textPrompts, keyboard = { inputDevices.keyboard }) { line -> main.post { glasses.note(line) } },
+            ports = AndroidHostPorts(this, textPrompts, keyboard = { inputDevices.keyboard }, phoneEngine = { phoneLinks(log) }, logSink = log),
             installed = packages,
         ).also { desktop.connectApps(it) }
+    }
+
+    /**
+     * The connections of the apps to apps on the phone, through G2 Handy (interface 4). When the wearer
+     * allows the microphone, the glasses connection's foreground service gets its type, and connections
+     * that wanted it start it.
+     */
+    private fun phoneLinks(log: (String) -> Unit): PhoneLinks {
+        val links = PhoneLinks(WearTransport(this, log), WatchMicrophone(this, micPrompt), ThreadScheduler("G2Watch-phone"), log)
+        micPrompt.onAllowed = {
+            GlassesService.refresh(this)
+            links.microphoneAllowed()
+        }
+        return links
     }
 
     /** Runs the watch apps and shows them on the glasses (docs/app-entwicklung/03). */
@@ -199,7 +222,7 @@ class G2WatchApp : Application() {
         // too; desktop, glasses connection and apps belong to the main process alone.
         if (!isMainProcess) return
         followWatchBattery()
-        // Connects itself to the desktop, so the "Apps" tile works from the first frame.
+        // Connects itself to the desktop and shows the launcher, the glasses' home, from the first frame.
         apps
         // Listens for keyboards and mice from the start, so a question already knows about one.
         inputDevices

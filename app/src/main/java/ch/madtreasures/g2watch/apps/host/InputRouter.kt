@@ -31,7 +31,7 @@ interface HardwareSink {
     /** The app menu of the app on the glasses. */
     fun menu()
 
-    /** Back: closes the window on the desktop, back in an app. */
+    /** Back in the app on the glasses (the launcher stays). */
     fun back()
 
     /** The wheel turned by [notches], positive further down. */

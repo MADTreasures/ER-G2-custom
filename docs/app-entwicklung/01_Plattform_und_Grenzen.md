@@ -78,6 +78,8 @@ seit die Uhr beim Verbinden die Trageerkennung einschaltet (wie Faceclaw).
 Uhr nicht laufen, und installiert Apps ([05 §6](05_EvenHub-Apps.md#6-engine-auf-dem-handy-g2-handy)). Sie
 spricht mit der Uhr über die Wear-OS-Datenschicht (Google Play Services, Bluetooth oder WLAN): Nachrichten
 bis 100 KB, Datenströme für Größeres; grob 50–200 KB/s über Bluetooth, große Dateien grob 0,7 MB/s; notfalls über Googles Server.
+Seit v0.10.0 vermittelt sie außerdem zwischen Uhr-Apps und Apps auf dem Handy und nimmt dabei den Ton der Uhr
+entgegen ([03 §13](03_Uhr-Apps.md#13-apps-auf-dem-handy-v0100-schnittstelle-4)).
 
 **Rechner für Rechner-Apps:** Jedes Gerät, auf dem **Node.js ≥ 22** läuft: Windows, macOS, Linux, ein
 Raspberry Pi, ein Server. Ein Android-Handy geht über Termux (Node aus dem Termux-Paket); das ist ungetestet,

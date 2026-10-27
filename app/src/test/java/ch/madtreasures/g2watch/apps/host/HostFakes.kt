@@ -9,6 +9,7 @@ import ch.madtreasures.g2watch.apps.G2App
 import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
+import ch.madtreasures.g2watch.apps.PhoneState
 import ch.madtreasures.g2watch.apps.Vibration
 import ch.madtreasures.g2watch.apps.assetFile
 import ch.madtreasures.g2watch.apps.VideoProfile
@@ -17,6 +18,9 @@ import ch.madtreasures.g2watch.apps.VideoState
 import ch.madtreasures.g2watch.apps.WebContrast
 import ch.madtreasures.g2watch.apps.WebField
 import ch.madtreasures.g2watch.apps.WebState
+import ch.madtreasures.g2watch.apps.phone.PhoneEngine
+import ch.madtreasures.g2watch.apps.phone.PhoneLine
+import ch.madtreasures.g2watch.apps.phone.PhoneListener
 import ch.madtreasures.g2watch.apps.video.VideoEngine
 import ch.madtreasures.g2watch.apps.video.VideoListener
 import ch.madtreasures.g2watch.apps.video.VideoPlayer
@@ -38,11 +42,6 @@ import javax.imageio.ImageIO
 class FakeScreen : AppScreen {
     val views = mutableListOf<AppView>()
     var closed = 0
-    var desktopClicks = 0
-    var desktopBacks = 0
-
-    /** Pointer moves of the arrow keys on the bare desktop. */
-    val pointerMoves = mutableListOf<Pair<Float, Float>>()
 
     val last: AppView get() = views.last()
 
@@ -52,18 +51,6 @@ class FakeScreen : AppScreen {
 
     override fun closeApp() {
         closed++
-    }
-
-    override fun click() {
-        desktopClicks++
-    }
-
-    override fun back() {
-        desktopBacks++
-    }
-
-    override fun movePointer(dx: Float, dy: Float) {
-        pointerMoves += Pair(dx, dy)
     }
 }
 
@@ -139,6 +126,42 @@ class FakePorts : HostPorts {
     override val video = FakeVideoEngine()
 
     override val web = FakeWebEngine()
+
+    override val phone = FakePhoneEngine()
+}
+
+/** Records the connections apps open to the phone; a test drives one through its [FakePhoneLine.listener]. */
+class FakePhoneEngine : PhoneEngine {
+    val lines = mutableListOf<FakePhoneLine>()
+
+    override fun connect(app: String, version: String, partner: String, listener: PhoneListener): PhoneLine =
+        FakePhoneLine(app, version, partner, listener).also { lines += it }
+}
+
+/** A connection to the phone that only records what it is told. */
+class FakePhoneLine(val app: String, val version: String, val partner: String, val listener: PhoneListener) : PhoneLine {
+    val sent = mutableListOf<String>()
+
+    /** Every microphone(on) in order. */
+    val mic = mutableListOf<Boolean>()
+    var closed = false
+        private set
+
+    override fun send(text: String) {
+        sent += text
+    }
+
+    override fun microphone(on: Boolean) {
+        mic += on
+    }
+
+    override fun close() {
+        closed = true
+    }
+
+    fun state(state: PhoneState, text: String? = null, message: String? = null) = listener.onState(state, text, message)
+
+    fun notice(message: String) = listener.onNotice(message)
 }
 
 /** Records searches and players; a test drives a player through its [FakeVideoPlayer.listener]. */

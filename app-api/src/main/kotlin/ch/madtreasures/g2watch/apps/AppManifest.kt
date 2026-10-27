@@ -53,6 +53,12 @@ enum class Permission(val json: String, val label: String) {
     LOCATION("location", "Standort"),
     BUZZER("buzzer", "Summer der Brille"),
     BACKGROUND("background", "Im Hintergrund laufen"),
+
+    /** A connection to an app on the phone ([AppContext.phone]). Since interface version 4. */
+    PHONE("phone", "Verbindung zum Handy"),
+
+    /** The watch's microphone, streamed to the app on the phone ([PhoneAction.Microphone]). Since interface version 4. */
+    WATCH_MIC("watch-mic", "Mikrofon der Uhr"),
     ;
 
     companion object {

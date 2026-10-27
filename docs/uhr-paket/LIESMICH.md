@@ -16,7 +16,7 @@ Dieses Paket enthält alles, um die Uhr-Oberfläche, die Maus für die Brille un
 |---|---|
 | `docs/EINBAU_MAUS_UND_UHR.md` | **Die Anleitung.** Maus, Touchpad mit Zahnrad und Glasscheibe (alle Maße, Farben, Zeiten), Einstellungen mit Millisekunden-Log, Firmware-Knöpfe und wie der Weg zum Aufspielen angeschlossen wird, Tests, Übergabetext |
 | `docs/ARCHITEKTUR.md` | Aufbau der ganzen App, Sicherheit, Bedienung, Bauen und Testen |
-| `docs/bilder/` | Alle Bilder der Uhr (`uhr-*.png`) und der Brille (`desktop-*.png`, `zeiger-lupe.png`), dazu die Übersichten `uebersicht-uhr.png` und `uebersicht-brille.png` |
+| `docs/bilder/` | Alle Bilder der Uhr (`uhr-*.png`) und der Brille (`apps-*.png`, `zeiger-lupe.png`), dazu die Übersicht `uebersicht-uhr.png` |
 | `app/src/main/java/ch/madtreasures/g2watch/` | Der Code der App. Wichtig für den Einbau: `ui/TouchpadScreen.kt`, `ui/SettingsScreen.kt`, `ui/BatteryRow.kt`, `desktop/Pointer.kt`, `desktop/DesktopController.kt`, `glasses/FirmwareInstaller.kt`, `glasses/GlassesState.kt` |
 | `app/src/test/java/ch/madtreasures/g2watch/` | Die Tests, darunter `ui/TouchpadScreenTest.kt`, `ui/SettingsScreenTest.kt`, `desktop/PointerTest.kt`, `desktop/DesktopControllerTest.kt`, `glasses/FirmwareInstallerTest.kt`, `Fakes.kt` |
 | `app/build.gradle.kts`, `gradle/libs.versions.toml`, `settings.gradle.kts` | Versionen und Abhängigkeiten (Wear Compose Material 3 1.7.0, Kotlin 2.4.20, AGP 9.4.1, JDK 25) |
