@@ -222,7 +222,7 @@ class G2WatchApp : Application() {
         // too; desktop, glasses connection and apps belong to the main process alone.
         if (!isMainProcess) return
         followWatchBattery()
-        // Connects itself to the desktop, so the "Apps" tile works from the first frame.
+        // Connects itself to the desktop and shows the launcher, the glasses' home, from the first frame.
         apps
         // Listens for keyboards and mice from the start, so a question already knows about one.
         inputDevices

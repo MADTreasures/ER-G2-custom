@@ -18,7 +18,7 @@ und TypeScript-Typen werden daraus abgeleitet, nicht umgekehrt.
 | **App-Host** | Der Teil der Uhr-App, der Seiten zeichnet, Eingaben verteilt und Sitzungen verwaltet. |
 | **Rechner-Host** | `g2-host` auf einem Rechner: führt Rechner-Apps aus. |
 | **EvenHub-Laufzeit** | Teil der Uhr-App, der Even-Hub-Apps ausführt (Engine auf der Uhr oder auf dem Handy, [05](05_EvenHub-Apps.md)). |
-| **Starter** | Die Seite „Apps“ auf der Brille, vom App-Host selbst gezeichnet: alle Apps als Symbol mit Namen in einem Raster (4 × 2 je Bildschirm), laufende mit einem Punkt markiert. |
+| **Starter** | Die Seite „Apps“ auf der Brille, vom App-Host selbst gezeichnet: alle Apps als Symbol mit Namen in einem Raster (4 × 2 je Bildschirm), laufende mit einem Punkt markiert. Seit v0.11.0 das Hauptmenü der Brille: Er steht nach dem Verbinden auf ihr, jede App kehrt zu ihm zurück, und Zurück bleibt auf ihm stehen. |
 | **App-Menü** | Ein vom App-Host gezeichnetes Menü über jeder App: eigene Einträge der App (Befehl `menu`), dann „Apps“ (App bleibt im Hintergrund), „Zurück“, „Schließen“. |
 
 ## 2. Manifest `g2app.json`
@@ -72,7 +72,8 @@ als Datei im App-Ordner.
   Anzeige-Befehle einer verdeckten App speichert der Host (der neueste Stand gilt).
   Uhr-Apps dürfen verdeckt nur Timer ausführen, und nur mit `background`; Rechner-Apps unbegrenzt.
 - **stop**: „Schließen“ im App-Menü, Zurück auf der ersten Seite, `close()` durch die App oder Beenden
-  durch den Host. Die App bekommt `stop` und hat **1 s** zum Aufräumen.
+  durch den Host. Die App bekommt `stop` und hat **1 s** zum Aufräumen; auf der Brille steht danach der
+  Starter.
 - Verbindungsabbruch Uhr ↔ Rechner: Rechner-Apps laufen weiter; nach dem Wiederverbinden zeigt die
   Uhr die aktuelle Seite erneut ([04 §5.6](04_Rechner-Apps_und_Protokoll.md#56-verbindung-verloren-und-wieder-da)).
 
@@ -287,7 +288,7 @@ App-Menü verdeckt es ([03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050)).
 
 Zwei Eingabearten, im Manifest gewählt (und seit v0.5.0 je Seite mit `input` überschreibbar, §4.1):
 
-**`pointer` (Standard)** – wie der heutige Desktop:
+**`pointer` (Standard)** – wie der Starter:
 - Uhr-Touchpad bewegt den Maus-Zeiger; Doppeltippen = Klick auf den Baustein unter dem Zeiger;
   ein Baustein unter dem Zeiger ist hervorgehoben (Rand heller).
 - Bügel/Ring: Wischen hoch/runter bewegt den **Fokus** zum vorigen/nächsten fokussierbaren Baustein
@@ -331,8 +332,7 @@ ohne ihr Zutun, solange die Uhr das Touchpad zeigt:
 Die Gesten von Tastatur und Maus kommen mit `source: "watch"`. Nach `subscribe` mit `keys` bekommt die App
 stattdessen jede Taste als Ereignis `key`; nur Esc, Alt+← und die Zurück-Taste der Tastatur (zurück), die
 Menütaste und F10 (App-Menü) behält der Host, ebenso alle Tasten, solange eine Seite des Hosts (App-Menü, Frage)
-darüber liegt. Maus und Rad bleiben beim Host. Auf dem Desktop ohne App bewegen die Pfeile den Zeiger, Enter
-klickt, Esc schließt das Fenster. Eine gehaltene Taste wiederholt sich (beim Ereignis `key` mit `repeat`); was
+darüber liegt. Maus und Rad bleiben beim Host. Eine gehaltene Taste wiederholt sich (beim Ereignis `key` mit `repeat`); was
 der Host selbst damit tut, wiederholt er nur bei Pfeilen, Tab, Leertaste und Bild↑/↓, zurück, App-Menü und
 Klick gelten einmal je Druck.
 

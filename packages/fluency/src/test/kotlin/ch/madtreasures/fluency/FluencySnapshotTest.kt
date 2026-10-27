@@ -55,7 +55,7 @@ class FluencySnapshotTest {
         FluencyApp().manifest.let { ports.answers["${it.id}@${it.version}"] = it.permissions }
         desktop = DesktopController(AndroidTextPainter(emojiFont), scheduler, nowMs = { scheduler.now }, now = { LocalDateTime.of(2026, 10, 22, 14, 5) })
         desktop.startClock()
-        desktop.updateStatus { it.copy(watchBattery = 76, glassesBattery = 81, connection = "Verbunden") }
+        desktop.updateStatus { it.copy(watchBattery = 76, glassesBattery = 81) }
         desktop.attach(display)
         scheduler.runPending()
         // The pointer's tip in the bottom right corner of the stage, where only a sliver of it shows.

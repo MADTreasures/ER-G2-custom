@@ -13,7 +13,7 @@ und den Bügeln aus. Der Ton kommt vom **Mikrofon der Uhr** (die Uhr-App streamt
 > Gespräch über denselben Weg wie Fluencys Nachrichten) geht auch ohne Handy, um Lesbarkeit, Schriftgröße und
 > Takt der Untertitel auf der echten Brille zu prüfen.
 
-**Was es braucht:** G2 Watch 0.10.0 auf der Uhr; auf dem gekoppelten Handy „G2 Handy“ 0.10.0 (einmal öffnen,
+**Was es braucht:** G2 Watch ab 0.10.0 auf der Uhr; auf dem gekoppelten Handy „G2 Handy“ 0.10.0 (einmal öffnen,
 „Für die Uhr bereit“ bleibt an) und Fluency 1.9.0 mit **Optionen → „Brille (G2 Watch)“** an. Beim ersten
 Start fragt die Brille nach „Verbindung zum Handy“ und „Mikrofon der Uhr“; beim ersten Einschalten des
 Uhr-Mikrofons fragt zusätzlich Android auf dem Bildschirm der Uhr.

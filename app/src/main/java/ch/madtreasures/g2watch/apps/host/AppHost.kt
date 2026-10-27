@@ -71,7 +71,7 @@ import kotlin.math.abs
 
 /** What the host shows and runs, for the watch UI and for tests. */
 data class HostState(
-    /** App id of the session on the glasses (the launcher included); null while the desktop shows. */
+    /** App id of the session on the glasses (the launcher at home); null only until the launcher is up. */
     val visible: String? = null,
     /** Id of the page on the glasses; host pages start with "host.". */
     val page: String? = null,
@@ -97,6 +97,9 @@ data class HostState(
  * its first page, the app menu (tap-then-hold, or the title in the header) always offers "Apps", "Zurück"
  * and "Schließen", an app that takes over 500 ms for an event or throws is ended, and a command it may
  * not give is refused and logged instead of silently dropped.
+ *
+ * The launcher is home: the host shows it as soon as it exists, every app that ends hands back to it,
+ * and back on it stays there.
  */
 class AppHost(
     private val scheduler: Scheduler,
@@ -165,6 +168,11 @@ class AppHost(
 
     /** Battery, charging and wearing of the glasses, as apps see them (03 §5.2). */
     val glassesStatus: StateFlow<GlassesStatus> = _glasses.asStateFlow()
+
+    init {
+        // Home is the launcher, from the first picture on.
+        scheduler.post { showLauncher(null) }
+    }
 
     // --- Input, from any thread -------------------------------------------------------------------
 
@@ -649,14 +657,14 @@ class AppHost(
             it.onBack()
             return
         }
-        val s = visible ?: return screen.back()
+        val s = visible ?: return
         s.notice?.let {
             it.onBack()
             return
         }
         val page = s.pages.current
         if (page == null) {
-            stop(s)
+            if (!s.isLauncher) stop(s)
             return
         }
         // A web page on this page goes back in its own history first, like any browser (05 §10).
@@ -667,9 +675,9 @@ class AppHost(
         val history = s.pages.historyIds
         deliver(s, AppEvent.Back(page.id))
         if (s.ended) return
-        // Whatever the app did meanwhile, back leaves the page it was on (02 §5).
+        // Whatever the app did meanwhile, back leaves the page it was on (02 §5); the launcher is home and stays.
         if (history.size <= 1) {
-            stop(s)
+            if (!s.isLauncher) stop(s)
             return
         }
         s.pages.resetHistory(history.dropLast(1))
@@ -679,12 +687,8 @@ class AppHost(
     private fun gestureNow(g: Gesture) {
         val s = visible
         if (s == null && overlay == null) {
-            // No app on the glasses: the temples work the desktop as before.
-            when (g.kind) {
-                GestureKind.CLICK -> screen.click()
-                GestureKind.DOUBLE_CLICK -> screen.back()
-                else -> Unit
-            }
+            // Nothing on the glasses (the launcher crashed): a tap brings it back.
+            if (g.kind == GestureKind.CLICK) showLauncher(null)
             return
         }
         val scr = currentScreen() ?: return
@@ -729,7 +733,8 @@ class AppHost(
         }
         val s = visible
         if (s == null && overlay == null) {
-            desktopKey(k)
+            // Nothing on the glasses (the launcher crashed): Enter or Space brings it back.
+            if (!k.repeat && (k.key == Keys.ENTER || k.key == Keys.SPACE)) showLauncher(null)
             return
         }
         val scr = currentScreen() ?: return
@@ -797,20 +802,6 @@ class AppHost(
 
     /** The context menu key and F10 (for keyboards without one). */
     private fun isMenu(k: KeyPress) = k.key == Keys.CONTEXT_MENU || k.key == Keys.F10
-
-    /** The bare desktop: the arrows move the pointer (also held), Enter clicks, Escape closes the window. */
-    private fun desktopKey(k: KeyPress) {
-        val step = if (k.shift) DESKTOP_KEY_STEP_FAST else DESKTOP_KEY_STEP
-        when {
-            k.key == Keys.ARROW_LEFT && !k.alt -> screen.movePointer(-step, 0f)
-            k.key == Keys.ARROW_RIGHT -> screen.movePointer(step, 0f)
-            k.key == Keys.ARROW_UP -> screen.movePointer(0f, -step)
-            k.key == Keys.ARROW_DOWN -> screen.movePointer(0f, step)
-            k.repeat -> Unit
-            k.key == Keys.ENTER || k.key == Keys.SPACE -> screen.click()
-            isBack(k) || k.key == Keys.BACKSPACE -> screen.back()
-        }
-    }
 
     /**
      * A page that takes gestures (a video) and did not subscribe to keys: the keys a remote has become
@@ -1885,6 +1876,7 @@ class AppHost(
                 width = raster.width,
                 height = raster.height,
                 pointer = _inputMode.value == InputMode.POINTER,
+                home = scr.host == null && s?.isLauncher == true,
             ),
         )
         appOnScreen = true
@@ -2116,10 +2108,6 @@ class AppHost(
 
         /** Pixels the page scrolls per notch of the mouse wheel. */
         const val WHEEL_STEP = 48
-
-        /** Pixels an arrow key moves the pointer on the bare desktop; with Shift. */
-        const val DESKTOP_KEY_STEP = 8f
-        const val DESKTOP_KEY_STEP_FAST = 32f
 
         /** Longest key name of [WebAction.Key] ("MediaTrackPrevious" and the like). */
         const val MAX_KEY_NAME = 32

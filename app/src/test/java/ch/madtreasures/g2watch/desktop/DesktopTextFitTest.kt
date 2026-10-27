@@ -8,8 +8,8 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * With Android's real fonts (Robolectric, native graphics): every text of the desktop fits where it
- * belongs, the top bar or the open window. So the renderer's hard edge at the stage never cuts a text off.
+ * With Android's real fonts (Robolectric, native graphics): every text of the desktop fits the top bar,
+ * with and without an app's header. So the renderer's hard edge at the stage never cuts a text off.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -30,47 +30,34 @@ class DesktopTextFitTest {
     private val text = Recording(AndroidTextPainter())
     private val layout = DesktopLayout.centered()
     private val desktop = Desktop(layout).apply {
-        // The widest values the top bar and the info window can show.
-        status = DesktopStatus(
-            time = "23:59",
-            date = "Donnerstag, 30. September",
-            watchBattery = 100,
-            glassesBattery = 100,
-            glassesCharging = true,
-            connection = "Verbunden",
-            firmware = "Faceclaw/35 · Basis 2.3.0.24",
-        )
+        // The widest values the top bar can show.
+        status = DesktopStatus(time = "23:59", watchBattery = 100, glassesBattery = 100, glassesCharging = true)
     }
     private val renderer = DesktopRenderer(text)
     private val raster = GrayRaster(DesktopLayout.SCREEN_WIDTH, DesktopLayout.SCREEN_HEIGHT)
 
     private fun Rect.holds(r: Rect) = r.x >= x && r.y >= y && r.right <= right && r.bottom <= bottom
 
-    /** Renders and checks that each text lies in the top bar or in [body]. */
-    private fun check(what: String, body: Rect) {
+    /** Renders and checks that each text lies in the top bar. */
+    private fun check(what: String) {
         text.boxes.clear()
         renderer.render(desktop, raster)
         assertTrue(text.boxes.isNotEmpty())
         for (box in text.boxes) {
-            val home = if (box.rect.y < layout.topBar.bottom) layout.topBar else body
-            assertTrue("$what: „${box.text}“ at ${box.rect} runs out of $home", home.holds(box.rect))
+            assertTrue("$what: „${box.text}“ at ${box.rect} runs out of ${layout.topBar}", layout.topBar.holds(box.rect))
         }
     }
 
     @Test
-    fun `every text fits its place on the tiles, in each window and in an app's header`() {
-        check("tiles", layout.stage)
-        for (app in AppId.entries - AppId.APPS) {
-            val tile = layout.tiles.first { it.first == app }.second
-            desktop.click(tile.x + tile.w / 2, tile.y + tile.h / 2)
-            check("window ${app.title}", layout.window)
-            desktop.back()
-        }
+    fun `every text fits the top bar, alone, at home and in an app's header`() {
+        check("bar alone")
         val area = layout.appArea(fullScreen = false)
+        desktop.app = AppView("Apps", null, false, ByteArray(area.w * area.h), area.w, area.h, pointer = true, home = true)
+        check("launcher")
         desktop.app = AppView(
             "Eine App mit einem sehr langen Namen", "und eine Seite mit langem Namen", false,
             ByteArray(area.w * area.h), area.w, area.h, pointer = true,
         )
-        check("app header", area)
+        check("app header")
     }
 }

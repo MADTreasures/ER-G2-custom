@@ -42,11 +42,6 @@ import javax.imageio.ImageIO
 class FakeScreen : AppScreen {
     val views = mutableListOf<AppView>()
     var closed = 0
-    var desktopClicks = 0
-    var desktopBacks = 0
-
-    /** Pointer moves of the arrow keys on the bare desktop. */
-    val pointerMoves = mutableListOf<Pair<Float, Float>>()
 
     val last: AppView get() = views.last()
 
@@ -56,18 +51,6 @@ class FakeScreen : AppScreen {
 
     override fun closeApp() {
         closed++
-    }
-
-    override fun click() {
-        desktopClicks++
-    }
-
-    override fun back() {
-        desktopBacks++
-    }
-
-    override fun movePointer(dx: Float, dy: Float) {
-        pointerMoves += Pair(dx, dy)
     }
 }
 

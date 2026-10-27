@@ -273,11 +273,12 @@ class AppHostTest {
         assertEquals(listOf(AppEvent.Start, AppEvent.Visible, AppEvent.Back("a"), AppEvent.Stop), app.events)
         assertEquals(Launcher.ID, host.state.value.visible)
         assertEquals(emptyList<String>(), host.state.value.running)
-        // Back on the launcher: the desktop again.
+        // Back on the launcher: it is home and stays.
         host.back()
+        host.tap(GestureKind.DOUBLE_CLICK)
         settle()
-        assertNull(host.state.value.visible)
-        assertEquals(1, screen.closed)
+        assertEquals(Launcher.ID, host.state.value.visible)
+        assertEquals(0, screen.closed)
     }
 
     @Test
@@ -629,14 +630,51 @@ class AppHostTest {
     }
 
     @Test
-    fun `without an app on the glasses the temples work the desktop`() {
+    fun `the launcher is on the glasses from the start, as home, without back arrow`() {
+        host(app())
+        settle()
+        assertEquals("Apps", screen.last.title)
+        assertTrue(screen.last.home)
+        assertEquals(1, screen.views.count { it.home })
+        assertEquals(0, screen.closed)
+    }
+
+    @Test
+    fun `an app is never home`() {
         val host = host(app())
-        host.tap(GestureKind.CLICK)
+        host.start()
+        assertFalse(screen.last.home)
+        host.gesture(Gesture(GestureKind.SHORT_THEN_LONG_PRESS, InputSource.RIGHT))
+        settle()
+        // Not the app menu either, which lies over the app.
+        assertEquals("host.menu", host.state.value.page)
+        assertFalse(screen.last.home)
+    }
+
+    @Test
+    fun `when the launcher crashes the glasses show the bar alone, and a tap brings it back`() {
+        val apps = object : InstalledApps {
+            var broken = true
+            override val apps: List<AppManifest>
+                get() = if (broken) throw IllegalStateException("kaputt") else emptyList()
+
+            override fun open(id: String): InstalledApp? = null
+        }
+        val host = AppHost(
+            scheduler, screen, text, ports, listOf(app()), installed = apps,
+            nowMs = { scheduler.now }, nanoTime = { scheduler.now * 1_000_000L },
+        )
+        settle()
+        assertNull(host.state.value.visible)
+        assertTrue(ports.logs.any { "Apps ist abgestürzt" in it })
+        // Double tap and the other gestures do nothing there; a tap starts the launcher anew.
         host.tap(GestureKind.DOUBLE_CLICK)
         host.tap(GestureKind.SCROLL_DOWN)
-        assertEquals(1, screen.desktopClicks)
-        assertEquals(1, screen.desktopBacks)
-        assertTrue(screen.views.isEmpty())
+        assertNull(host.state.value.visible)
+        apps.broken = false
+        host.tap(GestureKind.CLICK)
+        assertEquals(Launcher.ID, host.state.value.visible)
+        assertTrue(screen.last.home)
     }
 
     @Test

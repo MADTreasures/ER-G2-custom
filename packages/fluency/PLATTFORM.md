@@ -30,7 +30,7 @@ aus einer von zwei Quellen:
 | **C** Gegenstück in Fluency (Nachrichten, Ton von der Uhr, Ergebnisse zurück) | gebaut in Fluency 1.9.0 (§8) | Repo `playground` |
 | **D** Anschluss im Paket | gebaut im Paket 1.1.0 (§9) | `WatchPhoneLink` in `PhoneLink.kt` |
 
-Was es zum Ausprobieren braucht: G2 Watch 0.10.0 auf der Uhr, „G2 Handy“ 0.10.0 und Fluency 1.9.0 auf dem
+Was es zum Ausprobieren braucht: G2 Watch ab 0.10.0 auf der Uhr, „G2 Handy“ 0.10.0 und Fluency 1.9.0 auf dem
 gekoppelten Handy, beide G2-Apps mit dem Schlüssel aus `signing/` gebaut (`signing/README.md`), in Fluency
 **Optionen → „Brille (G2 Watch)“** an. Der **Probelauf** des Pakets (erfundenes Gespräch, gleiche Untertitel)
 geht weiter ohne Handy.

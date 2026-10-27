@@ -14,7 +14,7 @@ ob GeckoView auf der Uhr gut genug läuft.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.10.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
+> **Ehrlicher Stand (v0.11.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
 > Custom-Firmware**: Pixel Watch 5 und G2, linkes Glas im ersten Anlauf; beim rechten brach der erste Anlauf
 > ab, nach dem angezeigten Weg (Brille laden, neu starten, erneut aufspielen) klappte es. Alles andere läuft
 > bisher nur gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
@@ -42,6 +42,9 @@ ob GeckoView auf der Uhr gut genug läuft.
 > Übersetzers Fluency auf dem Handy als Untertitel auf der Brille. Uhr-App und G2 Handy haben dafür einen
 > **gemeinsamen Schlüssel**: Eine ältere Uhr-App einmal deinstallieren (ihre Einstellungen und Pakete gehen
 > dabei verloren). Nichts davon ist auf Hardware erprobt.
+> Neu in 0.11.0: Der **[Starter](#apps-auf-der-brille)** ist das Hauptmenü der Brille. Er steht nach dem
+> Verbinden auf der Brille, jede App kehrt zu ihm zurück, und Zurück bleibt auf ihm stehen. Die Kacheln Uhr,
+> Notiz, Zähler, Info und Hilfe sind weg. Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -79,7 +82,7 @@ die Brille auch mit der Faceclaw-Handy-App verwendbar, ohne hin und her zu flash
    Brille nicht ins Etui legen.
 6. **Kontrolle:** Nach dem Neustart fragt die Uhr jedes Glas einzeln und meldet z. B.
    „Beide Gläser melden Faceclaw/35“. Mit **OK** verbindet sie sich neu – mit Custom-Firmware startet
-   dann das Touchpad mit dem Maus-Zeiger auf der Brille. Die Even-App auf dem Handy muss danach
+   dann das Touchpad mit dem Maus-Zeiger und dem Starter auf der Brille. Die Even-App auf dem Handy muss danach
    eventuell neu mit der Brille gekoppelt werden.
 
 Verbunden zeigt die Uhr unter dem Akku, welche Firmware die Brille hat und was jeder Bügel meldet
@@ -105,9 +108,9 @@ Bildtiefe* → **Nah**, **Mittel** (Standard) oder **Fern**, die drei Stufen der
 sofort; die Uhr merkt sie sich und stellt sie bei jeder Verbindung wieder ein. Wer vom Bild Kopfweh
 bekommt, probiert eine andere Stufe.
 
-| Bildtiefe auf der Uhr | Desktop auf der Brille, alles zwischen x = 32 und 607 |
+| Bildtiefe auf der Uhr | Starter auf der Brille, alles zwischen x = 32 und 607 |
 |---|---|
-| ![Bildtiefe](docs/bilder/uhr-einstellungen-bildtiefe.png) | ![Desktop](docs/bilder/desktop-start.png) |
+| ![Bildtiefe](docs/bilder/uhr-einstellungen-bildtiefe.png) | ![Starter](docs/bilder/apps-starter.png) |
 
 So geht es: Evens Firmware schiebt ihr Bild je nach Stufe in jedem Glas um 8 Pixel zur Nase hin oder nach
 außen. Diese Einstellung übernimmt die Custom-Firmware nicht; sie zeigt das Bild der Uhr
@@ -149,7 +152,8 @@ Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installi
 
 **Bedienen:**
 
-- Auf dem Desktop der Brille die Kachel **Apps** anklicken → der **Starter** zeigt alle Apps als Symbol mit
+- Der **Starter** ist das Hauptmenü der Brille (seit 0.11.0): Er steht nach dem Verbinden auf der Brille, jede
+  App, die endet, kehrt zu ihm zurück, und Zurück bleibt auf ihm stehen. Er zeigt alle Apps als Symbol mit
   Namen, vier nebeneinander, acht auf einen Blick (mehr scrollen). Ein Punkt rechts oben am Symbol heißt:
   Die App läuft. Eine App ohne Symbol zeigt ihre Anfangsbuchstaben. Ohne Apps steht dort „Noch keine Apps“.
   Bügel und Ring springen von Symbol zu Symbol (Zeile für Zeile), Tippen startet; mit dem Zeiger leuchtet
@@ -194,7 +198,7 @@ kennt die Schrift noch nicht; sie bleiben Kleckse. Details: [03 §11](docs/app-e
 ## Tastatur und Maus
 
 Eine Bluetooth-Tastatur und eine Bluetooth-Maus (etwa eine Magic Mouse) bedienen die Brille, sobald die Uhr
-sie verbunden hat: den Desktop, den Starter, den Browser, YouTube und jede andere App. **Nicht auf Hardware
+sie verbunden hat: den Starter, den Browser, YouTube und jede andere App. **Nicht auf Hardware
 erprobt** – und ob Wear OS auf der Pixel Watch Tastaturen und Mäuse überhaupt annimmt, ist offen (unten).
 Wie es gebaut ist: [03 §5.4](docs/app-entwicklung/03_Uhr-Apps.md#54-tastatur-und-maus).
 
@@ -222,12 +226,11 @@ Im Gesten-Modus (Video) ist links ein Tippen und das Rad ein Wischen (10 s vor o
 | Menütaste, F10 | App-Menü |
 | Leertaste, Bild↓, Bild↑ | scrollen (über einer Web-Seite die Seite) |
 | Play/Pause, Leertaste, Pfeile | im Video: Pause/weiter, 10 s vor oder zurück |
-| auf dem Desktop: Pfeile, Enter, Esc | Zeiger um 8 Pixel (mit Umschalt 32), Klick, Fenster zu |
 
 Apps können die Tasten auch selbst nehmen (Schnittstelle 3): der [Browser](#web-browser-auf-der-brille) und
-[YouTube](#youtube-auf-der-brille) tun es. Esc, Alt+←, die Menütaste und F10 bleiben aber immer beim Host. Das
-Hilfe-Fenster auf dem Desktop der Brille listet die wichtigsten Tasten. Hält man eine Taste, wiederholen sich
-Pfeile, Tab, Leertaste und Bild↑/↓; zurück, App-Menü und Klick gelten einmal je Druck.
+[YouTube](#youtube-auf-der-brille) tun es. Esc, Alt+←, die Menütaste und F10 bleiben aber immer beim Host. Hält
+man eine Taste, wiederholen sich Pfeile, Tab, Leertaste und Bild↑/↓; zurück, App-Menü und Klick gelten einmal
+je Druck.
 
 **Text tippen:** Fragt eine App nach Text, erscheint die Frage auf der Brille statt auf der Uhr: die Zeile mit
 Cursor, darunter die Vorschläge. ← und →, Pos1 und Ende bewegen den Cursor, Rücktaste und Entf löschen,
@@ -310,7 +313,7 @@ Handys zu und übersetzt offline; die Brille zeigt die Übersetzung als rollende
 
 **Einmal einrichten:**
 
-1. **Uhr-App 0.10.0 installieren** ([App auf die Uhr bringen](#app-auf-die-uhr-bringen)). Sie hat jetzt einen
+1. **Uhr-App ab 0.10.0 installieren** ([App auf die Uhr bringen](#app-auf-die-uhr-bringen)). Sie hat jetzt einen
    festen Schlüssel; eine ältere Uhr-App mit anderem Schlüssel vorher deinstallieren (Uhr verbunden:
    `adb uninstall ch.madtreasures.g2watch`, oder Android Studio fragt beim ▶ Run selbst). Dabei gehen ihre
    Einstellungen und die installierten App-Pakete verloren; die Pakete danach neu installieren
@@ -657,7 +660,7 @@ die Uhr offline ist.
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 8 + 6 + 641 Tests grün, dazu 22 in G2 Handy und 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 8 + 6 + 639 Tests grün, dazu 22 in G2 Handy und 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -677,9 +680,10 @@ Lint ohne Fehler. Die wichtigsten:
   **Bildtiefe** bei jeder Verbindung und sofort bei einer Änderung. Mit Faceclaws echtem
   Compositor: die Tiefe kommt auch mit Zeiger an, und jedes Glas zeigt das ganze Bild um die halbe Tiefe
   verschoben, ohne dass etwas über den Rand fällt; nichts leuchtet außerhalb von x = 32 bis 607.
-  **`DesktopTextFitTest`** – mit Androids Schrift passt jeder Text in Kopfzeile oder Fenster.
+  **`DesktopTextFitTest`** – mit Androids Schrift passt jeder Text in die Kopfzeile, mit und ohne App.
 - **`AppHostTest`** – der App-Host mit Test-Apps, simuliertem Desktop und virtueller Zeit: `start` vor
-  `visible`, Zurück auf der ersten Seite schließt, Knopf-Ziele und `@back`, Schalter und Häkchen sofort, höchstens
+  `visible`, der Starter als Hauptmenü vom ersten Bild an (Zurück bleibt dort, nach einem Absturz holt ihn ein
+  Tippen zurück), Zurück auf der ersten Seite schließt, Knopf-Ziele und `@back`, Schalter und Häkchen sofort, höchstens
   alle 200 ms zeichnen, Timer ruhen verdeckt ohne `background`, 2-s- und 10-s-Regel, 50/500-ms-Regel,
   Absturz einer App, Berechtigungsfrage, App-Menü mit „Apps“ und Starter (Raster in Lesereihenfolge für Bügel
   und Zeiger, Symbole einmal je App-Version gelesen, Punkt für laufende Apps), Fokus per Bügel, Zeiger,
@@ -716,7 +720,7 @@ Lint ohne Fehler. Die wichtigsten:
   App), **`PhoneLinksTest`** (die Uhr-Seite mit simulierter Datenschicht, Mikrofon und Zeit: Öffnen, Ablehnen,
   Zeitlimit, Lebenszeichen, Übernahme, Ton-Kanal), **`PhoneLinkWireTest`**, in G2 Handy **`RelayTest`** und
   **`MessengerPartnersTest`** (Robolectric mit simuliertem Partner-Dienst, Ton durch eine echte Pipe).
-- Bilder neu erzeugen (Uhr, Desktop, Apps samt YouTube und Browser, Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
+- Bilder neu erzeugen (Uhr, Zeiger, Apps samt Starter, YouTube und Browser, Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
 - **`GlassesRasterizerTest`** (web-raster) – Grund, Bilder, lesbarer und negativer Text; **`LayoutParserTest`** –
   der Layout-Bericht von `page-layout.js`; die Tests des Gecko-Tests (`tools/gecko-probe`) prüfen Brücke,
   Auswertung und Bildschirm ohne Uhr.

@@ -5,24 +5,22 @@
 > Alles zu Maus, Touchpad und Einstellungen gilt weiter, mit einer Ausnahme: Seit 0.9.0 ist der Zeiger
 > keine eigene Fläche mehr, sondern in die Desktop-Fläche gezeichnet, und alles liegt zwischen x = 32 und
 > 607 – nötig für die Bildtiefe ([README](../../README.md#bildtiefe), [03 §5.3](../app-entwicklung/03_Uhr-Apps.md#53-bildtiefe-und-bildrand)).
+> Seit 0.11.0 gibt es die Kacheln des Desktops (Uhr, Notiz, Zähler, Info, Hilfe) nicht mehr: Der Starter des
+> App-Hosts ist das Hauptmenü der Brille ([README](../../README.md#apps-auf-der-brille)).
 
 # G2 Watch – Architektur
 
-**G2 Watch** ist eine Wear-OS-App für die Pixel Watch, die die Even Realities G2 direkt ansteuert. Die Uhr ist der Rechner, die Brille der Bildschirm: Auf der Brille liegt ein kleiner Desktop mit Mauszeiger, das Uhrdisplay ist das Touchpad. Die Uhr selbst zeigt dabei oben die Uhrzeit und den Akku von Uhr und Brille, darunter ein Zahnrad für die Einstellungen. Solange ein Finger aufliegt, sitzt unter ihm eine dunkle Glasscheibe mit blau leuchtendem Rand. Ein Bild der Brille zeigt die Uhr nicht.
+**G2 Watch** ist eine Wear-OS-App für die Pixel Watch, die die Even Realities G2 direkt ansteuert. Die Uhr ist der Rechner, die Brille der Bildschirm: Auf der Brille liegt der Starter mit den Apps und ein Mauszeiger, das Uhrdisplay ist das Touchpad. Die Uhr selbst zeigt dabei oben die Uhrzeit und den Akku von Uhr und Brille, darunter ein Zahnrad für die Einstellungen. Solange ein Finger aufliegt, sitzt unter ihm eine dunkle Glasscheibe mit blau leuchtendem Rand. Ein Bild der Brille zeigt die Uhr nicht.
 
 Die App baut auf [Faceclaw](https://github.com/jimrandomh/faceclaw) auf (Jim Babcock, GPL-3.0). Faceclaws Kotlin-Kern mit Bluetooth-Protokoll, Sitzung und Compositor ist unverändert übernommen. Neu geschrieben sind nur der Wear-OS-Teil und der Desktop.
 
-| Start | Fenster „Uhr“ |
-|---|---|
-| ![Desktop mit Kacheln](../bilder/desktop-start.png) | ![Fenster Uhr](../bilder/desktop-uhr.png) |
-| **Fenster „Notiz“** | **Fenster „Zähler“** (3× auf „+“ geklickt) |
-| ![Fenster Notiz](../bilder/desktop-notiz.png) | ![Fenster Zähler](../bilder/desktop-zaehler.png) |
-| **Fenster „Info“** | **Fenster „Hilfe“** |
-| ![Fenster Info](../bilder/desktop-info.png) | ![Fenster Hilfe](../bilder/desktop-hilfe.png) |
+| Start: der Starter |
+|---|
+| ![Starter](../bilder/apps-starter.png) |
 
-Seit G2 Watch 0.4.0 öffnet die Kachel **„Apps“** den Starter des App-Hosts (Bilder im
-[README](../../README.md#apps-auf-der-brille)); das frühere Fenster „Zeiger“ ist entfallen – Tempo und
-Zentrieren gibt es an der Krone und in den Einstellungen der Uhr. Seit 0.5.0 gehört die App YouTube dazu
+Seit G2 Watch 0.4.0 gibt es den Starter des App-Hosts (Bilder im [README](../../README.md#apps-auf-der-brille)),
+seit 0.11.0 ist er das Hauptmenü der Brille; die Kacheln des Desktops von 0.2.0 sind weg. Tempo und Zentrieren
+des Zeigers gibt es an der Krone und in den Einstellungen der Uhr. Seit 0.5.0 gehört die App YouTube dazu
 ([README](../../README.md#youtube-auf-der-brille)); fragt eine App nach Text, öffnet die Uhr über jedem
 Bildschirm ihre Tastatur mit Spracheingabe. Seit 0.5.2 erscheinen Emoji in allen Texten als Strichzeichnung
 ([README](../../README.md#emoji)).
@@ -74,7 +72,7 @@ Nicht übernommen ist Faceclaws Oberfläche: rund 88 000 Zeilen TypeScript für 
 | Paket | Klassen | Aufgabe |
 |---|---|---|
 | `glasses` | `GlassesConnection`, `FirmwareRequirement`, `GlassesParts`/`FaceclawParts`, `WearSessionHost`, `CoreDisplay`, `GlassesService`, `GlassesState`, `FirmwareInstaller` | Verbindung zur Brille: erst prüfen, dann Sitzung. Übersetzt Faceclaws Ereignisse (Status, Akku, Tipps am Bügel, Übertragungszeiten) für App und Desktop. `FirmwareInstaller` ist die Schnittstelle zum Aufspielen. |
-| `desktop` | `Desktop`, `DesktopRenderer`, `DesktopController`, `Pointer`, `GrayRaster`, `AndroidTextPainter`, `EmojiText`, `GlassesDisplay` | Der Desktop: Layout, Kacheln, Fenster, Knöpfe, Zeiger. Zeichnet in ein 8-Bit-Graubild und reicht es an Faceclaws Compositor weiter. Emoji zeichnet `AndroidTextPainter` seit 0.5.2 mit der Schwarz-Weiß-Schrift Noto Emoji aus den Assets. |
+| `desktop` | `Desktop`, `DesktopRenderer`, `DesktopController`, `Pointer`, `GrayRaster`, `AndroidTextPainter`, `EmojiText`, `GlassesDisplay` | Der Desktop: Layout, Kopfzeile, die App-Fläche des App-Hosts (zu Hause der Starter), Zeiger. Zeichnet in ein 8-Bit-Graubild und reicht es an Faceclaws Compositor weiter. Emoji zeichnet `AndroidTextPainter` seit 0.5.2 mit der Schwarz-Weiß-Schrift Noto Emoji aus den Assets. |
 | `ui` | `TouchpadScreen`, `SettingsScreen`, `Screens`, `BatteryRow` | Die Uhr-Oberfläche mit Wear Compose Material 3: Touchpad mit Uhrzeit, Akkus, Zahnrad und Glasscheibe; Einstellungen mit Log, Firmware, Zeiger und Verbindung; dazu Geräte, Status und Protokoll |
 | `ble` | `G2Scanner`, `G2Devices` | Suche nach den Bügeln, aus G2 Direct übernommen |
 | Wurzel | `G2WatchApp`, `MainActivity`, `Scheduler` | Hält Desktop und Verbindung für den ganzen Prozess, Navigation |
@@ -143,9 +141,10 @@ Eine Designentscheidung, die sich leicht ändern lässt: Neuere Revisionen als 3
 | Uhr | Zahnrad 0,9 s halten | Einstellungen; vorher füllt sich ein Ring um das Zahnrad. Tippen auf das Zahnrad tut nichts, Halten anderswo auch nicht. |
 | Uhr | Krone drehen | Zeigertempo (0,3× bis 4×), 1,5 s lang als „Tempo 1,2×“ angezeigt |
 | Bügel oder Ring | Tipp | Klick am Zeiger |
-| Bügel oder Ring | Doppeltipp | Fenster schließen |
+| Bügel oder Ring | Doppeltipp | zurück |
 
-Auf dem Desktop liegen sechs Kacheln: **Uhr** (große Uhrzeit), **Notiz** (Platzhalter für Diktat), **Zähler** (−, 0, +), **Zeiger** (Tempo und Zentrieren), **Info** (Verbindung, Firmware, Akkus) und **Hilfe**. Ein offenes Fenster ist modal und schließt sich über das × oben rechts oder per Doppeltipp am Bügel.
+Auf der Brille steht der Starter mit den Apps (seit 0.11.0 das Hauptmenü; bis dahin lagen dort sechs Kacheln
+mit Fenstern).
 
 ### Die Uhr beim Bedienen
 

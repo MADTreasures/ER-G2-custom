@@ -22,8 +22,8 @@ android {
         // Wear OS 4 (API 33) and newer: Faceclaw's GATT code uses the API 33 write call.
         minSdk = 33
         targetSdk = 37
-        versionCode = 13
-        versionName = "0.10.0"
+        versionCode = 14
+        versionName = "0.11.0"
         // GeckoView ships one native build per ABI (~90 MB each in the APK): only the Pixel Watch 5's,
         // which runs 32-bit apps. For another watch: adb shell getprop ro.product.cpu.abilist, and
         // change this and the geckoview artifact below (05 §5).

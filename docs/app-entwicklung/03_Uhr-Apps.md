@@ -246,8 +246,11 @@ Neue Dateien unter `app/src/main/java/ch/madtreasures/g2watch/apps/`:
 Seit v0.6.0 liegen die Schnittstellen-Dateien (`Page.kt` … `AppManifest.kt`) im Modul `app-api/`.
 
 Einbau in den bestehenden Desktop (`desktop/`):
-- Neue Kachel **„Apps“** (`AppId.APPS`) öffnet den Starter. Die Kachelreihe hat 6 Plätze (3 × 2):
-  „Zeiger“ und „Info“ wandern in die Einstellungen der Uhr oder in den Starter, damit „Apps“ Platz hat.
+- Seit v0.11.0 ist der Starter das Hauptmenü: Der App-Host zeigt ihn, sobald es ihn gibt (beim Start der
+  Uhr-App), jede App, die endet, gibt an ihn zurück, und Zurück auf ihm bleibt auf ihm. Seine Kopfzeile hat
+  keinen Pfeil „‹“ und kein App-Menü (`AppView.home`). Die Kacheln des Desktops von v0.3.0 (Apps, Uhr, Notiz,
+  Zähler, Info, Hilfe) gibt es nicht mehr. Ohne Starter (er ist abgestürzt) zeigt die Brille nur die
+  Kopfzeile; ein Tippen am Bügel, Doppeltippen auf der Uhr oder Enter holt ihn zurück.
 - Solange eine App offen ist, zeichnet `DesktopRenderer` die Kopfzeile (mit „‹“ und App-Name) und
   übernimmt für die App-Fläche das Raster aus `PageRenderer`.
 - Zeiger: im Modus `pointer` sichtbar, im Modus `gestures` ausgeblendet. Seit v0.9.0 ist er keine eigene
@@ -298,9 +301,9 @@ Seit v0.9.0. Alles in `desktop/`; Apps merken davon nichts, die App-Fläche blei
 | Zeiger | Höchstens 30 Bilder pro Sekunde wie bisher. Eine Bewegung schickt nur den Block um alte und neue Zeigerstelle (`GlassesDisplay.submit` mit Rechteck), das Bild darunter liegt ohne Zeiger bereit. Über Bluetooth geht wie bisher nur die Differenz. Der Fingerabdruck enthält Desktop, Zeigerstelle und Zeigerpixel. |
 | Bildtiefe | `Depth`: Nah = +16, Mittel = 0 (Standard), Fern = −16 – genau Evens Stufen 0/1/2 (Glas rechts x = 24/32/40, links 40/32/24). `GlassesDisplay.setDepth` → `setSurfaceDepth` des Kerns, dann ein neues Gesamtbild (`setSurfaceVisible`). Jede Sitzung hat einen eigenen Compositor, deshalb setzt `attach` die Tiefe jedes Mal. Gespeichert unter `depth` in den Einstellungen `g2watch`; Auswahl auf der Uhr unter *Einstellungen → Bildtiefe*. |
 | Was die Brille daraus macht | Statt einer Kopie des Bildspeichers malt sie erst Schwarz und kopiert ihn dann je Glas um ±8 px verschoben. Die Liste wird nur bei einer Änderung neu geschickt, über Bluetooth kostet also kein Bild etwas extra; auf der Brille kommt bei Nah und Fern je Bild das Schwarzmalen dazu. Vielfache von 4 halten beide Verschiebungen gerade (schnelle Kopie). Evens eigene Nachrichten für Tiefe und Höhe schickt die Uhr nicht: Unter der Custom-Firmware wirken sie nicht, und sie würden die Einstellung der Even-App ändern. |
-| Bühne | `DesktopLayout.stage` = x 32 … 607, y 96 … 383: wo Evens Bild auf „Mittel“ liegt (Evens Firmware lässt nie Pixel außerhalb von x 24 … 615 leuchten). Kopfzeile (Texte 16 px eingerückt, Linie), Kacheln, Fenster, Hinweise und die Spitze des Zeigers bleiben darin; `DesktopRenderer` löscht alles außerhalb. Bei ±16 fällt so nichts über den Rand. |
+| Bühne | `DesktopLayout.stage` = x 32 … 607, y 96 … 383: wo Evens Bild auf „Mittel“ liegt (Evens Firmware lässt nie Pixel außerhalb von x 24 … 615 leuchten). Kopfzeile (Texte 16 px eingerückt, Linie), die App-Fläche und die Spitze des Zeigers bleiben darin; `DesktopRenderer` löscht alles außerhalb. Bei ±16 fällt so nichts über den Rand. |
 | Ausrichtung der Gläser | Im Code und in Evens Firmware geprüft (nicht an der Brille), kein Fehler gefunden: Beide Gläser bekommen dasselbe Bild, bei Tiefe 0 Byte für Byte. Die Werksjustierung je Glas liegt im Display-Controller und gilt auch unter der Custom-Firmware ([wissen/02 §7](../firmware-uebergabe/wissen/02-display.md#7-open-questions--uncertainties)). |
-| Tests | `DesktopControllerTest`: Tiefe bei jedem `attach` und sofort bei Änderung; mit Faceclaws echtem `SurfaceCompositor` die Tiefe der Wurzel-Liste, auch mit Zeiger, und je Glas das ganze Bild um die halbe Tiefe verschoben, ohne dass ein Pixel verloren geht; Zeiger im Bild und als kleiner Block, auch nach zufälligen Folgen von Bewegungen, Klicks, Apps, Verbindungen und Tiefen genau Desktop plus Zeiger; nichts leuchtet außerhalb der Bühne. `DepthTest`: die drei Stufen je Glas genau wie Evens Tabellen, gespeicherter Name zurück, Unbekanntes wird „Mittel“. `DesktopTextFitTest`: mit Androids Schrift passt jeder Text in Kopfzeile oder Fenster. `SettingsScreenTest`: die drei Stufen. |
+| Tests | `DesktopControllerTest`: Tiefe bei jedem `attach` und sofort bei Änderung; mit Faceclaws echtem `SurfaceCompositor` die Tiefe der Wurzel-Liste, auch mit Zeiger, und je Glas das ganze Bild um die halbe Tiefe verschoben, ohne dass ein Pixel verloren geht; Zeiger im Bild und als kleiner Block, auch nach zufälligen Folgen von Bewegungen, Klicks, Apps, Verbindungen und Tiefen genau Desktop plus Zeiger; nichts leuchtet außerhalb der Bühne. `DepthTest`: die drei Stufen je Glas genau wie Evens Tabellen, gespeicherter Name zurück, Unbekanntes wird „Mittel“. `DesktopTextFitTest`: mit Androids Schrift passt jeder Text in die Kopfzeile, mit und ohne App. `SettingsScreenTest`: die drei Stufen. |
 
 ### 5.4 Tastatur und Maus
 
@@ -454,8 +457,8 @@ dieselbe `G2App`-Schnittstelle gelegt werden.
 |---|---|
 | Dateien | wie in §5; dazu `host/PageState.kt` (Seitenstand, von Host und `FakeAppContext` geteilt), `host/HostPorts.kt` (Plattform-Anschlüsse, Brillen-Status, interne Sitzungen, `EvenHubRegistry`), `host/AndroidHostPorts.kt`, `host/FileAppStorage.kt`, `render/PageLayout.kt`, `render/Shapes.kt` (kantengeglättete Formen), `render/GrayImages.kt`, `desktop/AppView.kt` |
 | JSON | `AppJson` mit eigenen Serializern (`AppEventSerializer`, `AppCommandSerializer`) statt `JsonContentPolymorphicSerializer`: Ereignisse werden nach `kind` und bei Sensoren nach `sensor` unterschieden. Streng: kaputte Ereignisse/Befehle sind ein Fehler (`bad_value`), nur unbekannte `kind` werden ignoriert. `definePages` nimmt `pages` oder ein ganzes Baukasten-Projekt (`project`). |
-| Desktop | Die Kachel **„Apps“** ersetzt „Zeiger“ (Tempo und Zentrieren gibt es in den Einstellungen der Uhr und an der Krone). „Info“ bleibt, weil die sechs Plätze reichen. |
-| Kopfzeile | „‹“, App-Name fett, dahinter „· Seitenname“, wenn er vom App-Namen abweicht; Uhrzeit und Akkus wie auf dem Desktop. Klick auf „‹“ = Zurück, auf den Namen = App-Menü. |
+| Desktop | Die Kachel **„Apps“** ersetzt „Zeiger“ (Tempo und Zentrieren gibt es in den Einstellungen der Uhr und an der Krone). „Info“ bleibt, weil die sechs Plätze reichen. Seit v0.11.0 sind alle Kacheln weg, der Starter ist das Hauptmenü (§5). |
+| Kopfzeile | „‹“, App-Name fett, dahinter „· Seitenname“, wenn er vom App-Namen abweicht; Uhrzeit und Akkus wie auf dem Desktop. Klick auf „‹“ = Zurück, auf den Namen = App-Menü. Beim Starter seit v0.11.0 nur „Apps“, ohne „‹“ und ohne Menü. |
 | Maße | wie 02 §4.2, dazu 8 px Innenabstand oben und unten; ein randloses Bild als erster Baustein beginnt ganz oben. Toggle-Schalter 46 × 26, Häkchen-Kästchen 22 × 22, Fokus als heller Rahmen (Knöpfe 3 px, Zeilen 2 px). |
 | Zeiger und Scrollen | Was unter dem Zeiger liegt, bekommt den Fokus; über leerer Fläche bleibt der Fokus. Den Zeiger über den oberen/unteren Rand des sichtbaren Streifens hinaus zu schieben scrollt die Seite. |
 | Fokus per Bügel | Wischen springt zum nächsten fokussierbaren Baustein, wenn er höchstens ¾ Seite entfernt ist; sonst scrollt die Seite um ¾ Höhe (lange Texte lesen). Eine neue Seite fokussiert ihren ersten sichtbaren Knopf. |
@@ -759,7 +762,7 @@ PLATTFORM.md §6; was die beiden Apps einander schicken, ist im Modul `phone-lin
 - Lebenszeichen alle 10 s; zwei ohne Antwort beenden die Verbindung („Keine Verbindung zum Handy“). Steht die
   Verbindung nach 15 s nicht, „Das Handy antwortet nicht“.
 
-**„G2 Handy“** (Modul [`phone/`](../../phone), gleiche Version wie die Uhr-App) ist eine kleine Handy-App: eine
+**„G2 Handy“** (Modul [`phone/`](../../phone), eigene Version, zurzeit 0.10.0 für G2 Watch ab 0.10.0) ist eine kleine Handy-App: eine
 Seite mit dem Schalter „Für die Uhr bereit“ (ein Vordergrund-Dienst hält sie wach, auch nach einem Neustart des
 Handys), ob die Uhr erreichbar ist und welche Partner verbunden sind. Gebaut wird es nur mit
 `-Pg2.phone=true` (README, „Projektaufbau“), damit die APK mit der App-ID der Uhr-App nie aus Versehen auf der

@@ -5,7 +5,7 @@ import ch.madtreasures.g2watch.FakeScheduler
 import ch.madtreasures.g2watch.FakeText
 import ch.madtreasures.g2watch.apps.host.GlassesStatus
 import ch.madtreasures.g2watch.apps.host.InputRouter
-import ch.madtreasures.g2watch.desktop.AppId
+import ch.madtreasures.g2watch.desktop.AppInput
 import ch.madtreasures.g2watch.desktop.DesktopController
 import com.faceclaw.app.BleProtocol
 import com.faceclaw.app.FaceclawBleCommunicatorListener
@@ -300,17 +300,35 @@ class GlassesConnectionTest {
     @Test
     fun `a temple tap clicks at the pointer`() {
         val session = connected()
-        // Pointer onto the "Uhr" tile, then tap the right temple.
-        val tile = desktop.layout.tiles.first { it.first == AppId.CLOCK }.second
-        desktop.moveBy((tile.x + tile.w / 2 - 320).toFloat(), (tile.y + tile.h / 2 - 240).toFloat())
-        desktopScheduler.advanceBy(100)
-        val before = session.display.submitsOf("desktop").size
+        // Without the app host nothing is on the glasses but the bar: a click there asks for the launcher.
+        val asked = mutableListOf<String>()
+        desktop.connectApps(
+            object : AppInput {
+                override fun openLauncher() {
+                    asked += "launcher"
+                }
+
+                override fun pointerAt(x: Int, y: Int) = Unit
+
+                override fun clickAt(x: Int, y: Int) {
+                    asked += "click $x,$y"
+                }
+
+                override fun scrollBy(dy: Int) = Unit
+
+                override fun back() {
+                    asked += "back"
+                }
+
+                override fun openMenu() = Unit
+            },
+        )
         session.listener!!.onRingEvent(
             "sys-event", "", BleProtocol.EVENT_CLICK, BleProtocol.EVENT_SOURCE_GLASSES_R, 0, 0, 0L, 0, 0, 0,
         )
         settle()
         assertEquals("Tipp (rechter Bügel)", state.lastInput)
-        assertEquals(before + 1, session.display.submitsOf("desktop").size)
+        assertEquals(listOf("launcher"), asked)
     }
 
     @Test

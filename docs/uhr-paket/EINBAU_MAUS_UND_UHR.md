@@ -44,7 +44,7 @@ Die Bilder stammen aus dem eigenen Renderer der App und aus Robolectric. Wo ein 
 | `desktop/GrayRaster.kt` | 8-Bit-Graubild mit Zeichenfunktionen und FNV-1a-Hash | – | unverändert |
 | `desktop/GlassesDisplay.kt` | Schnittstelle `GlassesDisplay` (Flächen konfigurieren, Inhalt senden) und `TextPainter` | – | unverändert |
 | `desktop/DesktopController.kt` | Hält Desktop und Zeiger auf einem eigenen Thread. Bündelt Zeigerbilder und zieht den Zeiger nach, wenn sich das Bild ändert. `frame` liefert das zuletzt gezeichnete Bild, nur für Tests und Werkzeuge. | alles oben, `Scheduler.kt` | unverändert oder als Vorlage |
-| `desktop/Desktop.kt`, `DesktopRenderer.kt`, `AndroidTextPainter.kt`, `EmojiText.kt` | Der Beispiel-Desktop: Kacheln, Fenster, Knöpfe, Schrift; Emoji mit `assets/fonts/NotoEmoji.ttf` (SIL OFL 1.1, Lizenz daneben) | Android-Grafik | optional, durch eigene Inhalte ersetzbar; ohne die Schrift zeichnet Android Emoji als Klecks |
+| `desktop/Desktop.kt`, `DesktopRenderer.kt`, `AndroidTextPainter.kt`, `EmojiText.kt` | Der Desktop: Kopfzeile und App-Fläche (seit G2 Watch 0.11.0 ohne Kacheln), Schrift; Emoji mit `assets/fonts/NotoEmoji.ttf` (SIL OFL 1.1, Lizenz daneben) | Android-Grafik | optional, durch eigene Inhalte ersetzbar; ohne die Schrift zeichnet Android Emoji als Klecks |
 | `Scheduler.kt` | `Scheduler`, `ThreadScheduler`, `MainScheduler` | – | unverändert |
 | `glasses/CoreDisplay.kt` | `GlassesDisplay` über Faceclaws `GlassesSessionCore` | Faceclaw-Kern | nur mit Faceclaw-Kern |
 | `glasses/GlassesState.kt` | Was die Uhr über die Brille zeigt, dazu `TransferStats`: die Übertragungszeiten der letzten 30 Bilder | `FirmwareRequirement.kt` | unverändert |
@@ -80,7 +80,7 @@ Pixel außerhalb des Bildschirms zählen als dunkel. Weil jedes Pixel für sich 
 
 **Ohne Verzögerung:**
 - Bei jeder Bewegung wird der Zeiger sofort gegen das aktuelle Bild neu gezeichnet. Die Brille bekommt ihn mit dem nächsten Zeigerbild. Zeigerbilder gehen höchstens alle 33 ms raus (`POINTER_INTERVAL_MS`, etwa 30 pro Sekunde). Position und Negativ kommen im selben Bild an.
-- Ändert sich das Bild unter einem stehenden Zeiger, zieht der Zeiger ebenfalls sofort nach. Das passiert etwa, wenn ein Fenster aufgeht oder ein Knopf hervorgehoben wird. `flushDesktop()` zeichnet dann den Zeiger neu und sendet ihn im selben Schritt, ohne auf den 33-ms-Takt zu warten.
+- Ändert sich das Bild unter einem stehenden Zeiger, zieht der Zeiger ebenfalls sofort nach. Das passiert etwa, wenn eine App ein neues Bild zeigt oder der Zurück-Pfeil hervorgehoben wird. `flushDesktop()` zeichnet dann den Zeiger neu und sendet ihn im selben Schritt, ohne auf den 33-ms-Takt zu warten.
 - Ein unveränderter Zeiger an unveränderter Stelle wird nicht erneut gesendet. Das prüfen Fingerabdruck und Position.
 
 **Fingerabdruck:** Er lautet `pointer:` plus ein 64-Bit-FNV-1a-Hash über die Zeigerpixel. Ändern sich die Pixel, ändert sich der Fingerabdruck. Die Position gehört zur Geometrie der Fläche.

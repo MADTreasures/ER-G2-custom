@@ -333,7 +333,6 @@ class MainActivity : ComponentActivity() {
                     speed = speed,
                     describeFirmware = firmware::describe,
                     onBack = { screen = settingsReturn },
-                    onCloseWindow = { desktop.back(); screen = Screen.TOUCHPAD },
                     onCenter = { desktop.centerPointer(); screen = Screen.TOUCHPAD },
                     onSpeed = { desktop.setSpeed(it) },
                     onConnect = { screen = Screen.DEVICES },

@@ -314,27 +314,42 @@ class AppHostKeysTest {
     }
 
     @Test
-    fun `on the bare desktop the arrows move the pointer, Enter clicks, Escape closes the window`() {
+    fun `on the launcher Escape and Backspace stay home`() {
         val host = host(app())
-        host.press(Keys.ARROW_RIGHT)
-        host.press(Keys.ARROW_UP, shift = true)
-        host.press(Keys.ENTER)
+        settle()
+        assertEquals(Launcher.ID, host.state.value.visible)
         host.press(Keys.ESCAPE)
-        assertEquals(listOf(Pair(AppHost.DESKTOP_KEY_STEP, 0f), Pair(0f, -AppHost.DESKTOP_KEY_STEP_FAST)), screen.pointerMoves)
-        assertEquals(1, screen.desktopClicks)
-        assertEquals(1, screen.desktopBacks)
-        // Held, the arrows go on and Enter clicks once.
-        host.hold(Keys.ARROW_DOWN, repeats = 2)
-        host.hold(Keys.ENTER)
-        host.hold(Keys.ESCAPE)
-        assertEquals(5, screen.pointerMoves.size)
-        assertEquals(2, screen.desktopClicks)
-        assertEquals(2, screen.desktopBacks)
-        assertTrue(screen.views.isEmpty())
-        // The wheel does nothing there.
+        host.press(Keys.BACKSPACE)
+        host.press(Keys.ARROW_LEFT, alt = true)
+        assertEquals(Launcher.ID, host.state.value.visible)
+        assertEquals(Launcher.PAGE, host.page)
+        assertEquals(0, screen.closed)
+    }
+
+    @Test
+    fun `when the launcher crashed, Enter brings it back and the other keys wait`() {
+        val apps = object : InstalledApps {
+            var broken = true
+            override val apps: List<AppManifest>
+                get() = if (broken) throw IllegalStateException("kaputt") else emptyList()
+
+            override fun open(id: String): InstalledApp? = null
+        }
+        val host = AppHost(
+            scheduler, screen, text, ports, listOf(app()), installed = apps,
+            nowMs = { scheduler.now }, nanoTime = { scheduler.now * 1_000_000L },
+        )
+        settle()
+        assertNull(host.state.value.visible)
+        apps.broken = false
+        host.press(Keys.ARROW_DOWN)
+        host.press(Keys.ESCAPE)
+        host.press(Keys.ENTER, repeat = true)
         host.wheel(3)
         settle()
-        assertTrue(screen.views.isEmpty())
+        assertNull(host.state.value.visible)
+        host.press(Keys.ENTER)
+        assertEquals(Launcher.ID, host.state.value.visible)
     }
 
     // --- Questions with a keyboard -----------------------------------------------------------------

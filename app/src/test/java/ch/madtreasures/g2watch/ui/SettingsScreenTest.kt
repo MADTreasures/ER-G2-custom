@@ -65,7 +65,7 @@ class SettingsScreenTest {
         state: GlassesState = connected,
         describe: (FirmwareTarget) -> String? = { null },
         onFirmware: (FirmwareTarget) -> Unit = {},
-    ) = show { SettingsScreen(state, 1f, describe, {}, {}, {}, {}, {}, {}, onFirmware, {}) }
+    ) = show { SettingsScreen(state, 1f, describe, {}, {}, {}, {}, {}, onFirmware, {}) }
 
     @Test
     fun `shows how long frames take from the watch to the glasses`() {
@@ -228,7 +228,7 @@ class SettingsScreenTest {
         val switched = mutableListOf<Boolean>()
         show {
             SettingsScreen(
-                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {}, {},
+                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {},
                 protocolFile = false, onProtocolFile = { switched += it },
             )
         }
@@ -242,7 +242,7 @@ class SettingsScreenTest {
         val chosen = mutableListOf<Depth>()
         show {
             SettingsScreen(
-                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {}, {},
+                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {},
                 depth = Depth.MIDDLE, onDepth = { chosen += it },
             )
         }
@@ -273,7 +273,7 @@ class SettingsScreenTest {
         var opened = 0
         show {
             SettingsScreen(
-                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {}, {},
+                connected, 1f, { null }, {}, {}, {}, {}, {}, {}, {},
                 inputSummary = inputSummary(listOf(ExternalDevice(3, "Magic Mouse", keyboard = false, mouse = true))),
                 onInput = { opened++ },
             )

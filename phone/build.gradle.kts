@@ -17,7 +17,7 @@ android {
         applicationId = "ch.madtreasures.g2watch"
         minSdk = 31
         targetSdk = 37
-        // Same version as the watch app it belongs to.
+        // Raised when G2 Handy itself changes; it works with the watch app from this version on (0.10.0).
         versionCode = 13
         versionName = "0.10.0"
     }
