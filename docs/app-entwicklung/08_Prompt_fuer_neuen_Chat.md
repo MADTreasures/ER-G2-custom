@@ -98,5 +98,6 @@ Für einen Meilenstein aus dem [Umsetzungsplan](07_Umsetzungsplan.md) nach „Au
 
 M1 (App-Host) und M1b (App-Pakete) sind fertig, von M2 die Test-APK (es fehlen die Messwerte der Uhr),
 M7 (Browser) ist gebaut, aber nicht auf Hardware erprobt, von M4 der erste Teil (G2 Handy als Vermittler zu
-Apps auf dem Handy, v0.10.0, 03 §13). In claude.ai kann Claude einen Entwurf auch direkt aus dem
+Apps auf dem Handy, v0.10.0, 03 §13), von M6 der Standort für Uhr-Apps (v0.12.0, 03 §14, mit großen Dateien,
+Downloads und Hintergrundarbeit). In claude.ai kann Claude einen Entwurf auch direkt aus dem
 Baukasten lesen („Schau dir meinen Baukasten an“).

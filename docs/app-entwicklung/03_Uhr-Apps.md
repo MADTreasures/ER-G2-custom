@@ -418,8 +418,8 @@ abonniert hat, und beim Verdecken oder Beenden wieder aus (Akku).
 - **Umgebungslicht:** Auf der Faceclaw-Firmware gehört der Lichtsensor der Helligkeitsregelung
   (`setAmbientLightPolling` wirkt dort nicht). Erst anbieten, wenn geklärt ist, wie Werte ohne Eingriff in
   die Regelung lesbar sind; bis dahin kein `light`.
-- **Standort:** GPS der Uhr (`FusedLocationProviderClient` oder `LocationManager`), nur mit
-  Berechtigung `location` und der Android-Standortberechtigung.
+- **Standort:** GPS der Uhr, **gebaut** (v0.12.0, Schnittstelle 5, [§14](#14-gps-große-dateien-und-hintergrundarbeit-v0120-schnittstelle-5)):
+  `LocationManager.GPS_PROVIDER`, nur mit Berechtigung `location` und der Android-Standortberechtigung.
 
 ## 7. Tests
 
@@ -783,3 +783,80 @@ im Paket Fluency `WatchPhoneLinkTest` und `FluencyHostTest`.
 **Nicht erprobt:** alles auf echter Uhr und echtem Handy – ob sich die beiden Apps über die Datenschicht
 finden, Verzögerung und Durchsatz für 32 KB/s Ton neben der Brille auf demselben Funkmodul, das Mikrofon der
 Uhr bei dunklem Bildschirm, ob Hersteller-Akkusparen „G2 Handy“ beendet.
+
+## 14. GPS, große Dateien und Hintergrundarbeit (v0.12.0, Schnittstelle 5)
+
+Damit eine App wie die Navigation ([`packages/navi`](../../packages/navi/README.md)) ganz auf der Uhr laufen
+kann, bekommt jede Uhr-App vier Dinge, die nichts mit Navigation zu tun haben:
+
+```kotlin
+ui.subscribe(Sensor.LOCATION, rate = 1)                 // GPS of the watch, every second, while the app is on the glasses
+// → AppEvent.Location(lat, lon, acc, t, speed, bearing, alt)
+
+ui.files.dir                                            // the app's own folder for big files (maps, media, indexes)
+ui.files.freeBytes                                      // what is still free on the watch
+ui.files.download("dl1", "https://…/switzerland.map", "maps/switzerland.map", wifiOnly = true)
+// → AppEvent.Download("dl1", RUNNING, bytes, total) about once a second, then DONE, FAILED (message) or CANCELLED
+ui.files.cancelDownload("dl1")
+
+ui.work("route", { router.route(from, to) }) { result -> show(result) }   // a background thread, onDone on the app thread
+ui.asset("apps/ch.example.app/data.json")                // a file the package ships with
+```
+
+**GPS** (`Sensor.LOCATION`, Berechtigung `location`): `rate` in Sekunden (1–60, Standard 1). Das GPS läuft nur,
+solange eine App, die es abonniert hat, auf der Brille zu sehen ist; verdeckt geht es aus (Akku), sichtbar wieder
+an. Die erste Position kommt sofort, wenn die Uhr eine höchstens 30 s alte kennt. Neu seit Schnittstelle 5 im
+Ereignis: Geschwindigkeit (m/s), Fahrtrichtung (Grad, 0 = Norden) und Höhe (m), jeweils `null`, wenn die Uhr es
+nicht weiß. Beim ersten Abonnieren fragt Android auf dem Bildschirm der Uhr nach dem Standort
+(`ACCESS_FINE_LOCATION`); bis dahin steht auf der Brille „Standort bitte auf der Uhr erlauben“. Abgelehnt:
+„Standort der Uhr nicht erlaubt“, ausgeschaltet: „Standort der Uhr ist aus: in den Einstellungen der Uhr
+einschalten“, ohne GPS: „Kein GPS auf dieser Uhr“. Der
+Vordergrund-Dienst der Uhr-App hat dann zusätzlich den Typ `location`, damit das GPS bei dunklem Bildschirm
+weiterläuft.
+
+**Große Dateien** (`AppContext.files`): ein Ordner je App im Speicher der Uhr
+(`Android/data/ch.madtreasures.g2watch/files/app-data/<app id>/`), ohne Grenze außer dem freien Platz. Er bleibt
+über Neustarts, Updates und das Entfernen der App; was die App nicht mehr braucht, löscht sie selbst. Gelesen
+und geschrieben wird mit `java.io`, Großes in `work`.
+
+- `download(tag, url, name, wifiOnly)`: Berechtigung `network`, nur `https://`, `name` ist ein Pfad im Ordner
+  (Buchstaben, Ziffern, `.`, `_`, `-`, Teile mit `/`). Bis die Datei vollständig ist, heißt sie `<name>.part`;
+  ein abgebrochener Download derselben Datei geht dort weiter, wo er stand (HTTP-Range). Vor dem Umbenennen prüft
+  die Uhr die Größe; sie lässt immer 500 MB frei („Zu wenig Speicher auf der Uhr …“).
+- `wifiOnly = true` (Standard) lädt nur über WLAN, sonst auch über LTE. Die Uhr fordert das Netz dafür eigens an
+  (`ConnectivityManager.requestNetwork`), denn über Bluetooth zum Handy wäre es zu langsam; ist nach 30 s keines da:
+  „kein WLAN erreichbar“.
+- Ein Download läuft weiter, wenn die App verdeckt ist, und endet mit ihr. Ein neuer mit demselben `tag` ersetzt
+  den alten still.
+
+**Hintergrundarbeit** (`AppContext.work`): für alles, was länger dauert als die 50 ms eines Ereignisses (eine
+Route, ein Bild, ein Suchverzeichnis). `task` läuft auf einem Thread der Uhr (drei für alle Apps, mit etwas
+tieferer Priorität als die Brille) und darf den `AppContext` nicht anfassen; `onDone` bekommt das Ergebnis oder
+den Fehler auf dem App-Thread. Je App laufen höchstens zwei Aufgaben gleichzeitig; Aufgaben mit demselben `tag`
+nacheinander, und eine wartende macht einer neueren mit ihrem `tag` Platz (ihr `onDone` kommt nie) – so zeichnet
+eine Karte nur das neueste Bild. Mit der App enden die Aufgaben: eine laufende wird unterbrochen
+(`Thread.interrupted()`), es folgt kein `onDone`.
+
+**Eigene Dateien des Pakets** (`AppContext.asset`): Dateien unter `src/main/assets/` des Pakets, etwa Schriften,
+Tabellen oder ein Katalog; `null`, wenn es keine gibt.
+
+**Speicher:** Die Faustregel „höchstens 20 MB“ (00) gilt für den App-Thread. Hintergrundarbeit darf mehr, soll
+aber knapp bleiben, weil alle Apps und die Brille in einem Prozess laufen: Navi bleibt bei Suchverzeichnis und
+Routen unter 64 MB (gemessen in eigenen JVMs mit `-Xmx64m`, `HeapTest`).
+
+**Im Code:** `app-api/…/apps/Files.kt`, `AppContext.files`/`work`/`asset`, `AppEvent.Location`/`Download`; im
+Host `AppHost` (Abschnitt „GPS, files and downloads“), `apps/host/WorkQueue.kt`, `apps/files/Downloads.kt`
+(`HttpDownloader`, ohne Android, testbar) mit `WearNetworkConnector.kt`, `apps/location/LocationEngine.kt` und
+`WatchLocation.kt`.
+
+**Tests (ohne Hardware):** `AppHostLocationTest` (Abonnieren, Takt, ohne Berechtigung, verdeckt ruht das GPS,
+Abmelden und Ende mit der App, Hinweise auf der Brille), `AppHostFilesTest` (eigener Ordner, Download mit
+Fortschritt und Ende, LTE nur auf Wunsch, Berechtigung, `https` und Dateinamen, Abbrechen und Ersetzen, Ende mit
+der App, eigene Dateien; Hintergrundarbeit: Ergebnis auf dem App-Thread, Fehler, ein `tag` nach dem anderen und
+zwei nebeneinander, Ende mit der App), `HttpDownloaderTest` (ganze Datei, Weiterladen, Server ohne Range, zu
+langer Teil, Fehlerstatus, zu wenig Platz, Abbrechen, Größe aus `Content-Range`) und `AppJsonTest`; dazu im Paket
+Navi `NaviHostTest`.
+
+**Nicht erprobt:** alles auf der echten Uhr – wie schnell und genau das GPS der Pixel Watch die erste Position
+findet, ob `requestNetwork` das WLAN der Uhr für einen Download weckt, wie schnell ein Download von mehreren
+hundert MB auf der Uhr läuft und wie warm sie dabei wird.

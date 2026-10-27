@@ -166,6 +166,11 @@ sich über die Web-Seite installieren.
 
 **Ziel:** Apps hören zu und spüren Bewegung.
 
+**Stand (v0.12.0): der Standort ist gebaut**, für Uhr-Apps ([03 §14](03_Uhr-Apps.md#14-gps-große-dateien-und-hintergrundarbeit-v0120-schnittstelle-5)):
+GPS der Uhr als `location`, mit Geschwindigkeit, Richtung und Höhe, nur solange die App zu sehen ist; erste
+Nutzerin ist das Paket [Navi](../../packages/navi/README.md). Nicht auf Hardware erprobt. Der Rest von M6 (IMU,
+Kompass, Mikrofon der Brille, Summer, der Standort für Rechner- und EvenHub-Apps) ist noch zu bauen.
+
 - Uhr: IMU, Kompass, Mikrofon (LC3), Summer aus `GlassesSessionCore` und den Standort der Uhr an den
   AppHost anschließen; nur aktiv, solange eine sichtbare App sie abonniert hat ([03 §6](03_Uhr-Apps.md#6-sensoren-mikrofon-summer-m6)).
   Umgebungslicht erst, wenn geklärt ist, wie es ohne Eingriff in die Helligkeitsregelung geht.

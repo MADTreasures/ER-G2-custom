@@ -187,7 +187,7 @@ Gleiche JSON-Form in beiden Laufzeiten:
 { "kind": "timer",    "tag": "tick" }
 { "kind": "sensor",   "sensor": "imu", "x": 0.02, "y": -0.98, "z": 0.11, "t": 1727600000123 }
 { "kind": "sensor",   "sensor": "compass", "heading": 213.5, "t": 1727600000123 }
-{ "kind": "sensor",   "sensor": "location", "lat": 47.37, "lon": 8.54, "acc": 12, "t": 1727600000123 }
+{ "kind": "sensor",   "sensor": "location", "lat": 47.37, "lon": 8.54, "acc": 12, "t": 1727600000123, "speed": 1.4, "bearing": 92, "alt": 412 }
 { "kind": "audio",    "seq": 17, "pcm": "<16-kHz-PCM, siehe unten>" }
 { "kind": "menu",     "item": "sortieren" }
 { "kind": "text",     "tag": "suche", "text": "Katzen im Schnee" }
@@ -198,6 +198,7 @@ Gleiche JSON-Form in beiden Laufzeiten:
 { "kind": "imageScroll", "page": "p_seite", "block": "seite", "dy": 195 }
 { "kind": "key",      "key": "é", "text": "é", "shift": false, "ctrl": false, "alt": false, "meta": false, "repeat": false }
 { "kind": "phone",    "state": "message", "text": "{\"t\":\"state\",\"running\":true}", "message": null }
+{ "kind": "download", "tag": "dl1", "state": "running", "bytes": 52428800, "total": 334266727, "message": null }
 { "kind": "error",    "command": "patch", "code": "unknown_block", "message": "…" }
 ```
 
@@ -242,6 +243,12 @@ Gleiche JSON-Form in beiden Laufzeiten:
   unverändert), `disconnected` (zu Ende oder nicht zustande gekommen, auch ohne Berechtigung; der Grund deutsch
   in `message`). Jedes `connect` endet in `connected` oder `disconnected`; danach verbindet nur ein neues
   `connect` wieder.
+- `sensor` mit `location` (Uhr-Apps seit v0.12.0): Standort vom GPS der Uhr, `acc` in Metern; seit Schnittstelle 5
+  auch `speed` (m/s), `bearing` (Fahrtrichtung in Grad, 0 = Norden) und `alt` (Meter über Meer), jeweils nur, wenn
+  die Uhr es weiß. Kommt nur, solange die App zu sehen ist ([03 §14](03_Uhr-Apps.md#14-gps-große-dateien-und-hintergrundarbeit-v0120-schnittstelle-5)).
+- `download` (Uhr-Apps, seit Schnittstelle 5): wie weit der Download `tag` ist, den die App mit `files.download`
+  begonnen hat: `running` etwa einmal pro Sekunde mit `bytes` von `total` (−1, solange unbekannt), dann `done`,
+  `failed` (Grund deutsch in `message`) oder `cancelled` ([03 §14](03_Uhr-Apps.md#14-gps-große-dateien-und-hintergrundarbeit-v0120-schnittstelle-5)).
 - `error`: nur bei Rechner-Apps; die Uhr hat einen Befehl abgelehnt (§6.2 „Fehler“).
 - Unbekannte `kind`-Werte ignoriert eine App. So kann die Plattform neue Ereignisse ergänzen.
 
@@ -268,6 +275,11 @@ Gleiche JSON-Form in beiden Laufzeiten:
 | `web` | `block` (ein `image`), `action`: `open` (`url` `https://`/`http://`, `reader`), `back`, `forward`, `reload`, `scroll` (`dy`), `tap` (`x`, `y`), `type` (`text`, `enter`), `key` (`key` wie beim Ereignis `key`, `shift`, `ctrl`, `alt`; seit Schnittstelle 3), `insert` (`text`: an der Stelle des Cursors, ohne zu ersetzen; seit Schnittstelle 3), `reader` (`on`), `contrast` (`outline`/`halo`/`plate`), `stop` | Web-Seite in einem Bild-Baustein (Berechtigung `network`): die Uhr lädt sie, zeichnet sie in der Größe des Bausteins und schreibt das Brillenbild hinein; Zustand als Ereignis `web`. `open` in einem Baustein mit Seite lädt die neue Adresse als nächste Seite ihres Verlaufs. Verdeckt ruht die Seite, mit der App endet sie. Details [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080) (seit Schnittstelle 2, v0.8.0) |
 | `phone` | `action`: `connect` (`partner`: Android-Paketname der App auf dem Handy), `send` (`text`, ≤ 64 KiB), `microphone` (`on`), `disconnect` | Verbindung zu einer App auf dem gekoppelten Handy, über die Handy-App „G2 Handy“ (Berechtigung `phone`, für das Mikrofon der Uhr zusätzlich `watch-mic`). Eine Verbindung je App, sie endet mit der App; ein zweites `connect` zum selben Partner tut nichts. Nachrichten nur, solange sie steht, höchstens 20 je Sekunde. Das Mikrofon der Uhr (16 kHz, mono) geht zum Partner, nur solange die App zu sehen ist; verdeckt geht es aus und bleibt aus. Ergebnis als Ereignis `phone`. Details [03 §13](03_Uhr-Apps.md#13-apps-auf-dem-handy-v0100-schnittstelle-4) (seit Schnittstelle 4, v0.10.0) |
 | `close` | – | App beenden |
+
+Nur Uhr-Apps (Kotlin, seit Schnittstelle 5): ein eigener Ordner für große Dateien mit Downloads
+(`files.download`, `files.cancelDownload`), Hintergrundarbeit (`work`) und eigene Dateien des Pakets (`asset`),
+[03 §14](03_Uhr-Apps.md#14-gps-große-dateien-und-hintergrundarbeit-v0120-schnittstelle-5). Rechner-Apps haben
+dafür ihren Rechner.
 
 `patch`-Felder je Baustein: `heading`/`text`: `text`, `align`; `button`: `text`, `target`;
 `list`: `items` (ganz) oder `item: { "index", "text"?, "done"? }`; `toggle`: `text`, `on`;
@@ -340,10 +352,10 @@ Klick gelten einmal je Druck.
 
 | Name | Erlaubt |
 |---|---|
-| `network` | Internet (Uhr-Apps: HTTP-Abfragen; Rechner-Apps haben das immer, der Eintrag dient nur der Anzeige) |
+| `network` | Internet (Uhr-Apps: HTTP-Abfragen und Downloads; Rechner-Apps haben das immer, der Eintrag dient nur der Anzeige) |
 | `mic` | Mikrofon der Brille |
 | `imu`, `compass` | Sensor-Ereignisse |
-| `location` | Standort der Uhr (GPS) als Sensor-Ereignis |
+| `location` | Standort der Uhr (GPS) als Sensor-Ereignis (Uhr-Apps seit v0.12.0) |
 | `buzzer` | Summer der Brille |
 | `background` | Uhr-Apps: Timer auch verdeckt |
 | `phone` | Verbindung zu einer App auf dem Handy (Befehl `phone`, seit Schnittstelle 4) |
