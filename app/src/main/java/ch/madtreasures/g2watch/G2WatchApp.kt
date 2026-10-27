@@ -20,6 +20,8 @@ import ch.madtreasures.g2watch.apps.host.HardwareSink
 import ch.madtreasures.g2watch.apps.host.InputRouter
 import ch.madtreasures.g2watch.apps.host.TextPrompts
 import ch.madtreasures.g2watch.apps.launcher.Launcher
+import ch.madtreasures.g2watch.apps.location.LocationPrompt
+import ch.madtreasures.g2watch.apps.location.WatchLocation
 import ch.madtreasures.g2watch.apps.packages.AppPackages
 import ch.madtreasures.g2watch.apps.packages.DexPackageLoader
 import ch.madtreasures.g2watch.apps.packages.PackageStore
@@ -74,6 +76,9 @@ class G2WatchApp : Application() {
     /** The question for the watch's microphone (apps that stream it to the phone), asked on the watch screen. */
     val micPrompt = MicPrompt()
 
+    /** The question for the watch's location (apps that use its GPS, interface 5), asked on the watch screen. */
+    val locationPrompt = LocationPrompt()
+
     private val appsLazy = lazy {
         val main = MainScheduler()
         val log: (String) -> Unit = { line -> main.post { glasses.note(line) } }
@@ -81,7 +86,14 @@ class G2WatchApp : Application() {
             scheduler = AppThread.scheduler(),
             screen = desktop,
             text = AndroidTextPainter(emojiFont),
-            ports = AndroidHostPorts(this, textPrompts, keyboard = { inputDevices.keyboard }, phoneEngine = { phoneLinks(log) }, logSink = log),
+            ports = AndroidHostPorts(
+                this,
+                textPrompts,
+                keyboard = { inputDevices.keyboard },
+                phoneEngine = { phoneLinks(log) },
+                locationEngine = { watchLocation() },
+                logSink = log,
+            ),
             installed = packages,
         ).also { desktop.connectApps(it) }
     }
@@ -98,6 +110,19 @@ class G2WatchApp : Application() {
             links.microphoneAllowed()
         }
         return links
+    }
+
+    /**
+     * The watch's GPS for the apps (interface 5). When the wearer allows the location, the glasses
+     * connection's foreground service gets its type, and apps that waited for it get positions.
+     */
+    private fun watchLocation(): WatchLocation {
+        val location = WatchLocation(this, locationPrompt)
+        locationPrompt.onAllowed = {
+            GlassesService.refresh(this)
+            location.allowed()
+        }
+        return location
     }
 
     /** Runs the watch apps and shows them on the glasses (docs/app-entwicklung/03). */

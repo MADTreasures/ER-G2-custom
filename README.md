@@ -14,7 +14,7 @@ ob GeckoView auf der Uhr gut genug läuft.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.11.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
+> **Ehrlicher Stand (v0.12.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
 > Custom-Firmware**: Pixel Watch 5 und G2, linkes Glas im ersten Anlauf; beim rechten brach der erste Anlauf
 > ab, nach dem angezeigten Weg (Brille laden, neu starten, erneut aufspielen) klappte es. Alles andere läuft
 > bisher nur gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
@@ -45,6 +45,11 @@ ob GeckoView auf der Uhr gut genug läuft.
 > Neu in 0.11.0: Der **[Starter](#apps-auf-der-brille)** ist das Hauptmenü der Brille. Er steht nach dem
 > Verbinden auf der Brille, jede App kehrt zu ihm zurück, und Zurück bleibt auf ihm stehen. Die Kacheln Uhr,
 > Notiz, Zähler, Info und Hilfe sind weg. Nicht auf Hardware erprobt.
+> Neu in 0.12.0: Apps bekommen das **GPS der Uhr**, einen **eigenen Ordner für große Dateien mit Downloads**
+> (WLAN, auf Wunsch LTE, abgebrochene gehen weiter) und **Hintergrundarbeit** (Schnittstelle 5). Erste Nutzerin:
+> die **[Navigation „Navi“](#navigation-offline-navi)** 1.0.0 – Karten jedes Landes der Welt einzeln auf die Uhr
+> laden, Ziel suchen, Start und Ziel wählen, Abbiegehinweise im Stil von Evens Navigation, alles ohne Netz.
+> Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -138,8 +143,8 @@ Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
 [`docs/app-entwicklung`](docs/app-entwicklung/00_LIES_MICH.md)): Apps beschreiben ihre Oberfläche als
 Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
 verteilt die Eingaben. Jede App ist ein App-Paket, zurzeit **YouTube** ([YouTube auf der Brille](#youtube-auf-der-brille)),
-**Browser** ([Web-Browser auf der Brille](#web-browser-auf-der-brille)) und **Fluency**
-([Apps auf dem Handy](#apps-auf-dem-handy-g2-handy-und-fluency)).
+**Browser** ([Web-Browser auf der Brille](#web-browser-auf-der-brille)), **Fluency**
+([Apps auf dem Handy](#apps-auf-dem-handy-g2-handy-und-fluency)) und **Navi** ([Navigation offline](#navigation-offline-navi)).
 Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installieren](#eigene-apps-installieren)).
 
 | Starter | App-Menü | Berechtigung beim ersten Start |
@@ -288,11 +293,12 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
-zweimal antippen. Fertige Pakete: **YouTube**, **Browser** und **Fluency**, alle mit Symbol für den Starter (ein
+zweimal antippen. Fertige Pakete: **YouTube**, **Browser**, **Fluency** und **Navi**, alle mit Symbol für den Starter (ein
 Paket bringt sein Symbol als `assets/apps/<app-id>/icon.png` mit, [09 §2](docs/app-entwicklung/09_App-Pakete.md#2-das-paket)).
 Pakete ab 0.8.0 (Schnittstelle 2) brauchen die Uhr-App 0.8.0 oder neuer, Pakete mit Schnittstelle 3 (Tastatur,
-seit 0.9.0) die Uhr-App 0.9.0, Pakete mit Schnittstelle 4 (Apps auf dem Handy, seit 0.10.0; jedes Paket, das ab
-jetzt gebaut wird) die Uhr-App 0.10.0; ältere Pakete laufen weiter.
+seit 0.9.0) die Uhr-App 0.9.0, Pakete mit Schnittstelle 4 (Apps auf dem Handy, seit 0.10.0) die Uhr-App 0.10.0,
+Pakete mit Schnittstelle 5 (GPS, große Dateien, Hintergrundarbeit, seit 0.12.0; jedes Paket, das ab jetzt gebaut
+wird) die Uhr-App 0.12.0; ältere Pakete laufen weiter.
 
 ## Apps auf dem Handy: „G2 Handy“ und Fluency
 
@@ -339,6 +345,26 @@ es liegt (etwa „Kein Handy mit G2 Handy erreichbar“ oder „In Fluency ist �
 **Übersetzen** startet Fluency mit dem Mikrofon der Uhr (oder, unter *Ton*, dem des Handys). Wie die Teile
 zusammenhängen und was auf echter Hardware zu klären ist: [PLATTFORM.md](packages/fluency/PLATTFORM.md).
 **Nicht auf Hardware erprobt.**
+
+## Navigation offline: Navi
+
+Seit 0.12.0 navigiert die Brille **ohne Netz** zu Fuß und mit dem Velo: Das Paket **Navi**
+([`packages/navi`](packages/navi/README.md)) lädt die Karten einzelner Länder auf die Uhr, **jedes Land der
+Welt**, große auch nach Regionen (OpenStreetMap-Daten von download.mapsforge.org, mit Erkennung neuerer Stände),
+nimmt den Standort vom **GPS der Uhr** und zeigt Karte und Abbiegehinweise im Stil von Evens Navigation: unten
+links der Hinweis, rechts eine kleine Karte, die sich mit der Fahrtrichtung dreht, Tippen zeigt die ganze Karte.
+Ziel und Start sucht man auf der Uhr (Orte, Straßen, Haltestellen …); Route, Suche und Bilder rechnet die Uhr
+selbst. Die Schweiz braucht 340 MB, Deutschland 3,2 GB, ganz Europa 26 GB – auf die 64 GB der Pixel Watch 5
+passt viel, nur nicht die ganze Welt (rund 85 GB).
+
+| Navigation | Karte mit Standort | Karten auf der Uhr |
+|---|---|---|
+| ![Navi, Navigation](packages/navi/bilder/navi-navigation.png) | ![Navi, Karte](packages/navi/bilder/navi-karte.png) | ![Navi, Karten](packages/navi/bilder/navi-karten.png) |
+
+Installieren wie jedes Paket ([Eigene Apps installieren](#eigene-apps-installieren)); dann im Menü der App
+*Karten → Land hinzufügen*, das Land über WLAN laden, Standort auf der Uhr erlauben und ein Ziel suchen. Die
+**Demo-Fahrt** zeigt die Navigation im Sitzen. Gebaut und getestet mit der echten Karte der ganzen Schweiz,
+**nicht auf Hardware erprobt**.
 
 ## YouTube auf der Brille
 
@@ -635,9 +661,9 @@ die Uhr offline ist.
 
 | Modul | Inhalt |
 |---|---|
-| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der Video-Wiedergabe `apps/video`, der Browser-Engine `apps/web` (GeckoView, Erweiterung in `assets/webbridge/`), der Installation von App-Paketen `apps/packages`, Bluetooth-Tastatur und -Maus `input` und den Verbindungen zu Apps auf dem Handy samt Mikrofon der Uhr `apps/phone` |
+| [`app/`](app) | Wear-OS-App: Uhr-Oberfläche, Maus, Einstellungen (aus dem Uhr-Paket), das Firmware-Paket `ch.madtreasures.g2watch.firmware`, der App-Host `ch.madtreasures.g2watch.apps` mit Starter, der Video-Wiedergabe `apps/video`, der Browser-Engine `apps/web` (GeckoView, Erweiterung in `assets/webbridge/`), der Installation von App-Paketen `apps/packages`, Bluetooth-Tastatur und -Maus `input`, den Verbindungen zu Apps auf dem Handy samt Mikrofon der Uhr `apps/phone`, dem GPS `apps/location` und den Ordnern und Downloads der Apps `apps/files` |
 | [`app-api/`](app-api) | Die Schnittstelle der Apps (`G2App`, `AppContext`, Ereignisse, Seiten), reines Kotlin; App-Pakete werden dagegen gebaut ([09](docs/app-entwicklung/09_App-Pakete.md)) |
-| [`packages/`](packages) | Ein Ordner je App-Paket, zurzeit [`youtube`](packages/youtube), [`browser`](packages/browser) und [`fluency`](packages/fluency). `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
+| [`packages/`](packages) | Ein Ordner je App-Paket, zurzeit [`youtube`](packages/youtube), [`browser`](packages/browser), [`fluency`](packages/fluency) und [`navi`](packages/navi). `./gradlew :packages:<name>:g2app` baut die `.g2app`-Datei |
 | [`phone/`](phone) | Handy-App „G2 Handy“: vermittelt zwischen Uhr-Apps und Apps auf dem Handy (Wear-OS-Datenschicht ⇄ Android-IPC). Hat die App-ID der Uhr-App, wird deshalb nur mit `-Pg2.phone=true` gebaut |
 | [`phone-link/`](phone-link) | Reines Kotlin: was Uhr-App und G2 Handy einander über die Datenschicht schicken (Pfade, Inhalte); beide benutzen es |
 | [`signing/`](signing/README.md) | Der gemeinsame Debug-Schlüssel von Uhr-App und G2 Handy |
@@ -660,7 +686,7 @@ die Uhr offline ist.
 ./gradlew -Pg2.geckoTest=true :gecko-probe:testDebugUnitTest
 ```
 
-Stand dieses Commits: 15 + 184 + 32 + 8 + 6 + 639 Tests grün, dazu 22 in G2 Handy und 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
+Stand dieses Commits: 15 + 184 + 32 + 8 + 6 + 720 Tests grün, dazu 22 in G2 Handy und 25 im Gecko-Test (Bild-Tests werden ohne `-PsnapshotDir` übersprungen,
 die Tests mit Evens echtem Image ohne `G2_STOCK_IMAGE`, der Vorschau-Test des Gecko-Tests ohne `PREVIEW_DIR`),
 Lint ohne Fehler. Die wichtigsten:
 
@@ -720,6 +746,11 @@ Lint ohne Fehler. Die wichtigsten:
   App), **`PhoneLinksTest`** (die Uhr-Seite mit simulierter Datenschicht, Mikrofon und Zeit: Öffnen, Ablehnen,
   Zeitlimit, Lebenszeichen, Übernahme, Ton-Kanal), **`PhoneLinkWireTest`**, in G2 Handy **`RelayTest`** und
   **`MessengerPartnersTest`** (Robolectric mit simuliertem Partner-Dienst, Ton durch eine echte Pipe).
+- **GPS, Dateien, Hintergrundarbeit:** **`AppHostLocationTest`** (Abo, Takt, nur sichtbar, Hinweise),
+  **`AppHostFilesTest`** (Ordner, Downloads, Berechtigung, Abbrechen, Ende mit der App, Hintergrundarbeit mit
+  `tag`), **`HttpDownloaderTest`** (Weiterladen, Platz, Fehler); im Paket Navi **`NaviAppTest`**,
+  **`NaviHostTest`** und mit `-PnaviData=<Ordner mit switzerland.map>` Tests auf der ganzen Schweiz samt
+  Speicherprüfung in JVMs mit 64 MB (**`HeapTest`**).
 - Bilder neu erzeugen (Uhr, Zeiger, Apps samt Starter, YouTube und Browser, Web-Raster): `./gradlew :app:testDebugUnitTest :web-raster:test --tests '*SnapshotTest*' -PsnapshotDir=$PWD/docs/bilder`
 - **`GlassesRasterizerTest`** (web-raster) – Grund, Bilder, lesbarer und negativer Text; **`LayoutParserTest`** –
   der Layout-Bericht von `page-layout.js`; die Tests des Gecko-Tests (`tools/gecko-probe`) prüfen Brücke,

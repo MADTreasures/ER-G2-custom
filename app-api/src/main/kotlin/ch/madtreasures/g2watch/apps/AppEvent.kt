@@ -45,8 +45,21 @@ sealed interface AppEvent {
     /** Heading in degrees (kind "sensor", sensor "compass"). From M6. */
     data class Compass(val heading: Float, val t: Long) : AppEvent
 
-    /** Position of the watch (kind "sensor", sensor "location"). From M6. */
-    data class Location(val lat: Double, val lon: Double, val acc: Float, val t: Long) : AppEvent
+    /**
+     * Position of the watch from its GPS (kind "sensor", sensor "location", since v0.12.0): [acc] in metres,
+     * [t] in ms since 1970. Since interface version 5 also the speed in m/s, the direction of travel in
+     * degrees (0 = north, clockwise) and the height above sea level in metres, each null when the watch
+     * does not know it. The constructor of version 1 to 4 stays ([JvmOverloads]), for packages built against them.
+     */
+    data class Location @JvmOverloads constructor(
+        val lat: Double,
+        val lon: Double,
+        val acc: Float,
+        val t: Long,
+        val speed: Float? = null,
+        val bearing: Float? = null,
+        val alt: Double? = null,
+    ) : AppEvent
 
     /** 50 ms of 16 kHz mono PCM from the glasses' microphone. Never sent as JSON. From M6. */
     class Audio(val pcm: ShortArray, val seq: Int) : AppEvent {
@@ -135,6 +148,19 @@ sealed interface AppEvent {
      * ([PhoneState.DISCONNECTED], [message] says why, German). Since interface version 4.
      */
     data class Phone(val state: PhoneState, val text: String? = null, val message: String? = null) : AppEvent
+
+    /**
+     * How far the download [tag] ([AppFiles.download]) got: [bytes] of [total] ([total] is −1 while
+     * unknown). [DownloadState.FAILED] comes with the reason in [message] (German). Since interface
+     * version 5.
+     */
+    data class Download(
+        val tag: String,
+        val state: DownloadState,
+        val bytes: Long,
+        val total: Long,
+        val message: String? = null,
+    ) : AppEvent
 }
 
 /**

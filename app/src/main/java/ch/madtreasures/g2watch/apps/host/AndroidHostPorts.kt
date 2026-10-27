@@ -10,6 +10,10 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.files.DownloadEngine
+import ch.madtreasures.g2watch.apps.files.HttpDownloader
+import ch.madtreasures.g2watch.apps.files.WearNetworkConnector
+import ch.madtreasures.g2watch.apps.location.LocationEngine
 import ch.madtreasures.g2watch.apps.phone.PhoneEngine
 import ch.madtreasures.g2watch.apps.video.AndroidVideoEngine
 import ch.madtreasures.g2watch.apps.video.VideoEngine
@@ -26,13 +30,15 @@ import java.util.concurrent.Executors
 /**
  * [HostPorts] on the watch. [logSink] receives lines for the watch log from any thread; [prompts] carries
  * text questions to the watch screen; [keyboard] tells whether a Bluetooth keyboard is connected; [phoneEngine]
- * makes the connection to the phone when the first app wants one.
+ * makes the connection to the phone when the first app wants one, [locationEngine] the GPS when the first
+ * app subscribes to it.
  */
 class AndroidHostPorts(
     context: Context,
     private val prompts: TextPrompts,
     private val keyboard: () -> Boolean = { false },
     phoneEngine: () -> PhoneEngine = { PhoneEngine.NONE },
+    locationEngine: () -> LocationEngine = { LocationEngine.NONE },
     private val logSink: (String) -> Unit,
 ) : HostPorts {
     private val context = context.applicationContext
@@ -146,6 +152,19 @@ class AndroidHostPorts(
     override val web: WebEngine by lazy { GeckoWebEngine(context, logSink) }
 
     override val phone: PhoneEngine by lazy(phoneEngine)
+
+    /**
+     * Large files of the apps in `Android/data/ch.madtreasures.g2watch/files/app-data/<app id>/`, where Android
+     * Studio's Device Explorer reaches them too (09 §4); without that storage inside the app.
+     */
+    private val appData: File by lazy { context.getExternalFilesDir("app-data") ?: File(context.filesDir, "app-data") }
+
+    override fun files(appId: String): File? = File(appData, appId).takeIf { it.isDirectory || it.mkdirs() }
+
+    /** Over Wi-Fi or LTE, which the download asks for itself. */
+    override val downloads: DownloadEngine by lazy { HttpDownloader(WearNetworkConnector(context)) }
+
+    override val location: LocationEngine by lazy(locationEngine)
 
     private companion object {
         const val TIMEOUT_MS = 10_000

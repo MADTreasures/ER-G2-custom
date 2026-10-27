@@ -23,8 +23,8 @@
          that have the "network" permission (AppContext.fetch). -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Videos ask Wear OS for WLAN or LTE instead of the Bluetooth link through the phone
-         (apps/video/FastNetwork.kt). -->
+    <!-- Videos and the apps' downloads ask Wear OS for WLAN or LTE instead of the Bluetooth link through
+         the phone (apps/video/FastNetwork.kt, apps/files/WearNetworkConnector.kt). -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
 
@@ -33,6 +33,16 @@
          through the foreground service's type "microphone". -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <!-- The watch's GPS for apps with the "location" permission (interface 5, Sensor.LOCATION); asked
+         for when the first such app subscribes. With the screen dark only through the foreground
+         service's type "location". -->
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <application
         android:name=".G2WatchApp"
@@ -67,7 +77,7 @@
         <service
             android:name=".glasses.GlassesService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice|microphone" />
+            android:foregroundServiceType="connectedDevice|microphone|location" />
 
         <!-- Keeps the watch awake while firmware is prepared and transferred. -->
         <service

@@ -77,6 +77,9 @@ object AppJson {
             is AppEvent.Location -> {
                 put("kind", "sensor"); put("sensor", "location")
                 put("lat", event.lat); put("lon", event.lon); put("acc", event.acc); put("t", event.t)
+                event.speed?.let { put("speed", it) }
+                event.bearing?.let { put("bearing", it) }
+                event.alt?.let { put("alt", it) }
             }
             is AppEvent.TextInput -> {
                 put("kind", "text"); put("tag", event.tag); put("text", event.text)
@@ -110,6 +113,10 @@ object AppJson {
             is AppEvent.Phone -> {
                 put("kind", "phone"); put("state", event.state.json); put("text", event.text); put("message", event.message)
             }
+            is AppEvent.Download -> {
+                put("kind", "download"); put("tag", event.tag); put("state", event.state.json)
+                put("bytes", event.bytes); put("total", event.total); put("message", event.message)
+            }
         }
     }
 
@@ -135,7 +142,10 @@ object AppJson {
             "sensor" -> when (val sensor = string(o, "sensor")) {
                 "imu" -> AppEvent.Imu(float(o, "x"), float(o, "y"), float(o, "z"), long(o, "t"))
                 "compass" -> AppEvent.Compass(float(o, "heading"), long(o, "t"))
-                "location" -> AppEvent.Location(double(o, "lat"), double(o, "lon"), float(o, "acc"), long(o, "t"))
+                "location" -> AppEvent.Location(
+                    double(o, "lat"), double(o, "lon"), float(o, "acc"), long(o, "t"),
+                    optFloat(o, "speed"), optFloat(o, "bearing"), optDouble(o, "alt"),
+                )
                 else -> bad("unbekannter Sensor „$sensor“")
             }
             "text" -> AppEvent.TextInput(string(o, "tag"), optString(o, "text"))
@@ -175,6 +185,13 @@ object AppJson {
             "phone" -> AppEvent.Phone(
                 PhoneState.of(string(o, "state")) ?: bad("unbekannter Verbindungszustand „${o["state"]}“"),
                 optString(o, "text"),
+                optString(o, "message"),
+            )
+            "download" -> AppEvent.Download(
+                string(o, "tag"),
+                DownloadState.of(string(o, "state")) ?: bad("unbekannter Download-Zustand „${o["state"]}“"),
+                optLong(o, "bytes") ?: 0,
+                optLong(o, "total") ?: -1,
                 optString(o, "message"),
             )
             else -> null
@@ -480,6 +497,14 @@ object AppJson {
         (o[key] as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull ?: bad("„$key“ muss eine Zahl sein")
 
     private fun float(o: JsonObject, key: String): Float = double(o, key).toFloat()
+
+    private fun optDouble(o: JsonObject, key: String): Double? {
+        val v = o[key] ?: return null
+        if (v is JsonNull) return null
+        return (v as? JsonPrimitive)?.takeIf { !it.isString }?.doubleOrNull ?: bad("„$key“ muss eine Zahl sein")
+    }
+
+    private fun optFloat(o: JsonObject, key: String): Float? = optDouble(o, key)?.toFloat()
 
     private fun array(o: JsonObject, key: String): JsonArray = o[key] as? JsonArray ?: bad("„$key“ muss eine Liste sein")
 

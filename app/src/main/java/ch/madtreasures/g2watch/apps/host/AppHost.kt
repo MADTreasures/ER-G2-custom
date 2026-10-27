@@ -4,6 +4,7 @@ import ch.madtreasures.g2watch.Scheduler
 import ch.madtreasures.g2watch.apps.Align
 import ch.madtreasures.g2watch.apps.AppCommand
 import ch.madtreasures.g2watch.apps.AppEvent
+import ch.madtreasures.g2watch.apps.AppFiles
 import ch.madtreasures.g2watch.apps.AppManifest
 import ch.madtreasures.g2watch.apps.AppStorage
 import ch.madtreasures.g2watch.apps.BaukastenFormatException
@@ -11,6 +12,7 @@ import ch.madtreasures.g2watch.apps.BaukastenProject
 import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.BuzzNote
 import ch.madtreasures.g2watch.apps.CommandException
+import ch.madtreasures.g2watch.apps.DownloadState
 import ch.madtreasures.g2watch.apps.G2App
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.HttpRequest
@@ -34,10 +36,15 @@ import ch.madtreasures.g2watch.apps.VideoState
 import ch.madtreasures.g2watch.apps.WebAction
 import ch.madtreasures.g2watch.apps.WebState
 import ch.madtreasures.g2watch.apps.builtInApps
+import ch.madtreasures.g2watch.apps.files.DownloadJob
+import ch.madtreasures.g2watch.apps.files.DownloadListener
+import ch.madtreasures.g2watch.apps.files.DownloadRequest
 import ch.madtreasures.g2watch.apps.launcher.LaunchEntry
 import ch.madtreasures.g2watch.apps.launcher.LaunchKind
 import ch.madtreasures.g2watch.apps.launcher.Launcher
 import ch.madtreasures.g2watch.apps.launcher.LauncherHost
+import ch.madtreasures.g2watch.apps.location.LocationLine
+import ch.madtreasures.g2watch.apps.location.LocationListener
 import ch.madtreasures.g2watch.apps.phone.PhoneLine
 import ch.madtreasures.g2watch.apps.phone.PhoneListener
 import ch.madtreasures.g2watch.apps.render.FocusTarget
@@ -66,6 +73,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.JsonElement
+import java.io.File
 import java.util.Base64
 import kotlin.math.abs
 
@@ -471,6 +479,7 @@ class AppHost(
                 pauseTimers(old)
                 syncMedia(old)
                 phoneMicOff(old)
+                syncLocation(old)
             }
         }
         visible = s
@@ -478,6 +487,7 @@ class AppHost(
         if (s.started) {
             resumeTimers(s)
             syncMedia(s)
+            syncLocation(s)
             deliver(s, AppEvent.Visible)
         }
         if (s.isLauncher) refreshLauncher()
@@ -501,6 +511,11 @@ class AppHost(
         s.webs.clear()
         s.phone?.line?.close()
         s.phone = null
+        s.location?.stop()
+        s.location = null
+        s.downloads.values.forEach { it.job?.cancel() }
+        s.downloads.clear()
+        s.work?.end()
         if (question?.session === s) {
             question = null
             ports.cancelText()
@@ -995,9 +1010,24 @@ class AppHost(
             is AppCommand.Subscribe -> {
                 command.sensor.permission?.let { requirePermission(s, it) }
                 s.subscriptions += command.sensor
-                if (command.sensor != Sensor.GESTURES && command.sensor != Sensor.KEYS) notYet(s, command.sensor.json)
+                when (command.sensor) {
+                    Sensor.GESTURES, Sensor.KEYS -> Unit
+                    Sensor.LOCATION -> {
+                        if (command.rate != s.locationRate) {
+                            // A new rate: the GPS starts over with it.
+                            s.locationRate = command.rate
+                            s.location?.stop()
+                            s.location = null
+                        }
+                        syncLocation(s)
+                    }
+                    else -> notYet(s, command.sensor.json)
+                }
             }
-            is AppCommand.Unsubscribe -> s.subscriptions -= command.sensor
+            is AppCommand.Unsubscribe -> {
+                s.subscriptions -= command.sensor
+                if (command.sensor == Sensor.LOCATION) syncLocation(s)
+            }
             is AppCommand.Audio -> {
                 requirePermission(s, Permission.MIC)
                 if (command.on) notYet(s, "Mikrofon")
@@ -1659,6 +1689,76 @@ class AppHost(
         }
     }
 
+    // --- GPS, files and downloads (interface 5) -----------------------------------------------------
+
+    /**
+     * The watch's GPS runs for [s] while it subscribed to [Sensor.LOCATION] and is on the glasses: a hidden
+     * app gets no positions, and the receiver rests. The rate is in seconds (03 §14).
+     */
+    private fun syncLocation(s: Session) {
+        val wanted = !s.ended && s.started && s.visible && Sensor.LOCATION in s.subscriptions
+        val line = s.location
+        if (wanted && line == null) {
+            val seconds = if (s.locationRate <= 0) 1 else s.locationRate.coerceAtMost(MAX_LOCATION_SECONDS)
+            lateinit var started: LocationLine
+            started = ports.location.start(
+                seconds * 1000L,
+                object : LocationListener {
+                    override fun onFix(fix: AppEvent.Location) = scheduler.post {
+                        if (s.location === started && !s.ended) deliver(s, fix)
+                    }
+
+                    override fun onNotice(message: String) = scheduler.post {
+                        if (s.location !== started || s.ended) return@post
+                        ports.log("${s.manifest.name}: $message")
+                        showToast(s, message, NOTICE_MS)
+                    }
+                },
+            )
+            s.location = started
+        } else if (!wanted && line != null) {
+            s.location = null
+            line.stop()
+        }
+    }
+
+    /** A download of an app; [job] is set right after it started. */
+    private class ActiveDownload(val tag: String, val name: String) {
+        var job: DownloadJob? = null
+    }
+
+    /** The folder of [s]'s large files, or null where the host keeps none. */
+    private fun filesOf(s: Session): File? = ports.files(s.manifest.id)
+
+    private fun download(s: Session, tag: String, url: String, name: String, wifiOnly: Boolean) {
+        requirePermission(s, Permission.NETWORK)
+        if (tag.isEmpty() || tag.length > MAX_TAG) throw CommandException.badValue("Download braucht einen Namen mit 1 bis $MAX_TAG Zeichen")
+        if (!url.startsWith("https://") || url.length > MAX_URL) throw CommandException.badValue("Nur https://-Adressen, nicht $url")
+        if (!AppFiles.isValidName(name)) throw CommandException.badValue("Ungültiger Dateiname „$name“")
+        val dir = filesOf(s) ?: throw CommandException.badValue("Diese Uhr-App hat keinen Ordner für Dateien")
+        s.downloads.remove(tag)?.job?.cancel()
+        val active = ActiveDownload(tag, name)
+        s.downloads[tag] = active
+        active.job = ports.downloads.start(
+            DownloadRequest(url, File(dir, name), wifiOnly),
+            object : DownloadListener {
+                override fun onProgress(bytes: Long, total: Long) = scheduler.post {
+                    if (s.downloads[tag] === active && !s.ended) deliver(s, AppEvent.Download(tag, DownloadState.RUNNING, bytes, total))
+                }
+
+                override fun onEnd(state: DownloadState, bytes: Long, total: Long, message: String?) = scheduler.post {
+                    if (s.downloads[tag] !== active || s.ended) return@post
+                    s.downloads.remove(tag)
+                    if (state == DownloadState.FAILED) ports.log("${s.manifest.name}: Download $name – $message")
+                    deliver(s, AppEvent.Download(tag, state, bytes, total, message))
+                }
+            },
+        )
+    }
+
+    private fun workQueue(s: Session): WorkQueue =
+        s.work ?: WorkQueue(ports::runWork, scheduler::post, { tag, block -> runApp(s, "work $tag", block) }).also { s.work = it }
+
     // --- The phone (interface 4) -------------------------------------------------------------------
 
     /** An app's connection to [partner] on the phone; [line] goes through G2 Handy ([HostPorts.phone]). */
@@ -1948,6 +2048,14 @@ class AppHost(
         val videos = LinkedHashMap<String, ActiveVideo>()
         val webs = LinkedHashMap<String, ActiveWeb>()
         var phone: ActivePhone? = null
+
+        /** The watch's GPS while the app subscribed to it and is on the glasses (interface 5). */
+        var location: LocationLine? = null
+        var locationRate = 0
+
+        /** Running downloads by tag (interface 5). */
+        val downloads = HashMap<String, ActiveDownload>()
+        var work: WorkQueue? = null
         var project: BaukastenProject? = null
         var granted: Set<Permission> = emptySet()
         var menu: List<MenuItem> = emptyList()
@@ -2015,6 +2123,24 @@ class AppHost(
 
         override fun phone(action: PhoneAction) = command(AppCommand.Phone(action))
 
+        override val files: AppFiles = object : AppFiles {
+            override val dir: File? get() = filesOf(s)
+
+            override val freeBytes: Long get() = filesOf(s)?.usableSpace ?: 0
+
+            override fun download(tag: String, url: String, name: String, wifiOnly: Boolean) =
+                guarded("download") { download(s, tag, url, name, wifiOnly) }
+
+            override fun cancelDownload(tag: String) = guarded("cancelDownload") { s.downloads[tag]?.job?.cancel() }
+        }
+
+        override fun <T> work(tag: String, task: () -> T, onDone: (Result<T>) -> Unit) = guarded("work") {
+            if (tag.isEmpty() || tag.length > MAX_TAG) throw CommandException.badValue("Arbeit braucht einen Namen mit 1 bis $MAX_TAG Zeichen")
+            workQueue(s).submit(tag, task, onDone)
+        }
+
+        override fun asset(path: String): ByteArray? = s.assets(path)
+
         override val storage: AppStorage = object : AppStorage {
             private val store by lazy { ports.storage(s.manifest.id) }
 
@@ -2068,6 +2194,9 @@ class AppHost(
 
         /** Messages an app may send to the phone per second (interface 4). */
         const val MAX_PHONE_MESSAGES = 20
+
+        /** The slowest GPS rate an app may ask for, in seconds (interface 5). */
+        const val MAX_LOCATION_SECONDS = 60
 
         /** The wearer did not allow it when the app asked (02 §8); the answer holds until the app's version changes. */
         const val PHONE_DENIED = "Verbindung zum Handy nicht erlaubt"

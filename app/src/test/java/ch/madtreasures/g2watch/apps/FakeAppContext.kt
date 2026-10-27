@@ -63,6 +63,74 @@ class FakeAppContext(
     /** A Bluetooth keyboard on the watch ([AppContext.keyboard]); tests switch it on. */
     override var keyboard = false
 
+    /** The app's folder for large files (interface 5): a fresh temporary folder, or one a test sets. */
+    var filesDir: File = kotlin.io.path.createTempDirectory("g2-app-files").toFile().apply { deleteOnExit() }
+
+    /** Free bytes the watch reports ([AppFiles.freeBytes]); tests lower it. */
+    var freeBytes = 20L shl 30
+
+    /** Downloads the app started, in order; the test answers with [AppEvent.Download] ([finishDownload] helps). */
+    val downloads = mutableListOf<FakeFileDownload>()
+
+    /** Tags of the downloads the app cancelled. */
+    val cancelledDownloads = mutableListOf<String>()
+
+    override val files: AppFiles = object : AppFiles {
+        override val dir: File get() = filesDir
+
+        override val freeBytes: Long get() = this@FakeAppContext.freeBytes
+
+        override fun download(tag: String, url: String, name: String, wifiOnly: Boolean) {
+            require(Permission.NETWORK)
+            require(tag.isNotEmpty() && tag.length <= 40) { "download tag $tag" }
+            require(url.startsWith("https://")) { "https only: $url" }
+            require(AppFiles.isValidName(name)) { "${CommandException.BAD_VALUE}: file name $name" }
+            downloads.removeAll { it.tag == tag }
+            downloads += FakeFileDownload(tag, url, name, wifiOnly)
+        }
+
+        override fun cancelDownload(tag: String) {
+            cancelledDownloads += tag
+        }
+    }
+
+    /** The open download [tag]. */
+    fun download(tag: String): FakeFileDownload = downloads.lastOrNull { it.tag == tag } ?: throw AssertionError("no download $tag (have ${downloads.map { it.tag }})")
+
+    /**
+     * Completes download [tag] as the host would: [content] lands in its file. Returns the event the app
+     * then gets.
+     */
+    fun finishDownload(tag: String, content: ByteArray): AppEvent.Download {
+        val d = download(tag)
+        downloads.remove(d)
+        File(filesDir, d.name).apply { parentFile?.mkdirs() }.writeBytes(content)
+        return AppEvent.Download(tag, DownloadState.DONE, content.size.toLong(), content.size.toLong())
+    }
+
+    /** With [queueWork], [work] tasks wait in [waitingWork] until [runWork]; otherwise they run at once. */
+    var queueWork = false
+
+    /** Waiting work: tag → the task together with its [onDone]. */
+    val waitingWork = mutableListOf<Pair<String, () -> Unit>>()
+
+    override fun <T> work(tag: String, task: () -> T, onDone: (Result<T>) -> Unit) {
+        require(tag.isNotEmpty() && tag.length <= 40) { "work tag $tag" }
+        val job = { onDone(runCatching(task)) }
+        if (!queueWork) return job()
+        // As in the host: a task that has not started gives way to a newer one with its tag.
+        waitingWork.removeAll { it.first == tag }
+        waitingWork += tag to job
+    }
+
+    /** The app's assets, from its package's `src/main/assets` (or the app's and the tests' asset folders). */
+    override fun asset(path: String): ByteArray? = assetFile(path).takeIf { it.isFile }?.readBytes()
+
+    /** Runs the waiting work, oldest first, including what it adds, until none is left. */
+    fun runWork() {
+        while (waitingWork.isNotEmpty()) waitingWork.removeAt(0).second()
+    }
+
     val current: Page? get() = pages.current
 
     fun page(id: String): Page = pages.page(id) ?: throw AssertionError("no page $id (have ${pages.pageIds()})")
@@ -321,3 +389,6 @@ fun Page.valueOf(blockId: String): String = (block(blockId) as? Block.Value)?.va
 
 /** The rows of a list block. */
 fun Page.itemsOf(blockId: String): List<ListItem> = (block(blockId) as? Block.List)?.items ?: throw AssertionError("$blockId is no list")
+
+/** A download an app started through [FakeAppContext.files]. */
+data class FakeFileDownload(val tag: String, val url: String, val name: String, val wifiOnly: Boolean)

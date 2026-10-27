@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -50,6 +51,9 @@ class AppJsonTest {
         AppEvent.Phone(PhoneState.CONNECTED),
         AppEvent.Phone(PhoneState.MESSAGE, """{"t":"utt","text":"Grüezi"}"""),
         AppEvent.Phone(PhoneState.DISCONNECTED, message = "Fluency wurde auf dem Handy beendet"),
+        AppEvent.Location(47.3769, 8.5417, 4.5f, 1727600000123, speed = 1.4f, bearing = 271.5f, alt = 408.25),
+        AppEvent.Download("schweiz", DownloadState.RUNNING, 1_048_576, 334_512_345),
+        AppEvent.Download("schweiz", DownloadState.FAILED, 2_000, -1, "kein WLAN erreichbar"),
     )
 
     @Test
@@ -251,6 +255,41 @@ class AppJsonTest {
         assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "key" }""")) }
         assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "key" }""")) }
         assertThrows(CommandException::class.java) { AppJson.decodeCommand(json("""{ "c": "web", "block": "seite", "action": "insert" }""")) }
+    }
+
+    @Test
+    fun `GPS and downloads read as written in the app model chapter`() {
+        // 02 §6.1: interface version 5. A position without speed, direction and height keeps the old JSON.
+        assertEquals(
+            json("""{ "kind": "sensor", "sensor": "location", "lat": 47.37, "lon": 8.54, "acc": 12.0, "t": 1727600000123 }"""),
+            AppJson.encodeEvent(AppEvent.Location(47.37, 8.54, 12f, 1727600000123)),
+        )
+        assertEquals(
+            AppEvent.Location(47.37, 8.54, 12f, 1727600000123, speed = 3.5f, bearing = 90f, alt = 412.0),
+            AppJson.decodeEvent(
+                json("""{ "kind": "sensor", "sensor": "location", "lat": 47.37, "lon": 8.54, "acc": 12, "t": 1727600000123, "speed": 3.5, "bearing": 90, "alt": 412 }"""),
+            ),
+        )
+        assertEquals(
+            json("""{ "kind": "download", "tag": "schweiz", "state": "done", "bytes": 334512345, "total": 334512345, "message": null }"""),
+            AppJson.encodeEvent(AppEvent.Download("schweiz", DownloadState.DONE, 334_512_345, 334_512_345)),
+        )
+        assertEquals(
+            AppEvent.Download("schweiz", DownloadState.RUNNING, 0, -1),
+            AppJson.decodeEvent(json("""{ "kind": "download", "tag": "schweiz", "state": "running" }""")),
+        )
+        assertThrows(CommandException::class.java) { AppJson.decodeEvent(json("""{ "kind": "download", "tag": "x", "state": "fliegt" }""")) }
+        assertThrows(CommandException::class.java) {
+            AppJson.decodeEvent(json("""{ "kind": "sensor", "sensor": "location", "lat": 1, "lon": 2, "acc": 3, "t": 4, "speed": "schnell" }"""))
+        }
+    }
+
+    @Test
+    fun `file names stay inside the app's folder`() {
+        for (good in listOf("a.map", "maps/switzerland.map", "index/ch-2026_09.idx", "a-b_c.d")) assertTrue(good, AppFiles.isValidName(good))
+        for (bad in listOf("", "..", ".", "../a", "a/../b", "/a", "a/", "a//b", "a b", "ä.map", "a\\b", "x".repeat(201))) {
+            assertFalse(bad, AppFiles.isValidName(bad))
+        }
     }
 
     @Test
