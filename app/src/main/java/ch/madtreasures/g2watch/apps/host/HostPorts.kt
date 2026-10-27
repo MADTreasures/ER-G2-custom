@@ -9,10 +9,13 @@ import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
+import ch.madtreasures.g2watch.apps.files.DownloadEngine
+import ch.madtreasures.g2watch.apps.location.LocationEngine
 import ch.madtreasures.g2watch.apps.phone.PhoneEngine
 import ch.madtreasures.g2watch.apps.video.VideoEngine
 import ch.madtreasures.g2watch.apps.web.WebEngine
 import ch.madtreasures.g2watch.desktop.GrayRaster
+import java.io.File
 
 /** What the app host needs from the platform: Android on the watch, fakes in tests. */
 interface HostPorts {
@@ -62,6 +65,21 @@ interface HostPorts {
 
     /** Apps on the phone, through G2 Handy (interface 4, [ch.madtreasures.g2watch.apps.AppContext.phone]). */
     val phone: PhoneEngine get() = PhoneEngine.NONE
+
+    /**
+     * The folder of app [appId] for large files ([ch.madtreasures.g2watch.apps.AppFiles], interface 5,
+     * 03 §14), created if needed; null where the host keeps none. Called on the app thread.
+     */
+    fun files(appId: String): File? = null
+
+    /** Downloads into those folders (interface 5). */
+    val downloads: DownloadEngine get() = DownloadEngine.NONE
+
+    /** The watch's GPS ([ch.madtreasures.g2watch.apps.Sensor.LOCATION], interface 5). */
+    val location: LocationEngine get() = LocationEngine.NONE
+
+    /** Runs one task of an app's background work ([ch.madtreasures.g2watch.apps.AppContext.work]) on a background thread. */
+    fun runWork(job: Runnable) = WorkPool.execute(job)
 }
 
 /** The glasses as apps may know them (03 §5.2). */

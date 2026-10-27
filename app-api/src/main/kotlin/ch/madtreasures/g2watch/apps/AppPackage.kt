@@ -20,9 +20,12 @@ object G2AppApi {
      * [AppEvent.Web], [AppEvent.ImageClick], [AppEvent.ImageScroll]; v0.8.0). 3: Bluetooth keyboards
      * ([Sensor.KEYS], [AppEvent.Key], [Keys], [WebAction.Key], [WebAction.Insert], [AppContext.keyboard];
      * v0.9.0). 4: an app on the phone ([AppContext.phone], [PhoneAction], [AppEvent.Phone], [PhoneState],
-     * [Permission.PHONE], [Permission.WATCH_MIC]; v0.10.0).
+     * [Permission.PHONE], [Permission.WATCH_MIC]; v0.10.0). 5: the watch's GPS behind [Sensor.LOCATION],
+     * with speed, direction and height in [AppEvent.Location], large files ([AppContext.files], [AppFiles],
+     * [AppEvent.Download], [DownloadState]), background work ([AppContext.work]) and the app's own assets
+     * ([AppContext.asset]; v0.12.0).
      */
-    const val VERSION = 4
+    const val VERSION = 5
 }
 
 /** A broken or unsuitable app package; [message] is German and meant for the wearer. */

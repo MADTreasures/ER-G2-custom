@@ -24,9 +24,10 @@ import ch.madtreasures.g2watch.R
  * [GlassesConnection]; this service only holds the ongoing notification.
  *
  * With the permission RECORD_AUDIO it also has the type `microphone`: only so may apps stream the
- * watch's microphone to the phone while the display is dark (PhoneLinks). Android grants that type only
- * while the app is in front, so the service starts there, and [refresh] adds it after the wearer allowed
- * the microphone.
+ * watch's microphone to the phone while the display is dark (PhoneLinks). Likewise ACCESS_FINE_LOCATION
+ * brings the type `location`, so apps keep the watch's GPS with the display dark (interface 5). Android
+ * grants those types only while the app is in front, so the service starts there, and [refresh] adds
+ * them after the wearer allowed the microphone or the location.
  *
  * Android ends the whole app if a service started with startForegroundService() stops before
  * it called startForeground(). So [stop] never stops a service that is still starting; it
@@ -40,11 +41,15 @@ class GlassesService : Service() {
         val note = notification(this, latestText ?: getString(R.string.notification_connected))
         val device = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
         val microphone = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val location = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        var types = device
+        if (microphone) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+        if (location) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
         try {
-            ServiceCompat.startForeground(this, NOTIFICATION_ID, note, if (microphone) device or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else device)
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, note, types)
         } catch (e: SecurityException) {
-            // The microphone type while the app is not in front: the glasses connection without it.
-            Log.w(TAG, "foreground service without microphone", e)
+            // Microphone or location while the app is not in front: the glasses connection without them.
+            Log.w(TAG, "foreground service without microphone and location", e)
             ServiceCompat.startForeground(this, NOTIFICATION_ID, note, device)
         }
         starting = false

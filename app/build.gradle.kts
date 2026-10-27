@@ -22,8 +22,8 @@ android {
         // Wear OS 4 (API 33) and newer: Faceclaw's GATT code uses the API 33 write call.
         minSdk = 33
         targetSdk = 37
-        versionCode = 14
-        versionName = "0.11.0"
+        versionCode = 15
+        versionName = "0.12.0"
         // GeckoView ships one native build per ABI (~90 MB each in the APK): only the Pixel Watch 5's,
         // which runs 32-bit apps. For another watch: adb shell getprop ro.product.cpu.abilist, and
         // change this and the geckoview artifact below (05 §5).
@@ -132,6 +132,9 @@ tasks.withType<Test>().configureEach {
     systemProperty("g2app.packages", packageDirs.joinToString(File.pathSeparator))
     // Where RenderSnapshotTest writes its pictures of the glasses display; it is skipped without.
     providers.gradleProperty("snapshotDir").orNull?.let { systemProperty("snapshotDir", it) }
+    // A folder with real maps from download.mapsforge.org (e.g. switzerland.map) for the Navi package's tests
+    // and pictures on real data; they are skipped without (packages/navi/README.md).
+    providers.gradleProperty("naviData").orNull?.let { systemProperty("naviData", it) }
     // RealImageTransferTest streams Even's real image when it is given here (never part of the repo).
     // Declared as an input, so setting it reruns the tests instead of reporting "UP-TO-DATE".
     val stockImage = System.getenv("G2_STOCK_IMAGE")

@@ -203,6 +203,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // An app uses the watch's GPS (interface 5): Android's question for the precise location, over any screen.
+        val locationWanted by app.locationPrompt.wanted.collectAsStateWithLifecycle()
+        val locationLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { granted -> app.locationPrompt.answered(granted[Manifest.permission.ACCESS_FINE_LOCATION] == true) }
+        LaunchedEffect(locationWanted) {
+            if (!locationWanted) return@LaunchedEffect
+            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                app.locationPrompt.answered(true)
+            } else {
+                locationLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            }
+        }
+
         // Keep the watch awake while it talks to the glasses: the touchpad stops working once
         // Wear OS dims into ambient mode. Not while the glasses charge or are out of reach
         // (that can last hours), and not without glasses: then the screen times out as usual.

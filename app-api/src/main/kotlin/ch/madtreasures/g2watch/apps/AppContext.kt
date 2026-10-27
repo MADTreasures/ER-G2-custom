@@ -52,7 +52,11 @@ interface AppContext {
 
     fun cancelTimer(tag: String)
 
-    /** Sensor events on; needs the sensor's permission. [rate]: 0 = default. Sensors are wired up in M6. */
+    /**
+     * Sensor events on; needs the sensor's permission. [rate]: 0 = default. [Sensor.LOCATION] comes from
+     * the watch's GPS since v0.12.0, [rate] in seconds (default 1), and only while the app is on the
+     * glasses; the other sensors are wired up in M6.
+     */
     fun subscribe(sensor: Sensor, rate: Int = 0)
 
     fun unsubscribe(sensor: Sensor)
@@ -115,6 +119,30 @@ interface AppContext {
      * the app is hidden it stays, but the microphone stops. Since interface version 4.
      */
     fun phone(action: PhoneAction) {}
+
+    /**
+     * This app's folder for large files, and downloads into it ([AppFiles]): maps, media, indexes.
+     * Since interface version 5.
+     */
+    val files: AppFiles get() = AppFiles.NONE
+
+    /**
+     * Runs [task] on a background thread of the watch and hands its result to [onDone] on the app thread,
+     * for work that takes longer than an event may: a route, a picture, an index. [task] must not call
+     * this context. Tasks with different [tag]s may run side by side (two at a time per app); those with
+     * the same tag run one after another, and one that has not started yet gives way to a newer one with
+     * its tag (its [onDone] is never called). The tasks end with the app: a running one is interrupted
+     * (`Thread.interrupted()` turns true), and no [onDone] follows. A failure of [task], an exception or
+     * an error, arrives in [onDone]. Since interface version 5; here, without a host, [task] runs at once.
+     */
+    fun <T> work(tag: String, task: () -> T, onDone: (Result<T>) -> Unit) = onDone(runCatching(task))
+
+    /**
+     * A file of the app's own assets, the path below `assets/` (`src/main/assets/` of its package), such as
+     * `apps/<app id>/data.json`; null if there is none. For data the app ships with: fonts, tables, sounds.
+     * Since interface version 5.
+     */
+    fun asset(path: String): ByteArray? = null
 
     /** A small store of this app, at most 256 KiB, kept across restarts. */
     val storage: AppStorage

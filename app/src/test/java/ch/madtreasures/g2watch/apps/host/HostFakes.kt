@@ -12,6 +12,13 @@ import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.PhoneState
 import ch.madtreasures.g2watch.apps.Vibration
 import ch.madtreasures.g2watch.apps.assetFile
+import ch.madtreasures.g2watch.apps.files.DownloadEngine
+import ch.madtreasures.g2watch.apps.files.DownloadJob
+import ch.madtreasures.g2watch.apps.files.DownloadListener
+import ch.madtreasures.g2watch.apps.files.DownloadRequest
+import ch.madtreasures.g2watch.apps.location.LocationEngine
+import ch.madtreasures.g2watch.apps.location.LocationLine
+import ch.madtreasures.g2watch.apps.location.LocationListener
 import ch.madtreasures.g2watch.apps.VideoProfile
 import ch.madtreasures.g2watch.apps.VideoSearchResult
 import ch.madtreasures.g2watch.apps.VideoState
@@ -128,6 +135,64 @@ class FakePorts : HostPorts {
     override val web = FakeWebEngine()
 
     override val phone = FakePhoneEngine()
+
+    /** The apps' folders for large files (interface 5), under one temporary folder per test. */
+    val filesRoot: File by lazy { kotlin.io.path.createTempDirectory("g2-app-data").toFile().apply { deleteOnExit() } }
+
+    override fun files(appId: String): File? = File(filesRoot, appId).apply { mkdirs() }
+
+    override val downloads = FakeDownloadEngine()
+
+    override val location = FakeLocationEngine()
+
+    /** Background tasks of the apps (interface 5), waiting until the test runs them with [runWork]. */
+    val work = mutableListOf<Runnable>()
+
+    override fun runWork(job: Runnable) {
+        work += job
+    }
+
+    /** Runs the waiting background tasks, oldest first, until none is left. */
+    fun runWork() {
+        while (work.isNotEmpty()) work.removeAt(0).run()
+    }
+}
+
+/** Records the downloads the host starts; a test drives one through its [FakeDownload.listener]. */
+class FakeDownloadEngine : DownloadEngine {
+    val started = mutableListOf<FakeDownload>()
+
+    override fun start(request: DownloadRequest, listener: DownloadListener): DownloadJob =
+        FakeDownload(request, listener).also { started += it }
+}
+
+class FakeDownload(val request: DownloadRequest, val listener: DownloadListener) : DownloadJob {
+    var cancelled = false
+        private set
+
+    override fun cancel() {
+        cancelled = true
+    }
+}
+
+/** Records the GPS lines the host opens; a test sends fixes through [FakeLocationLine.listener]. */
+class FakeLocationEngine : LocationEngine {
+    val lines = mutableListOf<FakeLocationLine>()
+
+    override fun start(intervalMs: Long, listener: LocationListener): LocationLine =
+        FakeLocationLine(intervalMs, listener).also { lines += it }
+}
+
+class FakeLocationLine(val intervalMs: Long, val listener: LocationListener) : LocationLine {
+    var stopped = false
+        private set
+
+    override fun stop() {
+        stopped = true
+    }
+
+    fun fix(lat: Double, lon: Double, acc: Float = 5f, t: Long = 1_000L, speed: Float? = null, bearing: Float? = null) =
+        listener.onFix(AppEvent.Location(lat, lon, acc, t, speed, bearing))
 }
 
 /** Records the connections apps open to the phone; a test drives one through its [FakePhoneLine.listener]. */
