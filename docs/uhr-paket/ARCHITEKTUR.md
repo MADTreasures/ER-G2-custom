@@ -2,11 +2,12 @@
 > Firmware. Inzwischen ist der Weg zum Aufspielen eingebaut (`WatchFirmwareInstaller`, siehe
 > [`../FIRMWARE.md`](../FIRMWARE.md)), `NoFlashingTest` ist durch `FlashingBoundaryTest` ersetzt und die
 > App verlangt genau Faceclaw-Firmware **Revision 35** (Faceclaw 0.8.0) statt „34 oder neuer“.
-> Alles zu Maus, Touchpad und Einstellungen gilt weiter, mit einer Ausnahme: Seit 0.9.0 ist der Zeiger
+> Alles zu Maus, Touchpad und Einstellungen gilt weiter, mit zwei Ausnahmen: Seit 0.9.0 ist der Zeiger
 > keine eigene Fläche mehr, sondern in die Desktop-Fläche gezeichnet, und alles liegt zwischen x = 32 und
 > 607 – nötig für die Bildtiefe ([README](../../README.md#bildtiefe), [03 §5.3](../app-entwicklung/03_Uhr-Apps.md#53-bildtiefe-und-bildrand)).
-> Seit 0.11.0 gibt es die Kacheln des Desktops (Uhr, Notiz, Zähler, Info, Hilfe) nicht mehr: Der Starter des
-> App-Hosts ist das Hauptmenü der Brille ([README](../../README.md#apps-auf-der-brille)).
+> Und seit 0.11.0 gibt es die Kacheln des Desktops (Uhr, Notiz, Zähler, Info, Hilfe) und in den Einstellungen
+> „Fenster schließen“ nicht mehr: Der Starter des App-Hosts ist das Hauptmenü der Brille
+> ([README](../../README.md#apps-auf-der-brille)).
 
 # G2 Watch – Architektur
 
@@ -171,7 +172,7 @@ Sie öffnen sich über das Zahnrad (oder von der Statusseite, wenn die Firmware 
 1. Die Akkus.
 2. Das **Log der Übertragungszeiten** von der Uhr zur Brille: letzte Zeit groß, Durchschnitt, Balken der letzten 30 Bilder, Spanne, Bildzahl.
 3. **Firmware:** was auf der Brille ist, dazu je ein Knopf für Original und Custom, mit Bestätigung durch 2 s Halten.
-4. Zeiger-Tempo, Zeiger zentrieren, Fenster schließen.
+4. Zeiger-Tempo und Zeiger zentrieren.
 5. Trennen oder Verbinden.
 6. Das Protokoll.
 
@@ -204,7 +205,7 @@ Stand 27.09.2026: Alle Tests sind grün. Lint meldet eine Warnung (`allowBackup`
 | `GlassesConnectionTest` | Ablauf mit Attrappen für Haupt- und Verbindungs-Thread: keine Sitzung ohne passende Firmware, auch nicht bei veralteten Rückmeldungen. Die Sitzung startet erst nach der Prüfung und endet, wenn sie andere Firmware meldet. Prüfung und Sitzung werden nie auf dem Haupt-Thread geschlossen, und eine neue Prüfung startet erst, wenn die alte Sitzung zu ist. Dazu fehlendes Bluetooth, Wake Lock, Tipp am Bügel, Akku, das Log der Übertragungszeiten und Trennen. |
 | `GlassesServiceTest` | Vordergrunddienst: kein Stopp vor dem Ankommen im Vordergrund, kein zweiter Start, nichts ohne Bluetooth-Berechtigung (Robolectric) |
 | `NoFlashingTest` | App-Code benutzt keine Flash-Abläufe |
-| `DesktopTest`, `DesktopControllerTest` | Layout im sichtbaren Streifen, Klicks, modale Fenster, gebündelte Zeigerbilder, Neuzeichnen nur bei Änderungen. Der Zeiger wird mit derselben Bewegung negativ und zieht ohne Wartezeit nach, wenn sich das Bild unter ihm ändert. |
+| `DesktopTest`, `DesktopControllerTest` | Layout im sichtbaren Streifen, Kopfzeile von Starter und App, Klicks, gebündelte Zeigerbilder, Neuzeichnen nur bei Änderungen. Der Zeiger wird mit derselben Bewegung negativ und zieht ohne Wartezeit nach, wenn sich das Bild unter ihm ändert. |
 | `PointerTest`, `GrayRasterTest` | Zeigerbewegung, Grenzen, Sprite, Negativ pixelweise ab halber Helligkeit, Zeichnen, Fingerabdruck |
 | `AndroidTextPainterTest`, `EmojiTextTest` | echte Schriftdarstellung (Robolectric, native Grafik); Emoji als Strichzeichnung statt Klecks, Text ohne Emoji pixelgleich wie ohne Emoji-Schrift |
 | `TouchpadScreenTest` | Die Uhr wird gerendert und mit echten Touch-Gesten bedient (Robolectric). **Anzeige:** Uhrzeit und Akkus oben, das Zahnrad mittig darunter; kein Brillen-Akku ohne Verbindung, der Blitz beim Laden; nirgends Grün wie auf der Brille. **Gesten:** Bewegen und Doppeltipp wirken. Das Zahnrad öffnet nach 0,9 s Halten die Einstellungen, der Ring füllt sich; Tippen darauf tut nichts, Halten anderswo hält den Zeiger nicht auf. **Scheibe:** deckendes blaues Glas mit hellem Rand, folgt dem Finger, ist nach dem Abheben sofort weg; bei der zweiten Berührung eines Doppeltipps leuchten Rand und Schein heller, mit Bewegung gibt es keinen Klick. |
