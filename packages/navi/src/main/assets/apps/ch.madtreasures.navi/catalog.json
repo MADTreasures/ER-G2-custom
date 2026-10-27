@@ -1,0 +1,3852 @@
+{
+  "format": "navi-katalog@1",
+  "generated": "2026-10-27",
+  "mapBase": "https://download.mapsforge.org/maps/v5/",
+  "groups": [
+    {
+      "id": "africa",
+      "name": "Afrika"
+    },
+    {
+      "id": "asia",
+      "name": "Asien"
+    },
+    {
+      "id": "australia-oceania",
+      "name": "Australien und Ozeanien"
+    },
+    {
+      "id": "europe",
+      "name": "Europa"
+    },
+    {
+      "id": "central-america",
+      "name": "Mittelamerika"
+    },
+    {
+      "id": "north-america",
+      "name": "Nordamerika"
+    },
+    {
+      "id": "russia",
+      "name": "Russland"
+    },
+    {
+      "id": "south-america",
+      "name": "Südamerika"
+    },
+    {
+      "id": "world",
+      "name": "Welt"
+    }
+  ],
+  "regions": [
+    {
+      "id": "africa/egypt",
+      "name": "Ägypten",
+      "group": "africa",
+      "parent": null,
+      "bytes": 181190736,
+      "date": "2026-05-12",
+      "bbox": [21.8838, 24.52628, 32.62518, 37.26263]
+    },
+    {
+      "id": "africa/algeria",
+      "name": "Algerien",
+      "group": "africa",
+      "parent": null,
+      "bytes": 307251083,
+      "date": "2026-07-21",
+      "bbox": [18.82874, -8.804895, 37.87284, 12.13598]
+    },
+    {
+      "id": "africa/angola",
+      "name": "Angola",
+      "group": "africa",
+      "parent": null,
+      "bytes": 120950144,
+      "date": "2026-07-21",
+      "bbox": [-18.16508, 10.43848, -4.227925, 24.20297]
+    },
+    {
+      "id": "africa/equatorial-guinea",
+      "name": "Äquatorialguinea",
+      "group": "africa",
+      "parent": null,
+      "bytes": 13199711,
+      "date": "2026-05-13",
+      "bbox": [-1.892669, 5.065631, 4.247134, 11.52338]
+    },
+    {
+      "id": "africa/ethiopia",
+      "name": "Äthiopien",
+      "group": "africa",
+      "parent": null,
+      "bytes": 151309835,
+      "date": "2026-05-13",
+      "bbox": [3.289192, 32.86722, 15.01626, 48.10545]
+    },
+    {
+      "id": "africa/benin",
+      "name": "Benin",
+      "group": "africa",
+      "parent": null,
+      "bytes": 50435359,
+      "date": "2026-07-21",
+      "bbox": [5.884817, 0.661489, 12.53658, 3.961694]
+    },
+    {
+      "id": "africa/botswana",
+      "name": "Botswana",
+      "group": "africa",
+      "parent": null,
+      "bytes": 99787183,
+      "date": "2026-07-21",
+      "bbox": [-27.01539, 19.88745, -17.67403, 29.48549]
+    },
+    {
+      "id": "africa/burkina-faso",
+      "name": "Burkina Faso",
+      "group": "africa",
+      "parent": null,
+      "bytes": 100016838,
+      "date": "2026-05-09",
+      "bbox": [9.284107, -5.627409, 15.19271, 2.512529]
+    },
+    {
+      "id": "africa/burundi",
+      "name": "Burundi",
+      "group": "africa",
+      "parent": null,
+      "bytes": 40567738,
+      "date": "2026-05-09",
+      "bbox": [-4.581328, 28.90018, -2.207893, 30.95115]
+    },
+    {
+      "id": "africa/djibouti",
+      "name": "Dschibuti",
+      "group": "africa",
+      "parent": null,
+      "bytes": 7694329,
+      "date": "2026-05-10",
+      "bbox": [10.78824, 41.66177, 12.92615, 43.94569]
+    },
+    {
+      "id": "africa/ivory-coast",
+      "name": "Elfenbeinküste",
+      "group": "africa",
+      "parent": null,
+      "bytes": 93143104,
+      "date": "2026-05-13",
+      "bbox": [4.041915, -8.733881, 10.85034, -2.376215]
+    },
+    {
+      "id": "africa/eritrea",
+      "name": "Eritrea",
+      "group": "africa",
+      "parent": null,
+      "bytes": 35303445,
+      "date": "2026-05-13",
+      "bbox": [12.24385, 36.3207, 18.42962, 43.43233]
+    },
+    {
+      "id": "africa/swaziland",
+      "name": "Eswatini",
+      "group": "africa",
+      "parent": null,
+      "bytes": 28028304,
+      "date": "2026-07-15",
+      "bbox": [-27.41826, 30.68575, -25.61781, 32.23698]
+    },
+    {
+      "id": "africa/gabon",
+      "name": "Gabun",
+      "group": "africa",
+      "parent": null,
+      "bytes": 41714237,
+      "date": "2026-05-13",
+      "bbox": [-6.095799, 7.289727, 2.425716, 14.65139]
+    },
+    {
+      "id": "africa/ghana",
+      "name": "Ghana",
+      "group": "africa",
+      "parent": null,
+      "bytes": 108807275,
+      "date": "2026-05-13",
+      "bbox": [3.604056, -3.907399, 11.27772, 1.494038]
+    },
+    {
+      "id": "africa/guinea",
+      "name": "Guinea",
+      "group": "africa",
+      "parent": null,
+      "bytes": 114091663,
+      "date": "2026-05-13",
+      "bbox": [7.083332, -16.95708, 12.78322, -7.527259]
+    },
+    {
+      "id": "africa/guinea-bissau",
+      "name": "Guinea-Bissau",
+      "group": "africa",
+      "parent": null,
+      "bytes": 12309915,
+      "date": "2026-05-13",
+      "bbox": [10.04494, -17.06427, 12.7936, -13.52923]
+    },
+    {
+      "id": "africa/cameroon",
+      "name": "Kamerun",
+      "group": "africa",
+      "parent": null,
+      "bytes": 273322273,
+      "date": "2026-05-10",
+      "bbox": [1.545663, 8.23, 13.19278, 16.30312]
+    },
+    {
+      "id": "africa/canary-islands",
+      "name": "Kanarische Inseln",
+      "group": "africa",
+      "parent": null,
+      "bytes": 50633839,
+      "date": "2026-05-10",
+      "bbox": [26.26117, -19.02352, 30.35648, -12.37875]
+    },
+    {
+      "id": "africa/cape-verde",
+      "name": "Kap Verde",
+      "group": "africa",
+      "parent": null,
+      "bytes": 11794571,
+      "date": "2026-05-10",
+      "bbox": [13.90485, -26.42379, 18.105, -21.29096]
+    },
+    {
+      "id": "africa/kenya",
+      "name": "Kenia",
+      "group": "africa",
+      "parent": null,
+      "bytes": 330929978,
+      "date": "2026-05-13",
+      "bbox": [-4.916276, 33.7679, 4.729931, 42.07685]
+    },
+    {
+      "id": "africa/comores",
+      "name": "Komoren",
+      "group": "africa",
+      "parent": null,
+      "bytes": 4746528,
+      "date": "2026-05-10",
+      "bbox": [-13.069, 42.64981, -10.64181, 45.69661]
+    },
+    {
+      "id": "africa/congo-democratic-republic",
+      "name": "Kongo (Demokratische Republik)",
+      "group": "africa",
+      "parent": null,
+      "bytes": 504713993,
+      "date": "2026-05-10",
+      "bbox": [-13.6006, 11.78343, 5.501396, 31.43569]
+    },
+    {
+      "id": "africa/congo-brazzaville",
+      "name": "Kongo (Republik)",
+      "group": "africa",
+      "parent": null,
+      "bytes": 49255327,
+      "date": "2026-05-10",
+      "bbox": [-5.295885, 10.84417, 3.840932, 18.76783]
+    },
+    {
+      "id": "africa/lesotho",
+      "name": "Lesotho",
+      "group": "africa",
+      "parent": null,
+      "bytes": 93830380,
+      "date": "2026-05-13",
+      "bbox": [-30.78472, 26.9092, -28.46734, 29.56393]
+    },
+    {
+      "id": "africa/liberia",
+      "name": "Liberia",
+      "group": "africa",
+      "parent": null,
+      "bytes": 43196768,
+      "date": "2026-05-13",
+      "bbox": [-0.781003, -15.05454, 8.670158, -7.14572]
+    },
+    {
+      "id": "africa/libya",
+      "name": "Libyen",
+      "group": "africa",
+      "parent": null,
+      "bytes": 119912696,
+      "date": "2026-05-13",
+      "bbox": [19.35087, 9.274405, 33.67972, 25.50726]
+    },
+    {
+      "id": "africa/madagascar",
+      "name": "Madagaskar",
+      "group": "africa",
+      "parent": null,
+      "bytes": 381908434,
+      "date": "2026-05-13",
+      "bbox": [-26.6823, 42.20124, -10.92746, 51.24843]
+    },
+    {
+      "id": "africa/malawi",
+      "name": "Malawi",
+      "group": "africa",
+      "parent": null,
+      "bytes": 145067456,
+      "date": "2026-05-13",
+      "bbox": [-17.23324, 32.56441, -9.262691, 36.02941]
+    },
+    {
+      "id": "africa/mali",
+      "name": "Mali",
+      "group": "africa",
+      "parent": null,
+      "bytes": 214452703,
+      "date": "2026-05-13",
+      "bbox": [10.0176, -12.34701, 25.19499, 4.430257]
+    },
+    {
+      "id": "africa/morocco",
+      "name": "Marokko",
+      "group": "africa",
+      "parent": null,
+      "bytes": 222321055,
+      "date": "2026-05-13",
+      "bbox": [20.30373, -18.2835, 36.16077, -0.893576]
+    },
+    {
+      "id": "africa/mauritania",
+      "name": "Mauretanien",
+      "group": "africa",
+      "parent": null,
+      "bytes": 58753857,
+      "date": "2026-05-13",
+      "bbox": [14.61578, -17.45016, 27.43613, -4.716056]
+    },
+    {
+      "id": "africa/mauritius",
+      "name": "Mauritius",
+      "group": "africa",
+      "parent": null,
+      "bytes": 26710740,
+      "date": "2026-05-13",
+      "bbox": [-22.3411, 53.44727, -9.083617, 64.769909]
+    },
+    {
+      "id": "africa/mozambique",
+      "name": "Mosambik",
+      "group": "africa",
+      "parent": null,
+      "bytes": 279310814,
+      "date": "2026-05-13",
+      "bbox": [-27.03837, 30.10742, -9.886206, 42.63489]
+    },
+    {
+      "id": "africa/namibia",
+      "name": "Namibia",
+      "group": "africa",
+      "parent": null,
+      "bytes": 87238396,
+      "date": "2026-05-13",
+      "bbox": [-30.30686, 9.684615, -16.81682, 25.36589]
+    },
+    {
+      "id": "africa/niger",
+      "name": "Niger",
+      "group": "africa",
+      "parent": null,
+      "bytes": 113392772,
+      "date": "2026-05-13",
+      "bbox": [11.58684, 0.019721, 23.66864, 16.15605]
+    },
+    {
+      "id": "africa/nigeria",
+      "name": "Nigeria",
+      "group": "africa",
+      "parent": null,
+      "bytes": 764324280,
+      "date": "2026-05-14",
+      "bbox": [2.574022, 2.564528, 13.99874, 14.78057]
+    },
+    {
+      "id": "africa/rwanda",
+      "name": "Ruanda",
+      "group": "africa",
+      "parent": null,
+      "bytes": 62471121,
+      "date": "2026-05-14",
+      "bbox": [-2.948747, 28.7593, -0.93831, 31.00864]
+    },
+    {
+      "id": "africa/zambia",
+      "name": "Sambia",
+      "group": "africa",
+      "parent": null,
+      "bytes": 259493102,
+      "date": "2026-07-16",
+      "bbox": [-18.18777, 21.88982, -8.139483, 33.81773]
+    },
+    {
+      "id": "africa/sao-tome-and-principe",
+      "name": "São Tomé und Príncipe",
+      "group": "africa",
+      "parent": null,
+      "bytes": 2583442,
+      "date": "2026-05-14",
+      "bbox": [-0.625565, 5.173916, 2.540286, 8.466995]
+    },
+    {
+      "id": "africa/senegal-and-gambia",
+      "name": "Senegal und Gambia",
+      "group": "africa",
+      "parent": null,
+      "bytes": 106421046,
+      "date": "2026-05-14",
+      "bbox": [11.91511, -19.95623, 16.80088, -11.23595]
+    },
+    {
+      "id": "africa/seychelles",
+      "name": "Seychellen",
+      "group": "africa",
+      "parent": null,
+      "bytes": 16937658,
+      "date": "2026-05-14",
+      "bbox": [-12.65844, 45.58495, -3.07239, 57.67433]
+    },
+    {
+      "id": "africa/sierra-leone",
+      "name": "Sierra Leone",
+      "group": "africa",
+      "parent": null,
+      "bytes": 39067377,
+      "date": "2026-05-14",
+      "bbox": [5.291619, -14.86451, 10.10571, -10.1558]
+    },
+    {
+      "id": "africa/zimbabwe",
+      "name": "Simbabwe",
+      "group": "africa",
+      "parent": null,
+      "bytes": 180117054,
+      "date": "2026-07-16",
+      "bbox": [-22.54725, 25.1229, -15.48707, 33.185409]
+    },
+    {
+      "id": "africa/somalia",
+      "name": "Somalia",
+      "group": "africa",
+      "parent": null,
+      "bytes": 197002569,
+      "date": "2026-05-14",
+      "bbox": [-1.916753, 40.87489, 12.61177, 52.54871]
+    },
+    {
+      "id": "africa/saint-helena-ascension-and-tristan-da-cunha",
+      "name": "St. Helena, Ascension und Tristan da Cunha",
+      "group": "africa",
+      "parent": null,
+      "bytes": 68104287,
+      "date": "2026-05-14",
+      "bbox": [-43.93245, -15.67026, -4.491221, -2.681278]
+    },
+    {
+      "id": "africa/south-africa-and-lesotho",
+      "name": "Südafrika und Lesotho",
+      "group": "africa",
+      "parent": null,
+      "bytes": 577837861,
+      "date": "2026-07-15",
+      "bbox": [-47.68493, 15.89606, -22.01736, 39.34259]
+    },
+    {
+      "id": "africa/sudan",
+      "name": "Sudan",
+      "group": "africa",
+      "parent": null,
+      "bytes": 266405626,
+      "date": "2026-07-15",
+      "bbox": [8.553747, 21.681, 22.44706, 39.72781]
+    },
+    {
+      "id": "africa/south-sudan",
+      "name": "Südsudan",
+      "group": "africa",
+      "parent": null,
+      "bytes": 164580620,
+      "date": "2026-07-15",
+      "bbox": [3.361547, 23.32491, 12.33937, 36.06298]
+    },
+    {
+      "id": "africa/tanzania",
+      "name": "Tansania",
+      "group": "africa",
+      "parent": null,
+      "bytes": 638632838,
+      "date": "2026-07-16",
+      "bbox": [-11.87595, 29.14395, -0.874988, 40.79487]
+    },
+    {
+      "id": "africa/togo",
+      "name": "Togo",
+      "group": "africa",
+      "parent": null,
+      "bytes": 61961000,
+      "date": "2026-07-16",
+      "bbox": [5.792541, -0.248338, 11.24395, 1.910942]
+    },
+    {
+      "id": "africa/chad",
+      "name": "Tschad",
+      "group": "africa",
+      "parent": null,
+      "bytes": 163359003,
+      "date": "2026-05-10",
+      "bbox": [7.328518, 13.30129, 23.63793, 24.12527]
+    },
+    {
+      "id": "africa/tunisia",
+      "name": "Tunesien",
+      "group": "africa",
+      "parent": null,
+      "bytes": 69603766,
+      "date": "2026-07-16",
+      "bbox": [30.10864, 7.413961, 37.87474, 12.168]
+    },
+    {
+      "id": "africa/uganda",
+      "name": "Uganda",
+      "group": "africa",
+      "parent": null,
+      "bytes": 386396261,
+      "date": "2026-07-16",
+      "bbox": [-1.587315, 29.47056, 4.350552, 35.11031]
+    },
+    {
+      "id": "africa/central-african-republic",
+      "name": "Zentralafrikanische Republik",
+      "group": "africa",
+      "parent": null,
+      "bytes": 161947654,
+      "date": "2026-05-10",
+      "bbox": [2.108735, 14.30908, 11.13264, 27.57578]
+    },
+    {
+      "id": "asia/afghanistan",
+      "name": "Afghanistan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 142773295,
+      "date": "2026-09-25",
+      "bbox": [29.26856, 60.38761, 38.60674, 75.00017]
+    },
+    {
+      "id": "asia/gcc-states",
+      "name": "Arabische Golfstaaten",
+      "group": "asia",
+      "parent": null,
+      "bytes": 327938747,
+      "date": "2026-09-26",
+      "bbox": [15.14752, 34.33489, 32.296529, 61.04748]
+    },
+    {
+      "id": "asia/armenia",
+      "name": "Armenien",
+      "group": "asia",
+      "parent": null,
+      "bytes": 47027993,
+      "date": "2026-09-25",
+      "bbox": [38.73743, 43.33821, 41.41029, 46.74262]
+    },
+    {
+      "id": "asia/azerbaijan",
+      "name": "Aserbaidschan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 56377138,
+      "date": "2026-09-26",
+      "bbox": [38.14727, 44.65006, 42.77437, 51.8231]
+    },
+    {
+      "id": "asia/bangladesh",
+      "name": "Bangladesch",
+      "group": "asia",
+      "parent": null,
+      "bytes": 419264166,
+      "date": "2026-09-26",
+      "bbox": [18.48403, 87.89765, 26.74677, 92.79714]
+    },
+    {
+      "id": "asia/bhutan",
+      "name": "Bhutan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 24350098,
+      "date": "2026-09-26",
+      "bbox": [26.5948, 88.63917, 28.35372, 92.23159]
+    },
+    {
+      "id": "asia/china",
+      "name": "China",
+      "group": "asia",
+      "parent": null,
+      "bytes": null,
+      "date": null,
+      "bbox": [14.19739, 73.31788, 53.75559, 134.9036]
+    },
+    {
+      "id": "asia/india",
+      "name": "Indien",
+      "group": "asia",
+      "parent": null,
+      "bytes": 1627329123,
+      "date": "2026-09-28",
+      "bbox": [5.796067, 67.57457, 35.83091, 97.51989]
+    },
+    {
+      "id": "asia/indonesia",
+      "name": "Indonesien",
+      "group": "asia",
+      "parent": null,
+      "bytes": 1852193034,
+      "date": "2026-09-29",
+      "bbox": [-11.70655, 92.66481, 7.09933, 141.1217]
+    },
+    {
+      "id": "asia/iraq",
+      "name": "Irak",
+      "group": "asia",
+      "parent": null,
+      "bytes": 105222332,
+      "date": "2026-09-29",
+      "bbox": [28.91775, 38.684, 37.49063, 49.65108]
+    },
+    {
+      "id": "asia/iran",
+      "name": "Iran",
+      "group": "asia",
+      "parent": null,
+      "bytes": 306690112,
+      "date": "2026-09-29",
+      "bbox": [23.93947, 43.92303, 39.89045, 63.45413]
+    },
+    {
+      "id": "asia/israel-and-palestine",
+      "name": "Israel und Palästina",
+      "group": "asia",
+      "parent": null,
+      "bytes": 92074151,
+      "date": "2026-09-29",
+      "bbox": [29.3396, 33.89994, 33.55436, 36.01531]
+    },
+    {
+      "id": "asia/japan",
+      "name": "Japan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 1770441505,
+      "date": "2024-09-05",
+      "bbox": [19.98228, 122.4607, 45.9154, 154.5709]
+    },
+    {
+      "id": "asia/yemen",
+      "name": "Jemen",
+      "group": "asia",
+      "parent": null,
+      "bytes": 62650358,
+      "date": "2026-10-06",
+      "bbox": [11.26768, 40.96894, 19.13189, 55.61167]
+    },
+    {
+      "id": "asia/jordan",
+      "name": "Jordanien",
+      "group": "asia",
+      "parent": null,
+      "bytes": 30148125,
+      "date": "2026-10-03",
+      "bbox": [29.08213, 34.76886, 33.479219, 39.41022]
+    },
+    {
+      "id": "asia/cambodia",
+      "name": "Kambodscha",
+      "group": "asia",
+      "parent": null,
+      "bytes": 45205232,
+      "date": "2026-09-26",
+      "bbox": [8.758092, 101.7522, 14.81875, 107.7397]
+    },
+    {
+      "id": "asia/kazakhstan",
+      "name": "Kasachstan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 439496494,
+      "date": "2026-10-04",
+      "bbox": [40.45346, 46.32304, 55.60799, 87.45359]
+    },
+    {
+      "id": "asia/kyrgyzstan",
+      "name": "Kirgisistan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 94450334,
+      "date": "2026-10-04",
+      "bbox": [39.05136, 69.15507, 43.3812, 80.3771]
+    },
+    {
+      "id": "asia/laos",
+      "name": "Laos",
+      "group": "asia",
+      "parent": null,
+      "bytes": 61379721,
+      "date": "2026-10-05",
+      "bbox": [13.80159, 99.9828, 22.62825, 107.7503]
+    },
+    {
+      "id": "asia/lebanon",
+      "name": "Libanon",
+      "group": "asia",
+      "parent": null,
+      "bytes": 44196032,
+      "date": "2026-10-05",
+      "bbox": [32.95299, 34.66799, 34.90253, 36.73666]
+    },
+    {
+      "id": "asia/malaysia-singapore-brunei",
+      "name": "Malaysia, Singapur und Brunei",
+      "group": "asia",
+      "parent": null,
+      "bytes": 227866983,
+      "date": "2026-10-05",
+      "bbox": [0.730813, 99.15611, 7.836849, 119.7683]
+    },
+    {
+      "id": "asia/maldives",
+      "name": "Malediven",
+      "group": "asia",
+      "parent": null,
+      "bytes": 6496295,
+      "date": "2026-10-05",
+      "bbox": [-1.46, 71.6, 7.79, 74.6]
+    },
+    {
+      "id": "asia/mongolia",
+      "name": "Mongolei",
+      "group": "asia",
+      "parent": null,
+      "bytes": 158400332,
+      "date": "2026-10-05",
+      "bbox": [41.40035, 87.60255, 52.29582, 120.1201]
+    },
+    {
+      "id": "asia/myanmar",
+      "name": "Myanmar",
+      "group": "asia",
+      "parent": null,
+      "bytes": 329308373,
+      "date": "2026-10-05",
+      "bbox": [9.410211, 90.55133, 28.67476, 101.2971]
+    },
+    {
+      "id": "asia/nepal",
+      "name": "Nepal",
+      "group": "asia",
+      "parent": null,
+      "bytes": 396510792,
+      "date": "2026-10-05",
+      "bbox": [26.2445, 79.94913, 30.57822, 88.32213]
+    },
+    {
+      "id": "asia/north-korea",
+      "name": "Nordkorea",
+      "group": "asia",
+      "parent": null,
+      "bytes": 103387415,
+      "date": "2026-10-05",
+      "bbox": [37.51103, 123.597, 43.12043, 131.7447]
+    },
+    {
+      "id": "asia/east-timor",
+      "name": "Osttimor",
+      "group": "asia",
+      "parent": null,
+      "bytes": 18657579,
+      "date": "2026-09-26",
+      "bbox": [-9.790103, 123.6912, -7.957869, 127.6911]
+    },
+    {
+      "id": "asia/pakistan",
+      "name": "Pakistan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 198438075,
+      "date": "2026-10-05",
+      "bbox": [23.2763, 60.72168, 37.20667, 77.32427]
+    },
+    {
+      "id": "asia/philippines",
+      "name": "Philippinen",
+      "group": "asia",
+      "parent": null,
+      "bytes": 590131647,
+      "date": "2026-10-05",
+      "bbox": [4.282696, 112.0661, 21.63021, 127.1742]
+    },
+    {
+      "id": "asia/sri-lanka",
+      "name": "Sri Lanka",
+      "group": "asia",
+      "parent": null,
+      "bytes": 144275373,
+      "date": "2026-10-05",
+      "bbox": [5.521275, 79.06416, 10.17153, 82.74612]
+    },
+    {
+      "id": "asia/south-korea",
+      "name": "Südkorea",
+      "group": "asia",
+      "parent": null,
+      "bytes": 275249155,
+      "date": "2026-10-05",
+      "bbox": [32.260759, 124.2188, 38.74966, 132.4386]
+    },
+    {
+      "id": "asia/syria",
+      "name": "Syrien",
+      "group": "asia",
+      "parent": null,
+      "bytes": 88430157,
+      "date": "2026-10-05",
+      "bbox": [32.2066, 35.18548, 37.42239, 42.48383]
+    },
+    {
+      "id": "asia/tajikistan",
+      "name": "Tadschikistan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 52931397,
+      "date": "2026-10-06",
+      "bbox": [36.56374, 67.2201, 41.15502, 75.26571]
+    },
+    {
+      "id": "asia/taiwan",
+      "name": "Taiwan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 254703705,
+      "date": "2026-10-06",
+      "bbox": [20.62799, 118.0036, 26.70305, 123.0312]
+    },
+    {
+      "id": "asia/thailand",
+      "name": "Thailand",
+      "group": "asia",
+      "parent": null,
+      "bytes": 313204586,
+      "date": "2026-10-06",
+      "bbox": [5.497877, 97.03562, 20.56875, 105.7392]
+    },
+    {
+      "id": "asia/turkmenistan",
+      "name": "Turkmenistan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 59842268,
+      "date": "2026-10-06",
+      "bbox": [35.02355, 51.73271, 42.91253, 66.82272]
+    },
+    {
+      "id": "asia/uzbekistan",
+      "name": "Usbekistan",
+      "group": "asia",
+      "parent": null,
+      "bytes": 162376482,
+      "date": "2026-10-06",
+      "bbox": [37.06636, 55.87708, 45.71884, 73.27463]
+    },
+    {
+      "id": "asia/vietnam",
+      "name": "Vietnam",
+      "group": "asia",
+      "parent": null,
+      "bytes": 291053522,
+      "date": "2026-10-06",
+      "bbox": [7.282239, 101.9959, 23.50214, 114.7423]
+    },
+    {
+      "id": "asia/china/anhui",
+      "name": "Anhui",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 54290620,
+      "date": "2026-08-27",
+      "bbox": [29.28816, 114.7693, 34.75496, 119.7566]
+    },
+    {
+      "id": "asia/china/chongqing",
+      "name": "Chongqing",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 37037329,
+      "date": "2026-08-27",
+      "bbox": [28.05132, 105.183, 32.30641, 110.3004]
+    },
+    {
+      "id": "asia/china/fujian",
+      "name": "Fujian",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 49228979,
+      "date": "2026-08-27",
+      "bbox": [23.08252, 115.7409, 28.42237, 121.7277]
+    },
+    {
+      "id": "asia/china/gansu",
+      "name": "Gansu",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 104048003,
+      "date": "2026-08-27",
+      "bbox": [32.48438, 92.19907, 42.91354, 108.8193]
+    },
+    {
+      "id": "asia/china/guangdong",
+      "name": "Guangdong",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 172443535,
+      "date": "2026-08-27",
+      "bbox": [19.95851, 109.2565, 25.62432, 117.765]
+    },
+    {
+      "id": "asia/china/guangxi",
+      "name": "Guangxi",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 66191284,
+      "date": "2026-08-27",
+      "bbox": [20.64224, 104.3419, 26.49648, 112.1654]
+    },
+    {
+      "id": "asia/china/guizhou",
+      "name": "Guizhou",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 39182685,
+      "date": "2026-08-27",
+      "bbox": [24.51706, 103.4982, 29.33204, 109.6594]
+    },
+    {
+      "id": "asia/china/hainan",
+      "name": "Hainan",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 19649917,
+      "date": "2026-08-27",
+      "bbox": [14.19739, 108.2153, 20.50385, 118.5373]
+    },
+    {
+      "id": "asia/china/hebei",
+      "name": "Hebei",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 131351512,
+      "date": "2026-08-24",
+      "bbox": [35.94299, 113.351, 42.72487, 120.0982]
+    },
+    {
+      "id": "asia/china/heilongjiang",
+      "name": "Heilongjiang",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 86076824,
+      "date": "2026-08-27",
+      "bbox": [43.31078, 121.05, 53.75559, 134.9036]
+    },
+    {
+      "id": "asia/china/henan",
+      "name": "Henan",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 66830732,
+      "date": "2026-08-27",
+      "bbox": [31.27805, 110.2458, 36.46801, 116.747]
+    },
+    {
+      "id": "asia/china/hong-kong",
+      "name": "Hongkong",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 29634941,
+      "date": "2026-08-27",
+      "bbox": [22.03041, 113.713, 22.66904, 114.606]
+    },
+    {
+      "id": "asia/china/hubei",
+      "name": "Hubei",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 66358336,
+      "date": "2026-08-27",
+      "bbox": [28.93006, 108.2597, 33.37343, 116.2361]
+    },
+    {
+      "id": "asia/china/hunan",
+      "name": "Hunan",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 59896452,
+      "date": "2026-08-27",
+      "bbox": [24.53266, 108.6792, 30.238, 114.3585]
+    },
+    {
+      "id": "asia/china/inner-mongolia",
+      "name": "Innere Mongolei",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 178010265,
+      "date": "2026-08-27",
+      "bbox": [37.29962, 97.04328, 53.54515, 126.1767]
+    },
+    {
+      "id": "asia/china/jiangsu",
+      "name": "Jiangsu",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 96570578,
+      "date": "2026-08-27",
+      "bbox": [30.65899, 116.2538, 35.65507, 123.0453]
+    },
+    {
+      "id": "asia/china/jiangxi",
+      "name": "Jiangxi",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 58839653,
+      "date": "2026-08-27",
+      "bbox": [24.37809, 113.4688, 30.18841, 118.5865]
+    },
+    {
+      "id": "asia/china/jilin",
+      "name": "Jilin",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 46615231,
+      "date": "2026-08-27",
+      "bbox": [40.68952, 121.5276, 46.41469, 131.4514]
+    },
+    {
+      "id": "asia/china/liaoning",
+      "name": "Liaoning",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 40944914,
+      "date": "2026-08-27",
+      "bbox": [38.16191, 118.7305, 43.59303, 125.8959]
+    },
+    {
+      "id": "asia/china/macau",
+      "name": "Macau",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 2376131,
+      "date": "2026-08-27",
+      "bbox": [21.97546, 113.4272, 22.31708, 113.7325]
+    },
+    {
+      "id": "asia/china/ningxia",
+      "name": "Ningxia",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 14166939,
+      "date": "2026-08-27",
+      "bbox": [35.13272, 104.175, 39.48606, 107.7571]
+    },
+    {
+      "id": "asia/china/beijing",
+      "name": "Peking",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 35147141,
+      "date": "2026-08-27",
+      "bbox": [39.34083, 115.3155, 41.16382, 117.6095]
+    },
+    {
+      "id": "asia/china/qinghai",
+      "name": "Qinghai",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 47420866,
+      "date": "2026-08-27",
+      "bbox": [31.48673, 89.29, 39.32162, 103.1727]
+    },
+    {
+      "id": "asia/china/shaanxi",
+      "name": "Shaanxi",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 111765028,
+      "date": "2026-08-27",
+      "bbox": [31.595, 105.3801, 39.68902, 111.3479]
+    },
+    {
+      "id": "asia/china/shandong",
+      "name": "Shandong",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 89053008,
+      "date": "2026-08-27",
+      "bbox": [34.27575, 114.7133, 38.54, 123.6632]
+    },
+    {
+      "id": "asia/china/shanghai",
+      "name": "Shanghai",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 28588679,
+      "date": "2026-08-27",
+      "bbox": [30.5391, 120.747, 31.98455, 123.779]
+    },
+    {
+      "id": "asia/china/shanxi",
+      "name": "Shanxi",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 43661460,
+      "date": "2026-08-27",
+      "bbox": [34.47895, 110.1, 40.85116, 114.67]
+    },
+    {
+      "id": "asia/china/sichuan",
+      "name": "Sichuan",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 130060798,
+      "date": "2026-08-27",
+      "bbox": [25.94599, 97.21277, 34.43153, 108.6508]
+    },
+    {
+      "id": "asia/china/tianjin",
+      "name": "Tianjin",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 17008536,
+      "date": "2026-08-27",
+      "bbox": [38.45327, 116.5944, 40.35307, 118.163]
+    },
+    {
+      "id": "asia/china/tibet",
+      "name": "Tibet",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 104738343,
+      "date": "2026-08-27",
+      "bbox": [27.09968, 78.19403, 36.63, 99.22552]
+    },
+    {
+      "id": "asia/china/xinjiang",
+      "name": "Xinjiang",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 140830126,
+      "date": "2026-08-27",
+      "bbox": [34.16775, 73.31788, 49.36201, 96.53]
+    },
+    {
+      "id": "asia/china/yunnan",
+      "name": "Yunnan",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 103720883,
+      "date": "2026-08-28",
+      "bbox": [20.94476, 97.32851, 29.33518, 106.315]
+    },
+    {
+      "id": "asia/china/zhejiang",
+      "name": "Zhejiang",
+      "group": "asia",
+      "parent": "asia/china",
+      "bytes": 100983204,
+      "date": "2026-08-28",
+      "bbox": [26.59164, 117.9206, 31.29078, 123.9379]
+    },
+    {
+      "id": "asia/india/northern-zone",
+      "name": "Indien Nord",
+      "group": "asia",
+      "parent": "asia/india",
+      "bytes": 215008101,
+      "date": "2026-07-18",
+      "bbox": [22.94688, 69.33908, 35.83091, 79.58883]
+    },
+    {
+      "id": "asia/india/north-eastern-zone",
+      "name": "Indien Nordost",
+      "group": "asia",
+      "parent": "asia/india",
+      "bytes": 118225595,
+      "date": "2026-07-18",
+      "bbox": [21.82712, 87.90852, 29.52883, 97.51989]
+    },
+    {
+      "id": "asia/india/eastern-zone",
+      "name": "Indien Ost",
+      "group": "asia",
+      "parent": "asia/india",
+      "bytes": 220721758,
+      "date": "2026-07-18",
+      "bbox": [17.68056, 81.26749, 27.62837, 90.01829]
+    },
+    {
+      "id": "asia/india/southern-zone",
+      "name": "Indien Süd",
+      "group": "asia",
+      "parent": "asia/india",
+      "bytes": 545560318,
+      "date": "2026-07-19",
+      "bbox": [5.843921, 70.10789, 20.02268, 95.61383]
+    },
+    {
+      "id": "asia/india/western-zone",
+      "name": "Indien West",
+      "group": "asia",
+      "parent": "asia/india",
+      "bytes": 213018151,
+      "date": "2026-07-19",
+      "bbox": [14.28929, 67.57457, 24.81756, 81.01362]
+    },
+    {
+      "id": "asia/india/central-zone",
+      "name": "Indien Zentral",
+      "group": "asia",
+      "parent": "asia/india",
+      "bytes": 328596867,
+      "date": "2026-07-18",
+      "bbox": [17.67092, 73.91489, 31.59075, 84.74657]
+    },
+    {
+      "id": "asia/indonesia/java",
+      "name": "Java",
+      "group": "asia",
+      "parent": "asia/indonesia",
+      "bytes": 917686215,
+      "date": "2026-07-11",
+      "bbox": [-9.641155, 104.0394, -3.851935, 116.6814]
+    },
+    {
+      "id": "asia/indonesia/kalimantan",
+      "name": "Kalimantan",
+      "group": "asia",
+      "parent": "asia/indonesia",
+      "bytes": 167019691,
+      "date": "2026-07-11",
+      "bbox": [-5.69958, 104.8606, 4.504166, 120.0267]
+    },
+    {
+      "id": "asia/indonesia/nusa-tenggara",
+      "name": "Kleine Sundainseln",
+      "group": "asia",
+      "parent": "asia/indonesia",
+      "bytes": 180086264,
+      "date": "2026-07-11",
+      "bbox": [-11.70655, 114.3089, -6.575509, 128.508]
+    },
+    {
+      "id": "asia/indonesia/maluku",
+      "name": "Molukken",
+      "group": "asia",
+      "parent": "asia/indonesia",
+      "bytes": 52244896,
+      "date": "2026-07-11",
+      "bbox": [-9.624903, 123.7928, 3.827232, 135.512]
+    },
+    {
+      "id": "asia/indonesia/papua",
+      "name": "Papua",
+      "group": "asia",
+      "parent": "asia/indonesia",
+      "bytes": 59161002,
+      "date": "2026-07-11",
+      "bbox": [-9.595116, 128.1819, 2.175967, 141.1217]
+    },
+    {
+      "id": "asia/indonesia/sulawesi",
+      "name": "Sulawesi",
+      "group": "asia",
+      "parent": "asia/indonesia",
+      "bytes": 179706190,
+      "date": "2026-07-11",
+      "bbox": [-8.12115, 116.1518, 6.048258, 128.0523]
+    },
+    {
+      "id": "asia/indonesia/sumatra",
+      "name": "Sumatra",
+      "group": "asia",
+      "parent": "asia/indonesia",
+      "bytes": 309546451,
+      "date": "2026-07-11",
+      "bbox": [-7.269929, 92.66481, 7.09933, 109.8524]
+    },
+    {
+      "id": "asia/japan/chubu",
+      "name": "Chubu",
+      "group": "asia",
+      "parent": "asia/japan",
+      "bytes": 395684402,
+      "date": "2026-08-16",
+      "bbox": [34.16649, 135.3393, 39.00717, 140.009]
+    },
+    {
+      "id": "asia/japan/chugoku",
+      "name": "Chugoku",
+      "group": "asia",
+      "parent": "asia/japan",
+      "bytes": 171769151,
+      "date": "2026-08-16",
+      "bbox": [33.44225, 129.7975, 37.0681, 134.6244]
+    },
+    {
+      "id": "asia/japan/hokkaido",
+      "name": "Hokkaido",
+      "group": "asia",
+      "parent": "asia/japan",
+      "bytes": 172119400,
+      "date": "2026-08-17",
+      "bbox": [41.05098, 137.8346, 45.9154, 146.3476]
+    },
+    {
+      "id": "asia/japan/kansai",
+      "name": "Kansai",
+      "group": "asia",
+      "parent": "asia/japan",
+      "bytes": 294971697,
+      "date": "2026-08-17",
+      "bbox": [32.97898, 133.864399, 36.5582, 137.7573]
+    },
+    {
+      "id": "asia/japan/kanto",
+      "name": "Kanto",
+      "group": "asia",
+      "parent": "asia/japan",
+      "bytes": 442621228,
+      "date": "2026-08-18",
+      "bbox": [19.98228, 134.4757, 37.25988, 154.5709]
+    },
+    {
+      "id": "asia/japan/kyushu",
+      "name": "Kyushu",
+      "group": "asia",
+      "parent": "asia/japan",
+      "bytes": 269285904,
+      "date": "2026-08-18",
+      "bbox": [21.28691, 122.4814, 35.19724, 132.9044]
+    },
+    {
+      "id": "asia/japan/shikoku",
+      "name": "Shikoku",
+      "group": "asia",
+      "parent": "asia/japan",
+      "bytes": 72535457,
+      "date": "2026-08-18",
+      "bbox": [32.12959, 131.6698, 34.75151, 135.2794]
+    },
+    {
+      "id": "asia/japan/tohoku",
+      "name": "Tohoku",
+      "group": "asia",
+      "parent": "asia/japan",
+      "bytes": 240761682,
+      "date": "2026-08-18",
+      "bbox": [36.42861, 138.8325, 41.74179, 142.9782]
+    },
+    {
+      "id": "australia-oceania/american-oceania-1",
+      "name": "Amerikanisch-Ozeanien (Teil 1)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 25551606,
+      "date": "2025-07-31",
+      "bbox": [-3.152732, -180.0, 6.287193, -160.1799]
+    },
+    {
+      "id": "australia-oceania/american-oceania-2",
+      "name": "Amerikanisch-Ozeanien (Teil 2)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 46105109,
+      "date": "2026-02-07",
+      "bbox": [9.803965, 141.5357, 22.12463, 169.9706]
+    },
+    {
+      "id": "australia-oceania/american-oceania-3",
+      "name": "Amerikanisch-Ozeanien (Teil 3)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 46105639,
+      "date": "2025-07-31",
+      "bbox": [9.803965, 141.5357, 22.12463, 169.9706]
+    },
+    {
+      "id": "australia-oceania/australia",
+      "name": "Australien",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 1670623747,
+      "date": "2026-02-08",
+      "bbox": [-57.17106, 68.03342, -8.709565, 169.1016]
+    },
+    {
+      "id": "australia-oceania/ile-de-clipperton",
+      "name": "Clipperton-Insel",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 442188,
+      "date": "2026-02-08",
+      "bbox": [9.495339, -110.2215, 11.25685, -108.2746]
+    },
+    {
+      "id": "australia-oceania/cook-islands",
+      "name": "Cookinseln",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 34324523,
+      "date": "2026-02-08",
+      "bbox": [-25.38867, -168.5661, -5.700506, -154.7056]
+    },
+    {
+      "id": "australia-oceania/fiji-1",
+      "name": "Fidschi (Teil 1)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 5945722,
+      "date": "2026-02-08",
+      "bbox": [-24.48196, -180.0, -13.80864, -176.1675]
+    },
+    {
+      "id": "australia-oceania/fiji-2",
+      "name": "Fidschi (Teil 2)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 28311745,
+      "date": "2026-02-08",
+      "bbox": [-25.18127, 172.6647, -9.683321, 180.0]
+    },
+    {
+      "id": "australia-oceania/polynesie-francaise",
+      "name": "Französisch-Polynesien",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 102640980,
+      "date": "2026-02-08",
+      "bbox": [-31.64105, -158.6547, -4.815789, -132.4391]
+    },
+    {
+      "id": "australia-oceania/kiribati-1",
+      "name": "Kiribati (Teil 1)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 82074,
+      "date": "2026-02-08",
+      "bbox": [-3.862181, -180.0, -1.48287, -179.7198]
+    },
+    {
+      "id": "australia-oceania/kiribati-2",
+      "name": "Kiribati (Teil 2)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 84649911,
+      "date": "2026-02-08",
+      "bbox": [-13.93833, -177.7431, 6.572283, -146.9336]
+    },
+    {
+      "id": "australia-oceania/kiribati-3",
+      "name": "Kiribati (Teil 3)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 15537767,
+      "date": "2026-02-08",
+      "bbox": [-3.870672, 167.7684, 5.717103, 180.0]
+    },
+    {
+      "id": "australia-oceania/marshall-islands",
+      "name": "Marshallinseln",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 38005755,
+      "date": "2026-02-08",
+      "bbox": [1.677314, 156.7453, 18.04606, 175.6118]
+    },
+    {
+      "id": "australia-oceania/micronesia",
+      "name": "Mikronesien",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 54912502,
+      "date": "2026-02-08",
+      "bbox": [-1.247444, 135.2124, 13.31917, 165.7345]
+    },
+    {
+      "id": "australia-oceania/nauru",
+      "name": "Nauru",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 4161381,
+      "date": "2026-02-08",
+      "bbox": [-3.871196, 163.6052, 2.793851, 168.6599]
+    },
+    {
+      "id": "australia-oceania/new-caledonia",
+      "name": "Neukaledonien",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 41157996,
+      "date": "2026-02-08",
+      "bbox": [-25.1, 157.8, -16.8, 174.2]
+    },
+    {
+      "id": "australia-oceania/new-zealand-1",
+      "name": "Neuseeland (Teil 1)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 391087349,
+      "date": "2026-02-08",
+      "bbox": [-56.85268, 161.996, -32.567, 180.0]
+    },
+    {
+      "id": "australia-oceania/new-zealand-2",
+      "name": "Neuseeland (Teil 2)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 373488704,
+      "date": "2025-05-17",
+      "bbox": [-56.85268, 161.996, -32.567, 180.0]
+    },
+    {
+      "id": "australia-oceania/niue",
+      "name": "Niue",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 6480252,
+      "date": "2026-02-08",
+      "bbox": [-22.57347, -172.127, -16.53667, -166.1989]
+    },
+    {
+      "id": "australia-oceania/palau",
+      "name": "Palau",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 9318247,
+      "date": "2026-02-08",
+      "bbox": [1.521407, 130.0034, 11.58818, 137.0541]
+    },
+    {
+      "id": "australia-oceania/papua-new-guinea",
+      "name": "Papua-Neuguinea",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 107915959,
+      "date": "2026-02-08",
+      "bbox": [-14.84845, 139.1014, 2.687814, 162.9034]
+    },
+    {
+      "id": "australia-oceania/pitcairn-islands",
+      "name": "Pitcairninseln",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 23034852,
+      "date": "2026-02-08",
+      "bbox": [-27.76403, -133.1664, -21.49613, -118.2448]
+    },
+    {
+      "id": "australia-oceania/solomon-islands",
+      "name": "Salomonen",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 41870344,
+      "date": "2026-02-08",
+      "bbox": [-16.226939, 154.4856, -4.039945, 173.6934]
+    },
+    {
+      "id": "australia-oceania/samoa",
+      "name": "Samoa",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 5631735,
+      "date": "2026-02-08",
+      "bbox": [-15.97838, -174.6114, -10.86083, -170.4427]
+    },
+    {
+      "id": "australia-oceania/tokelau",
+      "name": "Tokelau",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 5460697,
+      "date": "2026-02-08",
+      "bbox": [-11.18137, -176.9579, -6.564586, -167.3097]
+    },
+    {
+      "id": "australia-oceania/tonga",
+      "name": "Tonga",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 14606876,
+      "date": "2026-02-08",
+      "bbox": [-25.78413, -178.7487, -14.05464, -171.2053]
+    },
+    {
+      "id": "australia-oceania/tuvalu-1",
+      "name": "Tuvalu (Teil 1)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 3601744,
+      "date": "2026-02-08",
+      "bbox": [-13.03801, -180.0, -3.961646, -176.657]
+    },
+    {
+      "id": "australia-oceania/tuvalu-2",
+      "name": "Tuvalu (Teil 2)",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 8208229,
+      "date": "2026-02-08",
+      "bbox": [-13.34039, 172.8953, -3.961646, 180.0]
+    },
+    {
+      "id": "australia-oceania/vanuatu",
+      "name": "Vanuatu",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 20542239,
+      "date": "2026-02-08",
+      "bbox": [-21.74288, 163.2086, -12.19626, 173.7089]
+    },
+    {
+      "id": "australia-oceania/wallis-et-futuna",
+      "name": "Wallis und Futuna",
+      "group": "australia-oceania",
+      "parent": null,
+      "bytes": 5896839,
+      "date": "2026-02-08",
+      "bbox": [-16.35685, -180.0, -8.95868, -174.0553]
+    },
+    {
+      "id": "europe/albania",
+      "name": "Albanien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 44849299,
+      "date": "2026-08-21",
+      "bbox": [39.52738, 18.79648, 42.76313, 21.16285]
+    },
+    {
+      "id": "europe/andorra",
+      "name": "Andorra",
+      "group": "europe",
+      "parent": null,
+      "bytes": 2539895,
+      "date": "2026-09-07",
+      "bbox": [42.3276, 1.312368, 42.75717, 1.887481]
+    },
+    {
+      "id": "europe/azores",
+      "name": "Azoren",
+      "group": "europe",
+      "parent": null,
+      "bytes": 24546442,
+      "date": "2026-08-21",
+      "bbox": [35.57791, -31.67293, 40.1757, -23.61814]
+    },
+    {
+      "id": "europe/belarus",
+      "name": "Belarus",
+      "group": "europe",
+      "parent": null,
+      "bytes": 326561928,
+      "date": "2026-08-21",
+      "bbox": [51.13441, 23.0748, 56.27385, 32.86947]
+    },
+    {
+      "id": "europe/belgium",
+      "name": "Belgien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 517726492,
+      "date": "2026-08-21",
+      "bbox": [49.39489, 2.240725, 51.69839, 6.510265]
+    },
+    {
+      "id": "europe/bosnia-herzegovina",
+      "name": "Bosnien und Herzegowina",
+      "group": "europe",
+      "parent": null,
+      "bytes": 158631986,
+      "date": "2026-08-21",
+      "bbox": [42.45239, 15.6156, 45.37803, 19.72639]
+    },
+    {
+      "id": "europe/bulgaria",
+      "name": "Bulgarien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 154458022,
+      "date": "2026-08-21",
+      "bbox": [41.12681, 22.24875, 44.31777, 29.28819]
+    },
+    {
+      "id": "europe/denmark",
+      "name": "Dänemark",
+      "group": "europe",
+      "parent": null,
+      "bytes": 337029246,
+      "date": "2026-08-22",
+      "bbox": [54.34065, 7.6011, 58.16239, 15.75449]
+    },
+    {
+      "id": "europe/germany",
+      "name": "Deutschland",
+      "group": "europe",
+      "parent": null,
+      "bytes": 3233325182,
+      "date": "2026-08-28",
+      "bbox": [47.16543, 5.764417, 55.24777, 15.15078]
+    },
+    {
+      "id": "europe/estonia",
+      "name": "Estland",
+      "group": "europe",
+      "parent": null,
+      "bytes": 109214419,
+      "date": "2026-08-22",
+      "bbox": [57.39764, 20.75166, 60.09705, 28.31426]
+    },
+    {
+      "id": "europe/faroe-islands",
+      "name": "Färöer",
+      "group": "europe",
+      "parent": null,
+      "bytes": 8614123,
+      "date": "2026-08-22",
+      "bbox": [60.76632, -8.790197, 63.00523, -5.415148]
+    },
+    {
+      "id": "europe/finland",
+      "name": "Finnland",
+      "group": "europe",
+      "parent": null,
+      "bytes": 710313983,
+      "date": "2026-08-23",
+      "bbox": [59.18783, 18.92427, 70.19959, 31.7159]
+    },
+    {
+      "id": "europe/france",
+      "name": "Frankreich",
+      "group": "europe",
+      "parent": null,
+      "bytes": 3499658275,
+      "date": "2026-08-25",
+      "bbox": [41.13866, -7.037207, 51.5288, 10.0]
+    },
+    {
+      "id": "europe/georgia",
+      "name": "Georgien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 91528309,
+      "date": "2026-08-25",
+      "bbox": [40.95117, 39.78093, 43.6899, 46.83959]
+    },
+    {
+      "id": "europe/greece",
+      "name": "Griechenland",
+      "group": "europe",
+      "parent": null,
+      "bytes": 268046610,
+      "date": "2026-09-06",
+      "bbox": [34.49111, 18.87064, 41.84954, 29.75683]
+    },
+    {
+      "id": "europe/great-britain",
+      "name": "Grossbritannien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 1647208232,
+      "date": "2026-09-05",
+      "bbox": [49.423, -15.0907, 61.23564, 2.613672]
+    },
+    {
+      "id": "europe/guernsey-jersey",
+      "name": "Guernsey und Jersey",
+      "group": "europe",
+      "parent": null,
+      "bytes": 3542425,
+      "date": "2026-08-28",
+      "bbox": [48.90381, -3.673306, 50.16948, -1.691572]
+    },
+    {
+      "id": "europe/ireland-and-northern-ireland",
+      "name": "Irland und Nordirland",
+      "group": "europe",
+      "parent": null,
+      "bytes": 338508734,
+      "date": "2026-09-10",
+      "bbox": [49.50002, -14.50224, 56.96553, -4.959265]
+    },
+    {
+      "id": "europe/iceland",
+      "name": "Island",
+      "group": "europe",
+      "parent": null,
+      "bytes": 96876133,
+      "date": "2026-09-08",
+      "bbox": [62.74553, -25.8, 67.60085, -12.31708]
+    },
+    {
+      "id": "europe/isle-of-man",
+      "name": "Isle of Man",
+      "group": "europe",
+      "parent": null,
+      "bytes": 5109457,
+      "date": "2026-09-10",
+      "bbox": [53.63236, -5.534554, 54.7706, -3.588718]
+    },
+    {
+      "id": "europe/italy",
+      "name": "Italien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 1681270135,
+      "date": "2026-08-10",
+      "bbox": [34.97638, 6.502696, 47.20005, 19.22499]
+    },
+    {
+      "id": "europe/kosovo",
+      "name": "Kosovo",
+      "group": "europe",
+      "parent": null,
+      "bytes": 27820311,
+      "date": "2026-08-10",
+      "bbox": [41.75408, 19.91357, 43.37753, 21.89327]
+    },
+    {
+      "id": "europe/croatia",
+      "name": "Kroatien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 175514764,
+      "date": "2026-08-21",
+      "bbox": [42.06483, 12.98916, 46.65756, 19.55997]
+    },
+    {
+      "id": "europe/latvia",
+      "name": "Lettland",
+      "group": "europe",
+      "parent": null,
+      "bytes": 110239439,
+      "date": "2026-09-10",
+      "bbox": [55.56109, 19.63348, 58.1947, 28.35501]
+    },
+    {
+      "id": "europe/liechtenstein",
+      "name": "Liechtenstein",
+      "group": "europe",
+      "parent": null,
+      "bytes": 2261314,
+      "date": "2026-09-10",
+      "bbox": [46.94774, 9.371078, 47.37128, 9.736217]
+    },
+    {
+      "id": "europe/lithuania",
+      "name": "Litauen",
+      "group": "europe",
+      "parent": null,
+      "bytes": 190729561,
+      "date": "2026-09-10",
+      "bbox": [53.79221, 20.51859, 56.55329, 26.93873]
+    },
+    {
+      "id": "europe/luxembourg",
+      "name": "Luxemburg",
+      "group": "europe",
+      "parent": null,
+      "bytes": 33905659,
+      "date": "2026-09-10",
+      "bbox": [49.34553, 5.633033, 50.28496, 6.632249]
+    },
+    {
+      "id": "europe/malta",
+      "name": "Malta",
+      "group": "europe",
+      "parent": null,
+      "bytes": 6714113,
+      "date": "2026-09-10",
+      "bbox": [35.41985, 13.9, 36.43296, 14.9561]
+    },
+    {
+      "id": "europe/moldova",
+      "name": "Moldau",
+      "group": "europe",
+      "parent": null,
+      "bytes": 87330104,
+      "date": "2026-09-10",
+      "bbox": [45.36164, 26.51232, 48.59397, 30.29249]
+    },
+    {
+      "id": "europe/monaco",
+      "name": "Monaco",
+      "group": "europe",
+      "parent": null,
+      "bytes": 354495,
+      "date": "2026-09-10",
+      "bbox": [43.38382, 7.308583, 43.85293, 7.695671]
+    },
+    {
+      "id": "europe/montenegro",
+      "name": "Montenegro",
+      "group": "europe",
+      "parent": null,
+      "bytes": 28624758,
+      "date": "2026-09-11",
+      "bbox": [41.51621, 18.07282, 43.66217, 20.45883]
+    },
+    {
+      "id": "europe/netherlands",
+      "name": "Niederlande",
+      "group": "europe",
+      "parent": null,
+      "bytes": 946462172,
+      "date": "2026-09-12",
+      "bbox": [50.64753, 2.836095, 54.11786, 7.330455]
+    },
+    {
+      "id": "europe/macedonia",
+      "name": "Nordmazedonien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 24839451,
+      "date": "2026-09-10",
+      "bbox": [40.74759, 20.34671, 42.47969, 23.14012]
+    },
+    {
+      "id": "europe/norway",
+      "name": "Norwegen",
+      "group": "europe",
+      "parent": null,
+      "bytes": 1806635933,
+      "date": "2026-09-17",
+      "bbox": [57.45323, -11.46801, 81.15195, 35.62711]
+    },
+    {
+      "id": "europe/austria",
+      "name": "Österreich",
+      "group": "europe",
+      "parent": null,
+      "bytes": 554110376,
+      "date": "2026-08-21",
+      "bbox": [46.26979, 9.42678, 49.12403, 17.26408]
+    },
+    {
+      "id": "europe/poland",
+      "name": "Polen",
+      "group": "europe",
+      "parent": null,
+      "bytes": 1601816173,
+      "date": "2026-09-19",
+      "bbox": [48.88642, 13.89022, 55.32826, 24.26102]
+    },
+    {
+      "id": "europe/portugal",
+      "name": "Portugal",
+      "group": "europe",
+      "parent": null,
+      "bytes": 382705505,
+      "date": "2026-09-19",
+      "bbox": [29.6, -31.7, 42.2639, -6.079513]
+    },
+    {
+      "id": "europe/romania",
+      "name": "Rumänien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 301372065,
+      "date": "2026-09-19",
+      "bbox": [43.51247, 20.14181, 48.36948, 30.37896]
+    },
+    {
+      "id": "europe/sweden",
+      "name": "Schweden",
+      "group": "europe",
+      "parent": null,
+      "bytes": 830438433,
+      "date": "2026-09-23",
+      "bbox": [54.92652, 10.44138, 69.16643, 24.32472]
+    },
+    {
+      "id": "europe/switzerland",
+      "name": "Schweiz",
+      "group": "europe",
+      "parent": null,
+      "bytes": 334266727,
+      "date": "2026-09-23",
+      "bbox": [45.71642, 5.854418, 47.91126, 10.59584]
+    },
+    {
+      "id": "europe/serbia",
+      "name": "Serbien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 202887356,
+      "date": "2026-09-20",
+      "bbox": [42.12979, 18.70894, 46.29207, 23.11035]
+    },
+    {
+      "id": "europe/slovakia",
+      "name": "Slowakei",
+      "group": "europe",
+      "parent": null,
+      "bytes": 236910343,
+      "date": "2026-09-20",
+      "bbox": [47.62646, 16.730709, 49.7186, 22.67051]
+    },
+    {
+      "id": "europe/slovenia",
+      "name": "Slowenien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 239545877,
+      "date": "2026-09-20",
+      "bbox": [45.32081, 13.20509, 46.97956, 16.70034]
+    },
+    {
+      "id": "europe/spain",
+      "name": "Spanien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 1207731647,
+      "date": "2026-09-22",
+      "bbox": [35.16393, -9.879014, 44.24855, 5.198525]
+    },
+    {
+      "id": "europe/czech-republic",
+      "name": "Tschechien",
+      "group": "europe",
+      "parent": null,
+      "bytes": 605630432,
+      "date": "2026-08-21",
+      "bbox": [48.44292, 11.98477, 51.16426, 18.96321]
+    },
+    {
+      "id": "europe/turkey",
+      "name": "Türkei",
+      "group": "europe",
+      "parent": null,
+      "bytes": 614175859,
+      "date": "2026-09-23",
+      "bbox": [35.617, 25.42398, 43.17481, 44.95992]
+    },
+    {
+      "id": "europe/ukraine",
+      "name": "Ukraine",
+      "group": "europe",
+      "parent": null,
+      "bytes": 873985569,
+      "date": "2026-09-24",
+      "bbox": [43.90862, 22.03264, 52.4865, 40.33811]
+    },
+    {
+      "id": "europe/hungary",
+      "name": "Ungarn",
+      "group": "europe",
+      "parent": null,
+      "bytes": 266972269,
+      "date": "2026-08-06",
+      "bbox": [45.63207, 16.00845, 48.68921, 23.00649]
+    },
+    {
+      "id": "europe/united-kingdom",
+      "name": "Vereinigtes Königreich",
+      "group": "europe",
+      "parent": null,
+      "bytes": null,
+      "date": null,
+      "bbox": [49.47808, -14.96155, 61.23564, 2.349944]
+    },
+    {
+      "id": "europe/cyprus",
+      "name": "Zypern",
+      "group": "europe",
+      "parent": null,
+      "bytes": 32743718,
+      "date": "2026-08-21",
+      "bbox": [34.13374, 31.85244, 36.10323, 35.06147]
+    },
+    {
+      "id": "europe/germany/baden-wuerttemberg",
+      "name": "Baden-Württemberg",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 425266620,
+      "date": "2026-10-06",
+      "bbox": [47.43076, 7.406494, 49.89456, 10.61495]
+    },
+    {
+      "id": "europe/germany/bayern",
+      "name": "Bayern",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 577483822,
+      "date": "2026-10-06",
+      "bbox": [47.16543, 8.875186, 50.66623, 13.94947]
+    },
+    {
+      "id": "europe/germany/berlin",
+      "name": "Berlin",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 54324000,
+      "date": "2026-10-06",
+      "bbox": [52.23446, 12.98283, 52.7783, 13.86225]
+    },
+    {
+      "id": "europe/germany/brandenburg",
+      "name": "Brandenburg",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 197427925,
+      "date": "2026-10-06",
+      "bbox": [51.25613, 11.16064, 53.66295, 14.87495]
+    },
+    {
+      "id": "europe/germany/bremen",
+      "name": "Bremen",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 14101328,
+      "date": "2026-10-06",
+      "bbox": [52.91034, 8.380959, 53.71063, 9.091268]
+    },
+    {
+      "id": "europe/germany/hamburg",
+      "name": "Hamburg",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 29488989,
+      "date": "2026-10-06",
+      "bbox": [53.29183, 7.867833, 54.16261, 10.43196]
+    },
+    {
+      "id": "europe/germany/hessen",
+      "name": "Hessen",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 229825935,
+      "date": "2026-10-06",
+      "bbox": [49.29321, 7.668021, 51.75916, 10.34595]
+    },
+    {
+      "id": "europe/germany/mecklenburg-vorpommern",
+      "name": "Mecklenburg-Vorpommern",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 101166918,
+      "date": "2026-10-06",
+      "bbox": [53.00619, 10.48807, 55.0837, 14.52292]
+    },
+    {
+      "id": "europe/germany/niedersachsen",
+      "name": "Niedersachsen",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 366352866,
+      "date": "2026-10-06",
+      "bbox": [51.19348, 6.195338, 54.33955, 11.70731]
+    },
+    {
+      "id": "europe/germany/nordrhein-westfalen",
+      "name": "Nordrhein-Westfalen",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 614561658,
+      "date": "2026-10-07",
+      "bbox": [50.22088, 5.764417, 52.63345, 9.568311]
+    },
+    {
+      "id": "europe/germany/rheinland-pfalz",
+      "name": "Rheinland-Pfalz",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 191497376,
+      "date": "2026-10-07",
+      "bbox": [48.86377, 6.009129, 51.04404, 8.611228]
+    },
+    {
+      "id": "europe/germany/saarland",
+      "name": "Saarland",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 36406537,
+      "date": "2026-10-07",
+      "bbox": [49.00807, 6.254475, 49.74146, 7.506287]
+    },
+    {
+      "id": "europe/germany/sachsen",
+      "name": "Sachsen",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 174028537,
+      "date": "2026-10-07",
+      "bbox": [50.06658, 11.76685, 51.78735, 15.15078]
+    },
+    {
+      "id": "europe/germany/sachsen-anhalt",
+      "name": "Sachsen-Anhalt",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 129582786,
+      "date": "2026-10-07",
+      "bbox": [50.82887, 10.44725, 53.1566, 13.31268]
+    },
+    {
+      "id": "europe/germany/schleswig-holstein",
+      "name": "Schleswig-Holstein",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 115376781,
+      "date": "2026-10-07",
+      "bbox": [53.2569, 7.36458, 55.24634, 11.89931]
+    },
+    {
+      "id": "europe/germany/thueringen",
+      "name": "Thüringen",
+      "group": "europe",
+      "parent": "europe/germany",
+      "bytes": 117289421,
+      "date": "2026-10-07",
+      "bbox": [50.09971, 9.763176, 51.75237, 12.76106]
+    },
+    {
+      "id": "europe/france/aquitaine",
+      "name": "Aquitanien",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 222705086,
+      "date": "2026-10-19",
+      "bbox": [42.67334, -1.942771, 45.81724, 1.550577]
+    },
+    {
+      "id": "europe/france/auvergne",
+      "name": "Auvergne",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 120178520,
+      "date": "2026-10-19",
+      "bbox": [44.5146, 1.960519, 46.90668, 4.592907]
+    },
+    {
+      "id": "europe/france/basse-normandie",
+      "name": "Basse-Normandie",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 109196733,
+      "date": "2026-10-19",
+      "bbox": [48.07802, -2.187526, 49.98523, 1.079067]
+    },
+    {
+      "id": "europe/france/bretagne",
+      "name": "Bretagne",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 219512097,
+      "date": "2026-10-19",
+      "bbox": [46.97722, -5.948854, 49.50025, -0.914538]
+    },
+    {
+      "id": "europe/france/bourgogne",
+      "name": "Burgund",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 160811663,
+      "date": "2026-10-19",
+      "bbox": [46.05484, 2.743279, 48.50136, 5.619965]
+    },
+    {
+      "id": "europe/france/centre",
+      "name": "Centre-Val de Loire",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 184951527,
+      "date": "2026-10-19",
+      "bbox": [46.24591, -0.048462, 49.0423, 3.229925]
+    },
+    {
+      "id": "europe/france/champagne-ardenne",
+      "name": "Champagne-Ardenne",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 83421647,
+      "date": "2026-10-19",
+      "bbox": [47.47553, 3.282419, 50.27007, 5.992182]
+    },
+    {
+      "id": "europe/france/alsace",
+      "name": "Elsass",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 90211271,
+      "date": "2026-10-19",
+      "bbox": [47.31798, 6.738921, 49.17898, 8.335464]
+    },
+    {
+      "id": "europe/france/franche-comte",
+      "name": "Franche-Comté",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 92920432,
+      "date": "2026-10-20",
+      "bbox": [46.15975, 5.15076, 48.12537, 7.24439]
+    },
+    {
+      "id": "europe/france/guyane",
+      "name": "Französisch-Guayana",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 16928882,
+      "date": "2026-10-20",
+      "bbox": [1.993117, -54.72299, 6.470288, -50.7667]
+    },
+    {
+      "id": "europe/france/guadeloupe",
+      "name": "Guadeloupe",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 18241745,
+      "date": "2026-10-20",
+      "bbox": [15.39074, -62.25241, 16.92426, -60.50471]
+    },
+    {
+      "id": "europe/france/haute-normandie",
+      "name": "Haute-Normandie",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 82602200,
+      "date": "2026-10-20",
+      "bbox": [48.56574, -0.090518, 50.18769, 1.903956]
+    },
+    {
+      "id": "europe/france/ile-de-france",
+      "name": "Île-de-France",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 210258216,
+      "date": "2026-10-20",
+      "bbox": [48.01918, 1.345097, 49.34271, 3.660409]
+    },
+    {
+      "id": "europe/france/corse",
+      "name": "Korsika",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 27152482,
+      "date": "2026-10-20",
+      "bbox": [41.21103, 8.217881, 43.26589, 9.851243]
+    },
+    {
+      "id": "europe/france/languedoc-roussillon",
+      "name": "Languedoc-Roussillon",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 187898102,
+      "date": "2026-10-20",
+      "bbox": [42.22755, 1.586256, 45.07821, 4.947979]
+    },
+    {
+      "id": "europe/france/limousin",
+      "name": "Limousin",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 76739840,
+      "date": "2026-10-20",
+      "bbox": [44.81842, 0.527097, 46.55781, 2.71384]
+    },
+    {
+      "id": "europe/france/lorraine",
+      "name": "Lothringen",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 128683560,
+      "date": "2026-10-20",
+      "bbox": [47.71188, 4.786022, 49.71946, 7.740105]
+    },
+    {
+      "id": "europe/france/martinique",
+      "name": "Martinique",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 14332816,
+      "date": "2026-10-20",
+      "bbox": [14.03392, -61.73056, 15.25167, -60.32755]
+    },
+    {
+      "id": "europe/france/mayotte",
+      "name": "Mayotte",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 7761459,
+      "date": "2026-10-20",
+      "bbox": [-13.57243, 44.52646, -12.04406, 45.7784]
+    },
+    {
+      "id": "europe/france/midi-pyrenees",
+      "name": "Midi-Pyrénées",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 261608970,
+      "date": "2026-10-20",
+      "bbox": [42.46793, -0.427537, 45.14779, 3.553264]
+    },
+    {
+      "id": "europe/france/nord-pas-de-calais",
+      "name": "Nord-Pas-de-Calais",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 167745917,
+      "date": "2026-10-20",
+      "bbox": [49.86764, 1.178311, 51.38121, 4.336622]
+    },
+    {
+      "id": "europe/france/pays-de-la-loire",
+      "name": "Pays de la Loire",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 250868467,
+      "date": "2026-10-20",
+      "bbox": [46.11875, -2.774666, 48.67002, 1.018996]
+    },
+    {
+      "id": "europe/france/picardie",
+      "name": "Picardie",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 110661751,
+      "date": "2026-10-20",
+      "bbox": [48.73599, 1.260085, 50.47125, 4.356744]
+    },
+    {
+      "id": "europe/france/poitou-charentes",
+      "name": "Poitou-Charentes",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 154238277,
+      "date": "2026-10-20",
+      "bbox": [44.9868, -1.998565, 47.27837, 1.314991]
+    },
+    {
+      "id": "europe/france/provence-alpes-cote-d-azur",
+      "name": "Provence-Alpes-Côte d'Azur",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 245496565,
+      "date": "2026-10-20",
+      "bbox": [42.21539, 4.044746, 45.22887, 7.848528]
+    },
+    {
+      "id": "europe/france/reunion",
+      "name": "Réunion",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 22637609,
+      "date": "2026-10-20",
+      "bbox": [-21.82922, 54.84688, -20.48589, 56.21999]
+    },
+    {
+      "id": "europe/france/rhone-alpes",
+      "name": "Rhône-Alpes",
+      "group": "europe",
+      "parent": "europe/france",
+      "bytes": 359162737,
+      "date": "2026-10-21",
+      "bbox": [44.01274, 3.586075, 46.62248, 7.29206]
+    },
+    {
+      "id": "europe/italy/centro",
+      "name": "Mittelitalien",
+      "group": "europe",
+      "parent": "europe/italy",
+      "bytes": 297779839,
+      "date": "2026-08-30",
+      "bbox": [40.11443, 9.206459, 44.5797, 14.76855]
+    },
+    {
+      "id": "europe/italy/nord-est",
+      "name": "Nordostitalien",
+      "group": "europe",
+      "parent": "europe/italy",
+      "bytes": 461892903,
+      "date": "2026-08-31",
+      "bbox": [43.62977, 9.095461, 47.20005, 14.02878]
+    },
+    {
+      "id": "europe/italy/nord-ovest",
+      "name": "Nordwestitalien",
+      "group": "europe",
+      "parent": "europe/italy",
+      "bytes": 424290414,
+      "date": "2026-08-31",
+      "bbox": [43.38099, 6.502696, 46.74119, 11.53336]
+    },
+    {
+      "id": "europe/italy/isole",
+      "name": "Sizilien und Sardinien",
+      "group": "europe",
+      "parent": "europe/italy",
+      "bytes": 182312551,
+      "date": "2026-08-30",
+      "bbox": [34.97638, 7.618453, 41.61893, 15.80887]
+    },
+    {
+      "id": "europe/italy/sud",
+      "name": "Süditalien",
+      "group": "europe",
+      "parent": "europe/italy",
+      "bytes": 334174193,
+      "date": "2026-09-01",
+      "bbox": [37.70152, 12.90131, 43.01363, 19.22499]
+    },
+    {
+      "id": "europe/netherlands/drenthe",
+      "name": "Drenthe",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 43203799,
+      "date": "2026-09-27",
+      "bbox": [52.51093, 6.018592, 53.30513, 7.195411]
+    },
+    {
+      "id": "europe/netherlands/flevoland",
+      "name": "Flevoland",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 25675974,
+      "date": "2026-09-27",
+      "bbox": [52.14826, 4.959593, 52.94516, 6.118276]
+    },
+    {
+      "id": "europe/netherlands/friesland",
+      "name": "Friesland",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 65136174,
+      "date": "2026-09-27",
+      "bbox": [52.66362, 4.497294, 53.78089, 6.528358]
+    },
+    {
+      "id": "europe/netherlands/gelderland",
+      "name": "Gelderland",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 126900199,
+      "date": "2026-09-27",
+      "bbox": [51.63231, 4.892647, 52.62322, 6.935752]
+    },
+    {
+      "id": "europe/netherlands/groningen",
+      "name": "Groningen",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 38387043,
+      "date": "2026-09-27",
+      "bbox": [52.73734, 6.066463, 53.75732, 7.330455]
+    },
+    {
+      "id": "europe/netherlands/limburg",
+      "name": "Limburg",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 66018864,
+      "date": "2026-09-27",
+      "bbox": [50.64753, 5.463304, 51.87992, 6.32939]
+    },
+    {
+      "id": "europe/netherlands/noord-brabant",
+      "name": "Nordbrabant",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 141576885,
+      "date": "2026-09-27",
+      "bbox": [51.11808, 4.089152, 51.93181, 6.149354]
+    },
+    {
+      "id": "europe/netherlands/noord-holland",
+      "name": "Nordholland",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 129546689,
+      "date": "2026-09-28",
+      "bbox": [52.06497, 3.796906, 53.38945, 5.478479]
+    },
+    {
+      "id": "europe/netherlands/overijssel",
+      "name": "Overijssel",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 78457642,
+      "date": "2026-09-28",
+      "bbox": [52.01349, 5.676793, 52.95539, 7.175066]
+    },
+    {
+      "id": "europe/netherlands/zuid-holland",
+      "name": "Südholland",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 147309943,
+      "date": "2026-09-28",
+      "bbox": [51.54252, 3.245328, 52.57611, 5.132393]
+    },
+    {
+      "id": "europe/netherlands/utrecht",
+      "name": "Utrecht",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 65192608,
+      "date": "2026-09-28",
+      "bbox": [51.75615, 4.690849, 52.40494, 5.72829]
+    },
+    {
+      "id": "europe/netherlands/zeeland",
+      "name": "Zeeland",
+      "group": "europe",
+      "parent": "europe/netherlands",
+      "bytes": 31898226,
+      "date": "2026-09-28",
+      "bbox": [51.09717, 3.133941, 51.97013, 4.378407]
+    },
+    {
+      "id": "europe/spain/andalucia",
+      "name": "Andalusien",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 176275231,
+      "date": "2026-08-28",
+      "bbox": [35.60638, -7.62466, 38.83347, -1.232095]
+    },
+    {
+      "id": "europe/spain/aragon",
+      "name": "Aragonien",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 83416187,
+      "date": "2026-08-28",
+      "bbox": [39.73833, -2.27907, 43.02677, 0.872562]
+    },
+    {
+      "id": "europe/spain/asturias",
+      "name": "Asturien",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 26797481,
+      "date": "2026-08-28",
+      "bbox": [42.77886, -7.288576, 44.11101, -4.29956]
+    },
+    {
+      "id": "europe/spain/islas-baleares",
+      "name": "Balearen",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 39548704,
+      "date": "2026-08-28",
+      "bbox": [37.95675, 0.515229, 40.8098, 5.038349]
+    },
+    {
+      "id": "europe/spain/pais-vasco",
+      "name": "Baskenland",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 54587343,
+      "date": "2026-08-28",
+      "bbox": [42.36919, -3.554342, 43.84729, -1.566284]
+    },
+    {
+      "id": "europe/spain/ceuta",
+      "name": "Ceuta",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 418297,
+      "date": "2026-08-08",
+      "bbox": [35.76702, -5.491024, 36.05869, -5.156615]
+    },
+    {
+      "id": "europe/spain/extremadura",
+      "name": "Extremadura",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 34229989,
+      "date": "2026-08-28",
+      "bbox": [37.83851, -7.64369, 40.58913, -4.54241]
+    },
+    {
+      "id": "europe/spain/galicia",
+      "name": "Galicien",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 83271234,
+      "date": "2026-08-08",
+      "bbox": [41.70443, -9.879014, 44.24855, -6.627066]
+    },
+    {
+      "id": "europe/spain/cantabria",
+      "name": "Kantabrien",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 26091818,
+      "date": "2026-08-28",
+      "bbox": [42.65458, -4.961622, 43.96548, -3.044983]
+    },
+    {
+      "id": "europe/spain/castilla-y-leon",
+      "name": "Kastilien und León",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 152255521,
+      "date": "2026-08-28",
+      "bbox": [39.98044, -7.180517, 43.34095, -1.666053]
+    },
+    {
+      "id": "europe/spain/castilla-la-mancha",
+      "name": "Kastilien-La Mancha",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 89823031,
+      "date": "2026-08-28",
+      "bbox": [37.9201, -5.51111, 41.43223, -0.812552]
+    },
+    {
+      "id": "europe/spain/cataluna",
+      "name": "Katalonien",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 208368723,
+      "date": "2026-08-28",
+      "bbox": [40.11245, 0.056383, 42.9632, 4.274794]
+    },
+    {
+      "id": "europe/spain/la-rioja",
+      "name": "La Rioja",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 10300704,
+      "date": "2026-08-08",
+      "bbox": [41.81403, -3.240202, 42.74621, -1.573012]
+    },
+    {
+      "id": "europe/spain/madrid",
+      "name": "Madrid",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 64958567,
+      "date": "2026-08-28",
+      "bbox": [39.78116, -4.689539, 41.26864, -2.950423]
+    },
+    {
+      "id": "europe/spain/melilla",
+      "name": "Melilla",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 540599,
+      "date": "2026-08-28",
+      "bbox": [35.16393, -3.072424, 35.42393, -2.808201]
+    },
+    {
+      "id": "europe/spain/murcia",
+      "name": "Murcia",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 28675479,
+      "date": "2026-08-28",
+      "bbox": [37.01215, -2.451246, 38.86024, -0.147194]
+    },
+    {
+      "id": "europe/spain/navarra",
+      "name": "Navarra",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 30704670,
+      "date": "2026-08-28",
+      "bbox": [41.80611, -2.602308, 43.41655, -0.616515]
+    },
+    {
+      "id": "europe/spain/valencia",
+      "name": "Valencia",
+      "group": "europe",
+      "parent": "europe/spain",
+      "bytes": 114609954,
+      "date": "2026-08-28",
+      "bbox": [37.74341, -1.631649, 40.89328, 1.786396]
+    },
+    {
+      "id": "europe/united-kingdom/england",
+      "name": "England",
+      "group": "europe",
+      "parent": "europe/united-kingdom",
+      "bytes": 1210840443,
+      "date": "2026-05-10",
+      "bbox": [49.47808, -7.201192, 56.16997, 2.349944]
+    },
+    {
+      "id": "europe/united-kingdom/scotland",
+      "name": "Schottland",
+      "group": "europe",
+      "parent": "europe/united-kingdom",
+      "bytes": 282418096,
+      "date": "2026-05-10",
+      "bbox": [54.44001, -14.96155, 61.23564, 0.316055]
+    },
+    {
+      "id": "europe/united-kingdom/wales",
+      "name": "Wales",
+      "group": "europe",
+      "parent": "europe/united-kingdom",
+      "bytes": 110405003,
+      "date": "2026-05-10",
+      "bbox": [50.93997, -6.283241, 53.86632, -2.548042]
+    },
+    {
+      "id": "central-america/bahamas",
+      "name": "Bahamas",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 30813560,
+      "date": "2026-09-01",
+      "bbox": [20.17251, -81.61857, 28.07497, -71.76673]
+    },
+    {
+      "id": "central-america/belize",
+      "name": "Belize",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 23479579,
+      "date": "2026-09-01",
+      "bbox": [15.78308, -89.32892, 18.5984, -86.75983]
+    },
+    {
+      "id": "central-america/costa-rica",
+      "name": "Costa Rica",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 38449760,
+      "date": "2026-09-01",
+      "bbox": [4.837746, -87.92473, 11.3237, -82.24952]
+    },
+    {
+      "id": "central-america/el-salvador",
+      "name": "El Salvador",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 34317945,
+      "date": "2026-09-02",
+      "bbox": [11.93598, -90.60091, 14.55762, -87.48438]
+    },
+    {
+      "id": "central-america/guatemala",
+      "name": "Guatemala",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 135091737,
+      "date": "2026-09-02",
+      "bbox": [12.64168, -92.83303, 17.93533, -87.85177]
+    },
+    {
+      "id": "central-america/haiti-and-domrep",
+      "name": "Haiti und Dominikanische Republik",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 80692770,
+      "date": "2026-09-02",
+      "bbox": [16.89901, -74.92529, 21.55307, -67.95482]
+    },
+    {
+      "id": "central-america/honduras",
+      "name": "Honduras",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 80432095,
+      "date": "2026-09-02",
+      "bbox": [12.86943, -89.46005, 18.03171, -81.56138]
+    },
+    {
+      "id": "central-america/jamaica",
+      "name": "Jamaika",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 38894429,
+      "date": "2026-09-02",
+      "bbox": [16.25, -78.95, 19.26, -75.41]
+    },
+    {
+      "id": "central-america/cuba",
+      "name": "Kuba",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 65473943,
+      "date": "2026-09-02",
+      "bbox": [19.1533, -85.5242, 23.70427, -73.60831]
+    },
+    {
+      "id": "central-america/nicaragua",
+      "name": "Nicaragua",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 59329648,
+      "date": "2026-09-02",
+      "bbox": [10.60177, -88.0774, 15.2119, -82.27865]
+    },
+    {
+      "id": "central-america/panama",
+      "name": "Panama",
+      "group": "central-america",
+      "parent": null,
+      "bytes": 39031883,
+      "date": "2026-09-02",
+      "bbox": [6.544027, -83.56462, 11.30708, -76.98126]
+    },
+    {
+      "id": "north-america/greenland",
+      "name": "Grönland",
+      "group": "north-america",
+      "parent": null,
+      "bytes": 1612653071,
+      "date": "2025-08-13",
+      "bbox": [58.57169, -75.4894, 84.54358, -9.354384]
+    },
+    {
+      "id": "north-america/canada",
+      "name": "Kanada",
+      "group": "north-america",
+      "parent": null,
+      "bytes": null,
+      "date": null,
+      "bbox": [41.56009, -141.8761, 85.05198, -44.07684]
+    },
+    {
+      "id": "north-america/mexico",
+      "name": "Mexiko",
+      "group": "north-america",
+      "parent": null,
+      "bytes": 719418229,
+      "date": "2026-06-28",
+      "bbox": [9.356709, -132.5952, 32.82067, -85.39087]
+    },
+    {
+      "id": "north-america/us",
+      "name": "USA",
+      "group": "north-america",
+      "parent": null,
+      "bytes": null,
+      "date": null,
+      "bbox": [15.82097, -180.0, 73.08845, -63.85554]
+    },
+    {
+      "id": "north-america/us-midwest",
+      "name": "USA Mittlerer Westen",
+      "group": "north-america",
+      "parent": null,
+      "bytes": 1754761872,
+      "date": "2025-05-03",
+      "bbox": [35.88507, -104.1588, 49.50714, -80.40521]
+    },
+    {
+      "id": "north-america/us-northeast",
+      "name": "USA Nordost",
+      "group": "north-america",
+      "parent": null,
+      "bytes": 1234363207,
+      "date": "2025-08-17",
+      "bbox": [38.64287, -80.62275, 47.56222, -66.77164]
+    },
+    {
+      "id": "north-america/us-south",
+      "name": "USA Süd",
+      "group": "north-america",
+      "parent": null,
+      "bytes": 3014316830,
+      "date": "2025-02-17",
+      "bbox": [24.10031, -106.7494, 40.74636, -71.40981]
+    },
+    {
+      "id": "north-america/us-west",
+      "name": "USA West",
+      "group": "north-america",
+      "parent": null,
+      "bytes": 2287593490,
+      "date": "2025-01-23",
+      "bbox": [31.22659, -133.1637, 49.55605, -101.9355]
+    },
+    {
+      "id": "north-america/canada/alberta",
+      "name": "Alberta",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 324972982,
+      "date": "2026-08-19",
+      "bbox": [48.89251, -120.1043, 60.10254, -109.9018]
+    },
+    {
+      "id": "north-america/canada/british-columbia",
+      "name": "British Columbia",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 793418945,
+      "date": "2026-08-21",
+      "bbox": [46.31459, -141.8761, 60.10678, -113.949]
+    },
+    {
+      "id": "north-america/canada/manitoba",
+      "name": "Manitoba",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 228463161,
+      "date": "2026-04-21",
+      "bbox": [48.89056, -102.114, 60.10845, -88.02183]
+    },
+    {
+      "id": "north-america/canada/newfoundland-and-labrador",
+      "name": "Neufundland und Labrador",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 347654679,
+      "date": "2026-04-23",
+      "bbox": [44.35787, -67.97079, 60.60864, -44.07684]
+    },
+    {
+      "id": "north-america/canada/new-brunswick",
+      "name": "New Brunswick",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 61777247,
+      "date": "2026-08-21",
+      "bbox": [44.09205, -69.15975, 48.48075, -62.78575]
+    },
+    {
+      "id": "north-america/canada/northwest-territories",
+      "name": "Nordwest-Territorien",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 771137224,
+      "date": "2026-04-26",
+      "bbox": [59.8896, -136.7974, 81.75483, -101.876]
+    },
+    {
+      "id": "north-america/canada/nova-scotia",
+      "name": "Nova Scotia",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 84846989,
+      "date": "2026-04-26",
+      "bbox": [42.00691, -67.34728, 47.99793, -58.12593]
+    },
+    {
+      "id": "north-america/canada/nunavut",
+      "name": "Nunavut",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 2146020399,
+      "date": "2025-12-13",
+      "bbox": [51.0268, -120.837, 85.05198, -53.16943]
+    },
+    {
+      "id": "north-america/canada/ontario",
+      "name": "Ontario",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 731002034,
+      "date": "2025-12-17",
+      "bbox": [41.56009, -95.25965, 57.60826, -74.20998]
+    },
+    {
+      "id": "north-america/canada/prince-edward-island",
+      "name": "Prince Edward Island",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 11093089,
+      "date": "2025-12-17",
+      "bbox": [45.72497, -64.70236, 47.78573, -61.14878]
+    },
+    {
+      "id": "north-america/canada/quebec",
+      "name": "Québec",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 1019343581,
+      "date": "2025-12-18",
+      "bbox": [44.88552, -79.9404, 62.7262, -56.98908]
+    },
+    {
+      "id": "north-america/canada/saskatchewan",
+      "name": "Saskatchewan",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 142240247,
+      "date": "2025-12-18",
+      "bbox": [48.8876, -110.1069, 60.10052, -101.2614]
+    },
+    {
+      "id": "north-america/canada/yukon",
+      "name": "Yukon",
+      "group": "north-america",
+      "parent": "north-america/canada",
+      "bytes": 145924791,
+      "date": "2025-12-18",
+      "bbox": [59.89739, -141.3389, 70.26293, -123.7021]
+    },
+    {
+      "id": "north-america/us/alabama",
+      "name": "Alabama",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 126622890,
+      "date": "2026-09-07",
+      "bbox": [29.85494, -88.58389, 35.10872, -84.78336]
+    },
+    {
+      "id": "north-america/us/alaska-1",
+      "name": "Alaska (Teil 1)",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 618788697,
+      "date": "2026-09-11",
+      "bbox": [49.7089, -180.0, 73.08845, -129.6998]
+    },
+    {
+      "id": "north-america/us/alaska-2",
+      "name": "Alaska (Teil 2)",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 604518364,
+      "date": "2025-04-10",
+      "bbox": [49.70942, -180.0, 73.08845, -129.6998]
+    },
+    {
+      "id": "north-america/us/us-virgin-islands",
+      "name": "Amerikanische Jungferninseln",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 3094923,
+      "date": "2026-09-26",
+      "bbox": [17.18246, -65.27502, 18.58596, -63.85554]
+    },
+    {
+      "id": "north-america/us/arizona",
+      "name": "Arizona",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 252784215,
+      "date": "2026-09-12",
+      "bbox": [31.22659, -114.9224, 37.10596, -108.9437]
+    },
+    {
+      "id": "north-america/us/arkansas",
+      "name": "Arkansas",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 80802013,
+      "date": "2026-09-12",
+      "bbox": [32.903799, -94.72217, 36.61585, -89.53987]
+    },
+    {
+      "id": "north-america/us/colorado",
+      "name": "Colorado",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 274471700,
+      "date": "2026-09-13",
+      "bbox": [36.88943, -109.1631, 41.10388, -101.9355]
+    },
+    {
+      "id": "north-america/us/connecticut",
+      "name": "Connecticut",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 139762863,
+      "date": "2026-09-13",
+      "bbox": [40.86401, -73.82889, 42.15229, -71.6853]
+    },
+    {
+      "id": "north-america/us/delaware",
+      "name": "Delaware",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 17678348,
+      "date": "2026-09-13",
+      "bbox": [38.35043, -75.88974, 39.94262, -74.88401]
+    },
+    {
+      "id": "north-america/us/district-of-columbia",
+      "name": "District of Columbia",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 12577103,
+      "date": "2026-09-13",
+      "bbox": [38.69099, -77.2201, 39.09603, -76.80906]
+    },
+    {
+      "id": "north-america/us/florida",
+      "name": "Florida",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 667991723,
+      "date": "2026-09-14",
+      "bbox": [24.10031, -88.56896, 31.10307, -79.33702]
+    },
+    {
+      "id": "north-america/us/georgia",
+      "name": "Georgia",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 264927571,
+      "date": "2026-09-14",
+      "bbox": [30.25365, -85.7068, 35.10356, -80.64313]
+    },
+    {
+      "id": "north-america/us/hawaii",
+      "name": "Hawaii",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 83778560,
+      "date": "2026-09-14",
+      "bbox": [15.82097, -179.6994, 29.12109, -142.5511]
+    },
+    {
+      "id": "north-america/us/idaho",
+      "name": "Idaho",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 105043480,
+      "date": "2026-09-14",
+      "bbox": [41.88306, -117.346, 49.10819, -110.9431]
+    },
+    {
+      "id": "north-america/us/illinois",
+      "name": "Illinois",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 286324231,
+      "date": "2026-09-14",
+      "bbox": [36.86731, -91.61608, 42.60941, -87.39264]
+    },
+    {
+      "id": "north-america/us/indiana",
+      "name": "Indiana",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 166977082,
+      "date": "2026-09-14",
+      "bbox": [37.66911, -88.20327, 41.86301, -84.68042]
+    },
+    {
+      "id": "north-america/us/iowa",
+      "name": "Iowa",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 106658871,
+      "date": "2026-09-14",
+      "bbox": [40.27266, -96.7426, 43.60182, -90.03581]
+    },
+    {
+      "id": "north-america/us/california",
+      "name": "Kalifornien",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 896882914,
+      "date": "2026-09-13",
+      "bbox": [32.38171, -125.9935, 42.11618, -114.0291]
+    },
+    {
+      "id": "north-america/us/kansas",
+      "name": "Kansas",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 102120303,
+      "date": "2026-09-14",
+      "bbox": [36.89136, -102.1535, 40.10375, -94.48926]
+    },
+    {
+      "id": "north-america/us/kentucky",
+      "name": "Kentucky",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 112654415,
+      "date": "2026-09-14",
+      "bbox": [36.39325, -89.68125, 39.24831, -81.85512]
+    },
+    {
+      "id": "north-america/us/louisiana",
+      "name": "Louisiana",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 116299847,
+      "date": "2026-09-14",
+      "bbox": [28.04452, -94.14376, 33.12025, -88.56684]
+    },
+    {
+      "id": "north-america/us/maine",
+      "name": "Maine",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 75928063,
+      "date": "2026-09-14",
+      "bbox": [42.75443, -71.18891, 47.56222, -66.77164]
+    },
+    {
+      "id": "north-america/us/maryland",
+      "name": "Maryland",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 163655336,
+      "date": "2026-09-15",
+      "bbox": [37.78396, -79.58857, 39.82684, -74.85408]
+    },
+    {
+      "id": "north-america/us/massachusetts",
+      "name": "Massachusetts",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 201049315,
+      "date": "2026-09-15",
+      "bbox": [40.78291, -73.61096, 42.98768, -68.63438]
+    },
+    {
+      "id": "north-america/us/michigan",
+      "name": "Michigan",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 272231209,
+      "date": "2026-09-22",
+      "bbox": [41.59439, -90.51981, 48.45021, -81.96913]
+    },
+    {
+      "id": "north-america/us/minnesota",
+      "name": "Minnesota",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 223638305,
+      "date": "2026-09-24",
+      "bbox": [43.39909, -97.34987, 49.50714, -89.38612]
+    },
+    {
+      "id": "north-america/us/mississippi",
+      "name": "Mississippi",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 65626450,
+      "date": "2026-09-24",
+      "bbox": [29.94168, -91.75857, 35.10055, -87.99292]
+    },
+    {
+      "id": "north-america/us/missouri",
+      "name": "Missouri",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 160259754,
+      "date": "2026-09-24",
+      "bbox": [35.89466, -95.87751, 40.71664, -88.9891]
+    },
+    {
+      "id": "north-america/us/montana",
+      "name": "Montana",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 98414049,
+      "date": "2026-09-24",
+      "bbox": [44.25556, -116.1518, 49.10769, -103.9355]
+    },
+    {
+      "id": "north-america/us/nebraska",
+      "name": "Nebraska",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 86346495,
+      "date": "2026-09-24",
+      "bbox": [39.90015, -104.1575, 43.10172, -95.20703]
+    },
+    {
+      "id": "north-america/us/nevada",
+      "name": "Nevada",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 107866020,
+      "date": "2026-09-24",
+      "bbox": [34.90053, -120.1074, 42.10391, -113.9379]
+    },
+    {
+      "id": "north-america/us/new-hampshire",
+      "name": "New Hampshire",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 53014191,
+      "date": "2026-09-24",
+      "bbox": [42.59669, -72.6588, 45.41002, -70.38692]
+    },
+    {
+      "id": "north-america/us/new-jersey",
+      "name": "New Jersey",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 125782973,
+      "date": "2026-09-24",
+      "bbox": [38.65433, -75.67879, 41.45807, -73.57898]
+    },
+    {
+      "id": "north-america/us/new-mexico",
+      "name": "New Mexico",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 113506909,
+      "date": "2026-09-24",
+      "bbox": [31.23043, -109.1504, 37.10184, -102.8979]
+    },
+    {
+      "id": "north-america/us/new-york",
+      "name": "New York",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 377664687,
+      "date": "2026-09-24",
+      "bbox": [40.33922, -79.86483, 45.11766, -71.5608]
+    },
+    {
+      "id": "north-america/us/north-carolina",
+      "name": "North Carolina",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 318100523,
+      "date": "2026-09-24",
+      "bbox": [33.029919, -84.42219, 36.68979, -73.6396]
+    },
+    {
+      "id": "north-america/us/north-dakota",
+      "name": "North Dakota",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 82469614,
+      "date": "2026-09-25",
+      "bbox": [45.83448, -104.153, 49.11671, -96.45292]
+    },
+    {
+      "id": "north-america/us/ohio",
+      "name": "Ohio",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 268654696,
+      "date": "2026-09-25",
+      "bbox": [38.30076, -84.9219, 42.43584, -80.40521]
+    },
+    {
+      "id": "north-america/us/oklahoma",
+      "name": "Oklahoma",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 121539449,
+      "date": "2026-09-25",
+      "bbox": [33.51348, -103.1078, 37.10529, -94.32989]
+    },
+    {
+      "id": "north-america/us/oregon",
+      "name": "Oregon",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 197505196,
+      "date": "2026-09-25",
+      "bbox": [41.8634, -126.4879, 46.40349, -116.3545]
+    },
+    {
+      "id": "north-america/us/pennsylvania",
+      "name": "Pennsylvania",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 270846851,
+      "date": "2026-09-25",
+      "bbox": [39.5644, -80.62275, 42.61649, -74.58761]
+    },
+    {
+      "id": "north-america/us/puerto-rico",
+      "name": "Puerto Rico",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 68291658,
+      "date": "2026-09-25",
+      "bbox": [17.41573, -68.41024, 18.91272, -64.99262]
+    },
+    {
+      "id": "north-america/us/rhode-island",
+      "name": "Rhode Island",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 35676811,
+      "date": "2026-09-25",
+      "bbox": [40.8992, -72.01456, 42.11938, -70.96369]
+    },
+    {
+      "id": "north-america/us/south-carolina",
+      "name": "South Carolina",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 125858511,
+      "date": "2026-09-25",
+      "bbox": [31.92967, -83.45622, 35.3184, -78.41867]
+    },
+    {
+      "id": "north-america/us/south-dakota",
+      "name": "South Dakota",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 48509968,
+      "date": "2026-09-25",
+      "bbox": [42.37744, -104.1588, 46.04831, -96.33595]
+    },
+    {
+      "id": "north-america/us/tennessee",
+      "name": "Tennessee",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 148432588,
+      "date": "2026-09-25",
+      "bbox": [34.88269, -90.41329, 36.78075, -81.54416]
+    },
+    {
+      "id": "north-america/us/texas",
+      "name": "Texas",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 596992049,
+      "date": "2026-09-26",
+      "bbox": [25.59551, -106.7494, 36.62145, -92.91897]
+    },
+    {
+      "id": "north-america/us/utah",
+      "name": "Utah",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 129551443,
+      "date": "2026-09-26",
+      "bbox": [36.8963, -114.1556, 42.10323, -108.9394]
+    },
+    {
+      "id": "north-america/us/vermont",
+      "name": "Vermont",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 35031332,
+      "date": "2026-09-26",
+      "bbox": [42.62498, -73.53943, 45.12309, -71.36476]
+    },
+    {
+      "id": "north-america/us/virginia",
+      "name": "Virginia",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 300981444,
+      "date": "2026-09-26",
+      "bbox": [36.43798, -83.77841, 39.56901, -74.19751]
+    },
+    {
+      "id": "north-america/us/washington",
+      "name": "Washington",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 295067958,
+      "date": "2026-09-26",
+      "bbox": [45.43882, -126.8423, 49.10708, -116.8115]
+    },
+    {
+      "id": "north-america/us/west-virginia",
+      "name": "West Virginia",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 94882792,
+      "date": "2026-09-26",
+      "bbox": [37.09858, -82.74965, 40.74636, -77.6141]
+    },
+    {
+      "id": "north-america/us/wisconsin",
+      "name": "Wisconsin",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 235628875,
+      "date": "2026-09-28",
+      "bbox": [42.38899, -92.99089, 47.51451, -86.10021]
+    },
+    {
+      "id": "north-america/us/wyoming",
+      "name": "Wyoming",
+      "group": "north-america",
+      "parent": "north-america/us",
+      "bytes": 88479534,
+      "date": "2026-09-28",
+      "bbox": [40.88339, -111.1576, 45.11216, -103.8413]
+    },
+    {
+      "id": "russia/far-eastern-fed-district-1",
+      "name": "Ferner Osten (Teil 1)",
+      "group": "russia",
+      "parent": null,
+      "bytes": 1575799817,
+      "date": "2025-08-27",
+      "bbox": [37.24659, 105.3219, 82.10023, 180.0]
+    },
+    {
+      "id": "russia/far-eastern-fed-district-2",
+      "name": "Ferner Osten (Teil 2)",
+      "group": "russia",
+      "parent": null,
+      "bytes": 1617780484,
+      "date": "2026-07-04",
+      "bbox": [37.24659, 105.3219, 82.10023, 180.0]
+    },
+    {
+      "id": "russia/kaliningrad",
+      "name": "Kaliningrad",
+      "group": "russia",
+      "parent": null,
+      "bytes": 27882174,
+      "date": "2026-06-29",
+      "bbox": [54.21723, 19.30837, 55.4899, 22.98747]
+    },
+    {
+      "id": "russia/crimean-fed-district",
+      "name": "Krim",
+      "group": "russia",
+      "parent": null,
+      "bytes": 35754782,
+      "date": "2026-06-29",
+      "bbox": [44.03411, 32.05053, 46.38118, 36.78355]
+    },
+    {
+      "id": "russia/north-caucasus-fed-district",
+      "name": "Nordkaukasus",
+      "group": "russia",
+      "parent": null,
+      "bytes": 144416709,
+      "date": "2026-07-04",
+      "bbox": [41.0355, 40.57265, 46.33914, 48.96453]
+    },
+    {
+      "id": "russia/northwestern-fed-district",
+      "name": "Nordwestrussland",
+      "group": "russia",
+      "parent": null,
+      "bytes": 1447666539,
+      "date": "2026-07-05",
+      "bbox": [54.21282, 19.30837, 82.64561, 72.72481]
+    },
+    {
+      "id": "russia/siberian-fed-district",
+      "name": "Sibirien",
+      "group": "russia",
+      "parent": null,
+      "bytes": 1801407762,
+      "date": "2026-07-06",
+      "bbox": [48.92101, 70.17478, 81.98747, 147.8133]
+    },
+    {
+      "id": "russia/south-fed-district",
+      "name": "Südrussland",
+      "group": "russia",
+      "parent": null,
+      "bytes": 323627999,
+      "date": "2026-07-06",
+      "bbox": [43.08958, 36.42315, 51.3554, 50.03666]
+    },
+    {
+      "id": "russia/ural-fed-district",
+      "name": "Ural",
+      "group": "russia",
+      "parent": null,
+      "bytes": 653911552,
+      "date": "2026-07-06",
+      "bbox": [51.7264, 56.94259, 75.111, 86.1952]
+    },
+    {
+      "id": "russia/volga-fed-district",
+      "name": "Wolgaregion",
+      "group": "russia",
+      "parent": null,
+      "bytes": 829226088,
+      "date": "2026-07-07",
+      "bbox": [49.65097, 41.62107, 61.81971, 61.83371]
+    },
+    {
+      "id": "russia/central-fed-district",
+      "name": "Zentralrussland",
+      "group": "russia",
+      "parent": null,
+      "bytes": 810889668,
+      "date": "2026-07-03",
+      "bbox": [49.40446, 30.59976, 59.7533, 47.77023]
+    },
+    {
+      "id": "south-america/argentina",
+      "name": "Argentinien",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 568374802,
+      "date": "2026-10-20",
+      "bbox": [-55.78296, -73.71453, -21.62575, -53.53534]
+    },
+    {
+      "id": "south-america/bolivia",
+      "name": "Bolivien",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 179404903,
+      "date": "2026-10-21",
+      "bbox": [-23.02551, -69.75675, -9.53866, -57.33481]
+    },
+    {
+      "id": "south-america/brazil",
+      "name": "Brasilien",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 2227075999,
+      "date": "2026-10-23",
+      "bbox": [-35.56552, -74.12313, 5.622895, -27.57249]
+    },
+    {
+      "id": "south-america/chile",
+      "name": "Chile",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 682169123,
+      "date": "2026-10-24",
+      "bbox": [-58.55195, -113.3233, -17.35743, -65.4141]
+    },
+    {
+      "id": "south-america/ecuador",
+      "name": "Ecuador",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 130665254,
+      "date": "2026-10-24",
+      "bbox": [-5.124173, -93.66487, 2.943487, -75.06149]
+    },
+    {
+      "id": "south-america/guyana",
+      "name": "Guyana",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 23912796,
+      "date": "2026-10-24",
+      "bbox": [1.049369, -61.52101, 9.282536, -56.32321]
+    },
+    {
+      "id": "south-america/colombia",
+      "name": "Kolumbien",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 347065584,
+      "date": "2026-10-24",
+      "bbox": [-4.35732, -83.33104, 16.51924, -66.71472]
+    },
+    {
+      "id": "south-america/paraguay",
+      "name": "Paraguay",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 153026848,
+      "date": "2026-10-24",
+      "bbox": [-27.75675, -62.79475, -19.14012, -54.10176]
+    },
+    {
+      "id": "south-america/peru",
+      "name": "Peru",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 302817098,
+      "date": "2026-10-25",
+      "bbox": [-20.40552, -86.12509, 0.160049, -68.45439]
+    },
+    {
+      "id": "south-america/suriname",
+      "name": "Suriname",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 29167729,
+      "date": "2026-10-25",
+      "bbox": [1.716773, -58.18461, 7.861698, -53.22819]
+    },
+    {
+      "id": "south-america/uruguay",
+      "name": "Uruguay",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 47599203,
+      "date": "2026-10-25",
+      "bbox": [-36.3487, -58.62589, -29.97355, -52.6723]
+    },
+    {
+      "id": "south-america/venezuela",
+      "name": "Venezuela",
+      "group": "south-america",
+      "parent": null,
+      "bytes": 158902470,
+      "date": "2026-10-26",
+      "bbox": [0.521727, -73.48098, 16.06134, -59.41474]
+    },
+    {
+      "id": "south-america/brazil/norte",
+      "name": "Brasilien Nord",
+      "group": "south-america",
+      "parent": "south-america/brazil",
+      "bytes": 297908081,
+      "date": "2026-10-02",
+      "bbox": [-13.83407, -74.12313, 5.622895, -42.77915]
+    },
+    {
+      "id": "south-america/brazil/nordeste",
+      "name": "Brasilien Nordost",
+      "group": "south-america",
+      "parent": "south-america/brazil",
+      "bytes": 463334160,
+      "date": "2026-10-02",
+      "bbox": [-18.69514, -48.87554, 2.773015, -28.32028]
+    },
+    {
+      "id": "south-america/brazil/sul",
+      "name": "Brasilien Süd",
+      "group": "south-america",
+      "parent": "south-america/brazil",
+      "bytes": 406282971,
+      "date": "2026-10-03",
+      "bbox": [-34.96424, -57.77273, -22.41383, -44.1463]
+    },
+    {
+      "id": "south-america/brazil/sudeste",
+      "name": "Brasilien Südost",
+      "group": "south-america",
+      "parent": "south-america/brazil",
+      "bytes": 805522030,
+      "date": "2026-10-03",
+      "bbox": [-25.5993, -53.2189, -14.12445, -28.09195]
+    },
+    {
+      "id": "south-america/brazil/centro-oeste",
+      "name": "Brasilien Zentral-West",
+      "group": "south-america",
+      "parent": "south-america/brazil",
+      "bytes": 245478156,
+      "date": "2026-09-30",
+      "bbox": [-24.28381, -61.76496, -7.217334, -45.77758]
+    },
+    {
+      "id": "world/world",
+      "name": "Welt (Übersicht)",
+      "group": "world",
+      "parent": null,
+      "bytes": 3276950,
+      "date": "2016-02-20",
+      "bbox": [-90.0, -180.0, 90.0, 180.0]
+    }
+  ]
+}
