@@ -161,6 +161,34 @@ sealed interface AppEvent {
         val total: Long,
         val message: String? = null,
     ) : AppEvent
+
+    /**
+     * The music players on the watch ([AppContext.media] after [MediaAction.Follow]): the one that plays or
+     * played last first. [volume] of [maxVolume] is the watch's media volume; [output] where the sound goes
+     * ("Kopfhörer: Pixel Buds", "Lautsprecher der Uhr"), null when nothing can play it; [message] why there are
+     * no players (German), e.g. no access to the media controls yet. Comes again on every change. Since
+     * interface version 6.
+     */
+    data class Media(
+        val players: List<MediaInfo>,
+        val volume: Int,
+        val maxVolume: Int,
+        val output: String?,
+        val message: String? = null,
+    ) : AppEvent
+
+    /**
+     * The app's own stream ([AppContext.player]) changed: its [state], and while it plays what the station
+     * says plays now ([title], e.g. "Queen - Bohemian Rhapsody") and its name ([station]); [message] why it
+     * failed or paused (German). Since interface version 6.
+     */
+    data class Player(
+        val state: PlayerState,
+        val url: String,
+        val title: String? = null,
+        val station: String? = null,
+        val message: String? = null,
+    ) : AppEvent
 }
 
 /**

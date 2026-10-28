@@ -44,11 +44,23 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
+    <!-- Music on the watch for apps (03 §15, interface 6): the players to open, and their names. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+        </intent>
+    </queries>
+
     <application
         android:name=".G2WatchApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.G2Watch">
 
@@ -78,6 +90,18 @@
             android:name=".glasses.GlassesService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice|microphone|location" />
+
+        <!-- The key to the watch's media controls (03 §15): the wearer allows it once as notification access.
+             It reads no notifications. -->
+        <service
+            android:name=".apps.media.MediaAccessService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <!-- Keeps the watch awake while firmware is prepared and transferred. -->
         <service
