@@ -214,6 +214,13 @@ positiven Fotos, Logos als Grafik, Text in voller Helligkeit und automatisch neg
 mit Tests und Bildern `docs/bilder/raster-*.png`. Der Gecko-Test (M2) nutzt es schon auf der Uhr, seit v0.8.0
 auch der Browser.
 
+## Auf Wunsch dazwischen gebaut
+
+- **Musik der Uhr und eigener Ton** (v0.13.0, Schnittstelle 6, [03 §15](03_Uhr-Apps.md#15-musik-der-uhr-und-eigener-ton-v0130-schnittstelle-6)):
+  Uhr-Apps sehen und steuern die Player der Uhr (Spotify …) über Androids Mediensteuerung und spielen einen
+  eigenen Audio-Stream; erste Nutzerin ist das Paket [Musik](../../packages/musik/README.md) (Spotify von der
+  Brille aus, Radio mit den Schweizer Sendern von DAB+ als Stream). Nicht auf Hardware erprobt.
+
 ## Danach (Ideen, nicht geplant)
 
 - „Lite“-Engine auf der Uhr (QuickJS + linkedom) für sehr einfache Even-Hub-Apps.

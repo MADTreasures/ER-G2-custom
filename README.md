@@ -14,7 +14,7 @@ ob GeckoView auf der Uhr gut genug läuft.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.12.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
+> **Ehrlicher Stand (v0.13.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
 > Custom-Firmware**: Pixel Watch 5 und G2, linkes Glas im ersten Anlauf; beim rechten brach der erste Anlauf
 > ab, nach dem angezeigten Weg (Brille laden, neu starten, erneut aufspielen) klappte es. Alles andere läuft
 > bisher nur gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
@@ -50,6 +50,11 @@ ob GeckoView auf der Uhr gut genug läuft.
 > die **[Navigation „Navi“](#navigation-offline-navi)** 1.0.0 – Karten jedes Landes der Welt einzeln auf die Uhr
 > laden, Ziel suchen, Start und Ziel wählen, Abbiegehinweise im Stil von Evens Navigation, alles ohne Netz.
 > Nicht auf Hardware erprobt.
+> Neu in 0.13.0: Apps **sehen und steuern die Musik der Uhr** (Spotify und jeden anderen Player) und spielen
+> einen **eigenen Ton**, etwa Radio (Schnittstelle 6). Erste Nutzerin: die App **[Musik](#musik-spotify-und-radio-auf-der-brille)**
+> 1.0.0 – Spotify von der Brille aus bedienen (Titel, Cover, Play/Pause, weiter, Lautstärke) und Radio mit den
+> 44 Schweizer Sendern von DAB+ als Internet-Stream, dazu jeder Sender der Welt. Der Ton kommt von der Uhr
+> (Kopfhörer oder Lautsprecher). Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -144,7 +149,8 @@ Seit 0.4.0 hat die Uhr einen **App-Host** (Meilenstein M1 aus
 Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeichnet sie auf die Brille und
 verteilt die Eingaben. Jede App ist ein App-Paket, zurzeit **YouTube** ([YouTube auf der Brille](#youtube-auf-der-brille)),
 **Browser** ([Web-Browser auf der Brille](#web-browser-auf-der-brille)), **Fluency**
-([Apps auf dem Handy](#apps-auf-dem-handy-g2-handy-und-fluency)) und **Navi** ([Navigation offline](#navigation-offline-navi)).
+([Apps auf dem Handy](#apps-auf-dem-handy-g2-handy-und-fluency)), **Navi** ([Navigation offline](#navigation-offline-navi))
+und **Musik** ([Spotify und Radio](#musik-spotify-und-radio-auf-der-brille)).
 Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installieren](#eigene-apps-installieren)).
 
 | Starter | App-Menü | Berechtigung beim ersten Start |
@@ -293,12 +299,13 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
-zweimal antippen. Fertige Pakete: **YouTube**, **Browser**, **Fluency** und **Navi**, alle mit Symbol für den Starter (ein
+zweimal antippen. Fertige Pakete: **YouTube**, **Browser**, **Fluency**, **Navi** und **Musik**, alle mit Symbol für den Starter (ein
 Paket bringt sein Symbol als `assets/apps/<app-id>/icon.png` mit, [09 §2](docs/app-entwicklung/09_App-Pakete.md#2-das-paket)).
 Pakete ab 0.8.0 (Schnittstelle 2) brauchen die Uhr-App 0.8.0 oder neuer, Pakete mit Schnittstelle 3 (Tastatur,
 seit 0.9.0) die Uhr-App 0.9.0, Pakete mit Schnittstelle 4 (Apps auf dem Handy, seit 0.10.0) die Uhr-App 0.10.0,
-Pakete mit Schnittstelle 5 (GPS, große Dateien, Hintergrundarbeit, seit 0.12.0; jedes Paket, das ab jetzt gebaut
-wird) die Uhr-App 0.12.0; ältere Pakete laufen weiter.
+Pakete mit Schnittstelle 5 (GPS, große Dateien, Hintergrundarbeit, seit 0.12.0) die Uhr-App 0.12.0, Pakete mit
+Schnittstelle 6 (Musik der Uhr und eigener Ton, seit 0.13.0; jedes Paket, das ab jetzt gebaut wird) die Uhr-App
+0.13.0; ältere Pakete laufen weiter.
 
 ## Apps auf dem Handy: „G2 Handy“ und Fluency
 
@@ -365,6 +372,32 @@ Installieren wie jedes Paket ([Eigene Apps installieren](#eigene-apps-installier
 *Karten → Land hinzufügen*, das Land über WLAN laden, Standort auf der Uhr erlauben und ein Ziel suchen. Die
 **Demo-Fahrt** zeigt die Navigation im Sitzen. Gebaut und getestet mit der echten Karte der ganzen Schweiz,
 **nicht auf Hardware erprobt**.
+
+## Musik: Spotify und Radio auf der Brille
+
+Seit 0.13.0 steuert die Brille die **Musik der Uhr**: Das Paket **Musik** ([`packages/musik`](packages/musik/README.md))
+zeigt, was Spotify (oder ein anderer Player auf der Uhr) spielt – Titel, Interpret, Cover, Zeit – und bedient
+ihn mit Gesten: **Tippen** = Play/Pause, **Wischen** = nächster oder voriger Titel, **lange drücken** = Lautstärke,
+dann wischen. Dazu **Radio**: die 44 Schweizer Sender, die man über DAB+ hört (SRF, RTS, RSI, Swiss Pop/Jazz/
+Classic, Energy, Radio 24 …), als Stream über WLAN oder LTE der Uhr – die Uhr hat keinen DAB-Empfänger –, mit
+Favoriten, Wischen von Sender zu Sender und der Suche nach jedem Sender der Welt (radio-browser.info). Der Ton
+kommt von der Uhr, über Kopfhörer oder ihren Lautsprecher; die Brille hat keinen.
+
+| Spotify | Ein Sender | Senderliste |
+|---|---|---|
+| ![Musik, Spotify](packages/musik/bilder/musik-spotify.png) | ![Musik, Radio](packages/musik/bilder/musik-radio.png) | ![Musik, Senderliste](packages/musik/bilder/musik-senderliste.png) |
+
+**Einmal einrichten:** Uhr-App ab 0.13.0 installieren, das Paket wie jedes andere
+([Eigene Apps installieren](#eigene-apps-installieren)). Damit die App **Titel und Cover** sieht, braucht die Uhr-App
+einmal den Zugriff auf die Mediensteuerung der Uhr; Wear OS hat dafür meist keinen Schalter, deshalb einmal am
+Computer (Uhr verbunden wie beim Aufspielen):
+
+```sh
+adb shell cmd notification allow_listener ch.madtreasures.g2watch/ch.madtreasures.g2watch.apps.media.MediaAccessService
+```
+
+Ohne ihn gehen Play/Pause, Titel weiter und zurück, die Lautstärke und das ganze Radio trotzdem. Die Uhr-App liest
+damit keine Benachrichtigungen. **Nicht auf Hardware erprobt.**
 
 ## YouTube auf der Brille
 

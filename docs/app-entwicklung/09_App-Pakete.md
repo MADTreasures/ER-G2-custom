@@ -8,7 +8,8 @@ Die Uhr-App muss dafür weder neu gebaut noch neu installiert werden.
 Stand v0.6.0: fertig und mit Tests abgesichert, **nicht auf echter Uhr erprobt**. Nur das Laden des
 DEX-Codes auf der Uhr (`DexClassLoader`) lässt sich ohne Uhr nicht testen. Seit v0.8.0 Schnittstelle
 Version 2 (§5) und das Paket Browser, seit v0.9.0 Version 3 (Tastatur, §5), seit v0.10.0 Version 4 (Apps auf
-dem Handy, §5), seit v0.12.0 Version 5 (GPS, große Dateien, Hintergrundarbeit, §5) und das Paket Navi.
+dem Handy, §5), seit v0.12.0 Version 5 (GPS, große Dateien, Hintergrundarbeit, §5) und das Paket Navi, seit
+v0.13.0 Version 6 (Musik der Uhr und eigener Ton, §5) und das Paket Musik.
 
 ## 1. Wer macht was
 
@@ -59,7 +60,7 @@ existiert; am `AppManifest` ändert sich nichts. Format: PNG, quadratisch, 64 ×
 höchstens 64 KB, Graustufen auf Schwarz oder transparent (beides ist auf dem Glas durchsichtig); Gestaltung
 siehe [02 §2](02_App-Modell.md#2-manifest-g2appjson). Das Format bleibt `g2app-paket@1`, und `icon` allein
 braucht keine neue Schnittstellen-Version: Eine ältere Uhr-App überliest das Feld. Ein Paket, das jetzt gebaut
-wird, trägt aber Version 5 und braucht damit die Uhr-App 0.12.0 (§5).
+wird, trägt aber Version 6 und braucht damit die Uhr-App 0.13.0 (§5).
 
 Grenzen: Datei höchstens 20 MB, entpackt höchstens 50 MB, höchstens 2000 Dateien, Pfade ohne `..`.
 
@@ -142,7 +143,7 @@ Die DEX-Dateien sind schreibgeschützt, wie es Android ab Version 14 für gelade
 
 ## 5. Schnittstellen-Version
 
-`G2AppApi.VERSION` in [`app-api/`](../../app-api) ist zurzeit **5**. Jedes Paket merkt sich, gegen welche
+`G2AppApi.VERSION` in [`app-api/`](../../app-api) ist zurzeit **6**. Jedes Paket merkt sich, gegen welche
 Version es gebaut ist. Die Uhr-App führt Pakete mit dieser oder einer älteren Version aus.
 
 | Version | Uhr-App | Neu |
@@ -152,11 +153,13 @@ Version es gebaut ist. Die Uhr-App führt Pakete mit dieser oder einer älteren 
 | 3 | 0.9.0 | Bluetooth-Tastatur: `Sensor.KEYS`, Ereignis `AppEvent.Key` mit den Namen in `Keys`, `WebAction.Key`, `WebAction.Insert`, `AppContext.keyboard` (03 §5.4) |
 | 4 | 0.10.0 | Apps auf dem Handy: `AppContext.phone`, `PhoneAction`, `PhoneState`, Ereignis `AppEvent.Phone`, Berechtigungen `Permission.PHONE` und `WATCH_MIC` (03 §13) |
 | 5 | 0.12.0 | GPS, große Dateien, Hintergrundarbeit: `AppContext.files` (`AppFiles`: Ordner, freier Platz, `download`, `cancelDownload`), `AppContext.work`, `AppContext.asset`, Ereignis `AppEvent.Download` mit `DownloadState`; `AppEvent.Location` mit Geschwindigkeit, Richtung und Höhe, der Standort kommt jetzt wirklich vom GPS der Uhr (03 §14) |
+| 6 | 0.13.0 | Musik der Uhr und eigener Ton: `AppContext.media` mit `MediaAction` (Player der Uhr folgen, spielen, anhalten, weiterschalten, suchen, öffnen, Lautstärke), Ereignis `AppEvent.Media` mit `MediaInfo` und `MediaState`; `AppContext.player` mit `PlayerAction` (ein eigener Audio-Stream, auch `http://`), Ereignis `AppEvent.Player` mit `PlayerState`; Berechtigung `Permission.MEDIA` (03 §15) |
 
-Ein Paket, das jetzt gebaut wird, trägt Version 5, auch wenn es nichts Neues benutzt: Es braucht dann die
-Uhr-App 0.12.0. Schon installierte Pakete mit Version 1 bis 4 laufen weiter; die Tastatur bedient Pakete der
+Ein Paket, das jetzt gebaut wird, trägt Version 6, auch wenn es nichts Neues benutzt: Es braucht dann die
+Uhr-App 0.13.0. Schon installierte Pakete mit Version 1 bis 5 laufen weiter; die Tastatur bedient Pakete der
 Versionen 1 und 2 über die Tasten des Hosts (Fokus, Klick, zurück, scrollen), und die neuen Ereignisse bekommen
-sie nie, weil sie `keys` nicht abonnieren, nicht `phone` rufen und nichts herunterladen.
+sie nie, weil sie `keys` nicht abonnieren, nicht `phone` rufen, nichts herunterladen und weder `media` folgen
+noch mit `player` spielen.
 
 Deshalb **wächst die Schnittstelle nur**: neue Befehle, Ereignisse, Bausteine oder Felder mit Vorgabewert
 kommen dazu, nichts wird umbenannt oder entfernt. Vorsicht bei Feldern: Eine Klasse, die Pakete selbst
@@ -166,8 +169,10 @@ Klassen, einer neuen Methode und neuen Ereignissen aus, Version 3 mit einem neue
 einer Eigenschaft von `AppContext`, die die Uhr-App bereitstellt, Version 4 mit neuen Klassen, einer Methode
 mit leerem Vorgabe-Rumpf und zwei Berechtigungen am Ende der Aufzählung, Version 5 mit neuen Klassen, Methoden
 und einer Eigenschaft mit Vorgabe-Rumpf und drei Feldern mit Vorgabewert in `AppEvent.Location`, dessen alter
-Konstruktor bleibt (`@JvmOverloads`). Neue Ereignisse bekommt eine App nur
-auf Bestellung (`subscribe`, `AppEvent.Phone` nur nach dem eigenen `phone(Connect)`, `AppEvent.Download` nur nach dem eigenen `files.download`): Ein altes Paket, dessen `when` jeden ihm bekannten Fall abdeckt, sähe sonst einen
+Konstruktor bleibt (`@JvmOverloads`), Version 6 mit neuen Klassen, zwei Methoden mit leerem Vorgabe-Rumpf und
+einer Berechtigung am Ende der Aufzählung. Neue Ereignisse bekommt eine App nur
+auf Bestellung (`subscribe`, `AppEvent.Phone` nur nach dem eigenen `phone(Connect)`, `AppEvent.Download` nur nach dem eigenen `files.download`,
+`AppEvent.Media` nur nach dem eigenen `media(Follow)`, `AppEvent.Player` nur nach dem eigenen `player(Play)`): Ein altes Paket, dessen `when` jeden ihm bekannten Fall abdeckt, sähe sonst einen
 unbekannten und stürzte ab. Mit jeder Erweiterung steigt `VERSION` um eins. Ein Paket
 für eine neuere Version lehnt die Uhr ab („braucht eine neuere Uhr-App“). Dann zuerst die Uhr-App
 aktualisieren.

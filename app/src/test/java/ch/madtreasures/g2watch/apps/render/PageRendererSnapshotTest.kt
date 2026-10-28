@@ -19,6 +19,8 @@ import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.youtube.YouTubeApp
 import ch.madtreasures.browser.BrowserApp
 import ch.madtreasures.fluency.FluencyApp
+import ch.madtreasures.musik.MusikApp
+import ch.madtreasures.navi.NaviApp
 import ch.madtreasures.g2watch.apps.WebState
 import ch.madtreasures.g2watch.apps.web.SyntheticPage
 import ch.madtreasures.g2watch.apps.web.WebStatus
@@ -160,10 +162,10 @@ class PageRendererSnapshotTest {
 
     @Test
     fun launcher() {
-        // Home: the launcher with the YouTube, Browser and Fluency packages and their icons; YouTube runs
-        // (the dot), the pointer is on the browser.
+        // Home: the launcher with the YouTube, Browser, Fluency, Navi and Musik packages and their icons;
+        // YouTube runs (the dot), the pointer is on the browser.
         ports.answers["$youtubeId@1.1.0"] = setOf(Permission.NETWORK)
-        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() })
+        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() }, { NaviApp() }, { MusikApp() })
         host.launch("watch:$youtubeId")
         settle()
         host.openLauncher()

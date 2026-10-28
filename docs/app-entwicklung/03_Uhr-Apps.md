@@ -860,3 +860,81 @@ Navi `NaviHostTest`.
 **Nicht erprobt:** alles auf der echten Uhr – wie schnell und genau das GPS der Pixel Watch die erste Position
 findet, ob `requestNetwork` das WLAN der Uhr für einen Download weckt, wie schnell ein Download von mehreren
 hundert MB auf der Uhr läuft und wie warm sie dabei wird.
+
+## 15. Musik der Uhr und eigener Ton (v0.13.0, Schnittstelle 6)
+
+Damit eine App wie Musik ([`packages/musik`](../../packages/musik/README.md)) Spotify von der Brille aus steuern
+und Radio spielen kann, bekommt jede Uhr-App zwei Dinge: die Musik-Player der Uhr (sehen und steuern) und einen
+eigenen Audio-Stream. Der Ton kommt immer von der Uhr – über Kopfhörer, die mit ihr gekoppelt sind, oder ihren
+Lautsprecher; die Brille hat keinen.
+
+```kotlin
+ui.media(MediaAction.Follow)                        // the watch's players now and on every change, until Unfollow
+// → AppEvent.Media(players, volume, maxVolume, output, message)
+ui.media(MediaAction.Pause("com.spotify.music"))    // also Play, PlayPause, Next, Previous, Seek; app = null: the one that plays or played last
+ui.media(MediaAction.Search("Patent Ochsner", "com.spotify.music"))
+ui.media(MediaAction.Open("com.spotify.music"))     // on the watch's screen
+ui.media(MediaAction.Volume(+1))                    // the watch's media volume, in steps
+
+ui.player(PlayerAction.Play("https://stream.srg-ssr.ch/srgssr/srf3/mp3/128", "SRF 3"))
+// → AppEvent.Player(state, url, title, station, message)
+ui.player(PlayerAction.Pause)                        // also Resume, Stop
+```
+
+**Die Player der Uhr** (`AppContext.media`, Berechtigung `media`, „Musik der Uhr steuern“): Android zeigt einer
+App die Medien-Sitzungen der anderen (`MediaSessionManager.getActiveSessions`) erst, wenn die Trägerin ihr den
+Zugriff auf Benachrichtigungen gegeben hat. Dafür hat die Uhr-App den Dienst `MediaAccessService`, einen
+`NotificationListenerService`, der keine Benachrichtigung liest, sondern nur meldet, wann der Zugriff kam oder
+ging. Hat die Uhr dafür keinen Schalter in ihren Einstellungen (auf Wear OS üblich), einmal am Computer:
+
+```sh
+adb shell cmd notification allow_listener ch.madtreasures.g2watch/ch.madtreasures.g2watch.apps.media.MediaAccessService
+```
+
+- **Mit Zugriff** meldet `AppEvent.Media` jeden Player mit Titel, Interpret, Album, Dauer, Position samt
+  Zeitpunkt (weiterrechnen mit `MediaInfo.positionNow`), Cover und was er kann (`canNext` …), den spielenden
+  zuerst. Das Cover rechnet die Uhr je Lied einmal in Grau um, höchstens 120 × 120, als PNG-`data:`-URL. Die
+  Befehle gehen an die Sitzung des Players (`TransportControls`).
+- **Ohne Zugriff** ist `players` leer und `message` sagt „Musik der Uhr: Zugriff noch nicht erlaubt“. `Play`,
+  `Pause`, `PlayPause`, `Next` und `Previous` gehen dann als Medientasten (`AudioManager.dispatchMediaKeyEvent`)
+  an den Player, der zuletzt spielte, wie die Tasten eines Kopfhörers; `Seek` braucht eine Sitzung („Es spielt
+  nichts“).
+- `PlayPause` (neu gegenüber Play und Pause) ist für Apps, die nicht wissen, ob gerade etwas spielt: Mit Sitzung
+  pausiert sie, was spielt (oder gleich spielen will), sonst spielt sie.
+- `Search` fragt die Sitzung mit `playFromSearch`, ohne Sitzung die App selbst mit `MEDIA_PLAY_FROM_SEARCH`,
+  wie ein Sprachassistent; ob ein Player darauf antwortet, zeigt das nächste Ereignis. `Open` startet die App auf
+  dem Bildschirm der Uhr (zum Anmelden, Auswählen, Offline-Laden). `Volume` stellt die Medien-Lautstärke der Uhr
+  um 1 bis 15 Stufen; in ihr spielt auch der eigene Stream.
+- Was nicht geht („„com.example“ ist auf der Uhr nicht installiert“), steht kurz auf der Brille und im
+  Protokoll. Den Sitzungen, der Lautstärke und den Kopfhörern folgt die Uhr-App nur, solange eine App folgt
+  (Thread „G2Watch-media“), und fasst eine Folge von Änderungen (ein neues Lied ändert Zustand und Titel
+  zugleich) in einem Ereignis zusammen (150 ms).
+
+**Eigener Ton** (`AppContext.player`, Berechtigung `network`): ein Stream je App, gespielt von Media3 ExoPlayer auf
+einem eigenen Thread („G2Watch-audio“): MP3, AAC, HLS …, über `https://` oder – weil viele Radiosender noch so
+senden – `http://`. Dafür erlaubt die Uhr-App unverschlüsselten Verkehr (`res/xml/network_security_config.xml`);
+Abfragen, Downloads und Videos der Apps prüft der Host weiterhin selbst auf `https://`.
+
+- Der Stream nimmt anderen Playern den Ton (Audio-Fokus) und pausiert, wenn einer startet („Eine andere App
+  spielt“) oder die Kopfhörer gehen („Kopfhörer getrennt“); weiter geht es mit `Resume`.
+- Er spielt weiter, wenn die App verdeckt ist, und endet mit ihr. Ein neues `Play` ersetzt ihn; nach `Stop`
+  kommt kein Ereignis mehr, ebenso keines eines ersetzten Streams.
+- Solange er lädt oder spielt, hält die Uhr WLAN oder LTE (dieselbe Anforderung wie beim Video, `FastNetwork`):
+  Über Bluetooth zum Handy wäre es zu knapp.
+- Was der Sender über sich und sein Lied mitschickt (ICY), kommt als `station` und `title`; Fehler deutsch in
+  `message` („Keine Verbindung zum Sender“, „Der Sender ist unter dieser Adresse nicht zu finden“, „Dieses
+  Format kann die Uhr nicht spielen“ …).
+
+**Im Code:** `app-api/…/apps/Media.kt`, `AppContext.media`/`player`, `AppEvent.Media`/`Player`; im Host
+`AppHost` (Abschnitt „Music on the watch“), `apps/media/MediaEngine.kt` (die Anschlüsse), `AndroidMediaEngine.kt`,
+`MediaAccessService.kt`, `ExoStreamPlayer.kt` und `GrayPng.kt`.
+
+**Tests (ohne Hardware):** `AppHostMediaTest` (Folgen, Befehle und Hinweise, abgelehnte Werte, Berechtigung;
+der Stream spielt, meldet, pausiert, wird ersetzt, endet mit der App und läuft verdeckt weiter),
+`AndroidMediaEngineTest` (Robolectric: ohne Zugriff Medientasten und Lautstärke, mit Zugriff Titel, Zustand,
+Position, Fähigkeiten und Cover einer Spotify-Sitzung), `GrayPngTest` und `AppJsonTest`; dazu im Paket Musik
+`MusikHostTest`.
+
+**Nicht erprobt:** alles auf der echten Uhr – ob Spotify auf der Pixel Watch eine Sitzung mit Titel und Cover
+meldet und auf `playFromSearch` antwortet, ob die Medientasten ohne Zugriff dort ankommen, wie der Stream über
+Kopfhörer der Uhr klingt und wie viel Akku eine Stunde Radio kostet.

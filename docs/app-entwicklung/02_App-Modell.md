@@ -199,6 +199,11 @@ Gleiche JSON-Form in beiden Laufzeiten:
 { "kind": "key",      "key": "é", "text": "é", "shift": false, "ctrl": false, "alt": false, "meta": false, "repeat": false }
 { "kind": "phone",    "state": "message", "text": "{\"t\":\"state\",\"running\":true}", "message": null }
 { "kind": "download", "tag": "dl1", "state": "running", "bytes": 52428800, "total": 334266727, "message": null }
+{ "kind": "media",    "players": [{ "app": "com.spotify.music", "appName": "Spotify", "state": "playing", "title": "W. Nuss vo Bümpliz",
+  "artist": "Patent Ochsner", "album": "Gmües", "duration": 271000, "position": 61000, "positionAt": 1761660300000, "speed": 1.0,
+  "artwork": "data:image/png;base64,…", "canNext": true, "canPrevious": true, "canSeek": true, "canSearch": false }],
+  "volume": 7, "maxVolume": 15, "output": "Kopfhörer: Pixel Buds", "message": null }
+{ "kind": "player",   "state": "paused", "url": "https://r.example/s", "title": null, "station": null, "message": "Eine andere App spielt" }
 { "kind": "error",    "command": "patch", "code": "unknown_block", "message": "…" }
 ```
 
@@ -249,6 +254,18 @@ Gleiche JSON-Form in beiden Laufzeiten:
 - `download` (Uhr-Apps, seit Schnittstelle 5): wie weit der Download `tag` ist, den die App mit `files.download`
   begonnen hat: `running` etwa einmal pro Sekunde mit `bytes` von `total` (−1, solange unbekannt), dann `done`,
   `failed` (Grund deutsch in `message`) oder `cancelled` ([03 §14](03_Uhr-Apps.md#14-gps-große-dateien-und-hintergrundarbeit-v0120-schnittstelle-5)).
+- `media` (seit Schnittstelle 6): die Musik-Player der Uhr (Spotify, YouTube Music …), nur nach dem Befehl
+  `media` mit `follow` (§6.2), sofort und bei jeder Änderung (anderes Lied, Play/Pause, Lautstärke, Kopfhörer):
+  `players` – der spielende oder zuletzt spielende zuerst – mit Android-Paketname, Name, Zustand (`playing`,
+  `paused`, `buffering`, `stopped`, `error`), Titel, Interpret, Album, `duration` (0 = unbekannt), `position` zum
+  Zeitpunkt `positionAt` (ms seit 1970; während er spielt, läuft sie mit `speed` weiter), dem Cover grau als
+  PNG-`data:`-URL (höchstens 120 × 120) und was er kann (`canNext` …); dazu `volume` von `maxVolume` (Lautstärke
+  der Uhr für Medien), `output` (wohin der Ton geht, `null`, wenn nirgends hin) und `message` (warum `players`
+  leer ist, etwa ohne Zugriff, deutsch). Details [03 §15](03_Uhr-Apps.md#15-musik-der-uhr-und-eigener-ton-v0130-schnittstelle-6).
+- `player` (seit Schnittstelle 6): der eigene Stream der App (Befehl `player`): `state` `loading`, `playing`,
+  `paused` (von der App oder weil ein anderer Player den Ton übernahm; der Grund in `message`), `buffering`,
+  `ended`, `error` (Grund deutsch in `message`), dazu, was der Sender gerade spielt (`title`) und seinen Namen
+  (`station`), soweit er sie mitschickt.
 - `error`: nur bei Rechner-Apps; die Uhr hat einen Befehl abgelehnt (§6.2 „Fehler“).
 - Unbekannte `kind`-Werte ignoriert eine App. So kann die Plattform neue Ereignisse ergänzen.
 
@@ -274,6 +291,8 @@ Gleiche JSON-Form in beiden Laufzeiten:
 | `video` | `block` (ein `image`), `action`: `play` (`src`, `profile` `stable`/`balanced`/`fast`, `sound`, `start` in ms), `pause`, `resume`, `seek` (`position`), `profile` (`profile`), `stop` | Video in einen Bild-Baustein; `src` ist eine Video-Seite (YouTube …), eine Video-Datei/HLS-Adresse (`https://`, Berechtigung `network`) oder `test:muster`. Zustand als Ereignis `video`. Details [03 §10](03_Uhr-Apps.md#10-video-auf-der-brille-v050) (seit v0.5.0) |
 | `web` | `block` (ein `image`), `action`: `open` (`url` `https://`/`http://`, `reader`), `back`, `forward`, `reload`, `scroll` (`dy`), `tap` (`x`, `y`), `type` (`text`, `enter`), `key` (`key` wie beim Ereignis `key`, `shift`, `ctrl`, `alt`; seit Schnittstelle 3), `insert` (`text`: an der Stelle des Cursors, ohne zu ersetzen; seit Schnittstelle 3), `reader` (`on`), `contrast` (`outline`/`halo`/`plate`), `stop` | Web-Seite in einem Bild-Baustein (Berechtigung `network`): die Uhr lädt sie, zeichnet sie in der Größe des Bausteins und schreibt das Brillenbild hinein; Zustand als Ereignis `web`. `open` in einem Baustein mit Seite lädt die neue Adresse als nächste Seite ihres Verlaufs. Verdeckt ruht die Seite, mit der App endet sie. Details [05 §10.2](05_EvenHub-Apps.md#102-die-browser-app-m7-gebaut-in-v080) (seit Schnittstelle 2, v0.8.0) |
 | `phone` | `action`: `connect` (`partner`: Android-Paketname der App auf dem Handy), `send` (`text`, ≤ 64 KiB), `microphone` (`on`), `disconnect` | Verbindung zu einer App auf dem gekoppelten Handy, über die Handy-App „G2 Handy“ (Berechtigung `phone`, für das Mikrofon der Uhr zusätzlich `watch-mic`). Eine Verbindung je App, sie endet mit der App; ein zweites `connect` zum selben Partner tut nichts. Nachrichten nur, solange sie steht, höchstens 20 je Sekunde. Das Mikrofon der Uhr (16 kHz, mono) geht zum Partner, nur solange die App zu sehen ist; verdeckt geht es aus und bleibt aus. Ergebnis als Ereignis `phone`. Details [03 §13](03_Uhr-Apps.md#13-apps-auf-dem-handy-v0100-schnittstelle-4) (seit Schnittstelle 4, v0.10.0) |
+| `media` | `action`: `follow`, `unfollow`, `play`, `pause`, `playPause`, `next`, `previous` (je mit `app`, sonst der spielende oder zuletzt spielende Player), `seek` (`position` in ms, `app`), `search` (`query` ≤ 200 Zeichen, `app`), `open` (`app`), `volume` (`steps`, ±1 bis ±15) | Die Musik-Player der Uhr steuern (Berechtigung `media`); `app` ist ein Android-Paketname wie `com.spotify.music`. `follow` meldet sie als Ereignis `media`, bis `unfollow` oder zum Ende der App. Ohne Zugriff der Uhr-App auf die Mediensteuerung gehen Play, Pause, Weiter und Zurück als Medientasten an den Player, der zuletzt spielte; Suchen und Springen brauchen den Zugriff. Klappt etwas nicht, zeigt die Uhr den Grund kurz auf der Brille. Details [03 §15](03_Uhr-Apps.md#15-musik-der-uhr-und-eigener-ton-v0130-schnittstelle-6) (seit Schnittstelle 6, v0.13.0) |
+| `player` | `action`: `play` (`url` `https://` oder `http://`, `title`), `pause`, `resume`, `stop` | Eigener Ton der App auf der Uhr, etwa ein Radiosender (Berechtigung `network`): Kopfhörer der Uhr oder ihr Lautsprecher, die Brille hat keinen. Ein Stream je App; ein neues `play` ersetzt ihn, verdeckt spielt er weiter, mit der App endet er. Er nimmt anderen Playern den Ton und gibt ihn ab, wenn einer startet. Zustand als Ereignis `player` (nach `stop` keines mehr). Details [03 §15](03_Uhr-Apps.md#15-musik-der-uhr-und-eigener-ton-v0130-schnittstelle-6) (seit Schnittstelle 6, v0.13.0) |
 | `close` | – | App beenden |
 
 Nur Uhr-Apps (Kotlin, seit Schnittstelle 5): ein eigener Ordner für große Dateien mit Downloads
@@ -360,6 +379,7 @@ Klick gelten einmal je Druck.
 | `background` | Uhr-Apps: Timer auch verdeckt |
 | `phone` | Verbindung zu einer App auf dem Handy (Befehl `phone`, seit Schnittstelle 4) |
 | `watch-mic` | Mikrofon der Uhr, zur App auf dem Handy gestreamt (Befehl `phone` mit `microphone`, seit Schnittstelle 4) |
+| `media` | Musik der Uhr steuern: ihre Player sehen, spielen, anhalten, weiterschalten, Lautstärke (Befehl `media`, seit Schnittstelle 6) |
 
 Die Berechtigungen stehen im Manifest und in der App-Liste, die der Host der Uhr meldet. Beim ersten
 Start einer App fragt die Uhr einmal auf der Brille („Einkauf möchte: Mikrofon. Erlauben?“). Die Antwort
