@@ -147,8 +147,13 @@ Bilder neu zeichnen:
 
 ## Grenzen
 
-- **Kein echtes DAB+:** Die Uhr hat keinen Empfänger; das Radio braucht WLAN oder LTE der Uhr und verbraucht
-  Daten (128 kbit/s sind knapp 60 MB pro Stunde).
+- **Kein echtes DAB+** (geprüft am 28.10.2026): Die Pixel Watch 5 hat laut Google keinen Radio-Empfänger, nur
+  LTE, Bluetooth, WLAN, NFC, UWB, GPS und Satelliten-Notruf. Einen USB-Anschluss für einen DAB-Stick hat sie
+  nicht, nur die Ladekontakte. Und Android lässt Apps an keinen Radio-Empfänger heran: Die Schnittstelle dafür
+  (`RadioManager`) gibt es nur für Autos mit eingebautem Empfänger, im SDK für Apps fehlt sie. Die Brille hat
+  weder Empfänger noch Lautsprecher. Ein DAB-Stick an einem Rechner oder Handy mit USB-Anschluss könnte zwar
+  empfangen, käme aber auch nur über WLAN oder LTE zur Uhr, also ohne Vorteil gegenüber dem Stream.
+  Deshalb braucht das Radio WLAN oder LTE der Uhr und verbraucht Daten (128 kbit/s sind knapp 60 MB pro Stunde).
 - **Playlists und Bibliothek von Spotify** kann eine fremde App auf der Uhr nicht durchblättern; dafür gibt es
   „Spotify auf der Uhr öffnen“ und „Suchen und spielen“ (ohne Gewähr, siehe oben).
 - Ob Spotify auf der Pixel Watch seine Titel und sein Cover an Android meldet und auf die Medientasten hört, ist
