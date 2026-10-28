@@ -59,6 +59,9 @@ enum class Permission(val json: String, val label: String) {
 
     /** The watch's microphone, streamed to the app on the phone ([PhoneAction.Microphone]). Since interface version 4. */
     WATCH_MIC("watch-mic", "Mikrofon der Uhr"),
+
+    /** The music players on the watch ([AppContext.media]): what they play, and playing, pausing, skipping. Since interface version 6. */
+    MEDIA("media", "Musik der Uhr steuern"),
     ;
 
     companion object {

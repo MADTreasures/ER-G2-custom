@@ -26,7 +26,10 @@ import ch.madtreasures.g2watch.apps.PackageManifest
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.PatchBuilder
 import ch.madtreasures.g2watch.apps.Permission
+import ch.madtreasures.g2watch.apps.MediaAction
 import ch.madtreasures.g2watch.apps.PhoneAction
+import ch.madtreasures.g2watch.apps.PlayerAction
+import ch.madtreasures.g2watch.apps.PlayerState
 import ch.madtreasures.g2watch.apps.PhoneState
 import ch.madtreasures.g2watch.apps.Sensor
 import ch.madtreasures.g2watch.apps.Vibration
@@ -44,6 +47,8 @@ import ch.madtreasures.g2watch.apps.launcher.LaunchKind
 import ch.madtreasures.g2watch.apps.launcher.Launcher
 import ch.madtreasures.g2watch.apps.launcher.LauncherHost
 import ch.madtreasures.g2watch.apps.location.LocationLine
+import ch.madtreasures.g2watch.apps.media.MediaLine
+import ch.madtreasures.g2watch.apps.media.StreamPlayer
 import ch.madtreasures.g2watch.apps.location.LocationListener
 import ch.madtreasures.g2watch.apps.phone.PhoneLine
 import ch.madtreasures.g2watch.apps.phone.PhoneListener
@@ -516,6 +521,10 @@ class AppHost(
         s.downloads.values.forEach { it.job?.cancel() }
         s.downloads.clear()
         s.work?.end()
+        s.media?.line?.stop()
+        s.media = null
+        s.stream?.player?.release()
+        s.stream = null
         if (question?.session === s) {
             question = null
             ports.cancelText()
@@ -1036,6 +1045,8 @@ class AppHost(
             is AppCommand.Video -> video(s, command.block, command.action)
             is AppCommand.Web -> web(s, command.block, command.action)
             is AppCommand.Phone -> phone(s, command.action)
+            is AppCommand.Media -> media(s, command.action)
+            is AppCommand.Player -> player(s, command.action)
             AppCommand.Close -> scheduler.post { stop(s) }
         }
     }
@@ -1759,6 +1770,107 @@ class AppHost(
     private fun workQueue(s: Session): WorkQueue =
         s.work ?: WorkQueue(ports::runWork, scheduler::post, { tag, block -> runApp(s, "work $tag", block) }).also { s.work = it }
 
+    // --- Music on the watch (interface 6) -----------------------------------------------------------
+
+    /** An app's following of the players ([HostPorts.media]). */
+    private class ActiveMedia {
+        var line: MediaLine? = null
+    }
+
+    /** An app's own audio stream ([HostPorts.streams]). */
+    private class ActiveStream(val url: String) {
+        var player: StreamPlayer? = null
+    }
+
+    private fun media(s: Session, action: MediaAction) {
+        requirePermission(s, Permission.MEDIA)
+        when (action) {
+            MediaAction.Follow -> {
+                if (s.media != null) return
+                val active = ActiveMedia()
+                s.media = active
+                active.line = ports.media.follow { snapshot ->
+                    scheduler.post {
+                        if (s.media !== active || s.ended) return@post
+                        deliver(s, AppEvent.Media(snapshot.players, snapshot.volume, snapshot.maxVolume, snapshot.output, snapshot.message))
+                    }
+                }
+            }
+            MediaAction.Unfollow -> {
+                s.media?.line?.stop()
+                s.media = null
+            }
+            else -> {
+                checkMedia(action)
+                ports.media.command(action)?.let { note ->
+                    ports.log("${s.manifest.name}: Musik – $note")
+                    if (s === visible) showToast(s, note, NOTICE_MS)
+                }
+            }
+        }
+    }
+
+    private fun checkMedia(action: MediaAction) {
+        fun app(app: String?) {
+            if (app != null && (app.length > MAX_APP_NAME || !MediaAction.APP.matches(app))) {
+                throw CommandException.badValue("„${app.take(60)}“ ist kein Paketname einer App auf der Uhr")
+            }
+        }
+        when (action) {
+            is MediaAction.Play -> app(action.app)
+            is MediaAction.Pause -> app(action.app)
+            is MediaAction.PlayPause -> app(action.app)
+            is MediaAction.Next -> app(action.app)
+            is MediaAction.Previous -> app(action.app)
+            is MediaAction.Seek -> {
+                app(action.app)
+                if (action.positionMs < 0) throw CommandException.badValue("Position ${action.positionMs} ist ungültig")
+            }
+            is MediaAction.Search -> {
+                app(action.app)
+                if (action.query.isBlank() || action.query.length > MediaAction.MAX_QUERY) {
+                    throw CommandException.badValue("Suche braucht 1 bis ${MediaAction.MAX_QUERY} Zeichen")
+                }
+            }
+            is MediaAction.Open -> app(action.app)
+            is MediaAction.Volume -> if (action.steps == 0 || abs(action.steps) > MAX_VOLUME_STEPS) {
+                throw CommandException.badValue("Lautstärke um 1 bis $MAX_VOLUME_STEPS Stufen, nicht ${action.steps}")
+            }
+            MediaAction.Follow, MediaAction.Unfollow -> Unit
+        }
+    }
+
+    private fun player(s: Session, action: PlayerAction) {
+        when (action) {
+            is PlayerAction.Play -> {
+                requirePermission(s, Permission.NETWORK)
+                val url = action.url
+                if (!(url.startsWith("https://") || url.startsWith("http://")) || url.length > MAX_URL) {
+                    throw CommandException.badValue("Ein Stream braucht eine http(s)-Adresse, nicht ${url.take(60)}")
+                }
+                if (action.title.length > MAX_STREAM_TITLE) throw CommandException.badValue("Name des Streams höchstens $MAX_STREAM_TITLE Zeichen")
+                s.stream?.player?.release()
+                val active = ActiveStream(url)
+                s.stream = active
+                active.player = ports.streams.open(url, action.title.ifBlank { s.manifest.name }) { state, title, station, message ->
+                    scheduler.post {
+                        if (s.stream !== active || s.ended) return@post
+                        if (state == PlayerState.ERROR) ports.log("${s.manifest.name}: Stream – ${message ?: "fehlgeschlagen"}")
+                        deliver(s, AppEvent.Player(state, url, title, station, message))
+                    }
+                }
+            }
+            PlayerAction.Pause -> stream(s).player?.pause()
+            PlayerAction.Resume -> stream(s).player?.resume()
+            PlayerAction.Stop -> {
+                s.stream?.player?.release()
+                s.stream = null
+            }
+        }
+    }
+
+    private fun stream(s: Session): ActiveStream = s.stream ?: throw CommandException.badValue("Kein Stream")
+
     // --- The phone (interface 4) -------------------------------------------------------------------
 
     /** An app's connection to [partner] on the phone; [line] goes through G2 Handy ([HostPorts.phone]). */
@@ -2056,6 +2168,10 @@ class AppHost(
         /** Running downloads by tag (interface 5). */
         val downloads = HashMap<String, ActiveDownload>()
         var work: WorkQueue? = null
+
+        /** The app follows the players on the watch; its own audio stream (interface 6). */
+        var media: ActiveMedia? = null
+        var stream: ActiveStream? = null
         var project: BaukastenProject? = null
         var granted: Set<Permission> = emptySet()
         var menu: List<MenuItem> = emptyList()
@@ -2122,6 +2238,10 @@ class AppHost(
         override fun web(block: String, action: WebAction) = command(AppCommand.Web(block, action))
 
         override fun phone(action: PhoneAction) = command(AppCommand.Phone(action))
+
+        override fun media(action: MediaAction) = command(AppCommand.Media(action))
+
+        override fun player(action: PlayerAction) = command(AppCommand.Player(action))
 
         override val files: AppFiles = object : AppFiles {
             override val dir: File? get() = filesOf(s)
@@ -2197,6 +2317,11 @@ class AppHost(
 
         /** The slowest GPS rate an app may ask for, in seconds (interface 5). */
         const val MAX_LOCATION_SECONDS = 60
+
+        /** Limits of the music commands (interface 6): package names, volume steps per command, stream names. */
+        const val MAX_APP_NAME = 200
+        const val MAX_VOLUME_STEPS = 15
+        const val MAX_STREAM_TITLE = 100
 
         /** The wearer did not allow it when the app asked (02 §8); the answer holds until the app's version changes. */
         const val PHONE_DENIED = "Verbindung zum Handy nicht erlaubt"

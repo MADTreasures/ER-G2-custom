@@ -14,6 +14,10 @@ import ch.madtreasures.g2watch.apps.files.DownloadEngine
 import ch.madtreasures.g2watch.apps.files.HttpDownloader
 import ch.madtreasures.g2watch.apps.files.WearNetworkConnector
 import ch.madtreasures.g2watch.apps.location.LocationEngine
+import ch.madtreasures.g2watch.apps.media.AndroidMediaEngine
+import ch.madtreasures.g2watch.apps.media.AndroidStreamEngine
+import ch.madtreasures.g2watch.apps.media.MediaEngine
+import ch.madtreasures.g2watch.apps.media.StreamEngine
 import ch.madtreasures.g2watch.apps.phone.PhoneEngine
 import ch.madtreasures.g2watch.apps.video.AndroidVideoEngine
 import ch.madtreasures.g2watch.apps.video.VideoEngine
@@ -165,6 +169,11 @@ class AndroidHostPorts(
     override val downloads: DownloadEngine by lazy { HttpDownloader(WearNetworkConnector(context)) }
 
     override val location: LocationEngine by lazy(locationEngine)
+
+    /** The players on the watch, through its media controls once the wearer allowed them (03 §15). */
+    override val media: MediaEngine by lazy { AndroidMediaEngine(context, logSink) }
+
+    override val streams: StreamEngine by lazy { AndroidStreamEngine(context, logSink) }
 
     private companion object {
         const val TIMEOUT_MS = 10_000

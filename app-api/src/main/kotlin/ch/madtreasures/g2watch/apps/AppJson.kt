@@ -117,7 +117,44 @@ object AppJson {
                 put("kind", "download"); put("tag", event.tag); put("state", event.state.json)
                 put("bytes", event.bytes); put("total", event.total); put("message", event.message)
             }
+            is AppEvent.Media -> {
+                put("kind", "media"); put("players", JsonArray(event.players.map(::encodeMediaInfo)))
+                put("volume", event.volume); put("maxVolume", event.maxVolume); put("output", event.output); put("message", event.message)
+            }
+            is AppEvent.Player -> {
+                put("kind", "player"); put("state", event.state.json); put("url", event.url)
+                put("title", event.title); put("station", event.station); put("message", event.message)
+            }
         }
+    }
+
+    private fun encodeMediaInfo(m: MediaInfo): JsonObject = buildJsonObject {
+        put("app", m.app); put("appName", m.appName); put("state", m.state.json)
+        put("title", m.title); put("artist", m.artist); put("album", m.album)
+        put("duration", m.durationMs); put("position", m.positionMs); put("positionAt", m.positionAt); put("speed", m.speed)
+        put("artwork", m.artwork)
+        put("canNext", m.canNext); put("canPrevious", m.canPrevious); put("canSeek", m.canSeek); put("canSearch", m.canSearch)
+    }
+
+    private fun decodeMediaInfo(e: JsonElement): MediaInfo {
+        val o = obj(e, "Spieler")
+        return MediaInfo(
+            app = string(o, "app"),
+            appName = optString(o, "appName") ?: string(o, "app"),
+            state = MediaState.of(string(o, "state")) ?: bad("unbekannter Spieler-Zustand „${o["state"]}“"),
+            title = optString(o, "title"),
+            artist = optString(o, "artist"),
+            album = optString(o, "album"),
+            durationMs = optLong(o, "duration") ?: 0,
+            positionMs = optLong(o, "position") ?: 0,
+            positionAt = optLong(o, "positionAt") ?: 0,
+            speed = optFloat(o, "speed") ?: 1f,
+            artwork = optString(o, "artwork"),
+            canNext = optBool(o, "canNext") ?: true,
+            canPrevious = optBool(o, "canPrevious") ?: true,
+            canSeek = optBool(o, "canSeek") ?: false,
+            canSearch = optBool(o, "canSearch") ?: false,
+        )
     }
 
     /** The event in [element], or null for a kind this version does not know. */
@@ -192,6 +229,20 @@ object AppJson {
                 DownloadState.of(string(o, "state")) ?: bad("unbekannter Download-Zustand „${o["state"]}“"),
                 optLong(o, "bytes") ?: 0,
                 optLong(o, "total") ?: -1,
+                optString(o, "message"),
+            )
+            "media" -> AppEvent.Media(
+                optArray(o, "players").map(::decodeMediaInfo),
+                optInt(o, "volume") ?: 0,
+                optInt(o, "maxVolume") ?: 0,
+                optString(o, "output"),
+                optString(o, "message"),
+            )
+            "player" -> AppEvent.Player(
+                PlayerState.of(string(o, "state")) ?: bad("unbekannter Stream-Zustand „${o["state"]}“"),
+                optString(o, "url") ?: "",
+                optString(o, "title"),
+                optString(o, "station"),
                 optString(o, "message"),
             )
             else -> null
@@ -281,6 +332,34 @@ object AppJson {
                     PhoneAction.Disconnect -> Unit
                 }
             }
+            is AppCommand.Media -> {
+                put("action", command.action.json)
+                when (val a = command.action) {
+                    is MediaAction.Play -> a.app?.let { put("app", it) }
+                    is MediaAction.Pause -> a.app?.let { put("app", it) }
+                    is MediaAction.PlayPause -> a.app?.let { put("app", it) }
+                    is MediaAction.Next -> a.app?.let { put("app", it) }
+                    is MediaAction.Previous -> a.app?.let { put("app", it) }
+                    is MediaAction.Seek -> {
+                        put("position", a.positionMs); a.app?.let { put("app", it) }
+                    }
+                    is MediaAction.Search -> {
+                        put("query", a.query); put("app", a.app)
+                    }
+                    is MediaAction.Open -> put("app", a.app)
+                    is MediaAction.Volume -> put("steps", a.steps)
+                    MediaAction.Follow, MediaAction.Unfollow -> Unit
+                }
+            }
+            is AppCommand.Player -> {
+                put("action", command.action.json)
+                when (val a = command.action) {
+                    is PlayerAction.Play -> {
+                        put("url", a.url); put("title", a.title)
+                    }
+                    PlayerAction.Pause, PlayerAction.Resume, PlayerAction.Stop -> Unit
+                }
+            }
             AppCommand.Close -> Unit
         }
     }
@@ -331,6 +410,8 @@ object AppJson {
             "video" -> AppCommand.Video(string(o, "block"), videoAction(o))
             "web" -> AppCommand.Web(string(o, "block"), webAction(o))
             "phone" -> AppCommand.Phone(phoneAction(o))
+            "media" -> AppCommand.Media(mediaAction(o))
+            "player" -> AppCommand.Player(playerAction(o))
             "close" -> AppCommand.Close
             else -> bad("unbekannter Befehl „$c“")
         }
@@ -560,6 +641,29 @@ object AppJson {
         "microphone" -> PhoneAction.Microphone(bool(o, "on"))
         "disconnect" -> PhoneAction.Disconnect
         else -> bad("unbekannte Handy-Aktion „$action“")
+    }
+
+    private fun mediaAction(o: JsonObject): MediaAction = when (val action = string(o, "action")) {
+        "follow" -> MediaAction.Follow
+        "unfollow" -> MediaAction.Unfollow
+        "play" -> MediaAction.Play(optString(o, "app"))
+        "pause" -> MediaAction.Pause(optString(o, "app"))
+        "playPause" -> MediaAction.PlayPause(optString(o, "app"))
+        "next" -> MediaAction.Next(optString(o, "app"))
+        "previous" -> MediaAction.Previous(optString(o, "app"))
+        "seek" -> MediaAction.Seek(long(o, "position"), optString(o, "app"))
+        "search" -> MediaAction.Search(string(o, "query"), string(o, "app"))
+        "open" -> MediaAction.Open(string(o, "app"))
+        "volume" -> MediaAction.Volume(optInt(o, "steps") ?: bad("„steps“ fehlt"))
+        else -> bad("unbekannte Musik-Aktion „$action“")
+    }
+
+    private fun playerAction(o: JsonObject): PlayerAction = when (val action = string(o, "action")) {
+        "play" -> PlayerAction.Play(string(o, "url"), optString(o, "title") ?: "")
+        "pause" -> PlayerAction.Pause
+        "resume" -> PlayerAction.Resume
+        "stop" -> PlayerAction.Stop
+        else -> bad("unbekannte Stream-Aktion „$action“")
     }
 
     private fun sensor(o: JsonObject): Sensor =

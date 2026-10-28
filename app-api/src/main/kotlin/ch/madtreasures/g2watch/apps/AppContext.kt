@@ -121,6 +121,20 @@ interface AppContext {
     fun phone(action: PhoneAction) {}
 
     /**
+     * The music players on the watch (Spotify …), [MediaAction]: follow what they play ([AppEvent.Media], with
+     * title, artist and cover), play, pause, skip, search, open them, the volume. Needs [Permission.MEDIA].
+     * The sound comes from the watch (headphones or its speaker). Since interface version 6.
+     */
+    fun media(action: MediaAction) {}
+
+    /**
+     * The app's own audio stream on the watch, [PlayerAction]: internet radio, an audio file; how it goes comes
+     * as [AppEvent.Player]. Needs [Permission.NETWORK]. One stream per app; it goes on while the app is hidden
+     * and ends with the app. Since interface version 6.
+     */
+    fun player(action: PlayerAction) {}
+
+    /**
      * This app's folder for large files, and downloads into it ([AppFiles]): maps, media, indexes.
      * Since interface version 5.
      */

@@ -81,6 +81,16 @@ sealed interface AppCommand {
         override val name get() = "phone"
     }
 
+    /** Follows or works the music players on the watch; reported with [AppEvent.Media]. Since interface version 6. */
+    data class Media(val action: MediaAction) : AppCommand {
+        override val name get() = "media"
+    }
+
+    /** The app's own audio stream; reported with [AppEvent.Player]. Since interface version 6. */
+    data class Player(val action: PlayerAction) : AppCommand {
+        override val name get() = "player"
+    }
+
     data object Close : AppCommand {
         override val name get() = "close"
     }

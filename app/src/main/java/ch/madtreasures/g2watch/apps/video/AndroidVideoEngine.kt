@@ -17,7 +17,7 @@ import java.util.concurrent.Executors
 class AndroidVideoEngine(context: Context, private val log: (String) -> Unit) : VideoEngine {
     private val context = context.applicationContext
     private val work = Executors.newFixedThreadPool(2) { r -> Thread(r, "G2Watch-video-net").apply { isDaemon = true } }
-    private val network = FastNetwork(this.context, log)
+    private val network = FastNetwork.shared(this.context, log)
     private val testThread by lazy { ThreadScheduler("G2Watch-video-test") }
 
     /** A search is a few hundred kilobytes: it takes whatever network there is, without waiting for WLAN/LTE. */

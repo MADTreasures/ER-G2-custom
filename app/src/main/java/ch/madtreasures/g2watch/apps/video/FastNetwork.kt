@@ -9,10 +9,11 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * WLAN or LTE for videos (01 §4, 03 §10). A watch paired with a phone sends its traffic over Bluetooth
- * through the phone by default: slow, and the same radio the glasses need. While a video loads, the
- * watch asks Wear OS for WLAN or mobile data and binds the app to it; the last [release] gives it back
- * (akku). [acquire] and [release] never block; [awaitReady] waits for the network before a video starts.
+ * WLAN or LTE for videos and audio streams (01 §4, 03 §10, §15). A watch paired with a phone sends its traffic
+ * over Bluetooth through the phone by default: slow, and the same radio the glasses need. While a video or a
+ * stream loads or plays, the watch asks Wear OS for WLAN or mobile data and binds the app to it; the last
+ * [release] gives it back (akku). [acquire] and [release] never block; [awaitReady] waits for the network
+ * before a video starts. There is one for the whole app ([shared]): the binding is the process's.
  */
 internal class FastNetwork(context: Context, private val log: (String) -> Unit) {
     private val connectivity = context.applicationContext.getSystemService(ConnectivityManager::class.java)
@@ -33,7 +34,7 @@ internal class FastNetwork(context: Context, private val log: (String) -> Unit) 
     fun awaitReady(timeoutMs: Long = WAIT_MS): Boolean {
         val latch = synchronized(lock) { available }
         val ready = latch.await(timeoutMs, TimeUnit.MILLISECONDS)
-        if (!ready) log("Video: kein WLAN und kein LTE – über die Verbindung, die gerade da ist")
+        if (!ready) log("Netz: kein WLAN und kein LTE – über die Verbindung, die gerade da ist")
         return ready
     }
 
@@ -58,7 +59,7 @@ internal class FastNetwork(context: Context, private val log: (String) -> Unit) 
         val ready = available
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                if (manager.bindProcessToNetwork(network)) log("Video: über WLAN/LTE")
+                if (manager.bindProcessToNetwork(network)) log("Netz: über WLAN/LTE")
                 ready.countDown()
             }
 
@@ -76,13 +77,20 @@ internal class FastNetwork(context: Context, private val log: (String) -> Unit) 
             manager.requestNetwork(request, cb)
         } catch (e: RuntimeException) {
             // SecurityException without CHANGE_NETWORK_STATE, or too many requests: use the default network.
-            log("Video: WLAN/LTE nicht anforderbar – ${e.message}")
+            log("Netz: WLAN/LTE nicht anforderbar – ${e.message}")
             callback = null
             ready.countDown()
         }
     }
 
-    private companion object {
-        const val WAIT_MS = 8_000L
+    companion object {
+        private const val WAIT_MS = 8_000L
+
+        @Volatile
+        private var instance: FastNetwork? = null
+
+        /** The app's one [FastNetwork], made on first use. */
+        fun shared(context: Context, log: (String) -> Unit): FastNetwork =
+            instance ?: synchronized(this) { instance ?: FastNetwork(context, log).also { instance = it } }
     }
 }

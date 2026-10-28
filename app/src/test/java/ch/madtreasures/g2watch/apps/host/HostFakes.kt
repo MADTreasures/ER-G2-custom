@@ -16,7 +16,15 @@ import ch.madtreasures.g2watch.apps.files.DownloadEngine
 import ch.madtreasures.g2watch.apps.files.DownloadJob
 import ch.madtreasures.g2watch.apps.files.DownloadListener
 import ch.madtreasures.g2watch.apps.files.DownloadRequest
+import ch.madtreasures.g2watch.apps.MediaAction
 import ch.madtreasures.g2watch.apps.location.LocationEngine
+import ch.madtreasures.g2watch.apps.media.MediaEngine
+import ch.madtreasures.g2watch.apps.media.MediaLine
+import ch.madtreasures.g2watch.apps.media.MediaListener
+import ch.madtreasures.g2watch.apps.media.MediaSnapshot
+import ch.madtreasures.g2watch.apps.media.StreamEngine
+import ch.madtreasures.g2watch.apps.media.StreamListener
+import ch.madtreasures.g2watch.apps.media.StreamPlayer
 import ch.madtreasures.g2watch.apps.location.LocationLine
 import ch.madtreasures.g2watch.apps.location.LocationListener
 import ch.madtreasures.g2watch.apps.VideoProfile
@@ -155,6 +163,62 @@ class FakePorts : HostPorts {
     /** Runs the waiting background tasks, oldest first, until none is left. */
     fun runWork() {
         while (work.isNotEmpty()) work.removeAt(0).run()
+    }
+
+    override val media = FakeMediaEngine()
+
+    override val streams = FakeStreamEngine()
+}
+
+/** The players on the watch for tests (interface 6): a test changes them with [change]; commands are kept. */
+class FakeMediaEngine : MediaEngine {
+    var snapshot = MediaSnapshot(emptyList(), 7, 15, "Kopfhörer: Pixel Buds")
+    val listeners = mutableListOf<MediaListener>()
+    val commands = mutableListOf<MediaAction>()
+
+    /** What [command] answers: null when it worked, else a note for the wearer. */
+    var note: String? = null
+
+    override fun follow(listener: MediaListener): MediaLine {
+        listeners += listener
+        listener.onChange(snapshot)
+        return MediaLine { listeners.remove(listener) }
+    }
+
+    override fun command(action: MediaAction): String? {
+        commands += action
+        return note
+    }
+
+    fun change(next: MediaSnapshot) {
+        snapshot = next
+        listeners.toList().forEach { it.onChange(next) }
+    }
+}
+
+/** The apps' streams for tests; a test drives one through its [FakeStream.listener]. */
+class FakeStreamEngine : StreamEngine {
+    val opened = mutableListOf<FakeStream>()
+
+    override fun open(url: String, title: String, listener: StreamListener): StreamPlayer = FakeStream(url, title, listener).also { opened += it }
+}
+
+class FakeStream(val url: String, val title: String, val listener: StreamListener) : StreamPlayer {
+    var paused = false
+        private set
+    var released = false
+        private set
+
+    override fun pause() {
+        paused = true
+    }
+
+    override fun resume() {
+        paused = false
+    }
+
+    override fun release() {
+        released = true
     }
 }
 

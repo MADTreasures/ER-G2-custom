@@ -11,6 +11,8 @@ import ch.madtreasures.g2watch.apps.Permission
 import ch.madtreasures.g2watch.apps.Vibration
 import ch.madtreasures.g2watch.apps.files.DownloadEngine
 import ch.madtreasures.g2watch.apps.location.LocationEngine
+import ch.madtreasures.g2watch.apps.media.MediaEngine
+import ch.madtreasures.g2watch.apps.media.StreamEngine
 import ch.madtreasures.g2watch.apps.phone.PhoneEngine
 import ch.madtreasures.g2watch.apps.video.VideoEngine
 import ch.madtreasures.g2watch.apps.web.WebEngine
@@ -80,6 +82,12 @@ interface HostPorts {
 
     /** Runs one task of an app's background work ([ch.madtreasures.g2watch.apps.AppContext.work]) on a background thread. */
     fun runWork(job: Runnable) = WorkPool.execute(job)
+
+    /** The music players on the watch ([ch.madtreasures.g2watch.apps.AppContext.media], interface 6). */
+    val media: MediaEngine get() = MediaEngine.NONE
+
+    /** The apps' own audio streams ([ch.madtreasures.g2watch.apps.AppContext.player], interface 6). */
+    val streams: StreamEngine get() = StreamEngine.NONE
 }
 
 /** The glasses as apps may know them (03 §5.2). */

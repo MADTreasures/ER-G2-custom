@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Internet radio still streams over plain http in many places, so the apps' audio streams may use it
+  (03 §15, interface 6). Everything else the host does for apps takes https only and checks that itself:
+  fetch, downloads, videos.
+-->
+<network-security-config xmlns:tools="http://schemas.android.com/tools">
+    <base-config
+        cleartextTrafficPermitted="true"
+        tools:ignore="InsecureBaseConfiguration" />
+</network-security-config>

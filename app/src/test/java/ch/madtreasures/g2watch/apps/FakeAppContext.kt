@@ -50,6 +50,12 @@ class FakeAppContext(
     /** Phone commands in order (interface 4); the app hears back through [phoneEvent]. */
     val phones = mutableListOf<PhoneAction>()
 
+    /** Music commands in order (interface 6); the test answers with [AppEvent.Media]. */
+    val mediaActions = mutableListOf<MediaAction>()
+
+    /** Stream commands in order (interface 6); the test answers with [AppEvent.Player]. */
+    val playerActions = mutableListOf<PlayerAction>()
+
     /** Whether the phone connection stands, as the host would know it; [phoneEvent] keeps it. */
     var phoneConnected = false
 
@@ -298,6 +304,48 @@ class FakeAppContext(
             PhoneAction.Disconnect -> phoneConnected = false
         }
         phones += action
+    }
+
+    override fun media(action: MediaAction) {
+        require(Permission.MEDIA)
+        fun app(app: String?) = require(app == null || MediaAction.APP.matches(app)) { "${CommandException.BAD_VALUE}: no package name: $app" }
+        when (action) {
+            is MediaAction.Play -> app(action.app)
+            is MediaAction.Pause -> app(action.app)
+            is MediaAction.PlayPause -> app(action.app)
+            is MediaAction.Next -> app(action.app)
+            is MediaAction.Previous -> app(action.app)
+            is MediaAction.Seek -> require(action.positionMs >= 0) { "seek ${action.positionMs}" }
+            is MediaAction.Search -> {
+                app(action.app)
+                require(action.query.isNotBlank() && action.query.length <= MediaAction.MAX_QUERY) { "search ${action.query}" }
+            }
+            is MediaAction.Open -> app(action.app)
+            is MediaAction.Volume -> require(action.steps != 0 && kotlin.math.abs(action.steps) <= 15) { "volume ${action.steps}" }
+            MediaAction.Follow, MediaAction.Unfollow -> Unit
+        }
+        mediaActions += action
+    }
+
+    /** Whether the app follows the players now: followed, and not unfollowed since. */
+    fun followsMedia(): Boolean = mediaActions.lastOrNull { it == MediaAction.Follow || it == MediaAction.Unfollow } == MediaAction.Follow
+
+    override fun player(action: PlayerAction) {
+        when (action) {
+            is PlayerAction.Play -> {
+                require(Permission.NETWORK)
+                require(action.url.startsWith("https://") || action.url.startsWith("http://")) { "${CommandException.BAD_VALUE}: stream ${action.url}" }
+            }
+            PlayerAction.Pause, PlayerAction.Resume -> require(stream() != null) { "${CommandException.BAD_VALUE}: Kein Stream" }
+            PlayerAction.Stop -> Unit
+        }
+        playerActions += action
+    }
+
+    /** The stream the app plays now: its last [PlayerAction.Play], unless stopped since. */
+    fun stream(): PlayerAction.Play? {
+        val last = playerActions.lastOrNull { it is PlayerAction.Play || it == PlayerAction.Stop }
+        return last as? PlayerAction.Play
     }
 
     /** What the host reports about the connection, for `app.onEvent(…)`; it also keeps [phoneConnected]. */

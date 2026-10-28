@@ -54,6 +54,20 @@ class AppJsonTest {
         AppEvent.Location(47.3769, 8.5417, 4.5f, 1727600000123, speed = 1.4f, bearing = 271.5f, alt = 408.25),
         AppEvent.Download("schweiz", DownloadState.RUNNING, 1_048_576, 334_512_345),
         AppEvent.Download("schweiz", DownloadState.FAILED, 2_000, -1, "kein WLAN erreichbar"),
+        AppEvent.Media(
+            listOf(
+                MediaInfo(
+                    "com.spotify.music", "Spotify", MediaState.PLAYING, "Bohemian Rhapsody", "Queen", "A Night at the Opera",
+                    durationMs = 354_000, positionMs = 61_500, positionAt = 1727600000123, speed = 1f,
+                    artwork = "data:image/png;base64,iVBORw0KGgo=", canNext = true, canPrevious = false, canSeek = true, canSearch = true,
+                ),
+                MediaInfo("com.google.android.apps.youtube.music", "YouTube Music", MediaState.PAUSED),
+            ),
+            volume = 7, maxVolume = 15, output = "Kopfhörer: Pixel Buds",
+        ),
+        AppEvent.Media(emptyList(), 0, 15, null, "Musik der Uhr: Zugriff noch nicht erlaubt"),
+        AppEvent.Player(PlayerState.PLAYING, "https://stream.srg-ssr.ch/srf3/mp3_128", "Queen - Bohemian Rhapsody", "SRF 3"),
+        AppEvent.Player(PlayerState.ERROR, "http://radio.example/stream", message = "Keine Verbindung zum Sender"),
     )
 
     @Test
@@ -170,6 +184,21 @@ class AppJsonTest {
         AppCommand.Phone(PhoneAction.Send("""{"t":"hello"}""")),
         AppCommand.Phone(PhoneAction.Microphone(true)),
         AppCommand.Phone(PhoneAction.Disconnect),
+        AppCommand.Media(MediaAction.Follow),
+        AppCommand.Media(MediaAction.Unfollow),
+        AppCommand.Media(MediaAction.Play()),
+        AppCommand.Media(MediaAction.Pause("com.spotify.music")),
+        AppCommand.Media(MediaAction.PlayPause()),
+        AppCommand.Media(MediaAction.Next()),
+        AppCommand.Media(MediaAction.Previous("com.spotify.music")),
+        AppCommand.Media(MediaAction.Seek(90_000)),
+        AppCommand.Media(MediaAction.Search("Queen", "com.spotify.music")),
+        AppCommand.Media(MediaAction.Open("com.spotify.music")),
+        AppCommand.Media(MediaAction.Volume(-2)),
+        AppCommand.Player(PlayerAction.Play("https://stream.srg-ssr.ch/srf3/mp3_128", "SRF 3")),
+        AppCommand.Player(PlayerAction.Pause),
+        AppCommand.Player(PlayerAction.Resume),
+        AppCommand.Player(PlayerAction.Stop),
         AppCommand.Close,
     )
 
@@ -290,6 +319,22 @@ class AppJsonTest {
         for (bad in listOf("", "..", ".", "../a", "a/../b", "/a", "a/", "a//b", "a b", "ä.map", "a\\b", "x".repeat(201))) {
             assertFalse(bad, AppFiles.isValidName(bad))
         }
+    }
+
+    @Test
+    fun `music reads as written in the app model chapter`() {
+        assertEquals(
+            json("""{ "c": "media", "action": "next", "app": "com.spotify.music" }"""),
+            AppJson.encodeCommand(AppCommand.Media(MediaAction.Next("com.spotify.music"))),
+        )
+        assertEquals(
+            AppCommand.Player(PlayerAction.Play("http://radio.example/stream", "")),
+            AppJson.decodeCommand(json("""{ "c": "player", "action": "play", "url": "http://radio.example/stream" }""")),
+        )
+        assertEquals(
+            json("""{ "kind": "player", "state": "paused", "url": "https://r.example/s", "title": null, "station": null, "message": "Eine andere App spielt" }"""),
+            AppJson.encodeEvent(AppEvent.Player(PlayerState.PAUSED, "https://r.example/s", message = "Eine andere App spielt")),
+        )
     }
 
     @Test

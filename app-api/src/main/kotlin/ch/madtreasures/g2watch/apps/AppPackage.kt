@@ -23,9 +23,11 @@ object G2AppApi {
      * [Permission.PHONE], [Permission.WATCH_MIC]; v0.10.0). 5: the watch's GPS behind [Sensor.LOCATION],
      * with speed, direction and height in [AppEvent.Location], large files ([AppContext.files], [AppFiles],
      * [AppEvent.Download], [DownloadState]), background work ([AppContext.work]) and the app's own assets
-     * ([AppContext.asset]; v0.12.0).
+     * ([AppContext.asset]; v0.12.0). 6: music on the watch: its players ([AppContext.media], [MediaAction],
+     * [AppEvent.Media], [MediaInfo], [MediaState], [Permission.MEDIA]) and an audio stream of the app's own
+     * ([AppContext.player], [PlayerAction], [AppEvent.Player], [PlayerState]; v0.13.0).
      */
-    const val VERSION = 5
+    const val VERSION = 6
 }
 
 /** A broken or unsuitable app package; [message] is German and meant for the wearer. */
