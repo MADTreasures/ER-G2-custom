@@ -70,7 +70,7 @@ data class StationGroup(val label: String, val stations: List<Station>)
 
 /**
  * The Swiss stations one hears on DAB+, here as their internet streams, all over https. Every address was
- * checked on 28 October 2026: it answered with MP3 or AAC and the station's name. A station whose address
+ * checked on 28 October 2026: it answered with MP3 or AAC audio. A station whose address
  * stops working asks radio-browser.info for its new one ([uuid][Station.uuid]).
  */
 object SwissStations {

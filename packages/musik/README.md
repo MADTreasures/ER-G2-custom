@@ -13,7 +13,7 @@ mit denselben Sendern.
 > **Ehrlicher Stand (1.0.0):** gebaut und ohne Hardware getestet (Fakes für die Player und den Stream, Bilder
 > vom echten App-Host der Uhr-App). **Nichts davon ist auf Hardware erprobt**: weder Spotify auf der Pixel
 > Watch noch ein Stream über ihre Kopfhörer noch die Bedienung von der Brille. Die Senderadressen habe ich am
-> 28.10.2026 einzeln abgerufen (Ton und Sendername kamen). Braucht **G2 Watch ab 0.13.0** (Schnittstelle 6:
+> 28.10.2026 einzeln abgerufen: Alle lieferten Ton. Braucht **G2 Watch ab 0.13.0** (Schnittstelle 6:
 > Musik der Uhr und eigener Ton, [03 §15](../../docs/app-entwicklung/03_Uhr-Apps.md#15-musik-der-uhr-und-eigener-ton-v0130-schnittstelle-6)).
 
 | Start | Spotify (Tippen: Play/Pause, Wischen: Titel) | Lautstärke (lange drücken, dann wischen) |
@@ -85,8 +85,8 @@ dann „Musik der Uhr: Zugriff noch nicht erlaubt“ (Bild „Ohne Zugriff“ ob
 ## Woher die Sender kommen
 
 - **Die eingebaute Liste** (`Stations.kt`): die Streams der Sender selbst (stream.srg-ssr.ch, streambase.ch von
-  CH Media, Infomaniak, Somedia …), MP3 mit 128 oder 192 kbit/s, Radio Top als AAC+. Am 28.10.2026 lieferten
-  alle 44 Ton und ihren Namen.
+  CH Media, Infomaniak, Somedia …), MP3 mit 128 bis 256 kbit/s, Radio Top als AAC+. Am 28.10.2026 lieferten
+  alle 44 Ton; Songtitel kamen in Stichproben (SRF 1, SRF 3, Swiss Pop, Energy Zürich, Radio Zürisee).
 - **[radio-browser.info](https://www.radio-browser.info/):** eine freie, offene Senderliste ohne Konto. Die App
   fragt sie nur bei einer Suche, bei einem Sender, dessen Adresse nicht mehr geht, und wenn ein Sender startet,
   der dort verzeichnet ist: Dann zählt sie einen Klick, worum radio-browser.info seine Nutzer bittet. Dabei
