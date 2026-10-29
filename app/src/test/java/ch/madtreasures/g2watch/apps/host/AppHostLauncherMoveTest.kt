@@ -94,8 +94,10 @@ class AppHostLauncherMoveTest {
         assertNull(host.state.value.moving)
         scheduler.advanceBy(1)
         assertEquals("watch:ch.test.alpha", host.state.value.moving)
-        // The watch ticks, as a phone does when an app lifts.
+        // The watch ticks, as a phone does when an app lifts, and the app hangs at the pointer on its card.
         assertEquals(listOf(Vibration.TICK), ports.vibrations)
+        val card = screen.carried.single()!!
+        assertEquals(PageMetrics.CARD, card.width)
 
         // Over the third app it takes that place; the two before move up by one.
         host.pointTo(2)
@@ -108,6 +110,8 @@ class AppHostLauncherMoveTest {
         assertEquals(listOf("Beta", "Gamma", "Delta", "Epsilon", "Alpha"), host.shownOrder())
         host.letGo()
         assertNull(host.state.value.moving)
+        // Let go, the card goes and the app is in its gap.
+        assertNull(screen.carried.last())
         assertEquals(Launcher.ID, host.state.value.visible)
         assertEquals(FocusTarget("app4"), host.state.value.focus)
         assertEquals(NAMES.drop(1).map { "watch:ch.test.${it.lowercase()}" } + "watch:ch.test.alpha", saved())
@@ -204,6 +208,9 @@ class AppHostLauncherMoveTest {
         host.launch("watch:ch.test.epsilon")
         settle()
         assertNull(host.state.value.moving)
+        // Whatever put it down, nothing stays at the pointer.
+        assertEquals(4, screen.carried.count { it != null })
+        assertNull(screen.carried.last())
         assertEquals("ch.test.epsilon", host.state.value.visible)
         // A release that comes late does nothing more.
         host.letGo()

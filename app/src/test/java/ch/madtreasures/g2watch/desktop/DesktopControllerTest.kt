@@ -402,6 +402,36 @@ class DesktopControllerTest {
     }
 
     @Test
+    fun `what the pointer carries goes along with it in place of the arrow, in small blocks, and away again`() {
+        attached()
+        controller.showApp(appView())
+        scheduler.runPending()
+        moveTo(300, 300)
+        // A card of 84 × 84 with a black rim, as the launcher hangs an app at the pointer (03 §5).
+        val card = GrayRaster(84, 84).apply { for (y in 2 until 82) for (x in 2 until 82) this[x, y] = 200 }
+        controller.carry(card)
+        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
+        val shown = display.content("desktop")
+        // Centred on the pointer's tip; its black rim leaves the app beneath.
+        assertEquals(200, shown[300, 300])
+        assertEquals(200, shown[260, 260])
+        assertEquals(90, shown[258, 300])
+
+        display.clear()
+        moveTo(310, 305)
+        val sent = display.submitsOf("desktop").single()
+        // Only the block of its old and its new place goes out.
+        assertEquals(listOf(258, 258, 94, 89), listOf(sent.x, sent.y, sent.w, sent.h))
+        assertEquals(200, display.content("desktop")[349, 305])
+        assertEquals(90, display.content("desktop")[262, 305])
+
+        // Put away, the arrow is back where the pointer is.
+        controller.carry(null)
+        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
+        assertShowsExpected()
+    }
+
+    @Test
     fun `pushing the pointer past the bottom edge scrolls the app`() {
         val apps = Apps()
         controller.connectApps(apps)

@@ -56,8 +56,8 @@ ob GeckoView auf der Uhr gut genug läuft.
 > 44 Schweizer Sendern von DAB+ als Internet-Stream, dazu jeder Sender der Welt. Der Ton kommt von der Uhr
 > (Kopfhörer oder Lautsprecher). Nicht auf Hardware erprobt.
 > Neu in 0.14.0: **Apps im [Starter](#apps-auf-der-brille) verschieben** wie am Handy: Finger auf der Uhr
-> liegen lassen (oder Maustaste halten), während der Zeiger auf einer App steht – nach 2 Sekunden hebt sie
-> sich ab und lässt sich an einen anderen Platz schieben. Nicht auf Hardware erprobt.
+> liegen lassen (oder Maustaste halten), während der Zeiger auf einer App steht – nach 2 Sekunden hängt sie
+> am Zeiger, die anderen machen Platz, Loslassen legt sie ab. Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -173,10 +173,11 @@ Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installi
   Bügel und Ring springen von Symbol zu Symbol (Zeile für Zeile), Tippen startet; mit dem Zeiger leuchtet
   das Symbol darunter auf, Doppeltipp auf der Uhr startet es.
 - **Apps verschieben** (seit 0.14.0), wie am Handy: Den Zeiger auf eine App stellen und den Finger auf der
-  Uhr **2 Sekunden liegen lassen** (mit einer Maus: linke Taste gedrückt halten). Die Uhr tickt, die App hebt
-  sich ab (dicker Rahmen, ‹ ›). Finger weiterbewegen schiebt sie zu einem anderen Platz, die anderen rücken
-  auf; Loslassen legt sie ab. Rechts neben der letzten App oder darunter heißt: ans Ende. Die Reihenfolge
-  bleibt gespeichert, neue Apps kommen hinten dazu. Wer vor den 2 Sekunden weiterzieht, verschiebt nichts.
+  Uhr **2 Sekunden liegen lassen** (mit einer Maus: linke Taste gedrückt halten). Die Uhr tickt, und die App
+  hängt sich an den Zeiger. Mit dem Finger (oder der Maus) trägt man sie frei herum; wo sie landen wird, ist
+  eine Lücke, für die die anderen Apps beiseiterücken. Loslassen legt sie in die Lücke. Rechts neben der
+  letzten App oder darunter heißt: ans Ende. Die Reihenfolge bleibt gespeichert, neue Apps kommen hinten dazu.
+  Wer vor den 2 Sekunden weiterzieht, verschiebt nichts.
 - **Zeiger** (Finger auf der Uhr): Was unter dem Zeiger liegt, ist hervorgehoben; Doppeltipp auf der Uhr
   klickt es. Den Zeiger über den oberen oder unteren Rand hinaus schieben scrollt lange Seiten.
 - **Bügel oder Ring:** Wischen springt zum nächsten/vorigen Knopf, Schalter oder Häkchen (die Seite scrollt

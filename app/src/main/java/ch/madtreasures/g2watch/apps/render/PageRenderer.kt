@@ -26,14 +26,14 @@ class PageLook(
 /**
  * What a cell of the launcher shows besides the app's name: its [icon] ([PageMetrics.TILE_ICON] square,
  * black is see-through) or, without one, its [initials] in a frame, and a dot while the app [running].
- * While the wearer moves an app (03 §5), that one is [lifted] and the others are [dimmed].
+ * While the wearer carries the app to another place (03 §5) it is [lifted]: its cell is the gap where it
+ * will land, and the app itself hangs at the pointer ([PageRenderer.carried]).
  */
 class TileLook(
     val icon: GrayRaster?,
     val initials: String,
     val running: Boolean,
     val lifted: Boolean = false,
-    val dimmed: Boolean = false,
 ) {
     companion object {
         /** One or two capitals for an app without an icon: the first letter of its first two words. */
@@ -132,56 +132,67 @@ class PageRenderer(private val text: TextPainter) {
 
     /**
      * A cell of the launcher: the icon with the name below it. The focused cell gets a frame like a
-     * focused button, and its icon and name the full brightness; the others stay a little dimmer. An app
-     * lifted to be moved gets a thicker frame and an arrow on either side; the others step back meanwhile.
+     * focused button, and its icon and name the full brightness; the others stay a little dimmer. The cell
+     * of an app being carried is an empty gap with a faint outline: there it lands (03 §5).
      */
     private fun tile(target: GrayRaster, b: Block.Button, r: Rect, focused: Boolean, look: TileLook?) {
         val m = PageMetrics
         val tile = look ?: TileLook(null, TileLook.initials(b.text), running = false)
-        val bright = focused || tile.lifted
-        if (bright) {
+        if (tile.lifted) {
             val f = r.inset(TILE_INSET)
-            val frame = if (tile.lifted) TILE_LIFTED_FRAME else TILE_FRAME
+            Shapes.strokeRoundRect(target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, 2f, Levels.FAINT)
+            return
+        }
+        if (focused) {
+            val f = r.inset(TILE_INSET)
             Shapes.fillRoundRect(target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, Levels.SURFACE)
             Shapes.strokeRoundRect(
-                target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, frame.toFloat(), Levels.STRONG,
+                target, f.x.toFloat(), f.y.toFloat(), f.w.toFloat(), f.h.toFloat(), TILE_RADIUS, TILE_FRAME.toFloat(), Levels.STRONG,
             )
         }
         val ix = r.x + (r.w - m.TILE_ICON) / 2
         val iy = r.y + TILE_ICON_TOP
-        val icon = tile.icon
-        val textLevel = when {
-            bright -> Levels.STRONG
-            tile.dimmed -> Levels.DIM
-            else -> Levels.TEXT
-        }
-        if (icon != null) {
-            lighten(target, icon, ix, iy, if (bright) 15 else if (tile.dimmed) 8 else 13)
-        } else {
-            val size = m.TILE_ICON.toFloat()
-            Shapes.strokeRoundRect(target, ix + 1f, iy + 1f, size - 2f, size - 2f, 14f, 2f, if (tile.dimmed) Levels.FAINT else Levels.DIM)
-            val letters = TextFit.ellipsize(text, tile.initials, INITIALS, true, m.TILE_ICON - 8)
-            if (letters.isNotEmpty()) {
-                val lx = ix + (m.TILE_ICON - text.measure(letters, INITIALS, true)) / 2
-                val ly = iy + (m.TILE_ICON - text.lineHeight(INITIALS)) / 2
-                text.draw(target, letters, lx, ly, INITIALS, textLevel, true)
-            }
-        }
-        if (tile.lifted) {
-            // ‹ › beside the icon: this one moves.
-            val cy = iy + m.TILE_ICON / 2f
-            val left = r.x + TILE_INSET + TILE_LIFTED_FRAME + 12f
-            val right = r.right - TILE_INSET - TILE_LIFTED_FRAME - 12f
-            Shapes.polyline(target, floatArrayOf(left + 4f, cy - 8f, left - 4f, cy, left + 4f, cy + 8f), 3f, Levels.STRONG)
-            Shapes.polyline(target, floatArrayOf(right - 4f, cy - 8f, right + 4f, cy, right - 4f, cy + 8f), 3f, Levels.STRONG)
-        }
-        if (tile.running) Shapes.fillCircle(target, ix + m.TILE_ICON + 8f, iy + 6f, 4f, if (tile.dimmed) Levels.DIM else Levels.STRONG)
+        drawIcon(target, tile, ix, iy, bright = focused)
+        if (tile.running) Shapes.fillCircle(target, ix + m.TILE_ICON + 8f, iy + 6f, 4f, Levels.STRONG)
         // Within the focus frame, with room on both sides, so a long name never touches it.
-        val label = TextFit.ellipsize(text, b.text, m.TILE_LABEL, false, r.w - 2 * (TILE_INSET + (if (tile.lifted) TILE_LIFTED_FRAME else TILE_FRAME) + TILE_LABEL_SPACE))
+        val label = TextFit.ellipsize(text, b.text, m.TILE_LABEL, false, r.w - 2 * (TILE_INSET + TILE_FRAME + TILE_LABEL_SPACE))
         if (label.isNotEmpty()) {
             val lx = r.x + (r.w - text.measure(label, m.TILE_LABEL)) / 2
-            text.draw(target, label, lx, r.y + TILE_LABEL_TOP, m.TILE_LABEL, textLevel)
+            text.draw(target, label, lx, r.y + TILE_LABEL_TOP, m.TILE_LABEL, if (focused) Levels.STRONG else Levels.TEXT)
         }
+    }
+
+    /** The app's icon with its top left at ([x], [y]), or without one its initials in a frame. */
+    private fun drawIcon(target: GrayRaster, tile: TileLook, x: Int, y: Int, bright: Boolean) {
+        val m = PageMetrics
+        val icon = tile.icon
+        if (icon != null) {
+            lighten(target, icon, x, y, if (bright) 15 else 13)
+            return
+        }
+        val size = m.TILE_ICON.toFloat()
+        Shapes.strokeRoundRect(target, x + 1f, y + 1f, size - 2f, size - 2f, 14f, 2f, Levels.DIM)
+        val letters = TextFit.ellipsize(text, tile.initials, INITIALS, true, m.TILE_ICON - 8)
+        if (letters.isNotEmpty()) {
+            val lx = x + (m.TILE_ICON - text.measure(letters, INITIALS, true)) / 2
+            val ly = y + (m.TILE_ICON - text.lineHeight(INITIALS)) / 2
+            text.draw(target, letters, lx, ly, INITIALS, if (bright) Levels.STRONG else Levels.TEXT, true)
+        }
+    }
+
+    /**
+     * An app of the launcher as it hangs at the pointer while the wearer carries it (03 §5): its icon on a
+     * small lifted card with a bright frame, [PageMetrics.CARD] pixels square. The corners outside the card
+     * are black, so what lies beneath shows there.
+     */
+    fun carried(look: TileLook): GrayRaster {
+        val card = GrayRaster(PageMetrics.CARD, PageMetrics.CARD)
+        val c = PageMetrics.CARD.toFloat()
+        Shapes.fillRoundRect(card, 0f, 0f, c, c, CARD_RADIUS, Levels.SURFACE)
+        Shapes.strokeRoundRect(card, 0f, 0f, c, c, CARD_RADIUS, TILE_FRAME.toFloat(), Levels.STRONG)
+        val at = (PageMetrics.CARD - PageMetrics.TILE_ICON) / 2
+        drawIcon(card, look, at, at, bright = true)
+        return card
     }
 
     /**
@@ -314,7 +325,7 @@ class PageRenderer(private val text: TextPainter) {
         const val TILE_INSET = 4
         const val TILE_RADIUS = 12f
         const val TILE_FRAME = 3
-        const val TILE_LIFTED_FRAME = 5
+        const val CARD_RADIUS = 16f
         const val TILE_LABEL_SPACE = 4
         const val TILE_ICON_TOP = 14
         const val TILE_LABEL_TOP = 84

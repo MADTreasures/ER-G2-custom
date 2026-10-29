@@ -72,6 +72,10 @@ class DesktopController(
     private var pointerShown = true
     private var lastAppPointer: Pair<Int, Int>? = null
 
+    /** What hangs at the pointer instead of the arrow ([carry]), and how often that changed. */
+    private var carried: GrayRaster? = null
+    private var carriedVersion = 0
+
     private val _frame = MutableStateFlow(
         DesktopFrame(layout.band, ByteArray(layout.band.w * layout.band.h), 0, pointer.x, pointer.y, pointerPixels),
     )
@@ -192,6 +196,15 @@ class DesktopController(
         invalidate()
     }
 
+    /** [image] goes along with the pointer, drawn and sent with it like the arrow, in a block of its size. */
+    override fun carry(image: GrayRaster?) = scheduler.post {
+        if (image == null && carried == null) return@post
+        carried = image
+        carriedVersion++
+        publishPointer()
+        schedulePointerFlush()
+    }
+
     /** Nothing to show: the top bar alone, until the app host shows the launcher again. */
     override fun closeApp() = scheduler.post {
         if (desktop.app == null) return@post
@@ -300,14 +313,33 @@ class DesktopController(
         send(changed)
     }
 
-    /** Draws the pointer into [screen], cut off at the stage's edge; null while hidden. */
-    private fun drawPointer(): Rect? =
-        if (pointerShown) PointerSprite.drawInto(screen, pointerPixels, pointer.x, pointer.y, layout.stage) else null
+    /** Draws the pointer, or what it carries, into [screen], cut off at the stage's edge; null while hidden. */
+    private fun drawPointer(): Rect? {
+        if (!pointerShown) return null
+        carried?.let { return drawCarried(it) }
+        return PointerSprite.drawInto(screen, pointerPixels, pointer.x, pointer.y, layout.stage)
+    }
 
-    /** Identifies what [screen] holds: the desktop, and the pointer with where it is. */
+    /** [image] centred on the pointer's tip; its black pixels leave what lies beneath. */
+    private fun drawCarried(image: GrayRaster): Rect? {
+        val x = pointer.x - image.width / 2
+        val y = pointer.y - image.height / 2
+        val box = Rect(x, y, image.width, image.height).intersect(layout.stage) ?: return null
+        for (py in box.y until box.bottom) {
+            for (px in box.x until box.right) {
+                val v = image[px - x, py - y]
+                if (v != 0) screen[px, py] = v
+            }
+        }
+        return box
+    }
+
+    /** Identifies what [screen] holds: the desktop, and the pointer (or what it carries) with where it is. */
     private fun fingerprint(): String {
         val base = "desktop:" + java.lang.Long.toHexString(rasterHash)
-        return if (pointerShown) "$base:p${pointer.x},${pointer.y}:${PointerSprite.fingerprint(pointerPixels)}" else base
+        if (!pointerShown) return base
+        val sprite = if (carried != null) "carried:$carriedVersion" else PointerSprite.fingerprint(pointerPixels)
+        return "$base:p${pointer.x},${pointer.y}:$sprite"
     }
 
     /** Sends the block [rect] of [screen], unless the glasses already show what it holds now. */

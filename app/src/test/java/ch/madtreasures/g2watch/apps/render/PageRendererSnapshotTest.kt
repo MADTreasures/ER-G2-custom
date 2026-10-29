@@ -176,8 +176,8 @@ class PageRendererSnapshotTest {
 
     @Test
     fun launcherMoving() {
-        // A finger rests two seconds on Navi: it lifts (thick frame, arrows, the others step back) and the
-        // pointer takes it to the second place, where it stays when the finger lifts (03 §5).
+        // A finger rests two seconds on Navi: it lifts and hangs at the pointer on its card, and is carried
+        // towards the second place. There the gap opens, Browser and Fluency have made room (03 §5).
         val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() }, { NaviApp() }, { MusikApp() })
         settle()
         val page = host.currentPageOf(Launcher.ID)!!
@@ -186,7 +186,10 @@ class PageRendererSnapshotTest {
         settle()
         scheduler.advanceBy(AppHost.HOLD_MS)
         settle()
-        pointerOn(page, "app1", dx = 74, tiles = true)
+        // Half way through the second cell, a little below its middle: the card floats beside its gap.
+        val cell = PageLayout.of(page, AndroidTextPainter(emojiFont), tiles = true).focusables.first { it.target == FocusTarget("app1") }.rect
+        val area = desktop.layout.appArea(false)
+        pointerTo(area.x + cell.x + 104, area.y + cell.y + 92)
         save("apps-starter-verschieben")
         desktop.release()
         settle()

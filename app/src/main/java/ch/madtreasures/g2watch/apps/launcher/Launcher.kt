@@ -48,9 +48,10 @@ interface LauncherHost {
  * an internal session, not as an app: the installed watch apps now, Even Hub apps from M3 and remote
  * apps from M5, each kind under its own heading once there is more than one kind.
  *
- * The wearer orders the apps as on a phone (03 §5): the host [lift]s one after it was held, [moveTo]
- * takes it to the place of another of its kind while the others move up or down by one, and [drop]
- * puts it down and keeps the order ([LauncherHost.saveOrder]). New apps come after the ordered ones.
+ * The wearer orders the apps as on a phone (03 §5): the host [lift]s one after it was held and carries
+ * it at the pointer, its cell turns into the gap where it will land; [moveTo] moves that gap to the place
+ * of another app of its kind while the others make room, and [drop] puts the app into the gap and keeps
+ * the order ([LauncherHost.saveOrder]). New apps come after the ordered ones.
  */
 class Launcher(private val host: LauncherHost) : InternalSession {
     override val manifest = AppManifest(id = ID, name = "Apps", version = "1.0.0", description = "Alle Apps der Brille")
@@ -161,13 +162,7 @@ class Launcher(private val host: LauncherHost) : InternalSession {
             for (entry in group) {
                 val id = "app${ids.size}"
                 ids[id] = entry.id
-                looks[id] = TileLook(
-                    entry.icon,
-                    TileLook.initials(entry.name),
-                    entry.running,
-                    lifted = entry.id == lifted,
-                    dimmed = lifted != null && entry.id != lifted,
-                )
+                looks[id] = TileLook(entry.icon, TileLook.initials(entry.name), entry.running, lifted = entry.id == lifted)
                 val label = entry.name + (entry.detail?.let { " · $it" } ?: "")
                 blocks += Block.Button(id, label, action = "startet ${entry.name}")
             }

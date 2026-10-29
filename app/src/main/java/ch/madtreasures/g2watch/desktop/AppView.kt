@@ -67,4 +67,10 @@ interface AppScreen {
 
     /** Nothing to show (the launcher is not up yet, or it crashed): the top bar alone. */
     fun closeApp()
+
+    /**
+     * [image] hangs at the pointer, centred on its tip, and moves with it in place of the arrow: an app of
+     * the launcher the wearer carries to another place (03 §5). Null puts it away and shows the arrow again.
+     */
+    fun carry(image: GrayRaster?) = Unit
 }

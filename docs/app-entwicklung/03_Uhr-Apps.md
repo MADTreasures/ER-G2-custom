@@ -253,14 +253,18 @@ Einbau in den bestehenden Desktop (`desktop/`):
   Kopfzeile; ein Tippen am Bügel, Doppeltippen auf der Uhr oder Enter holt ihn zurück.
 - Seit v0.14.0 ordnet die Trägerin die Apps des Starters wie am Handy:
   - **Anheben:** Finger auf der Uhr liegen lassen (oder die linke Maustaste gedrückt halten), während der
-    Zeiger auf einer App steht. Nach 2 s (`AppHost.HOLD_MS`) tickt die Uhr, die App hebt sich ab (dicker
-    Rahmen und ‹ ›), die anderen treten etwas zurück. Wandert der Zeiger vorher mehr als 8 px (`HOLD_SLOP`),
-    passiert nichts: Das war Zielen.
-  - **Verschieben:** Die App folgt dem Zeiger von Zelle zu Zelle, die Apps dazwischen rücken um eins auf; eine
-    Zelle rechts der letzten App oder darunter heißt: ans Ende. Über den Rand geschoben scrollt ein langer
-    Starter mit. Apps bleiben bei ihrer Art (Uhr, Even Hub, Rechner).
-  - **Ablegen:** Loslassen legt sie ab. Zurück, Bügel, Ring, eine Taste oder eine andere App legen die
-    angehobene App dort ab, wo sie gerade steht.
+    Zeiger auf einer App steht. Nach 2 s (`AppHost.HOLD_MS`) tickt die Uhr, und die App hängt sich als Karte
+    (Symbol mit hellem Rahmen, 84 × 84) an den Zeiger, an dessen Stelle; ihr Platz im Raster wird eine Lücke
+    mit schwachem Umriss. Wandert der Zeiger vorher mehr als 8 px (`HOLD_SLOP`), passiert nichts: Das war
+    Zielen.
+  - **Tragen:** Die Karte fährt frei mit dem Zeiger mit; der Desktop zeichnet und schickt sie wie den Zeiger,
+    nur den Block um ihren alten und neuen Platz (`AppScreen.carry`, `DesktopController.carry`). Die Lücke
+    wandert zur Zelle unter dem Zeiger, die Apps dazwischen rücken um eins auf und machen Platz; eine Zelle
+    rechts der letzten App oder darunter heißt: ans Ende. Über den Rand geschoben scrollt ein langer Starter
+    mit. Apps bleiben bei ihrer Art (Uhr, Even Hub, Rechner).
+  - **Ablegen:** Loslassen legt die App in die Lücke, die Karte verschwindet, der Pfeil ist wieder da.
+    Zurück, Bügel, Ring, eine Taste oder eine andere App legen die getragene App dort ab, wo ihre Lücke
+    gerade ist.
   - Die Reihenfolge liegt im eigenen Speicher des Starters (`reihenfolge`, Einträge wie `watch:<app id>`);
     neue Apps kommen hinten dazu; ohne gespeicherte Reihenfolge bleibt die bisherige (Pakete nach Namen).
   - Dafür meldet das Touchpad jede Berührung außerhalb des Zahnrads als Druck (`DesktopController.press` und

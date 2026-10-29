@@ -58,6 +58,9 @@ class FakeScreen : AppScreen {
     val views = mutableListOf<AppView>()
     var closed = 0
 
+    /** What hung at the pointer, in order; null when it was put away. */
+    val carried = mutableListOf<GrayRaster?>()
+
     val last: AppView get() = views.last()
 
     override fun showApp(view: AppView) {
@@ -66,6 +69,10 @@ class FakeScreen : AppScreen {
 
     override fun closeApp() {
         closed++
+    }
+
+    override fun carry(image: GrayRaster?) {
+        carried += image
     }
 }
 

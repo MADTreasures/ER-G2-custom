@@ -370,7 +370,10 @@ class AppHost(
         return block.takeIf { launcher?.entryAt(it) != null }
     }
 
-    /** The held app lifts: the watch ticks, as a phone does, and the app follows the pointer from now on. */
+    /**
+     * The held app lifts: the watch ticks, as a phone does, the app hangs at the pointer and goes along with
+     * it, and its cell becomes the gap where it will land.
+     */
     private fun liftNow(h: Hold) {
         hold = null
         val l = launcher ?: return
@@ -385,6 +388,7 @@ class AppHost(
         }
         if (!lifted) return
         ports.vibrate(Vibration.TICK)
+        l.blockOf(l.lifted ?: return)?.let { l.tiles[it] }?.let { screen.carry(renderer.carried(it)) }
         focusLifted()
         invalidate()
         publish()
@@ -429,6 +433,7 @@ class AppHost(
         } catch (e: RuntimeException) {
             ports.log("Starter: ${e.message}")
         }
+        screen.carry(null)
         focusLifted(l.blockOf(app))
         invalidate()
         publish()
@@ -697,7 +702,11 @@ class AppHost(
         if (editor?.question?.session === s) editor = null
         sessions.remove(s.entryId)
         if (overlay?.session === s) overlay = null
-        if (s.isLauncher) launcher = null
+        if (s.isLauncher) {
+            // An app it carried goes with it.
+            if (launcher?.lifted != null) screen.carry(null)
+            launcher = null
+        }
         if (visible === s) {
             visible = null
             if (!s.isLauncher) showLauncher(reason?.let { "${s.manifest.name} $it" })
