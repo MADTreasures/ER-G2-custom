@@ -39,6 +39,14 @@ class HardwareEventsTest {
             calls += "click"
         }
 
+        override fun press() {
+            calls += "press"
+        }
+
+        override fun release() {
+            calls += "release"
+        }
+
         override fun menu() {
             calls += "menu"
         }
@@ -137,7 +145,7 @@ class HardwareEventsTest {
     }
 
     @Test
-    fun `without capture the mouse's relative axes move the pointer, buttons click, the wheel scrolls`() {
+    fun `without capture the mouse's relative axes move the pointer, buttons press and let go, the wheel scrolls`() {
         mouse = true
         assertTrue(events.motion(mouseEvent(MotionEvent.ACTION_HOVER_MOVE, x = 455f, y = 455f, relX = 6f, relY = -2f)))
         assertTrue(events.motion(mouseEvent(MotionEvent.ACTION_BUTTON_PRESS, MotionEvent.BUTTON_PRIMARY)))
@@ -147,7 +155,7 @@ class HardwareEventsTest {
         assertTrue(events.motion(mouseEvent(MotionEvent.ACTION_SCROLL, vscroll = -1f)))
         // At the edge of the watch the cursor stands still, the relative axes go on.
         assertTrue(events.motion(mouseEvent(MotionEvent.ACTION_HOVER_MOVE, x = 455f, y = 455f)))
-        assertEquals(listOf("move", "click", "menu", "wheel 1"), calls)
+        assertEquals(listOf("move", "press", "release", "menu", "wheel 1"), calls)
         // A finger on the watch is no mouse.
         assertFalse(events.motion(mouseEvent(MotionEvent.ACTION_DOWN, source = InputDevice.SOURCE_TOUCHSCREEN)))
     }

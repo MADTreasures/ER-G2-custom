@@ -332,6 +332,8 @@ class MainActivity : ComponentActivity() {
                     onSpeed = { desktop.setSpeed(it) },
                     onClick = { desktop.click() },
                     onOpenSettings = { settingsReturn = Screen.TOUCHPAD; screen = Screen.SETTINGS },
+                    onPress = { desktop.press() },
+                    onRelease = { desktop.release() },
                     gestureMode = inputMode == InputMode.GESTURES,
                     onGesture = { app.input.onWatchGesture(it) },
                     inputHint = inputHint(inputDevices.any { it.keyboard }, mouse),

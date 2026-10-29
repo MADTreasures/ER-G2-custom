@@ -274,6 +274,14 @@ class DesktopControllerTest {
         override fun openMenu() {
             calls += "menu"
         }
+
+        override fun pressAt(x: Int, y: Int, click: Boolean) {
+            calls += "press $x,$y" + if (click) " click" else ""
+        }
+
+        override fun release() {
+            calls += "release"
+        }
     }
 
     private fun appView(pointer: Boolean = true, fullScreen: Boolean = false, value: Int = 90, home: Boolean = false): AppView {
@@ -353,6 +361,44 @@ class DesktopControllerTest {
         controller.back()
         scheduler.runPending()
         assertEquals(listOf("pointer -1,-1", "back", "menu", "back"), apps.calls)
+    }
+
+    @Test
+    fun `a finger or the mouse's button goes to the app host as a press in app coordinates, and its release`() {
+        val apps = Apps()
+        controller.connectApps(apps)
+        attached()
+        controller.showApp(appView())
+        scheduler.runPending()
+        apps.calls.clear()
+        moveTo(132, 224)
+        controller.press()
+        controller.release()
+        controller.mousePress()
+        controller.release()
+        scheduler.runPending()
+        assertEquals(listOf("pointer 100,100", "press 100,100", "release", "press 100,100 click", "release"), apps.calls)
+
+        // In the header a finger presses nothing; the mouse's button works the back arrow and the title.
+        apps.calls.clear()
+        val back = controller.layout.appBack
+        moveTo(back.x + back.w / 2, back.y + back.h / 2)
+        controller.press()
+        controller.mousePress()
+        controller.release()
+        val title = controller.layout.appTitle
+        moveTo(title.x + 20, title.y + 10)
+        controller.mousePress()
+        scheduler.runPending()
+        assertEquals(listOf("pointer -1,-1", "back", "release", "menu"), apps.calls)
+
+        // With nothing on the glasses the button asks for the launcher, as a click does.
+        apps.calls.clear()
+        controller.closeApp()
+        controller.press()
+        controller.mousePress()
+        scheduler.runPending()
+        assertEquals(listOf("launcher"), apps.calls)
     }
 
     @Test

@@ -77,6 +77,9 @@ import kotlin.math.sin
  * finger *movement* moves the pointer, so putting the finger down elsewhere never makes it jump.
  * A double tap anywhere but on the gear is a click at the pointer, the crown sets the pointer
  * speed. Holding the finger on the gear opens the settings; a ring round the gear fills meanwhile.
+ * Every touch elsewhere also goes to the glasses as a press ([onPress], [onRelease]): resting the finger
+ * two seconds with the pointer on an app of the launcher lifts that app, moving the finger moves it, and
+ * lifting the finger puts it down, as on a phone (03 §5).
  *
  * Only while a finger touches the face, a dark glass disc with a glowing blue rim sits under it and
  * follows it; the moment the finger lifts, the disc is gone. When the touch is the second of a
@@ -99,6 +102,8 @@ fun TouchpadScreen(
     onSpeed: (Float) -> Unit,
     onClick: () -> Unit,
     onOpenSettings: () -> Unit,
+    onPress: () -> Unit = {},
+    onRelease: () -> Unit = {},
     timeSource: TimeSource = TimeTextDefaults.rememberTimeSource(TimeTextDefaults.timeFormat()),
     gestureMode: Boolean = false,
     onGesture: (GestureKind) -> Unit = {},
@@ -111,6 +116,8 @@ fun TouchpadScreen(
     val move by rememberUpdatedState(onMove)
     val setSpeed by rememberUpdatedState(onSpeed)
     val click by rememberUpdatedState(onClick)
+    val press by rememberUpdatedState(onPress)
+    val release by rememberUpdatedState(onRelease)
     val openSettings by rememberUpdatedState(onOpenSettings)
     val gestures by rememberUpdatedState(gestureMode)
     val gesture by rememberUpdatedState(onGesture)
@@ -119,6 +126,8 @@ fun TouchpadScreen(
     var lastTapAt by remember { mutableLongStateOf(NO_TAP) }
     // Whether the touch now down came soon enough after a tap to click when it lifts.
     var clicking by remember { mutableStateOf(false) }
+    // Whether the touch now down went to the glasses as a press, to be released when it lifts.
+    var pressing by remember { mutableStateOf(false) }
     var speedShownAt by remember { mutableLongStateOf(0L) }
     val focusRequester = remember { FocusRequester() }
     val feedback = rememberTouchFeedback()
@@ -158,6 +167,10 @@ fun TouchpadScreen(
                                 clicking = !onGear && timeMs - lastTapAt <= DOUBLE_TAP_MS
                                 // A tap waits for one more touch only; this is it.
                                 if (clicking) lastTapAt = NO_TAP
+                                if (!onGear) {
+                                    pressing = true
+                                    press()
+                                }
                             }
                             feedback.down(position, onGear = onGear, clicking = clicking)
                         },
@@ -176,6 +189,10 @@ fun TouchpadScreen(
                         },
                         onUp = {
                             feedback.up()
+                            if (pressing) {
+                                pressing = false
+                                release()
+                            }
                             if (gestures) track.swipeOrRelease(SWIPE_MIN_DP * density)?.let { gesture(it) }
                         },
                         onTap = { at, position ->

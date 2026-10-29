@@ -115,10 +115,15 @@ class HardwareInput {
     // --- Mouse ----------------------------------------------------------------------------------
 
     /** The buttons pressed since the last [buttonState] (a MotionEvent's `buttonState`). */
-    fun pressed(buttonState: Int): List<MouseButton> {
+    fun pressed(buttonState: Int): List<MouseButton> = buttons(buttonState).first
+
+    /** The buttons pressed and the buttons let go since the last [buttonState]. */
+    fun buttons(buttonState: Int): Pair<List<MouseButton>, List<MouseButton>> {
         val down = buttonState and buttons.inv()
+        val up = buttons and buttonState.inv()
         buttons = buttonState
-        return BUTTONS.filter { (bit, _) -> down and bit != 0 }.map { it.second }
+        fun of(bits: Int) = BUTTONS.filter { (bit, _) -> bits and bit != 0 }.map { it.second }
+        return Pair(of(down), of(up))
     }
 
     /**

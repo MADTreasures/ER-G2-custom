@@ -143,6 +143,38 @@ class DesktopController(
         }
     }
 
+    /**
+     * A finger came down on the watch's face (not on the gear): held on an app of the launcher, it lifts
+     * the app to move it (03 §5). The app host decides; nothing happens outside the app area.
+     */
+    fun press() = scheduler.post { pressAt(click = false) }
+
+    /**
+     * The mouse's left button went down: a click like [click], except on an app of the launcher, where the
+     * click waits for the button to come up, and holding it lifts the app to move it.
+     */
+    fun mousePress() = scheduler.post {
+        val app = desktop.app
+        if (app == null) {
+            apps?.openLauncher()
+            return@post
+        }
+        when (desktop.hitTest(pointer.x, pointer.y)) {
+            Target.AppBack -> apps?.back()
+            Target.AppTitle -> apps?.openMenu()
+            null -> pressAt(click = true)
+        }
+    }
+
+    /** The finger or the mouse button came up: an app being moved lands. */
+    fun release() = scheduler.post { apps?.release() }
+
+    private fun pressAt(click: Boolean) {
+        val app = desktop.app ?: return
+        val area = layout.appArea(app.fullScreen)
+        if (area.contains(pointer.x, pointer.y)) apps?.pressAt(pointer.x - area.x, pointer.y - area.y, click)
+    }
+
     /** Back in the app on the glasses (the launcher stays where it is). */
     fun back() = scheduler.post {
         if (desktop.app != null) apps?.back()

@@ -183,6 +183,10 @@ class G2WatchApp : Application() {
 
         override fun click() = desktop.click()
 
+        override fun press() = desktop.mousePress()
+
+        override fun release() = desktop.release()
+
         override fun menu() = apps.openMenu()
 
         override fun back() = desktop.back()

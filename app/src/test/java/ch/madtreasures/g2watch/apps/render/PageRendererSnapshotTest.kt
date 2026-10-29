@@ -175,6 +175,24 @@ class PageRendererSnapshotTest {
     }
 
     @Test
+    fun launcherMoving() {
+        // A finger rests two seconds on Navi: it lifts (thick frame, arrows, the others step back) and the
+        // pointer takes it to the second place, where it stays when the finger lifts (03 §5).
+        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() }, { NaviApp() }, { MusikApp() })
+        settle()
+        val page = host.currentPageOf(Launcher.ID)!!
+        pointerOn(page, "app3", dx = 68, tiles = true)
+        desktop.press()
+        settle()
+        scheduler.advanceBy(AppHost.HOLD_MS)
+        settle()
+        pointerOn(page, "app1", dx = 74, tiles = true)
+        save("apps-starter-verschieben")
+        desktop.release()
+        settle()
+    }
+
+    @Test
     fun appMenu() {
         // Tap-then-hold on the temple opens the app menu over YouTube's start page.
         ports.answers["$youtubeId@1.1.0"] = setOf(Permission.NETWORK)

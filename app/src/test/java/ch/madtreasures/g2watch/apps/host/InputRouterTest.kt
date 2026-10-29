@@ -29,6 +29,14 @@ class InputRouterTest {
             calls += "click"
         }
 
+        override fun press() {
+            calls += "press"
+        }
+
+        override fun release() {
+            calls += "release"
+        }
+
         override fun menu() {
             calls += "menu"
         }
@@ -155,19 +163,23 @@ class InputRouterTest {
     }
 
     @Test
-    fun `mouse buttons click, open the menu and go back`() {
+    fun `mouse buttons press and click, open the menu and go back`() {
         router.onMouseButton(MouseButton.PRIMARY)
+        router.onMouseButtonUp(MouseButton.PRIMARY)
         router.onMouseButton(MouseButton.SECONDARY)
+        router.onMouseButtonUp(MouseButton.SECONDARY)
         router.onMouseButton(MouseButton.TERTIARY)
         router.onMouseButton(MouseButton.BACK)
         router.onMouseButton(MouseButton.FORWARD)
-        assertEquals(listOf("click", "menu", "back", "back"), hardware.calls)
-        // Without a pointer the left button taps, like a tap on the watch.
+        // The left button presses (a click, or held on an app of the launcher it lifts it, 03 §5) and lets go.
+        assertEquals(listOf("press", "release", "menu", "back", "back"), hardware.calls)
+        // Without a pointer the left button taps, like a tap on the watch; letting go is nothing then.
         hardware.gestureMode = true
         router.onMouseButton(MouseButton.PRIMARY)
+        router.onMouseButtonUp(MouseButton.PRIMARY)
         router.onMouseButton(MouseButton.SECONDARY)
         assertEquals(listOf(Gesture(GestureKind.CLICK, InputSource.WATCH)), routed)
-        assertEquals("menu", hardware.calls.last())
+        assertEquals(listOf("press", "release", "menu", "back", "back", "menu"), hardware.calls)
     }
 
     @Test
