@@ -43,6 +43,9 @@ object PageMetrics {
     const val TILE_H = 120
     const val TILE_ICON = 64
     const val TILE_LABEL = 18
+
+    /** The card an app of the launcher hangs on at the pointer while the wearer carries it (03 §5). */
+    const val CARD = 84
 }
 
 /**

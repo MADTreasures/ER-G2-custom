@@ -76,6 +76,9 @@ class TouchpadScreenTest {
     private var inputHint by mutableStateOf<String?>(null)
     private val gestures = mutableListOf<GestureKind>()
 
+    /** What went to the glasses as a press: "press" when a finger came down, "release" when it lifted. */
+    private val presses = mutableListOf<String>()
+
     private fun show(state: GlassesState = connected) {
         glasses = state
         compose.setContent {
@@ -86,6 +89,8 @@ class TouchpadScreenTest {
                     onSpeed = {},
                     onClick = { clicks++ },
                     onOpenSettings = { settings++ },
+                    onPress = { presses += "press" },
+                    onRelease = { presses += "release" },
                     timeSource = FixedTime,
                     gestureMode = gestureMode,
                     onGesture = { gestures += it },
@@ -221,6 +226,41 @@ class TouchpadScreenTest {
         }
         compose.mainClock.advanceTimeByFrame()
         assertTrue("resting stopped the pointer", moved.x > 0f)
+    }
+
+    @Test
+    fun `every touch on the face is a press for the glasses until it lifts, not on the gear`() {
+        showStill()
+        compose.onRoot().performTouchInput { down(finger) }
+        // Resting two seconds and more: the glasses decide (an app of the launcher lifts, 03 §5).
+        compose.mainClock.advanceTimeBy(2_100)
+        assertEquals(listOf("press"), presses)
+        compose.onRoot().performTouchInput {
+            moveBy(Offset(60f, 0f))
+            moveBy(Offset(60f, 0f))
+        }
+        compose.onRoot().performTouchInput { up() }
+        compose.mainClock.advanceTimeByFrame()
+        assertEquals(listOf("press", "release"), presses)
+        assertTrue("the held finger still moves the pointer", moved.x > 0f)
+        // On the gear: its own ring, nothing for the glasses.
+        compose.onRoot().performTouchInput { down(gear().center) }
+        compose.mainClock.advanceTimeBy(300)
+        compose.onRoot().performTouchInput { up() }
+        compose.mainClock.advanceTimeByFrame()
+        assertEquals(listOf("press", "release"), presses)
+        assertEquals(0, settings)
+    }
+
+    @Test
+    fun `in gesture mode a touch is no press`() {
+        gestureMode = true
+        showStill()
+        compose.onRoot().performTouchInput { down(finger) }
+        compose.mainClock.advanceTimeBy(500)
+        compose.onRoot().performTouchInput { up() }
+        compose.mainClock.advanceTimeBy(500)
+        assertTrue(presses.isEmpty())
     }
 
     @Test

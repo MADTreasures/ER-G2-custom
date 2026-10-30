@@ -65,10 +65,12 @@ class HardwareEvents(
     }
 
     private fun mouse(event: MotionEvent, captured: Boolean) {
-        for (button in input.pressed(event.buttonState)) {
+        val (down, up) = input.buttons(event.buttonState)
+        for (button in down) {
             if (button == MouseButton.BACK && !input.mouseBack(event.eventTime, fromKey = false)) continue
             router.onMouseButton(button)
         }
+        for (button in up) router.onMouseButtonUp(button)
         when (event.actionMasked) {
             MotionEvent.ACTION_SCROLL -> router.onWheel(input.wheel(event.getAxisValue(MotionEvent.AXIS_VSCROLL)))
             MotionEvent.ACTION_MOVE, MotionEvent.ACTION_HOVER_MOVE -> {

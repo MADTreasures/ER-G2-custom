@@ -48,6 +48,16 @@ interface AppInput {
 
     /** A click on the title in the header: the app menu. */
     fun openMenu()
+
+    /**
+     * A finger came down on the watch's face, or a mouse button went down ([click]), with the pointer at
+     * ([x], [y]) in the app area. Held on an app of the launcher, it lifts that app to move it (03 §5);
+     * a mouse button clicks at once elsewhere, and on an app of the launcher when it comes up soon enough.
+     */
+    fun pressAt(x: Int, y: Int, click: Boolean) = Unit
+
+    /** The finger or the mouse button came up: an app being moved lands where it is. */
+    fun release() = Unit
 }
 
 /** What the app host drives on the desktop; implemented by [DesktopController]. Any thread. */
@@ -57,4 +67,10 @@ interface AppScreen {
 
     /** Nothing to show (the launcher is not up yet, or it crashed): the top bar alone. */
     fun closeApp()
+
+    /**
+     * [image] hangs at the pointer, centred on its tip, and moves with it in place of the arrow: an app of
+     * the launcher the wearer carries to another place (03 §5). Null puts it away and shows the arrow again.
+     */
+    fun carry(image: GrayRaster?) = Unit
 }

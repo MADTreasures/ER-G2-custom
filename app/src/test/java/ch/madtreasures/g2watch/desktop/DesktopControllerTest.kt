@@ -274,6 +274,14 @@ class DesktopControllerTest {
         override fun openMenu() {
             calls += "menu"
         }
+
+        override fun pressAt(x: Int, y: Int, click: Boolean) {
+            calls += "press $x,$y" + if (click) " click" else ""
+        }
+
+        override fun release() {
+            calls += "release"
+        }
     }
 
     private fun appView(pointer: Boolean = true, fullScreen: Boolean = false, value: Int = 90, home: Boolean = false): AppView {
@@ -353,6 +361,74 @@ class DesktopControllerTest {
         controller.back()
         scheduler.runPending()
         assertEquals(listOf("pointer -1,-1", "back", "menu", "back"), apps.calls)
+    }
+
+    @Test
+    fun `a finger or the mouse's button goes to the app host as a press in app coordinates, and its release`() {
+        val apps = Apps()
+        controller.connectApps(apps)
+        attached()
+        controller.showApp(appView())
+        scheduler.runPending()
+        apps.calls.clear()
+        moveTo(132, 224)
+        controller.press()
+        controller.release()
+        controller.mousePress()
+        controller.release()
+        scheduler.runPending()
+        assertEquals(listOf("pointer 100,100", "press 100,100", "release", "press 100,100 click", "release"), apps.calls)
+
+        // In the header a finger presses nothing; the mouse's button works the back arrow and the title.
+        apps.calls.clear()
+        val back = controller.layout.appBack
+        moveTo(back.x + back.w / 2, back.y + back.h / 2)
+        controller.press()
+        controller.mousePress()
+        controller.release()
+        val title = controller.layout.appTitle
+        moveTo(title.x + 20, title.y + 10)
+        controller.mousePress()
+        scheduler.runPending()
+        assertEquals(listOf("pointer -1,-1", "back", "release", "menu"), apps.calls)
+
+        // With nothing on the glasses the button asks for the launcher, as a click does.
+        apps.calls.clear()
+        controller.closeApp()
+        controller.press()
+        controller.mousePress()
+        scheduler.runPending()
+        assertEquals(listOf("launcher"), apps.calls)
+    }
+
+    @Test
+    fun `what the pointer carries goes along with it in place of the arrow, in small blocks, and away again`() {
+        attached()
+        controller.showApp(appView())
+        scheduler.runPending()
+        moveTo(300, 300)
+        // A card of 84 × 84 with a black rim, as the launcher hangs an app at the pointer (03 §5).
+        val card = GrayRaster(84, 84).apply { for (y in 2 until 82) for (x in 2 until 82) this[x, y] = 200 }
+        controller.carry(card)
+        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
+        val shown = display.content("desktop")
+        // Centred on the pointer's tip; its black rim leaves the app beneath.
+        assertEquals(200, shown[300, 300])
+        assertEquals(200, shown[260, 260])
+        assertEquals(90, shown[258, 300])
+
+        display.clear()
+        moveTo(310, 305)
+        val sent = display.submitsOf("desktop").single()
+        // Only the block of its old and its new place goes out.
+        assertEquals(listOf(258, 258, 94, 89), listOf(sent.x, sent.y, sent.w, sent.h))
+        assertEquals(200, display.content("desktop")[349, 305])
+        assertEquals(90, display.content("desktop")[262, 305])
+
+        // Put away, the arrow is back where the pointer is.
+        controller.carry(null)
+        scheduler.advanceBy(DesktopController.POINTER_INTERVAL_MS)
+        assertShowsExpected()
     }
 
     @Test

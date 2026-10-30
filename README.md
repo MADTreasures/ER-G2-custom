@@ -14,7 +14,7 @@ ob GeckoView auf der Uhr gut genug läuft.
 
 ![Firmware aufspielen auf der Uhr](docs/bilder/uebersicht-firmware.png)
 
-> **Ehrlicher Stand (v0.13.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
+> **Ehrlicher Stand (v0.14.0):** Auf echter Uhr und Brille erprobt ist bisher das **Aufspielen der
 > Custom-Firmware**: Pixel Watch 5 und G2, linkes Glas im ersten Anlauf; beim rechten brach der erste Anlauf
 > ab, nach dem angezeigten Weg (Brille laden, neu starten, erneut aufspielen) klappte es. Alles andere läuft
 > bisher nur gegen eine simulierte Brille, dazu das echte Custom-Image bitgenau durch den echten Flasher. Seit
@@ -55,6 +55,9 @@ ob GeckoView auf der Uhr gut genug läuft.
 > 1.0.0 – Spotify von der Brille aus bedienen (Titel, Cover, Play/Pause, weiter, Lautstärke) und Radio mit den
 > 44 Schweizer Sendern von DAB+ als Internet-Stream, dazu jeder Sender der Welt. Der Ton kommt von der Uhr
 > (Kopfhörer oder Lautsprecher). Nicht auf Hardware erprobt.
+> Neu in 0.14.0: **Apps im [Starter](#apps-auf-der-brille) verschieben** wie am Handy: Finger auf der Uhr
+> liegen lassen (oder Maustaste halten), während der Zeiger auf einer App steht – nach 2 Sekunden hängt sie
+> am Zeiger, die anderen machen Platz, Loslassen legt sie ab. Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -156,8 +159,8 @@ Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installi
 | Starter | App-Menü | Berechtigung beim ersten Start |
 |---|---|---|
 | ![Starter](docs/bilder/apps-starter.png) | ![App-Menü](docs/bilder/apps-menue.png) | ![Berechtigung](docs/bilder/apps-berechtigung.png) |
-| **Vollbild-Seite mit randlosem Bild** | | |
-| ![Bild](docs/bilder/apps-bild-randlos.png) | | |
+| **Vollbild-Seite mit randlosem Bild** | **App verschieben** (2 Sekunden halten) | |
+| ![Bild](docs/bilder/apps-bild-randlos.png) | ![Verschieben](docs/bilder/apps-starter-verschieben.png) | |
 | **Alle Bausteine** | **… gescrollt, Fokus unten** | **Uhr im Gesten-Modus** |
 | ![Bausteine](docs/bilder/apps-bausteine.png) | ![Gescrollt](docs/bilder/apps-bausteine-gescrollt.png) | ![Gesten](docs/bilder/uhr-touchpad-gesten.png) |
 
@@ -169,6 +172,12 @@ Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installi
   Die App läuft. Eine App ohne Symbol zeigt ihre Anfangsbuchstaben. Ohne Apps steht dort „Noch keine Apps“.
   Bügel und Ring springen von Symbol zu Symbol (Zeile für Zeile), Tippen startet; mit dem Zeiger leuchtet
   das Symbol darunter auf, Doppeltipp auf der Uhr startet es.
+- **Apps verschieben** (seit 0.14.0), wie am Handy: Den Zeiger auf eine App stellen und den Finger auf der
+  Uhr **2 Sekunden liegen lassen** (mit einer Maus: linke Taste gedrückt halten). Die Uhr tickt, und die App
+  hängt sich an den Zeiger. Mit dem Finger (oder der Maus) trägt man sie frei herum; wo sie landen wird, ist
+  eine Lücke, für die die anderen Apps beiseiterücken. Loslassen legt sie in die Lücke. Rechts neben der
+  letzten App oder darunter heißt: ans Ende. Die Reihenfolge bleibt gespeichert, neue Apps kommen hinten dazu.
+  Wer vor den 2 Sekunden weiterzieht, verschiebt nichts.
 - **Zeiger** (Finger auf der Uhr): Was unter dem Zeiger liegt, ist hervorgehoben; Doppeltipp auf der Uhr
   klickt es. Den Zeiger über den oberen oder unteren Rand hinaus schieben scrollt lange Seiten.
 - **Bügel oder Ring:** Wischen springt zum nächsten/vorigen Knopf, Schalter oder Häkchen (die Seite scrollt

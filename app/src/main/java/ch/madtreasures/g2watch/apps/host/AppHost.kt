@@ -77,7 +77,9 @@ import ch.madtreasures.g2watch.link.PhoneLinkWire
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import java.util.Base64
 import kotlin.math.abs
@@ -93,6 +95,8 @@ data class HostState(
     val scroll: Int = 0,
     /** App ids of all running app sessions, the launcher excluded. */
     val running: List<String> = emptyList(),
+    /** Entry id of the app the wearer moves in the launcher right now ("watch:…"), or null (03 §5). */
+    val moving: String? = null,
 )
 
 /**
@@ -169,6 +173,14 @@ class AppHost(
     /** The image block the gathered scroll is for (the web page under the pointer), or null for the first. */
     private var pushedBlock: String? = null
 
+    /** A finger or a mouse button held on an app of the launcher: after [HOLD_MS] the app lifts to move. */
+    private class Hold(val block: String, val x: Int, val y: Int, val click: Boolean) {
+        /** Still where it came down: lifts when the time is up. */
+        var still = true
+    }
+
+    private var hold: Hold? = null
+
     private val _inputMode = MutableStateFlow(InputMode.POINTER)
 
     /** How the watch touchpad works right now: pointer, or gestures for the app on the glasses. */
@@ -196,21 +208,38 @@ class AppHost(
 
     override fun pointerAt(x: Int, y: Int) = scheduler.post {
         pointer = if (x < 0 || y < 0) null else Pair(x, y)
-        hover()
+        hold?.let { h ->
+            val p = pointer
+            if (p == null || abs(p.first - h.x) > HOLD_SLOP || abs(p.second - h.y) > HOLD_SLOP) h.still = false
+        }
+        pointerMoved()
     }
 
-    override fun clickAt(x: Int, y: Int) = scheduler.post {
-        val scr = currentScreen() ?: return@post
+    override fun clickAt(x: Int, y: Int) = scheduler.post { clickNow(x, y) }
+
+    override fun pressAt(x: Int, y: Int, click: Boolean) = scheduler.post { pressNow(x, y, click) }
+
+    override fun release() = scheduler.post { releaseNow() }
+
+    private fun clickNow(x: Int, y: Int) {
+        // While an app is being moved, a click puts it down.
+        if (dropMoving()) return
+        val scr = currentScreen() ?: return
         val layout = layoutOf(scr)
         val target = layout.hit(x, y, scr.view.scroll)?.target
         if (target == null) {
             // A web page takes the click itself, at that spot (05 §10).
             webAt(scr, x, y)?.let { (w, at) -> webClick(scr, w, at) }
-            return@post
+            return
         }
         scr.view.focus = target
         scr.view.fresh = false
         activate(scr, target)
+    }
+
+    /** The pointer moved, or the page under it: what is under it now gets the focus, or the lifted app goes there. */
+    private fun pointerMoved() {
+        if (launcher?.lifted != null) dragNow() else hover()
     }
 
     override fun scrollBy(dy: Int) = scheduler.post {
@@ -223,7 +252,7 @@ class AppHost(
             return@post
         }
         scr.view.scroll = next
-        hover()
+        pointerMoved()
         invalidate()
     }
 
@@ -282,6 +311,144 @@ class AppHost(
     internal fun currentPageOf(appId: String): Page? = sessions.values.firstOrNull { it.manifest.id == appId }?.pages?.current
 
     // --- Launcher -------------------------------------------------------------------------------
+
+    /** The order the wearer gave the apps, kept in the launcher's own store (03 §5). */
+    override fun order(): List<String> = try {
+        (ports.storage(Launcher.ID).get(ORDER_KEY) as? JsonArray).orEmpty()
+            .mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
+    } catch (e: RuntimeException) {
+        ports.log("Starter: Reihenfolge nicht lesbar – ${e.message}")
+        emptyList()
+    }
+
+    override fun saveOrder(ids: List<String>) {
+        try {
+            ports.storage(Launcher.ID).set(ORDER_KEY, JsonArray(ids.map { JsonPrimitive(it) }))
+        } catch (e: RuntimeException) {
+            ports.log("Starter: Reihenfolge nicht gespeichert – ${e.message}")
+        }
+    }
+
+    // --- Moving apps in the launcher (03 §5) -----------------------------------------------------
+
+    /**
+     * A finger or a mouse button came down at ([x], [y]). On an app of the launcher it waits [HOLD_MS] and
+     * lifts that app, unless it moved meanwhile; a mouse button's click waits for its release there. A mouse
+     * button elsewhere clicks at once, as before.
+     */
+    private fun pressNow(x: Int, y: Int, click: Boolean) {
+        // A release that never came (the watch lost the window): the app lands before anything new.
+        dropMoving()
+        hold = null
+        pointer = Pair(x, y)
+        val scr = currentScreen()
+        val tile = scr?.let { launcherTileAt(it, x, y) }
+        if (tile == null) {
+            if (click) clickNow(x, y)
+            return
+        }
+        val h = Hold(tile, x, y, click)
+        hold = h
+        scheduler.postDelayed(HOLD_MS) { if (hold === h && h.still) liftNow(h) }
+    }
+
+    private fun releaseNow() {
+        val h = hold
+        hold = null
+        if (dropMoving()) return
+        // A short press of the mouse on an app: the click it was, if the pointer is still on that app.
+        if (h == null || !h.click) return
+        val p = pointer ?: return
+        val scr = currentScreen() ?: return
+        if (launcherTileAt(scr, p.first, p.second) == h.block) clickNow(p.first, p.second)
+    }
+
+    /** The block of the launcher's app at ([x], [y]), while the launcher is on the glasses without a host page over it. */
+    private fun launcherTileAt(scr: Screen, x: Int, y: Int): String? {
+        if (scr.host != null || scr.session?.isLauncher != true) return null
+        val block = layoutOf(scr).hit(x, y, scr.view.scroll)?.target?.block ?: return null
+        return block.takeIf { launcher?.entryAt(it) != null }
+    }
+
+    /**
+     * The held app lifts: the watch ticks, as a phone does, the app hangs at the pointer and goes along with
+     * it, and its cell becomes the gap where it will land.
+     */
+    private fun liftNow(h: Hold) {
+        hold = null
+        val l = launcher ?: return
+        val s = sessions[LAUNCHER_ENTRY] ?: return
+        val scr = currentScreen() ?: return
+        if (scr.session !== s || scr.host != null) return
+        val lifted = try {
+            l.lift(h.block, s.context)
+        } catch (e: RuntimeException) {
+            ports.log("Starter: ${e.message}")
+            false
+        }
+        if (!lifted) return
+        ports.vibrate(Vibration.TICK)
+        l.blockOf(l.lifted ?: return)?.let { l.tiles[it] }?.let { screen.carry(renderer.carried(it)) }
+        focusLifted()
+        invalidate()
+        publish()
+    }
+
+    /**
+     * The lifted app goes to the cell under the pointer, among the apps of its kind; the others move up or
+     * down by one. A cell right of the last app, or below it, means the end, as on a phone.
+     */
+    private fun dragNow() {
+        val l = launcher ?: return
+        val s = sessions[LAUNCHER_ENTRY] ?: return
+        val scr = currentScreen() ?: return
+        val p = pointer ?: return
+        if (scr.session !== s || scr.host != null) return
+        val group = layoutOf(scr).boxes.filter { it.tile && l.canTake(it.block.id) }
+        if (group.isEmpty()) return
+        val first = group.first().rect
+        val m = PageMetrics
+        val col = Math.floorDiv(p.first - first.x, m.TILE_W).coerceIn(0, m.TILE_COLUMNS - 1)
+        val row = Math.floorDiv(p.second + scr.view.scroll - first.y, m.TILE_H).coerceAtLeast(0)
+        val target = group[(row * m.TILE_COLUMNS + col).coerceAtMost(group.size - 1)]
+        val moved = try {
+            l.moveTo(target.block.id, s.context)
+        } catch (e: RuntimeException) {
+            ports.log("Starter: ${e.message}")
+            false
+        }
+        if (!moved) return
+        focusLifted()
+        invalidate()
+        publish()
+    }
+
+    /** Puts a lifted app down where it is; false if none was lifted. */
+    private fun dropMoving(): Boolean {
+        val l = launcher ?: return false
+        val app = l.lifted ?: return false
+        val s = sessions[LAUNCHER_ENTRY] ?: return false
+        try {
+            l.drop(s.context)
+        } catch (e: RuntimeException) {
+            ports.log("Starter: ${e.message}")
+        }
+        screen.carry(null)
+        focusLifted(l.blockOf(app))
+        invalidate()
+        publish()
+        return true
+    }
+
+    /** The focus on the lifted app (or on [block]), wherever its cell is now. */
+    private fun focusLifted(block: String? = launcher?.lifted?.let { launcher?.blockOf(it) }) {
+        val s = sessions[LAUNCHER_ENTRY] ?: return
+        val page = s.pages.current ?: return
+        if (block == null) return
+        val view = s.view(page.id)
+        view.focus = FocusTarget(block)
+        view.fresh = false
+    }
 
     override fun entries(): List<LaunchEntry> =
         watchApps.map { (id, app) ->
@@ -472,6 +639,9 @@ class AppHost(
 
     private fun makeVisible(s: Session) {
         if (editor != null) cancelEditor()
+        hold = null
+        // Leaving the launcher while an app is lifted puts it down where it is.
+        if (s !== visible) dropMoving()
         overlay = null
         if (visible === s) {
             invalidate()
@@ -532,7 +702,11 @@ class AppHost(
         if (editor?.question?.session === s) editor = null
         sessions.remove(s.entryId)
         if (overlay?.session === s) overlay = null
-        if (s.isLauncher) launcher = null
+        if (s.isLauncher) {
+            // An app it carried goes with it.
+            if (launcher?.lifted != null) screen.carry(null)
+            launcher = null
+        }
         if (visible === s) {
             visible = null
             if (!s.isLauncher) showLauncher(reason?.let { "${s.manifest.name} $it" })
@@ -677,6 +851,8 @@ class AppHost(
     // --- Navigation and input -------------------------------------------------------------------
 
     private fun backNow() {
+        // Back while an app is lifted only puts it down.
+        if (dropMoving()) return
         overlay?.let {
             it.onBack()
             return
@@ -709,6 +885,8 @@ class AppHost(
     }
 
     private fun gestureNow(g: Gesture) {
+        // A temple or the ring while an app is lifted: it lands where it is.
+        if (dropMoving()) return
         val s = visible
         if (s == null && overlay == null) {
             // Nothing on the glasses (the launcher crashed): a tap brings it back.
@@ -755,6 +933,8 @@ class AppHost(
             it.key(k)
             return
         }
+        // A key while an app is lifted puts it down, and does nothing else.
+        if (dropMoving()) return
         val s = visible
         if (s == null && overlay == null) {
             // Nothing on the glasses (the launcher crashed): Enter or Space brings it back.
@@ -2113,6 +2293,7 @@ class AppHost(
             focus = scr?.view?.focus,
             scroll = scr?.view?.scroll ?: 0,
             running = sessions.values.filter { !it.isLauncher }.map { it.manifest.id },
+            moving = launcher?.lifted,
         )
     }
 
@@ -2365,6 +2546,15 @@ class AppHost(
 
         /** Longest key name of [WebAction.Key] ("MediaTrackPrevious" and the like). */
         const val MAX_KEY_NAME = 32
+
+        /** How long a finger or a mouse button rests on an app of the launcher before the app lifts to move (03 §5). */
+        const val HOLD_MS = 2_000L
+
+        /** How far the pointer may wander while held, in pixels of the app area, and still lift the app. */
+        const val HOLD_SLOP = 8
+
+        /** Key of the apps' order in the launcher's store. */
+        const val ORDER_KEY = "reihenfolge"
 
         const val WATCH_PREFIX = "watch:"
         const val EVEN_HUB_PREFIX = "evenhub:"

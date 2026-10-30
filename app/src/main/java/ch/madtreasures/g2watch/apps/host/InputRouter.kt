@@ -28,6 +28,15 @@ interface HardwareSink {
     /** A click at the pointer. */
     fun click()
 
+    /**
+     * The left button went down: a click at the pointer, except where holding means something (an app of
+     * the launcher, which lifts to be moved, 03 §5); there the click waits for [release].
+     */
+    fun press() = click()
+
+    /** The left button came up. */
+    fun release() = Unit
+
     /** The app menu of the app on the glasses. */
     fun menu()
 
@@ -99,16 +108,21 @@ class InputRouter(private val hardware: HardwareSink = HardwareSink.NONE, privat
     }
 
     /**
-     * A mouse button went down: left clicks at the pointer (a tap in gesture mode), right opens the app
-     * menu, the middle and the back button go back.
+     * A mouse button went down: left clicks at the pointer (a tap in gesture mode; held on an app of the
+     * launcher it lifts the app to move it), right opens the app menu, the middle and the back button go back.
      */
     fun onMouseButton(button: MouseButton) {
         when (button) {
-            MouseButton.PRIMARY -> if (hardware.gestureMode) onWatchGesture(GestureKind.CLICK) else hardware.click()
+            MouseButton.PRIMARY -> if (hardware.gestureMode) onWatchGesture(GestureKind.CLICK) else hardware.press()
             MouseButton.SECONDARY -> hardware.menu()
             MouseButton.TERTIARY, MouseButton.BACK -> hardware.back()
             MouseButton.FORWARD -> Unit
         }
+    }
+
+    /** A mouse button came up: the left one ends its press (an app being moved lands); with gestures there was none. */
+    fun onMouseButtonUp(button: MouseButton) {
+        if (button == MouseButton.PRIMARY && !hardware.gestureMode) hardware.release()
     }
 
     /**

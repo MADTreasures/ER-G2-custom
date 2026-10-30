@@ -175,6 +175,27 @@ class PageRendererSnapshotTest {
     }
 
     @Test
+    fun launcherMoving() {
+        // A finger rests two seconds on Navi: it lifts and hangs at the pointer on its card, and is carried
+        // towards the second place. There the gap opens, Browser and Fluency have made room (03 §5).
+        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() }, { NaviApp() }, { MusikApp() })
+        settle()
+        val page = host.currentPageOf(Launcher.ID)!!
+        pointerOn(page, "app3", dx = 68, tiles = true)
+        desktop.press()
+        settle()
+        scheduler.advanceBy(AppHost.HOLD_MS)
+        settle()
+        // Half way through the second cell, a little below its middle: the card floats beside its gap.
+        val cell = PageLayout.of(page, AndroidTextPainter(emojiFont), tiles = true).focusables.first { it.target == FocusTarget("app1") }.rect
+        val area = desktop.layout.appArea(false)
+        pointerTo(area.x + cell.x + 104, area.y + cell.y + 92)
+        save("apps-starter-verschieben")
+        desktop.release()
+        settle()
+    }
+
+    @Test
     fun appMenu() {
         // Tap-then-hold on the temple opens the app menu over YouTube's start page.
         ports.answers["$youtubeId@1.1.0"] = setOf(Permission.NETWORK)

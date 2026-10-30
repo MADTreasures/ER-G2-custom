@@ -72,6 +72,10 @@ class DesktopController(
     private var pointerShown = true
     private var lastAppPointer: Pair<Int, Int>? = null
 
+    /** What hangs at the pointer instead of the arrow ([carry]), and how often that changed. */
+    private var carried: GrayRaster? = null
+    private var carriedVersion = 0
+
     private val _frame = MutableStateFlow(
         DesktopFrame(layout.band, ByteArray(layout.band.w * layout.band.h), 0, pointer.x, pointer.y, pointerPixels),
     )
@@ -143,6 +147,38 @@ class DesktopController(
         }
     }
 
+    /**
+     * A finger came down on the watch's face (not on the gear): held on an app of the launcher, it lifts
+     * the app to move it (03 §5). The app host decides; nothing happens outside the app area.
+     */
+    fun press() = scheduler.post { pressAt(click = false) }
+
+    /**
+     * The mouse's left button went down: a click like [click], except on an app of the launcher, where the
+     * click waits for the button to come up, and holding it lifts the app to move it.
+     */
+    fun mousePress() = scheduler.post {
+        val app = desktop.app
+        if (app == null) {
+            apps?.openLauncher()
+            return@post
+        }
+        when (desktop.hitTest(pointer.x, pointer.y)) {
+            Target.AppBack -> apps?.back()
+            Target.AppTitle -> apps?.openMenu()
+            null -> pressAt(click = true)
+        }
+    }
+
+    /** The finger or the mouse button came up: an app being moved lands. */
+    fun release() = scheduler.post { apps?.release() }
+
+    private fun pressAt(click: Boolean) {
+        val app = desktop.app ?: return
+        val area = layout.appArea(app.fullScreen)
+        if (area.contains(pointer.x, pointer.y)) apps?.pressAt(pointer.x - area.x, pointer.y - area.y, click)
+    }
+
     /** Back in the app on the glasses (the launcher stays where it is). */
     fun back() = scheduler.post {
         if (desktop.app != null) apps?.back()
@@ -158,6 +194,15 @@ class DesktopController(
         if (!wasApp) lastAppPointer = null
         forwardPointer()
         invalidate()
+    }
+
+    /** [image] goes along with the pointer, drawn and sent with it like the arrow, in a block of its size. */
+    override fun carry(image: GrayRaster?) = scheduler.post {
+        if (image == null && carried == null) return@post
+        carried = image
+        carriedVersion++
+        publishPointer()
+        schedulePointerFlush()
     }
 
     /** Nothing to show: the top bar alone, until the app host shows the launcher again. */
@@ -268,14 +313,33 @@ class DesktopController(
         send(changed)
     }
 
-    /** Draws the pointer into [screen], cut off at the stage's edge; null while hidden. */
-    private fun drawPointer(): Rect? =
-        if (pointerShown) PointerSprite.drawInto(screen, pointerPixels, pointer.x, pointer.y, layout.stage) else null
+    /** Draws the pointer, or what it carries, into [screen], cut off at the stage's edge; null while hidden. */
+    private fun drawPointer(): Rect? {
+        if (!pointerShown) return null
+        carried?.let { return drawCarried(it) }
+        return PointerSprite.drawInto(screen, pointerPixels, pointer.x, pointer.y, layout.stage)
+    }
 
-    /** Identifies what [screen] holds: the desktop, and the pointer with where it is. */
+    /** [image] centred on the pointer's tip; its black pixels leave what lies beneath. */
+    private fun drawCarried(image: GrayRaster): Rect? {
+        val x = pointer.x - image.width / 2
+        val y = pointer.y - image.height / 2
+        val box = Rect(x, y, image.width, image.height).intersect(layout.stage) ?: return null
+        for (py in box.y until box.bottom) {
+            for (px in box.x until box.right) {
+                val v = image[px - x, py - y]
+                if (v != 0) screen[px, py] = v
+            }
+        }
+        return box
+    }
+
+    /** Identifies what [screen] holds: the desktop, and the pointer (or what it carries) with where it is. */
     private fun fingerprint(): String {
         val base = "desktop:" + java.lang.Long.toHexString(rasterHash)
-        return if (pointerShown) "$base:p${pointer.x},${pointer.y}:${PointerSprite.fingerprint(pointerPixels)}" else base
+        if (!pointerShown) return base
+        val sprite = if (carried != null) "carried:$carriedVersion" else PointerSprite.fingerprint(pointerPixels)
+        return "$base:p${pointer.x},${pointer.y}:$sprite"
     }
 
     /** Sends the block [rect] of [screen], unless the glasses already show what it holds now. */

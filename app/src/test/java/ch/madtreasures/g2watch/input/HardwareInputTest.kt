@@ -221,6 +221,19 @@ class HardwareInputTest {
     }
 
     @Test
+    fun `mouse buttons count once when they go down and once when they come up`() {
+        assertEquals(Pair(listOf(MouseButton.PRIMARY), emptyList<MouseButton>()), input.buttons(MotionEvent.BUTTON_PRIMARY))
+        assertEquals(Pair(emptyList<MouseButton>(), emptyList<MouseButton>()), input.buttons(MotionEvent.BUTTON_PRIMARY))
+        assertEquals(
+            Pair(listOf(MouseButton.SECONDARY), emptyList<MouseButton>()),
+            input.buttons(MotionEvent.BUTTON_PRIMARY or MotionEvent.BUTTON_SECONDARY),
+        )
+        assertEquals(Pair(emptyList<MouseButton>(), listOf(MouseButton.PRIMARY)), input.buttons(MotionEvent.BUTTON_SECONDARY))
+        assertEquals(Pair(listOf(MouseButton.BACK), listOf(MouseButton.SECONDARY)), input.buttons(MotionEvent.BUTTON_BACK))
+        assertEquals(Pair(emptyList<MouseButton>(), listOf(MouseButton.BACK)), input.buttons(0))
+    }
+
+    @Test
     fun `wheel parts add up to notches, positive downwards`() {
         assertEquals(1, input.wheel(-1f))
         assertEquals(-2, input.wheel(2f))
