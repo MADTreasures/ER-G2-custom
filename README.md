@@ -58,9 +58,11 @@ ob GeckoView auf der Uhr gut genug läuft.
 > Neu in 0.14.0: **Apps im [Starter](#apps-auf-der-brille) verschieben** wie am Handy: Finger auf der Uhr
 > liegen lassen (oder Maustaste halten), während der Zeiger auf einer App steht – nach 2 Sekunden hängt sie
 > am Zeiger, die anderen machen Platz, Loslassen legt sie ab. Nicht auf Hardware erprobt.
-> Neu als Paket (ab Uhr-App 0.13.0): **[Fahrplan](#fahrplan-verbindungen-und-abfahrten)** 1.0.0 – Verbindungen und
-> Abfahrten im ganzen Schweizer ÖV mit Gleis, Verspätung, Umsteigen und Halten, Haltestellen in der Nähe;
-> eingegeben auf der Uhr oder mit einer Tastatur auf der Brille. Nicht auf Hardware erprobt.
+> Neu als Paket (ab Uhr-App 0.13.0): **[Fahrplan](#fahrplan-verbindungen-und-abfahrten)** 1.1.0 – der Schweizer
+> Fahrplan aufgebaut und bedient wie die SBB-App: Planen mit „Aktueller Standort“, Verbindungen als Karten mit
+> Reisebalken (weiterwischen lädt spätere), Ihre Reise mit aufklappbaren Zwischenhalten, Abfahrten, Fahrt,
+> In der Nähe; die Haltestelle mit einer Tastatur direkt auf der Brille getippt, Treffer schon beim Tippen.
+> Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -415,17 +417,22 @@ damit keine Benachrichtigungen. **Nicht auf Hardware erprobt.**
 ## Fahrplan: Verbindungen und Abfahrten
 
 Das Paket **Fahrplan** ([`packages/fahrplan`](packages/fahrplan/README.md)) bringt den Schweizer Fahrplan auf die
-Brille, wie die Fahrplan-App auf dem Handy, nur kürzer: **Verbindungen** von einer Haltestelle oder vom Standort
-der Uhr zu einer anderen, jetzt oder zu einer Zeit („17:30“, „morgen 7:15“, „in 20 Min.“), mit **Gleis,
-Verspätung, Umsteigen und Fußwegen**, je Fahrt die **Halte**; dazu die **Abfahrten** einer Haltestelle und die
-**Haltestellen in der Nähe**. Für den ganzen ÖV: Züge, Busse, Trams, Schiffe, Bergbahnen. Eingegeben wird wie bei
-YouTube: mit einer Bluetooth-Tastatur auf der Brille, sonst auf der Uhr (Tastatur oder Sprache). Solange
-Verbindungen auf der Brille stehen, fragt die App jede Minute nach Verspätungen. Die Daten kommen frei und ohne
-Konto von transport.opendata.ch (Fahrplandaten: opentransportdata.swiss).
+Brille, **aufgebaut und bedient wie die SBB-App**: **Planen** mit „Aktueller Standort“ (das GPS der Uhr) und
+„Nach“, die **Verbindungen** als Karten mit Abfahrt, Ankunft und dem Reisebalken dazwischen, Gleis, Verspätung und
+Gleiswechsel; weiterwischen lädt spätere, nach oben frühere. **Ihre Reise** zeigt die Linie von Halt zu Halt mit
+Umsteigezeit und Fußwegen, „3 Zwischenhalte“ klappt auf, ein Halt zeigt seine **Abfahrten**, eine Abfahrt ihre
+**Fahrt**; dazu die **Haltestellen in der Nähe**. Für den ganzen ÖV: Züge, Busse, Trams, Schiffe, Bergbahnen.
+Eingegeben wird wie bei YouTube: mit einer Bluetooth-Tastatur direkt auf der Brille, wo die passenden
+Haltestellen schon beim Tippen erscheinen, sonst auf der Uhr (Tastatur oder Sprache). Bedient wird mit den
+Bügeln (wischen, tippen, lange drücken), dem Touchpad der Uhr oder der Tastatur. Solange Verbindungen auf der
+Brille stehen, fragt die App jede Minute nach Verspätungen. Die Daten kommen frei und ohne Konto von
+transport.opendata.ch (Fahrplandaten: opentransportdata.swiss).
 
-| Verbindungen | Eine Verbindung mit Umsteigen | Abfahrten |
+| Planen | Verbindungen | Ihre Reise |
 |---|---|---|
-| ![Fahrplan, Verbindungen](packages/fahrplan/bilder/fahrplan-verbindungen.png) | ![Fahrplan, Verbindung](packages/fahrplan/bilder/fahrplan-verbindung.png) | ![Fahrplan, Abfahrten](packages/fahrplan/bilder/fahrplan-abfahrten.png) |
+| ![Fahrplan, Planen](packages/fahrplan/bilder/fahrplan-start.png) | ![Fahrplan, Verbindungen](packages/fahrplan/bilder/fahrplan-verbindungen.png) | ![Fahrplan, Ihre Reise](packages/fahrplan/bilder/fahrplan-verbindung.png) |
+| **Haltestelle tippen** (mit Tastatur) | **Zwischenhalte** aufgeklappt | **Abfahrten** |
+| ![Fahrplan, Eingabe](packages/fahrplan/bilder/fahrplan-eingabe.png) | ![Fahrplan, Zwischenhalte](packages/fahrplan/bilder/fahrplan-halte.png) | ![Fahrplan, Abfahrten](packages/fahrplan/bilder/fahrplan-abfahrten.png) |
 
 Installieren wie jedes Paket ([Eigene Apps installieren](#eigene-apps-installieren)); beim ersten Start fragt die
 Brille nach Internet und Standort. **Kein Abo-QR-Code:** SwissPass Mobile zeigt die SBB nur in ihren eigenen
