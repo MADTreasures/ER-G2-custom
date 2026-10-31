@@ -9,7 +9,8 @@ Stand v0.6.0: fertig und mit Tests abgesichert, **nicht auf echter Uhr erprobt**
 DEX-Codes auf der Uhr (`DexClassLoader`) lässt sich ohne Uhr nicht testen. Seit v0.8.0 Schnittstelle
 Version 2 (§5) und das Paket Browser, seit v0.9.0 Version 3 (Tastatur, §5), seit v0.10.0 Version 4 (Apps auf
 dem Handy, §5), seit v0.12.0 Version 5 (GPS, große Dateien, Hintergrundarbeit, §5) und das Paket Navi, seit
-v0.13.0 Version 6 (Musik der Uhr und eigener Ton, §5) und das Paket Musik.
+v0.13.0 Version 6 (Musik der Uhr und eigener Ton, §5) und das Paket Musik, danach das Paket Fahrplan
+(Schnittstelle 6, ohne neue Uhr-App).
 
 ## 1. Wer macht was
 
