@@ -11,7 +11,7 @@ import kotlin.math.sin
 // departure left, the arrival right and the journey bar between them, "Ihre Reise" as a line from stop to stop.
 
 /** Small pictograms beside names and lines, as in the SBB app. */
-enum class Icon { TRAIN, TRAM, BUS, SHIP, CABLE, HERE, PLACE, CLOCK, HISTORY, NEAR, BOARD, WALK, TYPE }
+enum class Icon { TRAIN, TRAM, BUS, SHIP, CABLE, HERE, PLACE, CLOCK, HISTORY, NEAR, BOARD, WALK, TYPE, FORMATION }
 
 /** One row of a drawn list: a stop, a departure, a stop of a trip, an action. */
 data class Row(
@@ -92,6 +92,9 @@ sealed interface JourneyItem {
     data class Walk(val text: String) : JourneyItem
 
     data class Change(val text: String) : JourneyItem
+
+    /** The way to a ride's formation, with where the train stands ("Zugformation · Sektoren A–B"). */
+    data class Formation(val text: String) : JourneyItem
 }
 
 /** Ihre Reise: the bar of the whole connection on top, then the stops and rides; [selected] is an index into [items]. */
@@ -116,6 +119,36 @@ data class ListScreen(
     val note: String?,
 ) : Screen
 
+/** What a car is beside its class, drawn in its box. */
+enum class CarIcon { DINING, FAMILY, SLEEPER, COUCHETTE, BAGGAGE, LOCO }
+
+/** A car on the formation page: [label] its class ("1", "2", "1|2", empty for none), [number] the one on its side. */
+data class CarBox(
+    val label: String,
+    val number: String?,
+    val icon: CarIcon?,
+    val services: List<CarService>,
+    val closed: Boolean,
+    val sector: String,
+)
+
+/**
+ * The formation of a train at a stop, as the SBB app shows it: the line and the train's number, where, the direction
+ * of travel to the left, the cars from the head of the train under their sectors, what the car in the frame is
+ * ([detail], [more]). [note] stands in place of the cars while there are none.
+ */
+data class FormationScreen(
+    val badge: String?,
+    val train: String?,
+    val place: String?,
+    val direction: String?,
+    val cars: List<CarBox>,
+    val selected: Int,
+    val detail: String?,
+    val more: String?,
+    val note: String?,
+) : Screen
+
 /** A picture for an image block, and the scroll it was drawn at (the app keeps it for the next one). */
 class Painted(val dataUrl: String, val scroll: Int)
 
@@ -130,6 +163,7 @@ class Painter(private val fonts: Fonts) {
         is ConnectionsScreen -> connections(screen, scroll)
         is JourneyScreen -> journey(screen, scroll)
         is ListScreen -> list(screen, scroll)
+        is FormationScreen -> formation(screen, scroll)
     }
 
     // --- Planen -------------------------------------------------------------------------------------------
@@ -276,6 +310,7 @@ class Painter(private val fonts: Fonts) {
                 is JourneyItem.Pass -> 24
                 is JourneyItem.Walk -> 26
                 is JourneyItem.Change -> 26
+                is JourneyItem.Formation -> 26
             }
         }
         val tops = heights.runningFold(4) { acc, h -> acc + h }
@@ -337,6 +372,10 @@ class Painter(private val fonts: Fonts) {
                     small.draw(body, small.fit(item.text, W - 90.0), 66.0, mid + 5, Ink.level(11))
                 }
                 is JourneyItem.Change -> small.draw(body, small.fit(item.text, W - 60.0), 42.0, mid + 5, Ink.level(11))
+                is JourneyItem.Formation -> {
+                    icon(body, Icon.FORMATION, 52.0, mid, Ink.level(12))
+                    small.draw(body, small.fit(item.text, W - 90.0), 70.0, mid + 5, Ink.level(12))
+                }
             }
         }
         source(body, tops.last() + 22.0)
@@ -365,6 +404,201 @@ class Painter(private val fonts: Fonts) {
         } else {
             r.polyline(doubleArrayOf(x, x), doubleArrayOf(a, b), 2, 2.5, Ink.level(9), doubleArrayOf(3.0, 5.0))
         }
+    }
+
+    // --- Zugformation ------------------------------------------------------------------------------------
+
+    private fun formation(s: FormationScreen, scroll: Int): Painted {
+        val out = Raster(W, H)
+        val small = fonts.small
+        val label = fonts.label
+        // The line and the train's number, where it stands; below the direction of travel, to the left.
+        var x = 8.0
+        s.badge?.let { x = badge(out, it, x, 4.0) + 8 }
+        s.train?.let {
+            small.draw(out, it, x, 19.5, Ink.level(11))
+            x += small.width(it) + 12
+        }
+        s.place?.let { small.drawRight(out, small.fit(it, W - 8 - x), W - 8.0, 19.5, Ink.level(12)) }
+        s.direction?.let {
+            out.line(18.0, 34.0, 11.0, 41.0, 2.5, Ink.level(14))
+            out.line(11.0, 41.0, 18.0, 48.0, 2.5, Ink.level(14))
+            label.draw(out, label.fit(it, W - 44.0), 28.0, 48.0, Ink.level(14))
+        }
+        out.line(4.0, FORMATION_HEAD - 4.0, W - 4.0, FORMATION_HEAD - 4.0, 1.0, Ink.level(5))
+        if (s.cars.isEmpty()) {
+            paragraph(out, s.note.orEmpty(), FORMATION_HEAD + 8.0)
+            return Painted(out.dataUrl(), 0)
+        }
+        // The cars from the head of the train on, under their sectors; a long train scrolls sideways with the frame.
+        val strip = Raster(max(W, 2 * STRIP_PAD + s.cars.size * (CAR_W + CAR_GAP) - CAR_GAP), STRIP_H)
+        var i = 0
+        while (i < s.cars.size) {
+            var j = i
+            while (j + 1 < s.cars.size && s.cars[j + 1].sector == s.cars[i].sector) j++
+            if (s.cars[i].sector.isNotEmpty()) sectorHeading(strip, s.cars[i].sector, carX(i), carX(j) + CAR_W)
+            i = j + 1
+        }
+        s.cars.forEachIndexed { k, car -> carBox(strip, car, carX(k), k == s.selected) }
+        val selected = s.selected.coerceIn(0, s.cars.lastIndex)
+        val maxScroll = max(0, strip.w - W)
+        var left = scroll.coerceIn(0, maxScroll)
+        if (carX(selected) + CAR_W + 12 > left + W) left = carX(selected) + CAR_W + 12 - W
+        if (carX(selected) - 12 < left) left = carX(selected) - 12
+        left = left.coerceIn(0, maxScroll)
+        out.blit(strip, -left, FORMATION_HEAD)
+        // What the car in the frame is.
+        s.detail?.let { label.draw(out, label.fit(it, W - 16.0), 8.0, 199.0, BRIGHT) }
+        s.more?.let { small.draw(out, small.fit(it, W - 16.0), 8.0, 222.0, Ink.level(11)) }
+        small.drawCentered(out, Formation.SOURCE, W / 2.0, 247.0, Ink.level(7))
+        return Painted(out.dataUrl(), left)
+    }
+
+    private fun carX(index: Int) = STRIP_PAD + index * (CAR_W + CAR_GAP)
+
+    /** "— Sektor B ————" over the cars from [x0] to [x1], the name at its start, so that it shows with its first car. */
+    private fun sectorHeading(r: Raster, sector: String, x0: Int, x1: Int) {
+        val small = fonts.small
+        val text = "Sektor $sector"
+        r.line(x0 + 4.0, 11.0, x0 + 12.0, 11.0, 1.0, Ink.level(6))
+        small.draw(r, text, x0 + 18.0, 16.0, Ink.level(11))
+        val end = x0 + 18 + small.width(text) + 8
+        if (end < x1 - 4) r.line(end, 11.0, x1 - 4.0, 11.0, 1.0, Ink.level(6))
+    }
+
+    /** A car as in the SBB app: its box with the class at the right, its number, what it is, below what it offers. */
+    private fun carBox(r: Raster, car: CarBox, x: Int, selected: Boolean) {
+        val x0 = x.toDouble()
+        val x1 = x0 + CAR_W
+        val y0 = CAR_TOP.toDouble()
+        val y1 = y0 + CAR_H
+        val ink = Ink.level(if (car.closed) 6 else 12)
+        if (car.icon == CarIcon.LOCO) {
+            // The locomotive, slanted at both ends.
+            val xs = doubleArrayOf(x0 + 16, x1 - 16, x1, x1, x0, x0, x0 + 16)
+            val ys = doubleArrayOf(y0, y0, y0 + 20, y1, y1, y0 + 20, y0)
+            r.polyline(xs, ys, xs.size, 2.0, ink)
+            r.line(x0 + 22, y0 + 14, x1 - 22, y0 + 14, 2.0, ink)
+        } else {
+            roundRect(r, x0, y0, x1, y1, 10.0, ink, 2.0)
+        }
+        if (car.closed) {
+            fonts.small.drawRight(r, "zu", x1 - 12, y0 + 33, Ink.level(9))
+        } else if (car.label.isNotEmpty()) {
+            fonts.text.drawRight(r, car.label, x1 - 10, y0 + 37, BRIGHT)
+        }
+        car.number?.let { fonts.small.draw(r, it, x0 + 9, y0 + 18, Ink.level(9)) }
+        car.icon?.takeIf { it != CarIcon.LOCO }?.let { carIcon(r, it, x0 + 24, y0 + 35, Ink.level(13)) }
+        var sx = x0 + 12
+        for (service in car.services.take(4)) {
+            serviceIcon(r, service, sx, y1 + 17, Ink.level(13))
+            sx += 22
+        }
+        if (selected) frame(r, box(x - 5, CAR_TOP - 5, x + CAR_W + 5, CAR_TOP + CAR_H + 34))
+    }
+
+    /** What a car is beside its class, about 20 px around ([cx], [cy]). */
+    private fun carIcon(r: Raster, icon: CarIcon, cx: Double, cy: Double, ink: Ink) {
+        when (icon) {
+            CarIcon.DINING -> {
+                r.line(cx - 5, cy - 9, cx - 5, cy + 9, 2.0, ink)
+                r.line(cx - 8, cy - 9, cx - 8, cy - 3, 1.6, ink)
+                r.line(cx - 2, cy - 9, cx - 2, cy - 3, 1.6, ink)
+                r.line(cx - 8, cy - 3, cx - 2, cy - 3, 1.6, ink)
+                r.line(cx + 5, cy - 9, cx + 5, cy + 9, 2.0, ink)
+                r.line(cx + 5, cy - 9, cx + 8, cy - 4, 2.0, ink)
+                r.line(cx + 8, cy - 4, cx + 5, cy, 2.0, ink)
+            }
+            CarIcon.FAMILY -> {
+                r.circle(cx - 4, cy - 8, 2.6, ink)
+                r.line(cx - 4, cy - 4, cx - 4, cy + 3, 3.0, ink)
+                r.line(cx - 4, cy + 3, cx - 7, cy + 10, 2.2, ink)
+                r.line(cx - 4, cy + 3, cx - 1, cy + 10, 2.2, ink)
+                r.circle(cx + 6, cy - 1, 2.0, ink)
+                r.line(cx + 6, cy + 2, cx + 6, cy + 6, 2.4, ink)
+                r.line(cx + 6, cy + 6, cx + 4, cy + 10, 1.8, ink)
+                r.line(cx + 6, cy + 6, cx + 8, cy + 10, 1.8, ink)
+            }
+            CarIcon.SLEEPER -> {
+                r.line(cx - 10, cy + 6, cx + 10, cy + 6, 2.0, ink)
+                r.line(cx - 10, cy - 6, cx - 10, cy + 9, 2.0, ink)
+                r.circle(cx - 5, cy - 1, 2.6, ink)
+                roundRect(r, cx - 1, cy - 3, cx + 10, cy + 4, 2.0, ink)
+            }
+            CarIcon.COUCHETTE -> {
+                r.line(cx - 10, cy - 4, cx + 10, cy - 4, 2.0, ink)
+                r.line(cx - 10, cy + 6, cx + 10, cy + 6, 2.0, ink)
+                r.line(cx - 10, cy - 10, cx - 10, cy + 9, 2.0, ink)
+                r.circle(cx - 5, cy - 8, 2.0, ink)
+                r.circle(cx - 5, cy + 2, 2.0, ink)
+            }
+            CarIcon.BAGGAGE -> {
+                roundRect(r, cx - 8, cy - 5, cx + 8, cy + 8, 2.5, ink, 2.0)
+                roundRect(r, cx - 4, cy - 9, cx + 4, cy - 4, 1.5, ink, 1.8)
+            }
+            CarIcon.LOCO -> Unit
+        }
+    }
+
+    /** What a car offers, about 16 px around ([cx], [cy]). */
+    private fun serviceIcon(r: Raster, service: CarService, cx: Double, cy: Double, ink: Ink) {
+        when (service) {
+            CarService.PRAM -> {
+                arc(r, cx - 1, cy - 2, 6.0, ink, 0.0, PI)
+                r.line(cx - 7, cy - 2, cx + 5, cy - 2, 2.0, ink)
+                r.line(cx + 5, cy - 2, cx + 8, cy - 8, 2.0, ink)
+                r.circle(cx - 4, cy + 7, 1.8, ink)
+                r.circle(cx + 3, cy + 7, 1.8, ink)
+            }
+            CarService.WHEELCHAIR -> {
+                r.circle(cx - 2, cy - 8, 2.0, ink)
+                r.line(cx - 2, cy - 5, cx - 2, cy + 1, 2.0, ink)
+                r.line(cx - 2, cy + 1, cx + 4, cy + 1, 2.0, ink)
+                r.line(cx + 4, cy + 1, cx + 7, cy + 7, 2.0, ink)
+                r.ring(cx - 2, cy + 4, 5.0, 1.6, ink)
+            }
+            CarService.BIKE, CarService.BIKE_RESERVATION -> {
+                r.ring(cx - 5, cy + 3, 4.0, 1.5, ink)
+                r.ring(cx + 5, cy + 3, 4.0, 1.5, ink)
+                r.line(cx - 5, cy + 3, cx - 1, cy - 4, 1.5, ink)
+                r.line(cx - 1, cy - 4, cx + 4, cy - 4, 1.5, ink)
+                r.line(cx + 4, cy - 4, cx + 5, cy + 3, 1.5, ink)
+                r.line(cx - 1, cy - 4, cx + 1, cy + 3, 1.5, ink)
+                r.line(cx + 1, cy + 3, cx - 5, cy + 3, 1.5, ink)
+                if (service == CarService.BIKE_RESERVATION) r.circle(cx + 7, cy - 7, 2.0, ink)
+            }
+            CarService.LOW_FLOOR -> fonts.small.drawCentered(r, "NF", cx + 2, cy + 5, ink)
+            CarService.FAMILY_ZONE -> {
+                r.circle(cx - 3, cy - 6, 2.2, ink)
+                r.line(cx - 3, cy - 3, cx - 3, cy + 7, 2.4, ink)
+                r.circle(cx + 4, cy - 1, 1.8, ink)
+                r.line(cx + 4, cy + 1, cx + 4, cy + 7, 2.0, ink)
+            }
+            CarService.BUSINESS -> {
+                roundRect(r, cx - 7, cy - 4, cx + 7, cy + 7, 2.0, ink, 1.8)
+                r.line(cx - 3, cy - 4, cx - 3, cy - 7, 1.6, ink)
+                r.line(cx - 3, cy - 7, cx + 3, cy - 7, 1.6, ink)
+                r.line(cx + 3, cy - 7, cx + 3, cy - 4, 1.6, ink)
+            }
+        }
+    }
+
+    /** [text] broken into centered lines from [top] on. */
+    private fun paragraph(r: Raster, text: String, top: Double) {
+        val small = fonts.small
+        val lines = ArrayList<String>()
+        var line = ""
+        for (word in text.split(' ')) {
+            val next = if (line.isEmpty()) word else "$line $word"
+            if (small.width(next) > W - 40 && line.isNotEmpty()) {
+                lines += line
+                line = word
+            } else {
+                line = next
+            }
+        }
+        if (line.isNotEmpty()) lines += line
+        lines.forEachIndexed { i, l -> small.drawCentered(r, l, W / 2.0, top + 22 + i * 23, Ink.level(11)) }
     }
 
     // --- Lists ---------------------------------------------------------------------------------------------
@@ -596,6 +830,11 @@ class Painter(private val fonts: Fonts) {
                 r.ring(cx - 2, cy - 2, 6.0, 2.0, ink)
                 r.line(cx + 2.5, cy + 2.5, cx + 8, cy + 8, 2.5, ink)
             }
+            Icon.FORMATION -> {
+                roundRect(r, cx - 11, cy - 6, cx - 1, cy + 4, 2.0, ink, 1.8)
+                roundRect(r, cx + 1, cy - 6, cx + 11, cy + 4, 2.0, ink, 1.8)
+                r.line(cx - 12, cy + 8, cx + 12, cy + 8, 1.6, ink)
+            }
         }
     }
 
@@ -684,6 +923,15 @@ class Painter(private val fonts: Fonts) {
         private const val HEAD = 34
         private const val CARD = 104
         private const val ROW = 36
+
+        /** The formation page: its head, the strip of cars under it, a car, the room around and between them. */
+        private const val FORMATION_HEAD = 60
+        private const val STRIP_H = 122
+        private const val CAR_TOP = 26
+        private const val CAR_W = 92
+        private const val CAR_H = 52
+        private const val CAR_GAP = 8
+        private const val STRIP_PAD = 10
 
         /** Room between two line badges for the chevron, and the least room for the day and duration beside them. */
         private const val CHEVRON = 14.0

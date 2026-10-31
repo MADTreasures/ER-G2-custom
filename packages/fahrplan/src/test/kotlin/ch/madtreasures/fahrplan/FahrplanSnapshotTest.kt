@@ -13,6 +13,7 @@ import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.desktop.DesktopLayout
 import ch.madtreasures.g2watch.input.KeyPress
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -171,6 +172,25 @@ class FahrplanSnapshotTest {
         // The frame is on the IC 8: a tap shows the stops on the way.
         temple(GestureKind.CLICK)
         save("fahrplan-halte")
+    }
+
+    @Test
+    fun formation() {
+        // With a key for the Train Formation Service: where the IR 16 stands, and its cars.
+        ports.storage(FahrplanApp.ID).set("zugformation_schluessel", JsonPrimitive("abc123"))
+        launch()
+        temple(GestureKind.SCROLL_DOWN, FahrplanApp.PLAN_FIXED)
+        temple(GestureKind.CLICK)
+        answerRequests()
+        temple(GestureKind.SCROLL_DOWN, 2)
+        temple(GestureKind.CLICK)
+        answerRequests()
+        save("fahrplan-reise-zugformation")
+        temple(GestureKind.SCROLL_UP)
+        temple(GestureKind.CLICK)
+        save("fahrplan-zugformation")
+        temple(GestureKind.SCROLL_DOWN, 4)
+        save("fahrplan-zugformation-speisewagen")
     }
 
     @Test

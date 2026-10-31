@@ -58,11 +58,12 @@ ob GeckoView auf der Uhr gut genug läuft.
 > Neu in 0.14.0: **Apps im [Starter](#apps-auf-der-brille) verschieben** wie am Handy: Finger auf der Uhr
 > liegen lassen (oder Maustaste halten), während der Zeiger auf einer App steht – nach 2 Sekunden hängt sie
 > am Zeiger, die anderen machen Platz, Loslassen legt sie ab. Nicht auf Hardware erprobt.
-> Neu als Paket (ab Uhr-App 0.13.0): **[Fahrplan](#fahrplan-verbindungen-und-abfahrten)** 1.1.0 – der Schweizer
+> Neu als Paket (ab Uhr-App 0.13.0): **[Fahrplan](#fahrplan-verbindungen-und-abfahrten)** 1.2.0 – der Schweizer
 > Fahrplan aufgebaut und bedient wie die SBB-App: Planen mit „Aktueller Standort“, Verbindungen als Karten mit
 > Reisebalken (weiterwischen lädt spätere), Ihre Reise mit aufklappbaren Zwischenhalten, Abfahrten, Fahrt,
-> In der Nähe; die Haltestelle mit einer Tastatur direkt auf der Brille getippt, Treffer schon beim Tippen.
-> Nicht auf Hardware erprobt.
+> In der Nähe; die Haltestelle mit einer Tastatur direkt auf der Brille getippt, Treffer schon beim Tippen. Neu in
+> 1.2.0 die **Zugformation** mit Sektoren, Klassen, Kinderwagen, Velo und Rollstuhl (mit eigenem, kostenlosem
+> Schlüssel von opentransportdata.swiss). Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -421,7 +422,11 @@ Brille, **aufgebaut und bedient wie die SBB-App**: **Planen** mit „Aktueller S
 „Nach“, die **Verbindungen** als Karten mit Abfahrt, Ankunft und dem Reisebalken dazwischen, Gleis, Verspätung und
 Gleiswechsel; weiterwischen lädt spätere, nach oben frühere. **Ihre Reise** zeigt die Linie von Halt zu Halt mit
 Umsteigezeit und Fußwegen, „3 Zwischenhalte“ klappt auf, ein Halt zeigt seine **Abfahrten**, eine Abfahrt ihre
-**Fahrt**; dazu die **Haltestellen in der Nähe**. Für den ganzen ÖV: Züge, Busse, Trams, Schiffe, Bergbahnen.
+**Fahrt**; dazu die **Haltestellen in der Nähe** und ab 1.2.0 die **Zugformation** wie in der SBB-App: wo der Zug
+am Gleis steht („Sektoren A–B“) und welcher Wagen welche Klasse hat und Platz für Kinderwagen, Velo oder Rollstuhl
+(braucht einen eigenen, kostenlosen Schlüssel von opentransportdata.swiss, siehe
+[README des Pakets](packages/fahrplan/README.md#zugformation-ab-120)). Für den ganzen ÖV: Züge, Busse, Trams,
+Schiffe, Bergbahnen.
 Eingegeben wird wie bei YouTube: mit einer Bluetooth-Tastatur direkt auf der Brille, wo die passenden
 Haltestellen schon beim Tippen erscheinen, sonst auf der Uhr (Tastatur oder Sprache). Bedient wird mit den
 Bügeln (wischen, tippen, lange drücken), dem Touchpad der Uhr oder der Tastatur. Solange Verbindungen auf der
@@ -433,6 +438,8 @@ transport.opendata.ch (Fahrplandaten: opentransportdata.swiss).
 | ![Fahrplan, Planen](packages/fahrplan/bilder/fahrplan-start.png) | ![Fahrplan, Verbindungen](packages/fahrplan/bilder/fahrplan-verbindungen.png) | ![Fahrplan, Ihre Reise](packages/fahrplan/bilder/fahrplan-verbindung.png) |
 | **Haltestelle tippen** (mit Tastatur) | **Zwischenhalte** aufgeklappt | **Abfahrten** |
 | ![Fahrplan, Eingabe](packages/fahrplan/bilder/fahrplan-eingabe.png) | ![Fahrplan, Zwischenhalte](packages/fahrplan/bilder/fahrplan-halte.png) | ![Fahrplan, Abfahrten](packages/fahrplan/bilder/fahrplan-abfahrten.png) |
+| **Ihre Reise** mit Zugformation | **Zugformation** am Gleis | **Zugformation**, Speisewagen im Rahmen |
+| ![Fahrplan, Ihre Reise mit Zugformation](packages/fahrplan/bilder/fahrplan-reise-zugformation.png) | ![Fahrplan, Zugformation](packages/fahrplan/bilder/fahrplan-zugformation.png) | ![Fahrplan, Zugformation mit Speisewagen](packages/fahrplan/bilder/fahrplan-zugformation-speisewagen.png) |
 
 Installieren wie jedes Paket ([Eigene Apps installieren](#eigene-apps-installieren)); beim ersten Start fragt die
 Brille nach Internet und Standort. **Kein Abo-QR-Code:** SwissPass Mobile zeigt die SBB nur in ihren eigenen

@@ -12,6 +12,7 @@ import ch.madtreasures.g2watch.apps.host.FakePorts
 import ch.madtreasures.g2watch.apps.host.FakeScreen
 import ch.madtreasures.g2watch.apps.host.Gesture
 import ch.madtreasures.g2watch.input.KeyPress
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -194,9 +195,37 @@ class FahrplanHostTest {
         assertEquals("Zürich, Paradeplatz", (app.screen(FahrplanApp.P_PLAN) as PlanScreen).from)
     }
 
+    @Test
+    fun `the formation is asked for through the host with the key, and its picture fits`() {
+        ports.storage(FahrplanApp.ID).set("zugformation_schluessel", JsonPrimitive("abc123"))
+        launch()
+        temple(GestureKind.SCROLL_UP)
+        temple(GestureKind.CLICK)
+        type("Zürich")
+        answerRequests()
+        temple(GestureKind.CLICK)
+        temple(GestureKind.SCROLL_DOWN)
+        temple(GestureKind.CLICK)
+        type("bern")
+        answerRequests()
+        temple(GestureKind.SCROLL_DOWN, 2)
+        temple(GestureKind.CLICK)
+        assertEquals(FahrplanApp.P_JOURNEY, page())
+        assertEquals("Bearer abc123", ports.requests.single().first.headers["Authorization"])
+        answerRequests()
+        temple(GestureKind.SCROLL_UP)
+        temple(GestureKind.CLICK)
+        assertEquals(FahrplanApp.P_FORMATION, page())
+        assertEquals(8, (app.screen(FahrplanApp.P_FORMATION) as FormationScreen).cars.size)
+        temple(GestureKind.SCROLL_DOWN, 7)
+        assertEquals(7, (app.screen(FahrplanApp.P_FORMATION) as FormationScreen).selected)
+        assertTrue(picture()!!.startsWith("data:image/png;base64,"))
+    }
+
     companion object {
         /** The recorded answer ([Fixtures]) for a request of the app. */
         fun fixtureFor(url: String): String = when {
+            "/formations_stop_based?" in url -> Fixtures.FORMATION
             "/locations?x=" in url -> Fixtures.NEARBY
             "query=Z%C3%BCr" in url -> Fixtures.ZUERICH
             "query=bern" in url || "query=Bern" in url || "query=be&" in url -> Fixtures.BERN

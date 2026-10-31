@@ -18,9 +18,13 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import java.io.File
 import java.text.Normalizer
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.Locale
@@ -39,6 +43,10 @@ import java.util.Locale
  *
  * While connections, a journey or departures show, they are asked for again every minute and their delays and
  * platforms follow; a chosen journey stays on its page after it left, so that it can be followed on the way.
+ *
+ * With a key of opentransportdata.swiss ([Formation]) a train's formation shows too, as on the SBB app's page
+ * "Zugformation": in Ihre Reise and on a trip the sectors where it stands, on its own page the cars under their
+ * sectors with class and what they offer.
  */
 class FahrplanApp(
     private val clock: () -> Long = System::currentTimeMillis,
@@ -50,7 +58,7 @@ class FahrplanApp(
         version = VERSION,
         input = InputMode.GESTURES,
         permissions = setOf(Permission.NETWORK, Permission.LOCATION),
-        description = "Verbindungen und Abfahrten im ganzen Schweizer ÖV wie in der SBB-App, mit Gleis, Verspätung und Umsteigen; eingegeben auf der Uhr oder mit einer Tastatur.",
+        description = "Verbindungen, Abfahrten und Zugformation im ganzen Schweizer ÖV wie in der SBB-App, mit Gleis, Sektor, Verspätung und Umsteigen; eingegeben auf der Uhr oder mit einer Tastatur.",
     )
 
     private lateinit var ui: AppContext
@@ -138,6 +146,14 @@ class FahrplanApp(
     private var nearError: String? = null
     private var nearNo = 0
 
+    // Train formations by train and day, the one on the formation page and its car in the frame.
+    private val formations = HashMap<String, FormationEntry>()
+    private var formationOf: FormationTarget? = null
+    private var formationSelected = 0
+
+    /** The key for the Train Formation Service ([loadKey]); without one no formations show. */
+    private var key: String? = null
+
     override fun onEvent(event: AppEvent, ui: AppContext) {
         this.ui = ui
         when (event) {
@@ -181,6 +197,7 @@ class FahrplanApp(
         val files = listOf(Font.SMALL, Font.LABEL, Font.TEXT).associate { fontPath(it) to ui.asset(fontPath(it)) }
         if (files.values.any { it == null }) ui.log("Schriften fehlen") else painter = Painter(Fonts { files[it] })
         load()
+        loadKey()
         planFocus = if (to == null) 1 else 0
         ui.definePages(PAGES.map { (id, name) -> Page(id, name, listOf(Block.Image(image(id), null, Painter.W, Painter.H)), input = InputMode.GESTURES) })
         go(P_PLAN)
@@ -255,6 +272,7 @@ class FahrplanApp(
         P_JOURNEY -> journeyScreen()
         P_BOARD -> boardScreen()
         P_TRIP -> tripScreen()
+        P_FORMATION -> formationScreen()
         else -> nearScreen()
     }
 
@@ -525,6 +543,7 @@ class FahrplanApp(
     }
 
     private fun answer(tag: String, text: String?) {
+        if (tag == ASK_KEY) return setKey(text)
         val t = text?.trim()?.replace(SPACES, " ").orEmpty().take(MAX_QUERY)
         if (t.isEmpty()) {
             if (tag == ASK_TO) searchAfter = false
@@ -768,6 +787,7 @@ class FahrplanApp(
     private fun openJourney(c: Connection) {
         chosen = c
         openRides.clear()
+        loadFormations(c)
         journeySelected = journeyItems(c).indexOfFirst { it is JourneyItem.Ride }.coerceAtLeast(0)
         scrolls[P_JOURNEY] = 0
         go(P_JOURNEY)
@@ -792,6 +812,7 @@ class FahrplanApp(
                     out += JourneyItem.Change("Umsteigen in ${leg.departure.name} · ${gap.coerceAtLeast(0)} Min.") to i
                 }
                 out += stopItem(leg.departure, leg.departure.departure, line, end = isFirst) to i
+                rideFormation(leg)?.let { out += JourneyItem.Formation(formationText(it)) to i }
                 val between = leg.stops.drop(1).dropLast(1)
                 out += JourneyItem.Ride(line.label, "Richtung ${line.direction}", i in openRides, between.size) to i
                 if (i in openRides) {
@@ -842,6 +863,7 @@ class FahrplanApp(
                 }
                 is JourneyItem.Stop -> return item.id?.let { openBoard(Place(it, item.name)) } ?: Unit
                 is JourneyItem.Pass -> return item.id?.let { openBoard(Place(it, item.name)) } ?: Unit
+                is JourneyItem.Formation -> return rideFormation(c.legs[lines[journeySelected].second])?.let { openFormation(it) } ?: Unit
                 else -> return
             }
             GestureKind.LONG_PRESS -> return refreshChosen()
@@ -980,33 +1002,225 @@ class FahrplanApp(
         trip = d
         tripSelected = 0
         scrolls[P_TRIP] = 0
+        tripFormation(d)?.let { fetchFormation(it) }
         go(P_TRIP)
     }
 
-    private fun tripScreen(): ListScreen {
-        val d = trip ?: return ListScreen("Fahrt", null, null, false, emptyList(), -1, "Keine Fahrt gewählt.")
-        val rows = d.stops.mapIndexed { i, s ->
+    /** The lines of the trip page with what each does: its formation first (with a key), then its stops. */
+    private fun tripRows(d: Departure): List<Pair<Row, () -> Unit>> {
+        val rows = ArrayList<Pair<Row, () -> Unit>>()
+        tripFormation(d)?.let { t -> rows += Row(formationText(t), Icon.FORMATION) to { openFormation(t) } }
+        d.stops.forEachIndexed { i, s ->
             val time = if (i == 0) s.departure ?: s.arrival else s.arrival ?: s.departure
-            Row(
+            val row = Row(
                 text = s.name,
                 time = time?.let { Format.clock(it, zone) },
                 delay = delay(s.delay),
                 right = platformText(s, d.line),
                 changed = s.newPlatform != null && s.platform != null,
             )
+            rows += row to { s.id?.let { openBoard(Place(it, s.name)) } ?: Unit }
         }
-        return ListScreen("${d.line.label} nach ${d.line.direction}", null, null, false, rows, tripSelected, null)
+        return rows
+    }
+
+    private fun tripScreen(): ListScreen {
+        val d = trip ?: return ListScreen("Fahrt", null, null, false, emptyList(), -1, "Keine Fahrt gewählt.")
+        return ListScreen("${d.line.label} nach ${d.line.direction}", null, null, false, tripRows(d).map { it.first }, tripSelected, null)
     }
 
     private fun tripGesture(g: GestureKind) {
-        val d = trip ?: return
+        val rows = tripRows(trip ?: return)
         when (g) {
-            GestureKind.SCROLL_DOWN -> tripSelected = (tripSelected + 1).coerceAtMost(d.stops.size - 1)
+            GestureKind.SCROLL_DOWN -> tripSelected = (tripSelected + 1).coerceAtMost(rows.size - 1)
             GestureKind.SCROLL_UP -> tripSelected = (tripSelected - 1).coerceAtLeast(0)
-            GestureKind.CLICK -> return d.stops.getOrNull(tripSelected)?.let { s -> s.id?.let { openBoard(Place(it, s.name)) } } ?: Unit
+            GestureKind.CLICK -> return rows.getOrNull(tripSelected)?.second?.invoke() ?: Unit
             else -> return
         }
         paint(P_TRIP)
+    }
+
+    // --- Zugformation ------------------------------------------------------------------------------------------
+
+    /** The train of [line] leaving [stop] at [at] (seconds), if it is one whose railway publishes its formations. */
+    private fun formationTarget(line: Line?, at: Long?, stop: Stop): FormationTarget? {
+        val l = line?.takeIf { it.isTrain } ?: return null
+        val evu = Formation.evu(l.operator) ?: return null
+        val train = l.train ?: return null
+        val date = Instant.ofEpochSecond(at ?: return null).atZone(zone).toLocalDate()
+        return FormationTarget("$evu/$train/$date", evu, train, date, l, stop.id, stop.name)
+    }
+
+    /** The formation of a ride where it is boarded, with a key. */
+    private fun rideFormation(leg: Leg): FormationTarget? = if (key == null) null else formationTarget(leg.line, leg.departure.departure, leg.departure)
+
+    /** The formation of the train of a departure at the board's stop, with a key. */
+    private fun tripFormation(d: Departure): FormationTarget? {
+        if (key == null) return null
+        return formationTarget(d.line, d.time, d.stops.firstOrNull() ?: return null)
+    }
+
+    private fun loadFormations(c: Connection) {
+        for (leg in c.legs) rideFormation(leg)?.let { fetchFormation(it) }
+    }
+
+    /** The line in Ihre Reise and on the trip page: where the train stands, as soon as that is known. */
+    private fun formationText(t: FormationTarget): String {
+        if (t.date != now().toLocalDate()) return "Zugformation am Reisetag"
+        val e = formations[t.id]
+        val sectors = e?.stops?.let { pick(it, t) }?.sectorText()
+        return when {
+            sectors != null -> "Zugformation · $sectors"
+            e?.loading == true -> "Zugformation …"
+            else -> "Zugformation"
+        }
+    }
+
+    /** The formation at the stop of [t] among those of its train. */
+    private fun pick(stops: List<StopFormation>, t: FormationTarget): StopFormation? =
+        stops.firstOrNull { t.stopId != null && it.uic == t.stopId } ?: stops.firstOrNull { same(it.name, t.stopName) }
+
+    /** The formation page for [t]; without a train (or a key) it says how to set the formation up. */
+    private fun openFormation(t: FormationTarget?) {
+        formationOf = t
+        formationSelected = 0
+        scrolls[P_FORMATION] = 0
+        t?.let { fetchFormation(it) }
+        go(P_FORMATION)
+    }
+
+    /** Asks the service for the formation of [t], unless a recent answer is there; it only knows today's trains. */
+    private fun fetchFormation(t: FormationTarget, force: Boolean = false) {
+        val k = key ?: return
+        if (t.date != now().toLocalDate()) return
+        val e = formations.getOrPut(t.id) { FormationEntry() }
+        if (e.loading || !force && e.stops != null && clock() - e.at < FORMATION_FRESH_MS) return
+        e.loading = true
+        e.error = null
+        val request = HttpRequest(Formation.url(t.evu, t.train, t.date), headers = mapOf("Authorization" to "Bearer $k", "Accept" to "application/json"))
+        ui.fetch(request) { r ->
+            if (!r.ok) {
+                e.loading = false
+                e.error = when (r.status) {
+                    401, 403 -> BAD_KEY
+                    404 -> NO_FORMATION
+                    429 -> TOO_MANY
+                    else -> OFFLINE
+                }
+                ui.log("Zugformation ${t.id}: ${problem(r)}")
+                render()
+                return@fetch
+            }
+            ui.work("zf_${t.train}", { Formation.stops(r.body) }) { result ->
+                e.loading = false
+                result.onSuccess {
+                    e.stops = it
+                    e.at = clock()
+                }.onFailure {
+                    ui.log("Zugformation unlesbar: ${it.message}")
+                    e.error = UNREADABLE
+                }
+                render()
+            }
+        }
+    }
+
+    private fun formationScreen(): FormationScreen {
+        val t = formationOf
+        if (key == null || t == null) return FormationScreen(null, null, null, null, emptyList(), 0, null, null, if (key == null) SETUP else KEY_SAVED)
+        val e = formations[t.id]
+        val stop = e?.stops?.let { pick(it, t) }
+        val cars = stop?.cars.orEmpty()
+        val note = when {
+            t.date != now().toLocalDate() -> "Die Zugformation gibt es erst am Reisetag."
+            cars.isNotEmpty() -> null
+            e == null || e.loading -> "Lade die Zugformation …"
+            e.error != null -> e.error
+            else -> "Zu diesem Halt kennt der Dienst keine Zugformation."
+        }
+        val selected = formationSelected.coerceIn(0, (cars.size - 1).coerceAtLeast(0))
+        val car = cars.getOrNull(selected)
+        return FormationScreen(
+            badge = t.line.label,
+            train = t.train,
+            place = listOfNotNull(stop?.name ?: t.stopName, stop?.track?.let { "${t.line.platformWord} $it" }).joinToString(" · "),
+            direction = "Richtung ${t.line.direction}",
+            cars = cars.map { carBox(it) },
+            selected = selected,
+            detail = car?.let { c -> listOfNotNull(c.number?.let { "Wagen $it" }, c.kind.text, "geschlossen".takeIf { c.closed }).joinToString(" · ") },
+            more = car?.let { carMore(it, stop?.destinationOf(selected)) },
+            note = note,
+        )
+    }
+
+    private fun carBox(c: Car) = CarBox(
+        label = c.kind.label,
+        number = c.number,
+        icon = when (c.kind) {
+            CarKind.DINING, CarKind.DINING_FIRST, CarKind.DINING_SECOND -> CarIcon.DINING
+            CarKind.FAMILY -> CarIcon.FAMILY
+            CarKind.SLEEPER -> CarIcon.SLEEPER
+            CarKind.COUCHETTE -> CarIcon.COUCHETTE
+            CarKind.BAGGAGE -> CarIcon.BAGGAGE
+            CarKind.LOCO -> CarIcon.LOCO
+            else -> null
+        },
+        services = c.services.sortedBy { it.ordinal },
+        closed = c.closed,
+        sector = c.sector,
+    )
+
+    /** "Velo · Kinderwagen · Niederflur · Sektor B": what the car in the frame offers, and where it stands. */
+    private fun carMore(c: Car, destination: String?): String = (
+        c.services.sortedBy { it.ordinal }.map { it.text } + listOfNotNull(
+            "Speisewagen nicht bedient".takeIf { c.notServed },
+            "für Gruppen reserviert".takeIf { c.groups },
+            destination?.let { "nach $it" },
+            c.sector.takeIf { it.isNotEmpty() }?.let { "Sektor $it" },
+        )
+        ).joinToString(" · ")
+
+    private fun formationGesture(g: GestureKind) {
+        val t = formationOf
+        if (key == null || t == null) {
+            if (g == GestureKind.CLICK && key == null) askKey()
+            return
+        }
+        val n = formations[t.id]?.stops?.let { pick(it, t) }?.cars?.size ?: 0
+        when (g) {
+            GestureKind.SCROLL_DOWN -> formationSelected = (formationSelected + 1).coerceAtMost((n - 1).coerceAtLeast(0))
+            GestureKind.SCROLL_UP -> formationSelected = (formationSelected - 1).coerceAtLeast(0)
+            GestureKind.LONG_PRESS -> return refreshFormation()
+            GestureKind.CLICK -> return if (n == 0) refreshFormation() else Unit
+            else -> return
+        }
+        paint(P_FORMATION)
+    }
+
+    private fun refreshFormation() {
+        fetchFormation(formationOf ?: return, force = true)
+        render()
+    }
+
+    private fun askKey() = ui.askText(ASK_KEY, "Schlüssel für die Zugformation (opentransportdata.swiss)", emptyList())
+
+    /** The key typed into the app, else the one in [KEY_FILE] in the app's folder (put there like a map for Navi). */
+    private fun loadKey() {
+        val typed = (ui.storage.get(K_KEY) as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+        key = typed ?: runCatching { ui.files.dir?.let { File(it, KEY_FILE) }?.takeIf { it.isFile }?.readText()?.trim() }.getOrNull()?.takeIf { it.isNotEmpty() }
+    }
+
+    private fun setKey(text: String?) {
+        val k = text?.filterNot { it.isWhitespace() }.orEmpty()
+        if (k.isEmpty()) return
+        ui.storage.set(K_KEY, JsonPrimitive(k))
+        key = k
+        formations.clear()
+        ui.toast("Schlüssel gespeichert", NOTE_MS)
+        formationOf?.let { fetchFormation(it) }
+        chosen?.let { loadFormations(it) }
+        trip?.let { d -> tripFormation(d)?.let { fetchFormation(it) } }
+        render()
     }
 
     // --- Where the watch is -------------------------------------------------------------------------------------
@@ -1135,6 +1349,7 @@ class FahrplanApp(
             P_BOARD -> boardGesture(g)
             P_TRIP -> tripGesture(g)
             P_NEAR -> nearGesture(g)
+            P_FORMATION -> formationGesture(g)
         }
     }
 
@@ -1157,6 +1372,7 @@ class FahrplanApp(
             P_RESULTS -> refreshList()
             P_JOURNEY -> refreshChosen()
             P_BOARD -> if (!boardLoading && !boardMore && departures.isNotEmpty()) loadBoard(silent = true)
+            P_FORMATION -> refreshFormation()
         }
     }
 
@@ -1183,7 +1399,16 @@ class FahrplanApp(
                 MenuItem(M_EARLIER, "Frühere Verbindungen"),
                 MenuItem(M_LATER, "Spätere Verbindungen"),
             )
-            P_JOURNEY -> listOf(REFRESH, MenuItem(M_STOPS, if (openRides.isEmpty()) "Alle Zwischenhalte zeigen" else "Zwischenhalte ausblenden"))
+            P_JOURNEY -> listOfNotNull(
+                REFRESH,
+                MenuItem(M_STOPS, if (openRides.isEmpty()) "Alle Zwischenhalte zeigen" else "Zwischenhalte ausblenden"),
+                SET_UP.takeIf { key == null },
+            )
+            P_TRIP -> listOfNotNull(SET_UP.takeIf { key == null })
+            P_FORMATION -> listOfNotNull(
+                REFRESH.takeIf { key != null && formationOf != null },
+                MenuItem(M_KEY, if (key == null) "Schlüssel eingeben" else "Schlüssel ändern"),
+            )
             P_BOARD -> listOfNotNull(REFRESH, MenuItem(M_ROUTE, "Verbindung ab hier").takeIf { boardPlace != null })
             P_NEAR -> listOf(MenuItem(M_LOCATE, "Standort neu suchen"))
             P_SEARCH -> listOf(MenuItem(M_WATCH, "Auf der Uhr eingeben"))
@@ -1217,6 +1442,8 @@ class FahrplanApp(
                 locateNearby()
             }
             M_WATCH -> field?.let { ask(it) }
+            M_SET_UP -> openFormation(null)
+            M_KEY -> askKey()
             M_SWAP -> swap()
             M_HERE -> {
                 from = null
@@ -1272,6 +1499,25 @@ class FahrplanApp(
 
     private enum class Wait { SEARCH, NEAR }
 
+    /** A train whose formation is asked for, boarded at [stopName] ([stopId]); [id] is "SBBP/2162/2026-11-02". */
+    private data class FormationTarget(
+        val id: String,
+        val evu: String,
+        val train: String,
+        val date: LocalDate,
+        val line: Line,
+        val stopId: String?,
+        val stopName: String,
+    )
+
+    /** What the service said about a train, and when. */
+    private class FormationEntry {
+        var stops: List<StopFormation>? = null
+        var error: String? = null
+        var loading = false
+        var at = 0L
+    }
+
     /** A search kept for Planen: from null is "Aktueller Standort". */
     data class Route(val from: Place?, val to: Place) {
         val key: String get() = "${from?.let { it.id ?: it.name } ?: "@"}|${to.id ?: to.name}"
@@ -1292,7 +1538,7 @@ class FahrplanApp(
 
     companion object {
         const val ID = "ch.madtreasures.fahrplan"
-        const val VERSION = "1.1.0"
+        const val VERSION = "1.2.0"
 
         /** What "from" says when it is the watch's position, as in the SBB app. */
         const val HERE = "Aktueller Standort"
@@ -1304,6 +1550,7 @@ class FahrplanApp(
         const val P_BOARD = "abfahrten"
         const val P_TRIP = "fahrt"
         const val P_NEAR = "naehe"
+        const val P_FORMATION = "zugformation"
 
         /** The pages and the names the header shows beside "Fahrplan". */
         val PAGES = listOf(
@@ -1314,6 +1561,7 @@ class FahrplanApp(
             P_BOARD to "Abfahrten",
             P_TRIP to "Fahrt",
             P_NEAR to "In der Nähe",
+            P_FORMATION to "Zugformation",
         )
 
         /** The image block of a page. */
@@ -1334,11 +1582,14 @@ class FahrplanApp(
         const val M_HERE = "m_hier"
         const val M_KIND = "m_ankunft"
         const val M_CLEAR = "m_verlauf"
+        const val M_SET_UP = "m_formation"
+        const val M_KEY = "m_schluessel"
 
         const val ASK_FROM = "von"
         const val ASK_TO = "nach"
         const val ASK_WHEN = "wann"
         const val ASK_BOARD = "tafel"
+        const val ASK_KEY = "schluessel"
 
         const val T_REFRESH = "aktualisieren"
         const val T_FIX = "standort"
@@ -1359,6 +1610,19 @@ class FahrplanApp(
 
         val WHEN_SUGGESTIONS = listOf("jetzt", "in 15 Min.", "an 18:00", "morgen 7:00", "morgen 17:00")
 
+        /** The file in the app's folder with the key for the Train Formation Service. */
+        const val KEY_FILE = "zugformation.txt"
+
+        /** A formation is asked for again after this long at the most (it rarely changes in a day). */
+        const val FORMATION_FRESH_MS = 10 * 60_000L
+
+        const val SETUP = "Für die Zugformation braucht die App einen kostenlosen Schlüssel von opentransportdata.swiss " +
+            "(API-Manager, Train Formation Service). Lege ihn als zugformation.txt in den Ordner der App, oder tippe hier, um ihn einzugeben."
+        const val KEY_SAVED = "Der Schlüssel ist gespeichert. Die Zugformation steht jetzt in Ihre Reise und auf der Fahrt eines Zuges."
+        const val BAD_KEY = "Der Schlüssel für die Zugformation gilt nicht. Im App-Menü lässt er sich ändern."
+        const val NO_FORMATION = "Für diesen Zug gibt es heute keine Zugformation."
+        const val TOO_MANY = "Der Dienst für die Zugformation nimmt gerade keine Abfragen an. Bitte etwas später."
+
         private const val W_RESULTS = "verbindungen"
         private const val W_EARLIER = "frueher"
         private const val W_LATER = "spaeter"
@@ -1370,6 +1634,7 @@ class FahrplanApp(
         private const val K_TO = "nach"
         private const val K_ROUTES = "zuletzt"
         private const val K_PLACES = "orte"
+        private const val K_KEY = "zugformation_schluessel"
 
         private const val SHOWN_ROUTES = 4
         private const val MAX_ROUTES = 8
@@ -1382,6 +1647,7 @@ class FahrplanApp(
         private const val NOTE_MS = 3_000
 
         private val REFRESH = MenuItem(M_REFRESH, "Aktualisieren")
+        private val SET_UP = MenuItem(M_SET_UP, "Zugformation einrichten")
         private val SPACES = Regex("\\s+")
 
         private fun fontPath(name: String) = "apps/$ID/fonts/$name.font"

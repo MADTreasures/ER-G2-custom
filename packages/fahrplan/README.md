@@ -3,15 +3,18 @@
 **Der Schweizer Fahrplan auf dem Glas, aufgebaut und bedient wie die SBB-App** (SBB Mobile): **Planen** mit
 „Aktueller Standort“ und „Nach“, die **Verbindungen** als Karten mit dem Reisebalken, **Ihre Reise** von Halt zu
 Halt mit aufklappbaren **Zwischenhalten**, die **Abfahrten** einer Haltestelle, die **Fahrt** eines Zuges und die
-**Haltestellen in der Nähe**. Mit Gleis, Verspätung, Gleiswechsel, Umsteigezeit und Fußwegen, für den ganzen
-öffentlichen Verkehr der Schweiz: Züge, Busse, Trams, Schiffe, Bergbahnen.
+**Haltestellen in der Nähe**, und ab 1.2.0 die **Zugformation** mit den Sektoren. Mit Gleis, Verspätung,
+Gleiswechsel, Umsteigezeit und Fußwegen, für den ganzen öffentlichen Verkehr der Schweiz: Züge, Busse, Trams,
+Schiffe, Bergbahnen.
 
 Eingegeben wird wie bei der YouTube-App: Ist eine **Bluetooth-Tastatur** an der Uhr, tippt man die Haltestelle
 **direkt auf der Brille**, und die passenden Haltestellen erscheinen schon beim Tippen, wie in der SBB-App. Ohne
 Tastatur fragt die **Uhr** (Tastatur oder Sprache); die zuletzt benutzten Haltestellen schlägt sie gleich vor.
 
-> **Ehrlicher Stand (1.1.0):** gebaut und ohne Hardware getestet, mit Antworten des echten Fahrplans, die ich
-> am 31.10.2026 aufgenommen habe (für Montag, 2.11.2026, ab 07:45). Vorlage für Aussehen und Verhalten waren die
+> **Ehrlicher Stand (1.2.0):** gebaut und ohne Hardware getestet, mit Antworten des echten Fahrplans, die ich
+> am 31.10.2026 aufgenommen habe (für Montag, 2.11.2026, ab 07:45). Die Zugformation ist mit einer Antwort getestet,
+> die einer echten nachgebildet ist (siehe [Zugformation](#zugformation-ab-120)); gegen den echten Dienst konnte ich
+> sie ohne Schlüssel nicht prüfen. Vorlage für Aussehen und Verhalten waren die
 > Bildschirmfotos der SBB-App im App Store und ihre Abläufe (Planen → Verbindungen → Ihre Reise); die Seiten sind
 > in den Grüntönen der Brille nachgezeichnet, keine Kopie der SBB-Grafik. **Nichts davon ist auf Hardware
 > erprobt**: weder die Abfrage über WLAN oder LTE der Uhr noch das GPS für „Aktueller Standort“ noch die
@@ -24,6 +27,8 @@ Tastatur fragt die **Uhr** (Tastatur oder Sprache); die zuletzt benutzten Haltes
 | ![Ihre Reise](bilder/fahrplan-verbindung.png) | ![Umsteigen](bilder/fahrplan-umsteigen.png) | ![Zwischenhalte](bilder/fahrplan-halte.png) |
 | **Abfahrten** einer Haltestelle | **Fahrt** eines Zuges | **In der Nähe** |
 | ![Abfahrten](bilder/fahrplan-abfahrten.png) | ![Fahrt](bilder/fahrplan-fahrt.png) | ![In der Nähe](bilder/fahrplan-naehe.png) |
+| **Ihre Reise** mit Zugformation | **Zugformation** am Gleis | **Zugformation**, Speisewagen im Rahmen |
+| ![Ihre Reise mit Zugformation](bilder/fahrplan-reise-zugformation.png) | ![Zugformation](bilder/fahrplan-zugformation.png) | ![Zugformation, Speisewagen](bilder/fahrplan-zugformation-speisewagen.png) |
 
 Gezeichnet von der App selbst und gezeigt vom echten App-Host und Desktop der Uhr-App, in den 16 Grünstufen der
 Brille (`FahrplanSnapshotTest`); durch die Seiten führen dabei die Bügel, wie beim Tragen. Die Verbindungen sind
@@ -64,7 +69,45 @@ Das Abo also weiter mit der SwissPass-Karte oder der SBB-App auf dem Handy zeige
 - **Fahrt:** alle Halte eines Zuges, Busses oder Trams ab der Haltestelle, mit Zeiten und Gleisen.
 - **In der Nähe:** die Haltestellen um die Uhr, mit Entfernung.
 
-Am Ende jeder Seite mit Daten steht „Fahrplandaten: opentransportdata.swiss“.
+- **Zugformation** (ab 1.2.0, mit Schlüssel): oben Linie, Zugnummer, Halt und Gleis, darunter „‹ Richtung Bern“ wie
+  in der SBB-App, dann die Wagen von der Spitze des Zuges an unter ihren Sektoren: Nummer, Klasse, Speisewagen,
+  Familienwagen, darunter Kinderwagen, Rollstuhl, Velo und Niederflur (NF). Der Wagen im Rahmen steht unten in Worten.
+
+Am Ende jeder Seite mit Daten steht „Fahrplandaten: opentransportdata.swiss“ (auf der Zugformation
+„Formationsdaten: opentransportdata.swiss“).
+
+## Zugformation (ab 1.2.0)
+
+Wie auf der Seite „Zugformation“ der SBB-App: wo der Zug am Gleis steht und welcher Wagen was hat. In **Ihre
+Reise** steht unter dem Halt, an dem man einsteigt, „Zugformation · Sektoren A–B“; auf der Seite **Fahrt** einer
+Abfahrt ist das die erste Zeile. Antippen öffnet die Formation: wischen geht von Wagen zu Wagen (ein langer Zug
+scrollt mit), lange drücken fragt neu.
+
+Die Daten kommen vom **Train Formation Service** von opentransportdata.swiss. Er braucht einen **eigenen,
+kostenlosen Schlüssel**, den ich nicht für dich anlegen kann:
+
+1. Auf [opentransportdata.swiss](https://opentransportdata.swiss) im **API-Manager** ein Konto anlegen.
+2. Dort für den **Train Formation Service** einen Schlüssel (API Key) erzeugen und kopieren.
+3. Auf die Uhr bringen, eine von zwei Arten:
+   - als Datei `zugformation.txt`, die nur den Schlüssel enthält, in den Ordner der App:
+     `adb push zugformation.txt /sdcard/Android/data/ch.madtreasures.g2watch/files/app-data/ch.madtreasures.fahrplan/`
+     (oder in Android Studio im Device Explorer dorthin hochladen, wie eine Karte für Navi);
+   - oder eintippen: App-Menü in Ihre Reise → „Zugformation einrichten“, dann tippen (am besten mit der Tastatur
+     auf der Brille).
+
+Ohne Schlüssel bleibt alles wie in 1.1.0, nur das App-Menü in Ihre Reise und auf der Fahrt bietet „Zugformation
+einrichten“ an.
+
+**Grenzen der Zugformation:**
+- Nur **heutige** Züge: Der Dienst kommt aus dem Echtzeitsystem und kennt keine anderen Tage („Zugformation am
+  Reisetag“).
+- Nur die Bahnen, die ihre Formation veröffentlichen: SBB, BLS, SOB, Thurbo, RhB, MBC, ÖBB, TPF, transN, VDBB und
+  zb. Busse, Trams und andere Bahnen haben keine Zeile „Zugformation“.
+- Die Reihenfolge der Wagen nehme ich so, wie der Dienst sie schreibt, von der Spitze des Zuges an; darum zeigt
+  der Pfeil nach links. Auf der echten Brille ist das noch nicht erprobt.
+- **Keine Belegung** (die Männchen der SBB-App): transport.opendata.ch liefert sie zurzeit leer, und die
+  Belegungsprognose von opentransportdata.swiss gibt es nur als tägliche Datei von rund 100 MB, zu groß für die
+  Uhr.
 
 ## Wie in der SBB-App: das Verhalten
 
@@ -102,8 +145,8 @@ SBB-App über die Liste fährt:
 | Zurück | doppeltippen | nach rechts wischen | Esc, Rücktaste (beim Tippen löscht sie) |
 | App-Menü | tippen, dann halten | – | Menütaste, F10, Maus rechts |
 
-**Lange drücken:** auf Planen Von und Nach tauschen, bei den Verbindungen und auf Ihre Reise aktualisieren, bei
-den Abfahrten „Verbindung ab hier“, auf der Seite Haltestelle die Frage an die Uhr (etwa für Sprache; mit
+**Lange drücken:** auf Planen Von und Nach tauschen, bei den Verbindungen, auf Ihre Reise und auf der Zugformation
+aktualisieren, bei den Abfahrten „Verbindung ab hier“, auf der Seite Haltestelle die Frage an die Uhr (etwa für Sprache; mit
 Tastatur steht sie zuerst auf der Brille, dort „Auf der Uhr eingeben“).
 
 **App-Menü:**
@@ -113,8 +156,10 @@ Tastatur steht sie zuerst auf der Brille, dort „Auf der Uhr eingeben“).
 | Planen | Von und Nach tauschen · Von: Aktueller Standort · Zeit gilt für die Ankunft (Abfahrt) · Verlauf löschen |
 | Haltestelle | Auf der Uhr eingeben |
 | Verbindungen | Aktualisieren · Rückfahrt · Frühere Verbindungen · Spätere Verbindungen |
-| Ihre Reise | Aktualisieren · Alle Zwischenhalte zeigen (ausblenden) |
+| Ihre Reise | Aktualisieren · Alle Zwischenhalte zeigen (ausblenden) · Zugformation einrichten (ohne Schlüssel) |
 | Abfahrten | Aktualisieren · Verbindung ab hier |
+| Fahrt | Zugformation einrichten (ohne Schlüssel) |
+| Zugformation | Aktualisieren · Schlüssel eingeben (ändern) |
 | In der Nähe | Standort neu suchen |
 
 ## Die Daten
@@ -124,6 +169,10 @@ von Opendata.ch, frei und ohne Konto. Die Daten selbst sind von **opentransportd
 Plattform des Schweizer ÖV; die App nennt sie am Ende jeder Seite mit Daten, wie die Schnittstelle es verlangt.
 Eine feste Grenze für Abfragen gibt es nicht, aber die Bitte, nicht alle paar Sekunden dasselbe zu fragen: Die
 App fragt höchstens einmal pro Minute nach, und beim Tippen erst einen Moment nach dem letzten Buchstaben.
+
+Die Zugformation kommt vom [Train Formation Service](https://opentransportdata.swiss/en/cookbook/realtime-prediction-cookbook/formationsdaten/)
+von opentransportdata.swiss (Formationsdaten: opentransportdata.swiss), mit dem eigenen Schlüssel; die App fragt
+einen Zug höchstens alle zehn Minuten.
 
 Jede Abfrage verlangt nur die Felder, die die App liest: Eine Antwort ist so etwa ein Drittel so groß
 (Zürich, Central → Zermatt: 27 statt 72 KB), eine Abfahrtstafel ein Zwanzigstel. Das zählt über LTE. Die
@@ -142,20 +191,21 @@ die Hintergrundarbeit (Schnittstelle 5), die Frage nach Text auf der Uhr und die
 | `FahrplanApp.kt` | die App: Seiten und Gesten, Haltestellen tippen, Verbindungen (frühere, spätere), Ihre Reise, Abfahrten, Fahrt, Standort, jede Minute neu, App-Menü, was sie sich merkt |
 | `Screens.kt` | was jede Seite zeigt, als Daten (die Tests lesen sie), und `Painter`, der daraus das Bild zeichnet: Karten, Reisebalken, Linie von Halt zu Halt, Zeichen der Verkehrsmittel |
 | `Raster.kt`, `Font.kt` | Zeichnen mit Kantenglättung und Schrift in 16 Graustufen, aus dem Paket Navi übernommen |
-| `Timetable.kt` | die Abfragen bei transport.opendata.ch und das Lesen ihrer Antworten; Haltestelle, Linie, Fahrt, Verbindung |
+| `Timetable.kt` | die Abfragen bei transport.opendata.ch und das Lesen ihrer Antworten; Haltestelle, Linie (mit Zugnummer), Fahrt, Verbindung |
+| `Formation.kt` | die Zugformation: Abfrage beim Train Formation Service, ihre Antwort und die Kurzschreibweise der Formation (`@B,[(FA:8#KW;NF,2:7#VH;KW;NF,…`) mit Sektoren, Wagen, Klassen und Angeboten |
 | `Format.kt` | wie Zeiten, Verspätungen, Gleise, Dauer und Entfernungen auf der Brille stehen |
 | `When.kt` | was „Wann?“ verstehen soll: „17:30“, „morgen 7:15“, „in 20 Min.“ … |
 | `src/main/assets/…/fonts` | die Schrift Inter in drei Größen (SIL Open Font License, `OFL.txt`) |
 | `symbol.py` | zeichnet das Symbol für den Starter (`python3 packages/fahrplan/symbol.py`, braucht Pillow) |
 
-**Was die App sich merkt** (256-KiB-Speicher der App): Von und Nach, die letzten acht Suchen und die letzten
-zwölf Haltestellen (für die Vorschläge).
+**Was die App sich merkt** (256-KiB-Speicher der App): Von und Nach, die letzten acht Suchen, die letzten
+zwölf Haltestellen (für die Vorschläge) und einen eingetippten Schlüssel für die Zugformation.
 
 ## Bauen, auf die Uhr legen, installieren
 
 ```sh
-./gradlew :packages:fahrplan:g2app   # → packages/fahrplan/build/g2app/ch.madtreasures.fahrplan-1.1.0.g2app
-adb push packages/fahrplan/build/g2app/ch.madtreasures.fahrplan-1.1.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
+./gradlew :packages:fahrplan:g2app   # → packages/fahrplan/build/g2app/ch.madtreasures.fahrplan-1.2.0.g2app
+adb push packages/fahrplan/build/g2app/ch.madtreasures.fahrplan-1.2.0.g2app /sdcard/Android/data/ch.madtreasures.g2watch/files/apps/
 ```
 
 Dann auf der Uhr: Zahnrad halten → *Einstellungen → Apps installieren* → unter „Neu auf der Uhr“ antippen
@@ -173,14 +223,20 @@ Tests in `src/test/kotlin`, laufen mit `./gradlew :app:testDebugUnitTest`; die a
   einer Adresse, Verspätung und Gleiswechsel, Abfahrten mit ihrer Fahrt, Haltestellen nach Namen und in der Nähe
   mit ihrem Verkehrsmittel, Antworten, die keine sind, und die Abfragen selbst.
 - `WhenTest`: was „Wann?“ versteht und was nicht.
+- `FormationTest`: die Zugformation von IR 16 an jedem Halt, Sektoren, Wagen, Klassen und Angebote,
+  geschlossene, abgestellte und erfundene Wagen, ein Zug, der sich teilt, Zugnummer und Bahn eines Zuges, die
+  Abfrage, Antworten, die keine sind. Die Antwort (`zugformation-ir16-2162.json`) ist einer echten nachgebildet:
+  IR 16 2166 vom 24.9.2026, dieselbe Linie mit denselben Halten und Gleisen zwei Stunden später; die
+  Formationen sind die echten, Zugnummer, Datum und Zeiten verschoben.
 - `FahrplanAppTest` (mit `FakeAppContext`): was jede Seite zeigt; Planen, Haltestellen auf der Uhr und mit
   Tastatur tippen (Treffer beim Tippen), die Karten mit Reisebalken, Weiterwischen lädt spätere und frühere,
   Ihre Reise mit Zwischenhalten und Halt → Abfahrten, Fußwege nach Zermatt, Abfahrten → Fahrt → Verbindung ab
   hier, Aktueller Standort mit und ohne GPS, eine Ankunftszeit, jede Minute neu, Fahrplan nicht erreichbar oder
-  unlesbar, was die App sich merkt, das App-Menü.
+  unlesbar, was die App sich merkt, das App-Menü; die Zugformation mit Schlüssel (eingetippt oder als Datei),
+  ohne Schlüssel, nur heute und nur bei Bahnen, die sie veröffentlichen, Schlüssel ungültig, keine Formation.
 - `FahrplanHostTest`: im echten App-Host; die Bügel wischen, tippen, halten und gehen zurück, die Tastatur tippt
-  auf der Brille und bedient danach die Seiten wie die Bügel, Hintergrundarbeit und GPS laufen, der Host lehnt
-  keinen Befehl ab (auch kein Bild).
+  auf der Brille und bedient danach die Seiten wie die Bügel, Hintergrundarbeit und GPS laufen, die Abfrage der
+  Zugformation geht mit dem Schlüssel durch den Host, der Host lehnt keinen Befehl ab (auch kein Bild).
 
 Bilder neu zeichnen:
 
@@ -193,7 +249,7 @@ Testdaten neu aufnehmen: Die Abfragen stehen in `FahrplanHostTest.fixtureFor`; d
 
 ## Grenzen
 
-- **Kein Billett und kein Abo** (siehe oben), keine Preise, keine Auslastung, keine Störungsmeldungen.
+- **Kein Billett und kein Abo** (siehe oben), keine Preise, keine Belegung, keine Störungsmeldungen.
 - Die Verspätungen sind die, die der offene Fahrplan kennt; Ausfälle meldet er nicht ausdrücklich.
 - **Aktueller Standort** braucht das GPS der Uhr und den Standort für Fahrplan; findet die Uhr in 30 Sekunden
   keinen, sagt die App das und schlägt vor, „Von“ selbst zu wählen. Ein Tippen sucht nochmals.

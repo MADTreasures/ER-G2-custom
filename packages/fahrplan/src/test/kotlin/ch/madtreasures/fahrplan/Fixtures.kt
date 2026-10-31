@@ -39,6 +39,14 @@ object Fixtures {
     /** The departures of Zürich HB from 07:45. */
     const val BOARD = "abfahrten-zuerich-hb.json"
 
+    /**
+     * The formation of IR 16 2162 (Zürich HB 08:06 → Bern) from the Train Formation Service, stop by stop: modelled
+     * on a real answer for IR 16 2166 of 24 September 2026, the same line with the same stops and platforms two hours
+     * later. Its formation strings are the real ones; train number, date and times are moved, Zürich HB has track 15
+     * as in [ZUERICH_BERN]. Formationsdaten: opentransportdata.swiss.
+     */
+    const val FORMATION = "zugformation-ir16-2162.json"
+
     const val LAT = 47.3712
     const val LON = 8.5389
 }
