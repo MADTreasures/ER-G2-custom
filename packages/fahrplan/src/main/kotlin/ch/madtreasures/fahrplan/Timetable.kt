@@ -138,6 +138,7 @@ object Timetable {
         number = o.text("number"),
         direction = o.text("to").orEmpty(),
         operator = o.text("operator"),
+        train = Formation.trainNumber(o.text("name")),
     )
 
     private fun departure(e: JsonElement, station: Place?): Departure? {
@@ -187,7 +188,7 @@ object Timetable {
         listOf("connections/duration", "connections/transfers") +
             stopFields("connections/from", "departureTimestamp") +
             stopFields("connections/to", "arrivalTimestamp") +
-            listOf("walk", "journey/category", "journey/number", "journey/to", "journey/operator").map { "connections/sections/$it" } +
+            listOf("walk", "journey/category", "journey/number", "journey/name", "journey/to", "journey/operator").map { "connections/sections/$it" } +
             listOf("station/id", "station/name", "arrivalTimestamp", "departureTimestamp", "delay", "platform").map { "connections/sections/journey/passList/$it" } +
             stopFields("connections/sections/departure", "departureTimestamp") +
             stopFields("connections/sections/arrival", "arrivalTimestamp")
@@ -195,7 +196,7 @@ object Timetable {
     val BOARD_FIELDS: List<String> =
         listOf("station/id", "station/name") +
             listOf("departureTimestamp", "delay", "platform", "prognosis/platform").map { "stationboard/stop/$it" } +
-            listOf("category", "number", "to", "operator").map { "stationboard/$it" } +
+            listOf("category", "number", "name", "to", "operator").map { "stationboard/$it" } +
             listOf("station/id", "station/name", "arrivalTimestamp", "departureTimestamp", "delay", "platform").map { "stationboard/passList/$it" }
 }
 
@@ -246,8 +247,18 @@ data class Stop(
  * A line as the timetable names it: [category] "IC", "S", "B" (bus), "T" (tram) …, [number] the line ("8", "31")
  * or a train's running number ("001410"), [direction] where it goes.
  */
-data class Line(val category: String, val number: String?, val direction: String, val operator: String? = null) {
+data class Line(
+    val category: String,
+    val number: String?,
+    val direction: String,
+    val operator: String? = null,
+    /** The train's number ("2162"), by which its formation is found. */
+    val train: String? = null,
+) {
     private val kind: Kind get() = KINDS[category.uppercase(Locale.ROOT)] ?: Kind.RAIL
+
+    /** A train (no tram, bus, ship or cableway): only trains have a formation. */
+    val isTrain: Boolean get() = kind == Kind.RAIL && icon == Icon.TRAIN
 
     /** "IC 8", "S 12", "Bus 31", "Tram 7", "IC": with the line, not a train's running number. */
     val label: String

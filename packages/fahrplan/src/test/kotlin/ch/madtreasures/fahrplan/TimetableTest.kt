@@ -1,6 +1,7 @@
 package ch.madtreasures.fahrplan
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -36,6 +37,12 @@ class TimetableTest {
         assertEquals("IC", first.rides.single().line!!.label)
         assertEquals(3, first.rides.single().stops.size)
 
+        // The train's number, by which its formation is found.
+        val ir16 = list[2].rides.single().line!!
+        assertEquals("2162", ir16.train)
+        assertTrue(ir16.isTrain)
+        assertEquals("1410", first.rides.single().line!!.train)
+
         val change = list[3]
         assertEquals(1, change.transfers)
         assertEquals(listOf("Basel SBB", "Bern"), change.rides.map { it.line!!.direction })
@@ -54,6 +61,7 @@ class TimetableTest {
             c.legs.map { it.line?.label ?: Format.walk(it) },
         )
         val bus = c.legs[3]
+        assertFalse(bus.line!!.isTrain)
         assertEquals("Kante M", Format.platform(bus.departure, bus.line!!))
         assertEquals("", Format.platform(bus.arrival, bus.line!!))
         assertEquals(6, bus.stops.size)
@@ -103,6 +111,7 @@ class TimetableTest {
         assertEquals(Icon.TRAIN, first.line.icon)
         assertEquals("07:45", Format.clock(first.time, zone))
         assertEquals("S 16", first.line.label)
+        assertEquals("19627", first.line.train)
         assertEquals("Herrliberg-Feldmeilen", first.line.direction)
         assertEquals("Gl. 43/44", Format.platform(first.platform, first.newPlatform, first.line))
         assertEquals("IC", board.departures[5].line.label)

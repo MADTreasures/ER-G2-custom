@@ -9,11 +9,13 @@ import ch.madtreasures.g2watch.apps.InputSource
 import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.Sensor
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /**
  * The app against [FakeAppContext], with the recorded answers of the timetable ([Fixtures]): what each drawn page
@@ -43,6 +45,11 @@ class FahrplanAppTest {
     private fun journey() = app.screen(FahrplanApp.P_JOURNEY) as JourneyScreen
 
     private fun list(page: String) = app.screen(page) as ListScreen
+
+    private fun formation() = app.screen(FahrplanApp.P_FORMATION) as FormationScreen
+
+    /** A key for the Train Formation Service, as typed into the app before. */
+    private fun withKey() = ui.storage.set("zugformation_schluessel", JsonPrimitive("abc123"))
 
     private fun gesture(kind: GestureKind, times: Int = 1) = repeat(times) { send(AppEvent.Gesture(kind, InputSource.RIGHT)) }
 
@@ -287,6 +294,7 @@ class FahrplanAppTest {
                     is JourneyItem.Walk -> "Walk ${it.text}"
                     is JourneyItem.Change -> "Change ${it.text}"
                     is JourneyItem.Pass -> "Pass ${it.name}"
+                    is JourneyItem.Formation -> "Formation ${it.text}"
                 }
             },
         )
@@ -579,10 +587,11 @@ class FahrplanAppTest {
         assertEquals("Bern → Zürich HB", results().title)
         answer(Fixtures.ZUERICH_BERN)
         tap()
-        assertEquals(listOf("Aktualisieren", "Alle Zwischenhalte zeigen"), ui.menu.map { it.text })
+        // Without a key for the formation the menu offers to set it up.
+        assertEquals(listOf("Aktualisieren", "Alle Zwischenhalte zeigen", "Zugformation einrichten"), ui.menu.map { it.text })
         send(AppEvent.Menu(FahrplanApp.M_STOPS))
         assertTrue(journey().items.filterIsInstance<JourneyItem.Ride>().all { it.open })
-        assertEquals("Zwischenhalte ausblenden", ui.menu.last().text)
+        assertEquals("Zwischenhalte ausblenden", ui.menu[1].text)
         back()
         back()
         assertEquals(
@@ -591,5 +600,140 @@ class FahrplanAppTest {
         )
         send(AppEvent.Menu(FahrplanApp.M_CLEAR))
         assertEquals(listOf("Abfahrten in der Nähe", "Abfahrten einer Haltestelle"), plan().rows.map { it.text })
+    }
+
+    @Test
+    fun `with a key Ihre Reise shows where the train stands, and the formation page its cars under their sectors`() {
+        withKey()
+        start()
+        chooseZurichBern()
+        answer(Fixtures.ZUERICH_BERN)
+        down(2)
+        tap()
+        // The IR 16's formation is asked for at once, with the key.
+        val request = ui.requests.single().first
+        assertEquals("https://api.opentransportdata.swiss/formation/v2/formations_stop_based?evu=SBBP&operationDate=2026-11-02&trainNumber=2162", request.url)
+        assertEquals("Bearer abc123", request.headers["Authorization"])
+        assertEquals(JourneyItem.Formation("Zugformation …"), journey().items[1])
+        answer(Fixtures.FORMATION)
+        assertEquals(JourneyItem.Formation("Zugformation · Sektoren A–B"), journey().items[1])
+        // The frame starts on the ride; one up is the formation.
+        assertEquals(2, journey().selected)
+        up()
+        tap()
+        assertEquals(FahrplanApp.P_FORMATION, page())
+        val f = formation()
+        assertEquals("IR 16", f.badge)
+        assertEquals("2162", f.train)
+        assertEquals("Zürich HB · Gl. 15", f.place)
+        assertEquals("Richtung Bern", f.direction)
+        assertEquals(listOf("2", "2", "2", "2", "2", "1", "1", "1"), f.cars.map { it.label })
+        assertEquals(listOf("8", "7", "6", "5", "4", "3", "2", "1"), f.cars.map { it.number })
+        assertEquals(listOf("B", "B", "B", "B", "A", "A", "A", "A"), f.cars.map { it.sector })
+        assertEquals(CarIcon.FAMILY, f.cars[0].icon)
+        assertEquals(CarIcon.DINING, f.cars[4].icon)
+        assertEquals(listOf(CarService.PRAM, CarService.BIKE, CarService.LOW_FLOOR), f.cars[1].services)
+        assertEquals("Wagen 8 · Familienwagen", f.detail)
+        assertEquals("Kinderwagen · Niederflur · Sektor B", f.more)
+        assertTrue(picture(FahrplanApp.P_FORMATION)!!.startsWith("data:image/png;base64,"))
+
+        // Swiping moves the frame along the train.
+        down(4)
+        assertEquals("Wagen 4 · Speisewagen und 2. Klasse", formation().detail)
+        assertEquals("Rollstuhlplätze · Niederflur · Speisewagen nicht bedient · Sektor A", formation().more)
+        down(10)
+        assertEquals(7, formation().selected)
+        assertEquals("Velo · Niederflur · Businesszone · Sektor A", formation().more)
+        assertEquals(listOf("Aktualisieren", "Schlüssel ändern"), ui.menu.map { it.text })
+
+        // Within ten minutes it is not asked for again; holding asks anew.
+        back()
+        tap()
+        assertTrue(ui.requests.isEmpty())
+        hold()
+        assertEquals(1, ui.requests.size)
+    }
+
+    @Test
+    fun `without a key the formation is set up by typing the key`() {
+        start()
+        chooseZurichBern()
+        answer(Fixtures.ZUERICH_BERN)
+        down(2)
+        tap()
+        // No key: no line for the formation, nothing asked.
+        assertTrue(journey().items.none { it is JourneyItem.Formation })
+        assertTrue(ui.requests.isEmpty())
+        send(AppEvent.Menu(FahrplanApp.M_SET_UP))
+        assertEquals(FahrplanApp.P_FORMATION, page())
+        assertEquals(FahrplanApp.SETUP, formation().note)
+        assertEquals(listOf("Schlüssel eingeben"), ui.menu.map { it.text })
+        assertTrue(picture(FahrplanApp.P_FORMATION)!!.startsWith("data:image/png;base64,"))
+        tap()
+        assertEquals(FahrplanApp.ASK_KEY, ui.question!!.first)
+        type("  abc 123  ")
+        assertEquals("Schlüssel gespeichert", ui.toasts.last())
+        assertEquals(FahrplanApp.KEY_SAVED, formation().note)
+        assertEquals(listOf("Schlüssel ändern"), ui.menu.map { it.text })
+        // The journey shown asks for its train's formation right away.
+        assertEquals("Bearer abc123", ui.requests.single().first.headers["Authorization"])
+        back()
+        assertTrue(journey().items.any { it is JourneyItem.Formation })
+    }
+
+    @Test
+    fun `the key can lie in the app's folder, and the trip of a departure shows its formation first`() {
+        File(ui.filesDir, FahrplanApp.KEY_FILE).writeText("datei-schluessel\n")
+        start()
+        down(10)
+        tap()
+        type("Zürich HB")
+        answer(Fixtures.ZUERICH)
+        answer(Fixtures.BOARD)
+        down(5)
+        tap()
+        assertEquals(FahrplanApp.P_TRIP, page())
+        val request = ui.requests.single().first
+        assertTrue(request.url, request.url.endsWith("evu=SBBP&operationDate=2026-11-02&trainNumber=1410"))
+        assertEquals("Bearer datei-schluessel", request.headers["Authorization"])
+        assertEquals(Row("Zugformation …", Icon.FORMATION), list(FahrplanApp.P_TRIP).rows.first())
+        assertEquals("Zürich HB", list(FahrplanApp.P_TRIP).rows[1].text)
+        // The service knows no formation of this train today.
+        ui.answer(HttpResult(404, """{"error":"No realtime data available for the given date."}"""))
+        assertEquals("Zugformation", list(FahrplanApp.P_TRIP).rows.first().text)
+        tap()
+        assertEquals(FahrplanApp.P_FORMATION, page())
+        // Opened, it is asked for once more.
+        ui.answer(HttpResult(404, """{"error":"No realtime data available for the given date."}"""))
+        assertEquals(FahrplanApp.NO_FORMATION, formation().note)
+        assertTrue(formation().cars.isEmpty())
+        // A key that does not work says so.
+        hold()
+        ui.answer(HttpResult(401, """{"error":"Authorization field missing"}"""))
+        assertEquals(FahrplanApp.BAD_KEY, formation().note)
+        assertTrue(ui.logs.any { it.contains("HTTP 401") })
+    }
+
+    @Test
+    fun `formations only for today's trains of railways that publish them`() {
+        withKey()
+        val central = Place("8588078", "Zürich, Central")
+        ui.storage.set("zuletzt", JsonArray(listOf(FahrplanApp.Route(central, Place("8501689", "Zermatt")).toJson())))
+        start()
+        down(3)
+        tap()
+        answer(Fixtures.CENTRAL_ZERMATT)
+        tap()
+        // The IC 8 only: the rail replacement bus has none, the Matterhorn Gotthard Bahn publishes none.
+        assertEquals(1, journey().items.filterIsInstance<JourneyItem.Formation>().size)
+        assertTrue(ui.requests.single().first.url.endsWith("trainNumber=808"))
+
+        // A day ahead the service knows no formation yet, and is not asked.
+        now -= 24 * 3_600_000L
+        back()
+        ui.requests.clear()
+        tap()
+        assertEquals(JourneyItem.Formation("Zugformation am Reisetag"), journey().items.filterIsInstance<JourneyItem.Formation>().single())
+        assertTrue(ui.requests.isEmpty())
     }
 }
