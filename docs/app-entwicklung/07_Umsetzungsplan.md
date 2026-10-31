@@ -220,6 +220,10 @@ auch der Browser.
   Uhr-Apps sehen und steuern die Player der Uhr (Spotify …) über Androids Mediensteuerung und spielen einen
   eigenen Audio-Stream; erste Nutzerin ist das Paket [Musik](../../packages/musik/README.md) (Spotify von der
   Brille aus, Radio mit den Schweizer Sendern von DAB+ als Stream). Nicht auf Hardware erprobt.
+- **Paket Fahrplan** ([`packages/fahrplan`](../../packages/fahrplan/README.md), Schnittstelle 6, keine neue
+  Uhr-App): Verbindungen und Abfahrten im Schweizer ÖV von transport.opendata.ch, eingegeben auf der Uhr oder mit
+  einer Tastatur auf der Brille, „Mein Standort“ vom GPS der Uhr. Ein Abo-QR-Code geht nicht (SwissPass Mobile
+  nur in den Apps der SBB). Nicht auf Hardware erprobt.
 
 ## Danach (Ideen, nicht geplant)
 

@@ -21,6 +21,7 @@ import ch.madtreasures.browser.BrowserApp
 import ch.madtreasures.fluency.FluencyApp
 import ch.madtreasures.musik.MusikApp
 import ch.madtreasures.navi.NaviApp
+import ch.madtreasures.fahrplan.FahrplanApp
 import ch.madtreasures.g2watch.apps.WebState
 import ch.madtreasures.g2watch.apps.web.SyntheticPage
 import ch.madtreasures.g2watch.apps.web.WebStatus
@@ -162,10 +163,10 @@ class PageRendererSnapshotTest {
 
     @Test
     fun launcher() {
-        // Home: the launcher with the YouTube, Browser, Fluency, Navi and Musik packages and their icons;
-        // YouTube runs (the dot), the pointer is on the browser.
+        // Home: the launcher with the YouTube, Browser, Fluency, Navi, Musik and Fahrplan packages and their
+        // icons; YouTube runs (the dot), the pointer is on the browser.
         ports.answers["$youtubeId@1.1.0"] = setOf(Permission.NETWORK)
-        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() }, { NaviApp() }, { MusikApp() })
+        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() }, { NaviApp() }, { MusikApp() }, { FahrplanApp() })
         host.launch("watch:$youtubeId")
         settle()
         host.openLauncher()
@@ -178,7 +179,7 @@ class PageRendererSnapshotTest {
     fun launcherMoving() {
         // A finger rests two seconds on Navi: it lifts and hangs at the pointer on its card, and is carried
         // towards the second place. There the gap opens, Browser and Fluency have made room (03 §5).
-        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() }, { NaviApp() }, { MusikApp() })
+        val host = host({ YouTubeApp() }, { BrowserApp() }, { FluencyApp() }, { NaviApp() }, { MusikApp() }, { FahrplanApp() })
         settle()
         val page = host.currentPageOf(Launcher.ID)!!
         pointerOn(page, "app3", dx = 68, tiles = true)

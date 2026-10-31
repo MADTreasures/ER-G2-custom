@@ -58,6 +58,9 @@ ob GeckoView auf der Uhr gut genug läuft.
 > Neu in 0.14.0: **Apps im [Starter](#apps-auf-der-brille) verschieben** wie am Handy: Finger auf der Uhr
 > liegen lassen (oder Maustaste halten), während der Zeiger auf einer App steht – nach 2 Sekunden hängt sie
 > am Zeiger, die anderen machen Platz, Loslassen legt sie ab. Nicht auf Hardware erprobt.
+> Neu als Paket (ab Uhr-App 0.13.0): **[Fahrplan](#fahrplan-verbindungen-und-abfahrten)** 1.0.0 – Verbindungen und
+> Abfahrten im ganzen Schweizer ÖV mit Gleis, Verspätung, Umsteigen und Halten, Haltestellen in der Nähe;
+> eingegeben auf der Uhr oder mit einer Tastatur auf der Brille. Nicht auf Hardware erprobt.
 
 ## Was aufgespielt werden kann
 
@@ -153,7 +156,8 @@ Seiten aus Bausteinen (wie im [G2 Baukasten](designer/README.md)), der Host zeic
 verteilt die Eingaben. Jede App ist ein App-Paket, zurzeit **YouTube** ([YouTube auf der Brille](#youtube-auf-der-brille)),
 **Browser** ([Web-Browser auf der Brille](#web-browser-auf-der-brille)), **Fluency**
 ([Apps auf dem Handy](#apps-auf-dem-handy-g2-handy-und-fluency)), **Navi** ([Navigation offline](#navigation-offline-navi))
-und **Musik** ([Spotify und Radio](#musik-spotify-und-radio-auf-der-brille)).
+**Musik** ([Spotify und Radio](#musik-spotify-und-radio-auf-der-brille)) und **Fahrplan**
+([Verbindungen und Abfahrten](#fahrplan-verbindungen-und-abfahrten)).
 Im Starter steht eine App, sobald man sie installiert hat ([Eigene Apps installieren](#eigene-apps-installieren)).
 
 | Starter | App-Menü | Berechtigung beim ersten Start |
@@ -308,7 +312,7 @@ Paket gebaut wird: [09 – App-Pakete](docs/app-entwicklung/09_App-Pakete.md).
    Uhr“ die App antippen. Sie steht sofort im Starter der Brille.
 
 Eine neuere Version installiert man genauso (die laufende alte endet). **Entfernen:** unter „Installiert“
-zweimal antippen. Fertige Pakete: **YouTube**, **Browser**, **Fluency**, **Navi** und **Musik**, alle mit Symbol für den Starter (ein
+zweimal antippen. Fertige Pakete: **YouTube**, **Browser**, **Fluency**, **Navi**, **Musik** und **Fahrplan**, alle mit Symbol für den Starter (ein
 Paket bringt sein Symbol als `assets/apps/<app-id>/icon.png` mit, [09 §2](docs/app-entwicklung/09_App-Pakete.md#2-das-paket)).
 Pakete ab 0.8.0 (Schnittstelle 2) brauchen die Uhr-App 0.8.0 oder neuer, Pakete mit Schnittstelle 3 (Tastatur,
 seit 0.9.0) die Uhr-App 0.9.0, Pakete mit Schnittstelle 4 (Apps auf dem Handy, seit 0.10.0) die Uhr-App 0.10.0,
@@ -407,6 +411,27 @@ adb shell cmd notification allow_listener ch.madtreasures.g2watch/ch.madtreasure
 
 Ohne ihn gehen Play/Pause, Titel weiter und zurück, die Lautstärke und das ganze Radio trotzdem. Die Uhr-App liest
 damit keine Benachrichtigungen. **Nicht auf Hardware erprobt.**
+
+## Fahrplan: Verbindungen und Abfahrten
+
+Das Paket **Fahrplan** ([`packages/fahrplan`](packages/fahrplan/README.md)) bringt den Schweizer Fahrplan auf die
+Brille, wie die Fahrplan-App auf dem Handy, nur kürzer: **Verbindungen** von einer Haltestelle oder vom Standort
+der Uhr zu einer anderen, jetzt oder zu einer Zeit („17:30“, „morgen 7:15“, „in 20 Min.“), mit **Gleis,
+Verspätung, Umsteigen und Fußwegen**, je Fahrt die **Halte**; dazu die **Abfahrten** einer Haltestelle und die
+**Haltestellen in der Nähe**. Für den ganzen ÖV: Züge, Busse, Trams, Schiffe, Bergbahnen. Eingegeben wird wie bei
+YouTube: mit einer Bluetooth-Tastatur auf der Brille, sonst auf der Uhr (Tastatur oder Sprache). Solange
+Verbindungen auf der Brille stehen, fragt die App jede Minute nach Verspätungen. Die Daten kommen frei und ohne
+Konto von transport.opendata.ch (Fahrplandaten: opentransportdata.swiss).
+
+| Verbindungen | Eine Verbindung mit Umsteigen | Abfahrten |
+|---|---|---|
+| ![Fahrplan, Verbindungen](packages/fahrplan/bilder/fahrplan-verbindungen.png) | ![Fahrplan, Verbindung](packages/fahrplan/bilder/fahrplan-verbindung.png) | ![Fahrplan, Abfahrten](packages/fahrplan/bilder/fahrplan-abfahrten.png) |
+
+Installieren wie jedes Paket ([Eigene Apps installieren](#eigene-apps-installieren)); beim ersten Start fragt die
+Brille nach Internet und Standort. **Kein Abo-QR-Code:** SwissPass Mobile zeigt die SBB nur in ihren eigenen
+Apps, ein Foto des Codes gilt nicht, und eine Anmeldung für fremde Apps gibt es nicht (Einzelheiten im
+[README des Pakets](packages/fahrplan/README.md#abo-als-qr-code-auf-der-uhr-geht-nicht)). **Nicht auf Hardware
+erprobt.**
 
 ## YouTube auf der Brille
 
