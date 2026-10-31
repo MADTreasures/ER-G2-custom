@@ -61,6 +61,9 @@ class TimetableTest {
         val second = list[1]
         assertEquals("07:54 → 11:21 · Kante I · Bus 31, IC 8, EV 4, R 40", Format.row(second, zone))
         assertEquals("ICE", list[2].rides[1].line!!.label)
+        assertEquals(listOf(Icon.BUS, Icon.TRAIN, Icon.BUS, Icon.TRAIN), second.rides.map { it.line!!.icon })
+        // The stops on the way have their ids, so that a tap shows their departures.
+        assertEquals("8507000", c.legs[1].stops[1].id)
     }
 
     @Test
@@ -93,6 +96,11 @@ class TimetableTest {
         assertEquals(Place("8503000", "Zürich HB"), board.station)
         assertEquals(15, board.departures.size)
         val first = board.departures.first()
+        // Each departure brings the stops of its trip, for the trip page.
+        assertEquals("Zürich HB", first.stops.first().name)
+        assertEquals("8503000", first.stops.first().id)
+        assertEquals("Herrliberg-Feldmeilen", first.stops.last().name)
+        assertEquals(Icon.TRAIN, first.line.icon)
         assertEquals("07:45", Format.clock(first.time, zone))
         assertEquals("S 16", first.line.label)
         assertEquals("Herrliberg-Feldmeilen", first.line.direction)
@@ -104,10 +112,12 @@ class TimetableTest {
     fun `stops by name and around a position`() {
         val zuerich = Timetable.places(Fixtures.text(Fixtures.ZUERICH))
         assertEquals(Timetable.PLACES, zuerich.size)
-        assertEquals(Place("8503000", "Zürich HB"), zuerich.first())
+        assertEquals(Place("8503000", "Zürich HB", kind = "train"), zuerich.first())
+        assertEquals(Icon.TRAIN, zuerich.first().icon)
+        assertEquals(Icon.TRAM, zuerich.first { it.name == "Zürich, Central" }.icon)
         val near = Timetable.places(Fixtures.text(Fixtures.NEARBY))
         // The address itself has no id and is left out.
-        assertEquals(Place("8591299", "Zürich, Paradeplatz", 163), near.first())
+        assertEquals(Place("8591299", "Zürich, Paradeplatz", 163, "tram"), near.first())
         assertEquals("160 m", Format.distance(near.first().distance))
         assertEquals("1,2 km", Format.distance(1234))
     }

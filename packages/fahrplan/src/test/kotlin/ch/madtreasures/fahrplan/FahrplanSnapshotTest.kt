@@ -2,14 +2,12 @@ package ch.madtreasures.fahrplan
 
 import ch.madtreasures.g2watch.FakeDisplay
 import ch.madtreasures.g2watch.FakeScheduler
-import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.HttpResult
 import ch.madtreasures.g2watch.apps.InputSource
 import ch.madtreasures.g2watch.apps.host.AppHost
 import ch.madtreasures.g2watch.apps.host.FakePorts
 import ch.madtreasures.g2watch.apps.host.Gesture
-import ch.madtreasures.g2watch.apps.render.FocusTarget
 import ch.madtreasures.g2watch.desktop.AndroidTextPainter
 import ch.madtreasures.g2watch.desktop.DesktopController
 import ch.madtreasures.g2watch.desktop.DesktopLayout
@@ -29,13 +27,14 @@ import java.time.LocalDateTime
 import javax.imageio.ImageIO
 
 /**
- * Pictures of the app on the glasses, drawn by the real app host and desktop with Android's fonts, in the
+ * Pictures of the app on the glasses, drawn by the app itself and shown by the real app host and desktop, in the
  * glasses' 16 levels of green (README of the package):
  *
  *     ./gradlew :app:testDebugUnitTest --tests 'ch.madtreasures.fahrplan.FahrplanSnapshotTest' -PsnapshotDir=$PWD/packages/fahrplan/bilder
  *
- * The timetable answers with the recorded answers ([Fixtures]) for Monday 2 November 2026 at 07:40; only the
- * delay of the first connection in the list is made up, to show how one looks. Skipped without -PsnapshotDir.
+ * The temples work the pages as the wearer would. The timetable answers with the recorded answers ([Fixtures]) for
+ * Monday 2 November 2026 at 07:40; only the delay of the first connection from Zürich HB is made up, to show how one
+ * looks. Skipped without -PsnapshotDir.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -55,19 +54,18 @@ class FahrplanSnapshotTest {
     @Before
     fun setUp() {
         assumeTrue("no -PsnapshotDir", !dir.isNullOrBlank())
-        // Searched before: from Zürich HB to Bern, and two other trips.
+        // From "Aktueller Standort" to Bern, and three trips searched before.
         val store = ports.storage(FahrplanApp.ID)
-        val zurich = Place("8503000", "Zürich HB")
-        val bern = Place("8507000", "Bern")
-        store.set("von", zurich.toJson())
+        val zurich = Place("8503000", "Zürich HB", kind = "train")
+        val bern = Place("8507000", "Bern", kind = "train")
         store.set("nach", bern.toJson())
         store.set(
             "zuletzt",
             JsonArray(
                 listOf(
                     FahrplanApp.Route(zurich, bern),
-                    FahrplanApp.Route(Place("8588078", "Zürich, Central"), Place("8501689", "Zermatt")),
-                    FahrplanApp.Route(null, Place("8505000", "Luzern")),
+                    FahrplanApp.Route(Place("8588078", "Zürich, Central", kind = "tram"), Place("8501689", "Zermatt", kind = "train")),
+                    FahrplanApp.Route(null, Place("8505000", "Luzern", kind = "train")),
                 ).map { it.toJson() },
             ),
         )
@@ -105,36 +103,10 @@ class FahrplanSnapshotTest {
         }
     }
 
-    private fun temple(kind: GestureKind) {
+    private fun temple(kind: GestureKind, times: Int = 1) = repeat(times) {
         host.gesture(Gesture(kind, InputSource.RIGHT))
         settle()
     }
-
-    private fun page() = host.currentPageOf(FahrplanApp.ID)!!
-
-    private fun press(block: String) {
-        for (direction in listOf(GestureKind.SCROLL_DOWN, GestureKind.SCROLL_UP)) {
-            repeat(80) {
-                if (host.state.value.focus == FocusTarget(block)) {
-                    temple(GestureKind.CLICK)
-                    return
-                }
-                temple(direction)
-            }
-        }
-        throw AssertionError("$block never got the focus on ${host.state.value.page}")
-    }
-
-    /** Back to the top of a long page: the focus up to its first button. */
-    private fun top() {
-        val first = page().blocks.first { it is Block.Button || it is Block.Toggle }.id
-        repeat(80) {
-            if (host.state.value.focus == FocusTarget(first)) return
-            temple(GestureKind.SCROLL_UP)
-        }
-    }
-
-    private fun buttonFor(text: String): String = page().blocks.filterIsInstance<Block.Button>().first { it.text.startsWith(text) }.id
 
     /** Answers what the app asked the timetable, oldest first. */
     private fun answerRequests() {
@@ -178,61 +150,64 @@ class FahrplanSnapshotTest {
         late = true
         launch()
         save("fahrplan-start")
-        press(FahrplanApp.ST_SEARCH)
+        // The search used last, the first line under "Jetzt".
+        temple(GestureKind.SCROLL_DOWN, FahrplanApp.PLAN_FIXED)
+        temple(GestureKind.CLICK)
         answerRequests()
-        top()
         save("fahrplan-verbindungen")
-        press("${FahrplanApp.VE_CONN}3")
-        top()
+        temple(GestureKind.SCROLL_DOWN, 3)
+        temple(GestureKind.CLICK)
         save("fahrplan-verbindung")
-        press("${FahrplanApp.DE_LEG}0")
-        save("fahrplan-halte")
     }
 
     @Test
     fun changes() {
         launch()
-        press(buttonFor("Zürich, Central → Zermatt"))
+        temple(GestureKind.SCROLL_DOWN, FahrplanApp.PLAN_FIXED + 1)
+        temple(GestureKind.CLICK)
         answerRequests()
-        press("${FahrplanApp.VE_CONN}0")
-        top()
+        temple(GestureKind.CLICK)
         save("fahrplan-umsteigen")
+        // The frame is on the IC 8: a tap shows the stops on the way.
+        temple(GestureKind.CLICK)
+        save("fahrplan-halte")
     }
 
     @Test
     fun typing() {
-        // With a Bluetooth keyboard the question shows on the glasses.
+        // With a Bluetooth keyboard the stop is typed on the glasses, the stops that fit coming while typing.
         ports.hardwareKeyboard = true
         launch()
-        press(FahrplanApp.ST_FROM)
-        for (c in "Zürich") host.key(KeyPress(c.toString(), c.toString(), shift = c.isUpperCase()))
-        settle()
-        save("fahrplan-eingabe")
-        host.key(KeyPress("Enter"))
+        temple(GestureKind.CLICK)
+        for (c in "Zür") host.key(KeyPress(c.toString(), c.toString(), shift = c.isUpperCase()))
+        scheduler.advanceBy(FahrplanApp.TYPE_MS)
         settle()
         answerRequests()
-        top()
-        save("fahrplan-auswahl")
+        save("fahrplan-eingabe")
     }
 
     @Test
     fun departures() {
         launch()
-        press(FahrplanApp.ST_BOARD)
+        temple(GestureKind.SCROLL_DOWN, FahrplanApp.PLAN_FIXED + 4)
+        temple(GestureKind.CLICK)
         ports.questions.last().third("Zürich HB")
         settle()
         answerRequests()
         save("fahrplan-abfahrten")
+        temple(GestureKind.SCROLL_DOWN, 5)
+        temple(GestureKind.CLICK)
+        save("fahrplan-fahrt")
     }
 
     @Test
     fun nearby() {
         launch()
-        press(FahrplanApp.ST_NEAR)
+        temple(GestureKind.SCROLL_DOWN, FahrplanApp.PLAN_FIXED + 3)
+        temple(GestureKind.CLICK)
         ports.location.lines.last().fix(Fixtures.LAT, Fixtures.LON)
         settle()
         answerRequests()
-        top()
         save("fahrplan-naehe")
     }
 }

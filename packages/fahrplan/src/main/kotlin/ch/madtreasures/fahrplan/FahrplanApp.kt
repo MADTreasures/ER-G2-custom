@@ -5,8 +5,11 @@ import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.AppManifest
 import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.G2App
+import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.HttpRequest
 import ch.madtreasures.g2watch.apps.HttpResult
+import ch.madtreasures.g2watch.apps.InputMode
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.MenuItem
 import ch.madtreasures.g2watch.apps.Page
 import ch.madtreasures.g2watch.apps.Permission
@@ -23,19 +26,19 @@ import java.time.ZonedDateTime
 import java.util.Locale
 
 /**
- * The Swiss timetable on the glasses (README.md of the package): connections from a stop – or from where the watch
- * is – to another, now or at a time, with platforms, delays, changes and the stops on the way, and the departures
- * of a stop, also of the stops near the watch. The data comes from transport.opendata.ch ([Timetable]).
+ * The Swiss timetable on the glasses, laid out and worked like the SBB app (README.md of the package): Planen with
+ * from and to, the connections as cards with the journey bar, "Ihre Reise" from stop to stop with the stops on the
+ * way, the departures of a stop and the trip of a departure, the stops nearby. The data comes from
+ * transport.opendata.ch ([Timetable]); no tickets, no login, no SwissPass.
  *
- * Names and times are typed on the watch, or with a Bluetooth keyboard on the glasses ([AppContext.askText]); a
- * name becomes a stop through the timetable's search, and the stops used last come as suggestions. "Mein Standort"
- * is the watch's GPS, asked for only while it is needed.
+ * Every page is one picture ([Painter]) that the app draws itself; the temples, the watch and the keys of a
+ * keyboard move the frame from line to line (swiping), a tap opens what it frames, a long press does the page's
+ * second thing (swap, refresh, connection from here). Swiping past the first or last connection or departure loads
+ * earlier or later ones, as scrolling does in the SBB app. A stop is typed on the watch, or with a Bluetooth keyboard
+ * right on the glasses, where the stops that fit come while typing.
  *
- * Pages: the start ([P_START]: from, to, when, the searches used last, departures), the choice among stops of a
- * similar name ([P_PICK]), the connections ([P_RESULTS]), one connection ([P_DETAIL]) and the stops of one of its
- * rides ([P_STOPS]), the departures of a stop ([P_BOARD]) and the stops nearby ([P_NEAR]). While connections or
- * departures show, they are asked for again every minute, for the delays; a connection that has been chosen stays
- * on its page even when it has left, so that it can be followed on the way.
+ * While connections, a journey or departures show, they are asked for again every minute and their delays and
+ * platforms follow; a chosen journey stays on its page after it left, so that it can be followed on the way.
  */
 class FahrplanApp(
     private val clock: () -> Long = System::currentTimeMillis,
@@ -45,12 +48,13 @@ class FahrplanApp(
         id = ID,
         name = "Fahrplan",
         version = VERSION,
+        input = InputMode.GESTURES,
         permissions = setOf(Permission.NETWORK, Permission.LOCATION),
-        description = "Verbindungen und Abfahrten im ganzen Schweizer ÖV, mit Gleis, Verspätung und Umsteigen; eingegeben auf der Uhr oder mit einer Tastatur.",
+        description = "Verbindungen und Abfahrten im ganzen Schweizer ÖV wie in der SBB-App, mit Gleis, Verspätung und Umsteigen; eingegeben auf der Uhr oder mit einer Tastatur.",
     )
 
     private lateinit var ui: AppContext
-    private val shown = Shown()
+    private var painter: Painter? = null
 
     /** The pages as the host keeps them, oldest first: show puts one on top, replace swaps it, back takes it off. */
     private val stack = ArrayList<String>()
@@ -58,15 +62,19 @@ class FahrplanApp(
     private var shownMenu: List<MenuItem>? = null
     private var refreshing = false
     private var locating = false
+    private var listening = false
 
-    // What to search: from null is "Mein Standort", at null is now.
+    /** A page waiting for its picture before it shows; with [pendingReplace] in place of the one on top. */
+    private var pendingShow: String? = null
+    private var pendingReplace = false
+    private val scrolls = HashMap<String, Int>()
+    private val paints = HashMap<String, Int>()
+
+    // What to search: from null is the watch's position ("Aktueller Standort"), at null is now.
     private var from: Place? = null
     private var to: Place? = null
     private var at: Long? = null
     private var arrival = false
-
-    /** The connections are searched as soon as the destination is chosen. */
-    private var searchAfter = false
 
     // Kept in the app's store.
     private var routes: List<Route> = emptyList()
@@ -77,34 +85,55 @@ class FahrplanApp(
     private var fixAt = 0L
     private var waiting: Wait? = null
 
-    // A name typed for a stop: being looked up ([lookingUp]), then chosen from [candidates] on the pick page.
-    private var lookingUp: Field? = null
-    private var picking: Field? = null
-    private var typed = ""
-    private var candidates: List<Place> = emptyList()
-    private var lookupError: String? = null
+    // Planen.
+    private var planFocus = 0
+
+    // Typing a stop: for which field, what is typed, what fits.
+    private var field: Field? = null
+    private var query = ""
+    private var typing = false
+    private var found: List<Place> = emptyList()
+    private var searchSelected = 0
     private var lookupNo = 0
+    private var lookupLoading = false
+    private var lookupError: String? = null
+
+    /** The connections are searched as soon as the destination is chosen. */
+    private var searchAfter = false
 
     // Connections.
     private var search: Search? = null
+    private var searchedAt = 0L
     private var connections: List<Connection> = emptyList()
+    private var connSelected = 0
     private var connLoading = false
+    private var loadingEarlier = false
+    private var loadingLater = false
     private var connError: String? = null
     private var connNo = 0
+    private var moreNo = 0
+
+    // Ihre Reise.
     private var chosen: Connection? = null
     private var chosenNo = 0
-    private var leg = 0
+    private var journeySelected = 0
+    private val openRides = HashSet<Int>()
 
-    // Departures.
+    // Departures and the trip of one.
     private var boardPlace: Place? = null
     private var boardAt: Long? = null
     private var departures: List<Departure> = emptyList()
+    private var boardSelected = 0
     private var boardLoading = false
+    private var boardMore = false
     private var boardError: String? = null
     private var boardNo = 0
+    private var trip: Departure? = null
+    private var tripSelected = 0
 
     // Stops nearby.
     private var nearby: List<Place> = emptyList()
+    private var nearSelected = 0
     private var nearLoading = false
     private var nearError: String? = null
     private var nearNo = 0
@@ -122,18 +151,18 @@ class FahrplanApp(
                 pageChanged()
             }
             AppEvent.Stop -> Unit
-            is AppEvent.Click -> click(event.block)
-            is AppEvent.Toggle -> if (event.block == ST_ARRIVAL) {
-                arrival = event.on
-                render()
-            }
+            is AppEvent.Gesture -> gesture(event.gesture)
+            is AppEvent.Key -> key(event)
             is AppEvent.Navigate -> {
                 if (stack.lastOrNull() != event.to) stack += event.to
                 pageChanged()
             }
             is AppEvent.Back -> {
                 if (stack.size > 1) stack.removeAt(stack.lastIndex)
-                if (stack.lastOrNull() != P_PICK) lookingUp = null
+                if (top() != P_SEARCH) {
+                    typing = false
+                    field = null
+                }
                 pageChanged()
             }
             is AppEvent.Menu -> menu(event.item)
@@ -142,40 +171,69 @@ class FahrplanApp(
             is AppEvent.Timer -> when (event.tag) {
                 T_REFRESH -> refresh()
                 T_FIX -> noFix()
+                T_TYPE -> lookupTyped()
             }
             else -> Unit
         }
     }
 
     private fun start() {
+        val files = listOf(Font.SMALL, Font.LABEL, Font.TEXT).associate { fontPath(it) to ui.asset(fontPath(it)) }
+        if (files.values.any { it == null }) ui.log("Schriften fehlen") else painter = Painter(Fonts { files[it] })
         load()
-        render()
-        show(P_START)
+        planFocus = if (to == null) 1 else 0
+        ui.definePages(PAGES.map { (id, name) -> Page(id, name, listOf(Block.Image(image(id), null, Painter.W, Painter.H)), input = InputMode.GESTURES) })
+        go(P_PLAN)
     }
 
     private fun now(): ZonedDateTime = Instant.ofEpochMilli(clock()).atZone(zone)
 
-    // --- Pages --------------------------------------------------------------------------------------------
+    // --- Pages: pictures and navigation ---------------------------------------------------------------------
 
-    /** All pages from the state; what changed goes to the glasses, and the menu, the timer and the GPS follow. */
+    /** Shows [page] once its picture is drawn, on top or with [replace] in place of the one on top. */
+    private fun go(page: String, replace: Boolean = false) {
+        pendingShow = page
+        pendingReplace = replace
+        paint(page)
+    }
+
+    /** Draws the page on top again (and the one waiting to show). */
     private fun render() {
-        shown.sync(ui, listOf(startPage(), pickPage(), resultsPage(), detailPage(), stopsPage(), boardPage(), nearPage()))
+        pendingShow?.let { paint(it) }
+        top()?.takeIf { it != pendingShow }?.let { paint(it) }
         pageChanged()
     }
 
-    private fun show(page: String) {
-        ui.show(page)
-        if (stack.lastOrNull() != page) stack += page
-        pageChanged()
+    private fun paint(page: String) {
+        val p = painter ?: return showPending(page)
+        val screen = screen(page)
+        val scroll = scrolls[page] ?: 0
+        val no = (paints[page] ?: 0) + 1
+        paints[page] = no
+        ui.work("bild_$page", { p.paint(screen, scroll) }) { result ->
+            if (paints[page] != no) return@work
+            result.onSuccess { painted ->
+                scrolls[page] = painted.scroll
+                ui.patch(page) { image(image(page), painted.dataUrl, Painter.W, Painter.H) }
+            }.onFailure { ui.log("Bild $page: ${it.message}") }
+            showPending(page)
+        }
     }
 
-    /** [page] in place of the one on top; if it lies right below, back to it (as the host does). */
-    private fun replace(page: String) {
-        ui.replace(page)
-        when {
-            stack.isEmpty() -> stack += page
-            stack.size >= 2 && stack[stack.lastIndex - 1] == page -> stack.removeAt(stack.lastIndex)
-            else -> stack[stack.lastIndex] = page
+    private fun showPending(page: String) {
+        if (pendingShow != page) return
+        pendingShow = null
+        if (top() == page) return pageChanged()
+        if (pendingReplace) {
+            ui.replace(page)
+            when {
+                stack.isEmpty() -> stack += page
+                stack.size >= 2 && stack[stack.lastIndex - 1] == page -> stack.removeAt(stack.lastIndex)
+                else -> stack[stack.lastIndex] = page
+            }
+        } else {
+            ui.show(page)
+            stack += page
         }
         pageChanged()
     }
@@ -186,179 +244,26 @@ class FahrplanApp(
         updateMenu()
         updateRefresh()
         updateLocating()
+        updateKeys()
     }
 
-    private fun startPage(): Page {
-        val blocks = ArrayList<Block>()
-        blocks += Block.Button(ST_FROM, "Von: " + fieldText(Field.FROM))
-        blocks += Block.Button(ST_TO, "Nach: " + fieldText(Field.TO))
-        blocks += Block.Button(ST_WHEN, "Wann: " + When.label(at, now()))
-        blocks += Block.Toggle(ST_ARRIVAL, "Zeit gilt für die Ankunft", arrival)
-        blocks += Block.Button(ST_SEARCH, "Verbindungen suchen")
-        val recent = routes.take(SHOWN_ROUTES)
-        if (recent.isNotEmpty()) {
-            blocks += Block.Divider(ST_LINE)
-            blocks += Block.Text(ST_RECENT, "Zuletzt gesucht")
-            recent.forEachIndexed { i, r -> blocks += Block.Button("$ST_ROUTE$i", "${r.from?.name ?: HERE} → ${r.to.name}") }
-        }
-        blocks += Block.Divider(ST_LINE2)
-        blocks += Block.Button(ST_NEAR, "Abfahrten in der Nähe")
-        blocks += Block.Button(ST_BOARD, "Abfahrten einer Haltestelle")
-        return Page(P_START, "Verbindung", blocks)
+    /** What [page] shows now, as the painter draws it (and the tests read it). */
+    fun screen(page: String): Screen = when (page) {
+        P_PLAN -> planScreen()
+        P_SEARCH -> searchScreen()
+        P_RESULTS -> connectionsScreen()
+        P_JOURNEY -> journeyScreen()
+        P_BOARD -> boardScreen()
+        P_TRIP -> tripScreen()
+        else -> nearScreen()
     }
 
-    private fun fieldText(field: Field): String = when {
-        lookingUp == field -> "suche „$typed“ …"
-        field == Field.FROM -> from?.name ?: HERE
-        else -> to?.name ?: "bitte wählen"
-    }
+    // --- Planen -----------------------------------------------------------------------------------------------
 
-    private fun pickPage(): Page {
-        val blocks = ArrayList<Block>()
-        val question = when (picking) {
-            Field.FROM -> "Von welcher Haltestelle?"
-            Field.TO -> "Zu welcher Haltestelle?"
-            Field.BOARD, null -> "Abfahrten welcher Haltestelle?"
-        }
-        blocks += Block.Text(PI_INFO, lookupError ?: question)
-        if (picking == Field.FROM) blocks += Block.Button(PI_HERE, HERE)
-        candidates.forEachIndexed { i, p -> blocks += Block.Button("$PI_PLACE$i", p.name) }
-        if (lookupError == OFFLINE) blocks += Block.Button(PI_RETRY, "Nochmals")
-        blocks += Block.Button(PI_AGAIN, "Anders eingeben")
-        return Page(P_PICK, "Haltestelle", blocks)
-    }
-
-    /**
-     * While the connections load, the page has nothing to click: when they come, the host then puts the focus on
-     * the first one in view, at the top of the page, instead of keeping it on a button that moved down.
-     */
-    private fun resultsPage(): Page {
-        val s = search
-        val blocks = ArrayList<Block>()
-        blocks += Block.Heading(VE_ROUTE, if (s == null) "Verbindungen" else "${s.from?.name ?: HERE} → ${s.to.name}")
-        blocks += Block.Text(VE_INFO, resultsInfo())
-        if (connections.isNotEmpty()) {
-            blocks += Block.Button(VE_EARLIER, "Frühere")
-            connections.forEachIndexed { i, c -> blocks += Block.Button("$VE_CONN$i", Format.row(c, zone)) }
-            blocks += Block.Button(VE_LATER, "Spätere")
-            if (s?.from != null) blocks += Block.Button(VE_RETURN, "Rückfahrt")
-        } else if (connError != null && !connLoading && waiting != Wait.SEARCH) {
-            blocks += Block.Button(VE_AGAIN, "Nochmals")
-        }
-        blocks += Block.Text(VE_SOURCE, Timetable.SOURCE)
-        return Page(P_RESULTS, "Verbindungen", blocks)
-    }
-
-    private fun resultsInfo(): String {
-        val list = connections
-        val error = connError
-        return when {
-            waiting == Wait.SEARCH -> "Suche den Standort …"
-            list.isEmpty() && connLoading -> "Suche Verbindungen …"
-            list.isEmpty() -> error ?: ""
-            else -> {
-                val first = list.first().from.departure!!
-                val last = list.last().from.departure!!
-                val day = Format.capital(Format.day(first, now().toLocalDate(), zone))
-                val window = if (list.size == 1) "Abfahrt ${Format.clock(first, zone)}" else "Abfahrten ${Format.clock(first, zone)} bis ${Format.clock(last, zone)}"
-                "$day · $window" + if (error != null) " · nicht aktuell" else ""
-            }
-        }
-    }
-
-    private fun detailPage(): Page {
-        val c = chosen ?: return Page(P_DETAIL, "Verbindung", listOf(Block.Text(DE_NONE, "Keine Verbindung gewählt.")))
-        val blocks = ArrayList<Block>()
-        blocks += Block.Heading(DE_TIMES, Format.times(c, zone))
-        blocks += Block.Text(DE_INFO, "${Format.duration(c.minutes)} · ${Format.transfers(c.transfers)}")
-        var previous: Leg? = null
-        c.legs.forEachIndexed { i, l ->
-            val line = l.line
-            if (line == null) {
-                blocks += Block.Text("$DE_WALK$i", Format.walk(l))
-            } else {
-                val before = previous
-                val arrived = before?.arrival?.arrival
-                val leaves = l.departure.departure
-                if (before?.line != null && arrived != null && leaves != null) {
-                    blocks += Block.Text("$DE_CHANGE$i", "${((leaves - arrived) / 60).coerceAtLeast(0)} Min. zum Umsteigen")
-                }
-                blocks += Block.Value("$DE_DEP$i", Format.stop(l.departure.departure, l.departure, zone), Format.platform(l.departure, line))
-                blocks += Block.Button("$DE_LEG$i", "${line.label} nach ${line.direction}")
-                blocks += Block.Value("$DE_ARR$i", Format.stop(l.arrival.arrival, l.arrival, zone), Format.platform(l.arrival, line))
-            }
-            previous = l
-        }
-        blocks += Block.Text(DE_SOURCE, Timetable.SOURCE)
-        return Page(P_DETAIL, "Verbindung", blocks)
-    }
-
-    private fun stopsPage(): Page {
-        val l = chosen?.legs?.getOrNull(leg)
-        val line = l?.line ?: return Page(P_STOPS, "Halte", listOf(Block.Text(HA_NONE, "Keine Fahrt gewählt.")))
-        val blocks = ArrayList<Block>()
-        blocks += Block.Heading(HA_TITLE, "${line.label} nach ${line.direction}")
-        l.stops.forEachIndexed { i, s ->
-            val time = if (i == 0) s.departure ?: s.arrival else s.arrival ?: s.departure
-            blocks += Block.Value("$HA_STOP$i", Format.stop(time, s, zone), Format.platform(s, line))
-        }
-        return Page(P_STOPS, "Halte", blocks)
-    }
-
-    private fun boardPage(): Page {
-        val blocks = ArrayList<Block>()
-        blocks += Block.Heading(AB_STATION, boardPlace?.name ?: "Abfahrten")
-        blocks += Block.Text(AB_INFO, boardInfo())
-        departures.forEachIndexed { i, d ->
-            val label = "${Format.clock(d.time, zone)}${Format.delay(d.delay)} ${d.line.label} ${d.line.direction}"
-            blocks += Block.Value("$AB_DEP$i", label, Format.platform(d.platform, d.newPlatform, d.line))
-        }
-        // As on the connections: nothing to click until the departures are there.
-        if (departures.isNotEmpty()) {
-            blocks += Block.Button(AB_LATER, "Spätere")
-            if (boardPlace != null) blocks += Block.Button(AB_ROUTE, "Verbindung ab hier")
-        } else if (boardError != null && !boardLoading) {
-            blocks += Block.Button(AB_AGAIN, "Nochmals")
-        }
-        blocks += Block.Text(AB_SOURCE, Timetable.SOURCE)
-        return Page(P_BOARD, "Abfahrten", blocks)
-    }
-
-    private fun boardInfo(): String {
-        val first = departures.firstOrNull()
-        val error = boardError
-        return when {
-            first == null && boardLoading -> "Lade die Abfahrten …"
-            first == null -> error ?: ""
-            else -> Format.capital(Format.day(first.time, now().toLocalDate(), zone)) + " ab ${Format.clock(first.time, zone)}" +
-                if (error != null) " · nicht aktuell" else ""
-        }
-    }
-
-    private fun nearPage(): Page {
-        val blocks = ArrayList<Block>()
-        val info = when {
-            waiting == Wait.NEAR -> "Suche den Standort …"
-            nearLoading -> "Suche Haltestellen in der Nähe …"
-            nearError != null -> nearError!!
-            else -> "Antippen zeigt die Abfahrten."
-        }
-        blocks += Block.Text(NA_INFO, info)
-        nearby.forEachIndexed { i, p -> blocks += Block.Button("$NA_PLACE$i", "${p.name} · ${Format.distance(p.distance)}") }
-        if (nearError != null && !nearLoading && waiting == null) blocks += Block.Button(NA_AGAIN, "Nochmals")
-        blocks += Block.Text(NA_SOURCE, Timetable.SOURCE)
-        return Page(P_NEAR, "In der Nähe", blocks)
-    }
-
-    // --- Clicks and answers -------------------------------------------------------------------------------
-
-    private fun click(block: String) {
-        when {
-            block == ST_FROM -> ask(Field.FROM)
-            block == ST_TO -> ask(Field.TO)
-            block == ST_WHEN -> ui.askText(ASK_WHEN, "Wann? Etwa 17:30, morgen 7:15, in 20 Min.", WHEN_SUGGESTIONS)
-            block == ST_SEARCH -> searchNow()
-            block.startsWith(ST_ROUTE) -> index(block, ST_ROUTE)?.let { routes.getOrNull(it) }?.let { r ->
+    private fun planRows(): List<Pair<Row, () -> Unit>> {
+        val rows = ArrayList<Pair<Row, () -> Unit>>()
+        for (r in routes.take(SHOWN_ROUTES)) {
+            rows += Row("${r.from?.name ?: HERE} → ${r.to.name}", Icon.HISTORY) to {
                 from = r.from
                 to = r.to
                 at = null
@@ -366,51 +271,257 @@ class FahrplanApp(
                 save()
                 searchNow()
             }
-            block == ST_NEAR -> openNearby()
-            block == ST_BOARD -> ask(Field.BOARD)
-            block == PI_HERE -> {
-                from = null
-                save()
-                render()
-                leavePick()
+        }
+        rows += Row("Abfahrten in der Nähe", Icon.NEAR) to { openNearby() }
+        rows += Row("Abfahrten einer Haltestelle", Icon.BOARD) to { input(Field.BOARD) }
+        return rows
+    }
+
+    private fun planScreen() = PlanScreen(
+        from = from?.name ?: HERE,
+        fromHere = from == null,
+        to = to?.name,
+        time = timeLabel(),
+        rows = planRows().map { it.first },
+        focus = planFocus,
+    )
+
+    private fun timeLabel(): String {
+        val word = if (arrival) "Ankunft" else "Abfahrt"
+        val t = at ?: return "Jetzt · $word"
+        return "${Format.capital(When.label(t, now()))} · $word"
+    }
+
+    private fun planGesture(g: GestureKind) {
+        val rows = planRows()
+        val last = PLAN_FIXED + rows.size - 1
+        when (g) {
+            GestureKind.SCROLL_DOWN -> planFocus = (planFocus + 1).coerceAtMost(last)
+            GestureKind.SCROLL_UP -> planFocus = (planFocus - 1).coerceAtLeast(0)
+            GestureKind.LONG_PRESS -> return swap()
+            GestureKind.CLICK -> return when (planFocus) {
+                0 -> input(Field.FROM)
+                1 -> input(Field.TO)
+                2 -> swap()
+                3 -> askWhen()
+                else -> rows.getOrNull(planFocus - PLAN_FIXED)?.second?.invoke() ?: Unit
             }
-            block.startsWith(PI_PLACE) -> index(block, PI_PLACE)?.let { candidates.getOrNull(it) }?.let { p -> picking?.let { chose(it, p) } }
-            block == PI_RETRY -> picking?.let { lookup(it, typed) }
-            block == PI_AGAIN -> picking?.let { ask(it) }
-            block == VE_EARLIER -> shift(earlier = true)
-            block == VE_LATER -> shift(earlier = false)
-            block == VE_AGAIN -> search?.let { run(it) }
-            block == VE_RETURN -> returnTrip()
-            block.startsWith(VE_CONN) -> index(block, VE_CONN)?.let { connections.getOrNull(it) }?.let { c ->
-                chosen = c
-                render()
-                show(P_DETAIL)
-            }
-            block.startsWith(DE_LEG) -> index(block, DE_LEG)?.let { i ->
-                leg = i
-                render()
-                show(P_STOPS)
-            }
-            block == AB_LATER -> departures.lastOrNull()?.let {
-                boardAt = (it.time + 60) * 1000
-                loadBoard()
-            }
-            block == AB_AGAIN -> loadBoard()
-            block == AB_ROUTE -> routeFromBoard()
-            block.startsWith(NA_PLACE) -> index(block, NA_PLACE)?.let { nearby.getOrNull(it) }?.let { openBoard(it) }
-            block == NA_AGAIN -> locateNearby()
+            else -> return
+        }
+        paint(P_PLAN)
+    }
+
+    private fun swap() {
+        val a = from
+        val b = to ?: return
+        if (a == null) {
+            ui.toast("„$HERE“ kann nicht Ziel sein.", NOTE_MS)
+            return
+        }
+        from = b
+        to = a
+        save()
+        paint(P_PLAN)
+    }
+
+    private fun askWhen() = ui.askText(ASK_WHEN, "Wann? Etwa 17:30, an 8:15, morgen 7:00", WHEN_SUGGESTIONS)
+
+    // --- Typing a stop ----------------------------------------------------------------------------------------
+
+    /** The stop for [f]: typed on the glasses with a keyboard, the stops that fit coming while typing, else asked on the watch. */
+    private fun input(f: Field) {
+        field = f
+        query = ""
+        found = emptyList()
+        lookupError = null
+        lookupLoading = false
+        searchSelected = 0
+        typing = ui.keyboard
+        if (typing) {
+            scrolls[P_SEARCH] = 0
+            go(P_SEARCH)
+        } else {
+            ask(f)
         }
     }
 
-    private fun index(block: String, prefix: String): Int? = block.removePrefix(prefix).toIntOrNull()
-
-    private fun ask(field: Field) {
+    private fun ask(f: Field) {
         val names = places.map { it.name.take(MAX_SUGGESTION) }
-        when (field) {
+        when (f) {
             Field.FROM -> ui.askText(ASK_FROM, "Von wo?", (listOf(HERE) + names).distinct().take(MAX_SUGGESTIONS))
             Field.TO -> ui.askText(ASK_TO, "Wohin?", names.filter { it != from?.name }.take(MAX_SUGGESTIONS))
             Field.BOARD -> ui.askText(ASK_BOARD, "Abfahrten von wo?", names.take(MAX_SUGGESTIONS))
         }
+    }
+
+    /** The lines of the stop page with what each does. */
+    private fun searchRows(): List<Pair<Row, () -> Unit>> {
+        val f = field ?: return emptyList()
+        val rows = ArrayList<Pair<Row, () -> Unit>>()
+        if (query.isEmpty()) {
+            if (f == Field.FROM) rows += Row(HERE, Icon.HERE) to { choseHere() }
+            for (p in places) rows += Row(p.name, p.icon) to { chose(f, p) }
+        } else {
+            for (p in found) rows += Row(p.name, p.icon) to { chose(f, p) }
+        }
+        if (!typing) rows += Row("Anders eingeben", Icon.TYPE) to { ask(f) }
+        return rows
+    }
+
+    private fun searchScreen(): ListScreen {
+        val label = when (field) {
+            Field.FROM -> "Von"
+            Field.TO -> "Nach"
+            Field.BOARD, null -> "Abfahrten von"
+        }
+        val note = when {
+            lookupLoading && found.isEmpty() -> "Suche Haltestellen …"
+            lookupError != null -> lookupError
+            typing && query.isEmpty() -> "Tippe den Namen der Haltestelle."
+            else -> null
+        }
+        return ListScreen(null, label, query, typing, searchRows().map { it.first }, searchSelected, note)
+    }
+
+    private fun searchGesture(g: GestureKind) {
+        val rows = searchRows()
+        when (g) {
+            GestureKind.SCROLL_DOWN -> searchSelected = (searchSelected + 1).coerceAtMost((rows.size - 1).coerceAtLeast(0))
+            GestureKind.SCROLL_UP -> searchSelected = (searchSelected - 1).coerceAtLeast(0)
+            GestureKind.CLICK -> return rows.getOrNull(searchSelected)?.second?.invoke() ?: Unit
+            GestureKind.LONG_PRESS -> return field?.let { ask(it) } ?: Unit
+            else -> return
+        }
+        paint(P_SEARCH)
+    }
+
+    /** A key of the keyboard while a stop is typed on the glasses. */
+    private fun key(k: AppEvent.Key) {
+        if (top() != P_SEARCH || !typing) return
+        when {
+            k.key == Keys.ENTER -> return searchRows().getOrNull(searchSelected)?.second?.invoke() ?: Unit
+            k.key == Keys.ARROW_DOWN -> return searchGesture(GestureKind.SCROLL_DOWN)
+            k.key == Keys.ARROW_UP -> return searchGesture(GestureKind.SCROLL_UP)
+            k.key == Keys.BACKSPACE -> query = query.dropLast(1)
+            k.text.isNotEmpty() && !k.ctrl && !k.alt && !k.meta -> query = (query + k.text).take(MAX_QUERY)
+            else -> return
+        }
+        searchSelected = 0
+        if (query.length >= MIN_TYPED) ui.timer(T_TYPE, TYPE_MS) else {
+            ui.cancelTimer(T_TYPE)
+            found = emptyList()
+            lookupLoading = false
+            lookupError = null
+        }
+        paint(P_SEARCH)
+    }
+
+    /** The stops that fit what is typed so far, as the SBB app shows them while typing. */
+    private fun lookupTyped() {
+        val f = field ?: return
+        if (query.length < MIN_TYPED) return
+        fetchPlaces(f, query, pickExact = false)
+    }
+
+    /** The stop the wearer means by [text] (answered on the watch): one used before, the only fitting one, or a choice. */
+    private fun lookup(f: Field, text: String) {
+        places.firstOrNull { same(it.name, text) }?.let { return chose(f, it) }
+        field = f
+        query = text
+        typing = false
+        found = emptyList()
+        searchSelected = 0
+        fetchPlaces(f, text, pickExact = true)
+    }
+
+    private fun fetchPlaces(f: Field, text: String, pickExact: Boolean) {
+        lookupLoading = true
+        lookupError = null
+        val no = ++lookupNo
+        if (top() == P_SEARCH) paint(P_SEARCH)
+        ui.fetch(HttpRequest(Timetable.placesUrl(text))) { r ->
+            if (no != lookupNo || field != f) return@fetch
+            lookupLoading = false
+            val list = if (r.ok) Timetable.places(r.body) else null
+            when {
+                list == null -> {
+                    ui.log("Haltestellen: ${problem(r)}")
+                    found = emptyList()
+                    lookupError = OFFLINE
+                }
+                list.isEmpty() -> {
+                    found = emptyList()
+                    lookupError = "Keine Haltestelle „$text“ gefunden."
+                }
+                pickExact && same(list.first().name, text) -> return@fetch chose(f, list.first())
+                else -> {
+                    found = list
+                    lookupError = null
+                }
+            }
+            searchSelected = 0
+            if (top() == P_SEARCH) paint(P_SEARCH) else go(P_SEARCH)
+        }
+    }
+
+    private fun choseHere() {
+        from = null
+        save()
+        // With the destination there the connections follow at once, in place of the stop page.
+        if (to != null) {
+            endTyping()
+            searchNow()
+        } else {
+            leaveSearch()
+        }
+    }
+
+    private fun chose(f: Field, place: Place) {
+        remember(place)
+        ui.cancelTimer(T_TYPE)
+        when (f) {
+            Field.FROM -> {
+                from = place
+                save()
+                if (to != null) {
+                    endTyping()
+                    searchNow()
+                } else {
+                    leaveSearch()
+                }
+            }
+            Field.TO -> {
+                // As in the SBB app: with the destination chosen the connections show.
+                to = place
+                save()
+                planFocus = 0
+                endTyping()
+                searchNow()
+            }
+            Field.BOARD -> {
+                save()
+                typing = false
+                field = null
+                openBoard(place, replace = top() == P_SEARCH)
+            }
+        }
+    }
+
+    /** Back to Planen, which lies below the stop page. */
+    private fun leaveSearch() {
+        endTyping()
+        if (top() == P_SEARCH) go(P_PLAN, replace = true) else paint(P_PLAN)
+    }
+
+    private fun endTyping() {
+        typing = false
+        field = null
+        ui.cancelTimer(T_TYPE)
+    }
+
+    private fun remember(place: Place) {
+        val p = place.copy(distance = null)
+        places = (listOf(p) + places.filter { !same(it.name, p.name) }).take(MAX_PLACES)
     }
 
     private fun answer(tag: String, text: String?) {
@@ -420,155 +531,94 @@ class FahrplanApp(
             return
         }
         when (tag) {
-            ASK_FROM -> if (same(t, HERE)) {
-                from = null
-                save()
-                render()
-            } else {
-                lookup(Field.FROM, t)
-            }
+            ASK_FROM -> if (same(t, HERE) || same(t, "Mein Standort")) choseHere() else lookup(Field.FROM, t)
             ASK_TO -> lookup(Field.TO, t)
             ASK_BOARD -> lookup(Field.BOARD, t)
-            ASK_WHEN -> when (val a = When.parse(t, now())) {
-                null -> ui.toast("„$t“ verstehe ich nicht. Etwa 17:30, morgen 7:15 oder in 20 Min.", NOTE_MS)
-                When.Answer.Now -> {
-                    at = null
-                    render()
-                }
-                is When.Answer.At -> {
-                    at = a.ms
-                    render()
-                }
-            }
+            ASK_WHEN -> setWhen(t)
         }
     }
 
-    // --- Stops by name ------------------------------------------------------------------------------------
-
-    /** The stop the wearer means by [text]: one used before, the only fitting one, or a choice on the pick page. */
-    private fun lookup(field: Field, text: String) {
-        places.firstOrNull { same(it.name, text) }?.let {
-            chose(field, it)
-            return
+    /** "17:30", "an 8:15" (arrival), "ab 9" (departure), "morgen 7:00", "jetzt" … */
+    private fun setWhen(text: String) {
+        val words = text.lowercase(Locale.GERMAN).split(' ')
+        val kind = when (words.first()) {
+            "an", "ankunft" -> true
+            "ab", "abfahrt" -> false
+            else -> null
         }
-        lookingUp = field
-        typed = text
-        lookupError = null
-        val no = ++lookupNo
-        render()
-        ui.fetch(HttpRequest(Timetable.placesUrl(text))) { r ->
-            if (no != lookupNo || lookingUp != field) return@fetch
-            lookingUp = null
-            val found = if (r.ok) Timetable.places(r.body) else null
-            when {
-                found == null -> {
-                    ui.log("Haltestellen: ${problem(r)}")
-                    candidates = emptyList()
-                    lookupError = OFFLINE
-                    openPick(field)
-                }
-                found.isEmpty() -> {
-                    candidates = emptyList()
-                    lookupError = "Keine Haltestelle „$text“ gefunden."
-                    openPick(field)
-                }
-                same(found.first().name, text) -> chose(field, found.first())
-                else -> {
-                    candidates = found
-                    lookupError = null
-                    openPick(field)
-                }
+        when (val a = When.parse(text, now())) {
+            null -> return ui.toast("„$text“ verstehe ich nicht. Etwa 17:30, an 8:15 oder morgen 7:00.", NOTE_MS)
+            When.Answer.Now -> {
+                at = null
+                arrival = kind ?: false
+            }
+            is When.Answer.At -> {
+                at = a.ms
+                kind?.let { arrival = it }
             }
         }
+        if (to != null) searchNow() else paint(P_PLAN)
     }
 
-    private fun openPick(field: Field) {
-        picking = field
-        render()
-        if (top() != P_PICK) show(P_PICK)
-    }
-
-    private fun leavePick() {
-        if (top() == P_PICK) replace(P_START)
-    }
-
-    private fun chose(field: Field, place: Place) {
-        lookingUp = null
-        remember(place)
-        when (field) {
-            Field.FROM -> {
-                from = place
-                save()
-                render()
-                leavePick()
-            }
-            Field.TO -> {
-                to = place
-                save()
-                render()
-                leavePick()
-                if (searchAfter) searchNow()
-            }
-            Field.BOARD -> {
-                save()
-                openBoard(place)
-            }
-        }
-    }
-
-    private fun remember(place: Place) {
-        val p = place.copy(distance = null)
-        places = (listOf(p) + places.filter { !same(it.name, p.name) }).take(MAX_PLACES)
-    }
-
-    // --- Connections --------------------------------------------------------------------------------------
+    // --- Connections ------------------------------------------------------------------------------------------
 
     private fun searchNow() {
         val target = to ?: run {
             searchAfter = true
-            ask(Field.TO)
-            return
+            return input(Field.TO)
         }
         searchAfter = false
         val start = from
         if (start != null && (start.id != null && start.id == target.id || same(start.name, target.name))) {
             ui.toast("Von und Nach sind dieselbe Haltestelle.", NOTE_MS)
+            // Chosen on the stop page: back to Planen, where either can be changed.
+            if (top() == P_SEARCH) go(P_PLAN, replace = true)
             return
         }
-        routes = (listOf(Route(start, target)) + routes.filter { it.key != Route(start, target).key }).take(MAX_ROUTES)
+        val route = Route(start, target)
+        routes = (listOf(route) + routes.filter { it.key != route.key }).take(MAX_ROUTES)
         save()
         chosen = null
+        connections = emptyList()
+        connSelected = 0
+        scrolls[P_RESULTS] = 0
+        searchedAt = at ?: clock()
         run(Search(start, target, at, arrival))
-        if (top() != P_RESULTS) show(P_RESULTS)
+        when (top()) {
+            P_RESULTS -> Unit
+            P_SEARCH -> go(P_RESULTS, replace = true)
+            else -> go(P_RESULTS)
+        }
     }
 
-    /** Searches [s] and shows its connections; [silent]: a refresh, the old ones stay until the new ones are there. */
-    private fun run(s: Search, silent: Boolean = false) {
+    /** Searches [s] and shows its connections in place of the ones shown. */
+    private fun run(s: Search) {
         val origin = s.origin ?: s.from?.let { it.id ?: it.name } ?: here()
-        if (!silent) {
-            connections = emptyList()
-            connError = null
-        }
+        connections = emptyList()
+        connError = null
+        loadingEarlier = false
+        loadingLater = false
         if (origin == null) {
             search = s
             connLoading = false
             ++connNo
             waitFor(Wait.SEARCH)
-            render()
-            return
+            return render()
         }
         val active = s.copy(origin = origin)
         search = active
         connLoading = true
         val no = ++connNo
+        ++moreNo
         render()
         fetchConnections(active, W_RESULTS) { list, error ->
             if (no != connNo) return@fetchConnections
             connLoading = false
             if (list != null) {
+                // An arrival search gives those arriving by then; the one closest to then comes last, and shows.
                 connections = list
+                connSelected = if (active.arrival) (list.size - 1).coerceAtLeast(0) else 0
                 connError = if (list.isEmpty()) "Keine Verbindung gefunden." else null
-                chosen = chosen?.let { c -> list.firstOrNull { it.sameAs(c) } ?: c }
             } else {
                 connError = error
             }
@@ -595,28 +645,209 @@ class FahrplanApp(
         }
     }
 
-    /** Earlier: those arriving before the first shown; later: those leaving after the last. */
-    private fun shift(earlier: Boolean) {
-        val s = search ?: return
+    /** Earlier ones come before the first (those arriving before it), later ones after the last, as scrolling does. */
+    private fun more(earlier: Boolean) {
+        val s = search?.takeIf { it.origin != null } ?: return
         val list = connections.takeIf { it.isNotEmpty() } ?: return
-        run(
-            if (earlier) {
-                s.copy(at = (list.first().to.arrival!! - 60) * 1000, arrival = true)
-            } else {
-                s.copy(at = (list.last().from.departure!! + 60) * 1000, arrival = false)
-            },
+        if (loadingEarlier || loadingLater || connLoading) return
+        if (earlier) loadingEarlier = true else loadingLater = true
+        val probe = if (earlier) {
+            s.copy(at = (list.first().to.arrival!! - 60) * 1000, arrival = true)
+        } else {
+            s.copy(at = (list.last().from.departure!! + 60) * 1000, arrival = false)
+        }
+        val no = ++moreNo
+        render()
+        fetchConnections(probe, if (earlier) W_EARLIER else W_LATER) { got, error ->
+            if (no != moreNo) return@fetchConnections
+            loadingEarlier = false
+            loadingLater = false
+            val fresh = got.orEmpty().filter { c -> connections.none { it.sameAs(c) } }
+            when {
+                got == null -> ui.toast(error ?: OFFLINE, NOTE_MS)
+                fresh.isEmpty() -> ui.toast(if (earlier) "Keine früheren Verbindungen." else "Keine späteren Verbindungen.", NOTE_MS)
+                earlier -> {
+                    connections = (fresh + connections).take(MAX_CONNECTIONS)
+                    connSelected = fresh.size - 1
+                }
+                else -> {
+                    val keep = connections + fresh
+                    val drop = (keep.size - MAX_CONNECTIONS).coerceAtLeast(0)
+                    connections = keep.drop(drop)
+                    connSelected = (connSelected - drop + 1).coerceIn(0, connections.size - 1)
+                }
+            }
+            render()
+        }
+    }
+
+    private fun connectionsScreen(): ConnectionsScreen {
+        val s = search
+        val title = if (s == null) "Verbindungen" else "${s.from?.name ?: HERE} → ${s.to.name}"
+        val subtitle = if (s == null) "" else {
+            val t = Instant.ofEpochMilli(searchedAt).atZone(zone)
+            "${Format.capital(Format.day(t.toLocalDate(), now().toLocalDate()))} ${if (s.arrival && s.at != null) "an" else "ab"} ${Format.clock(searchedAt / 1000, zone)}"
+        }
+        val note = when {
+            waiting == Wait.SEARCH -> "Suche den Standort …"
+            connLoading && connections.isEmpty() -> "Suche Verbindungen …"
+            connections.isEmpty() -> connError
+            else -> null
+        }
+        val any = connections.isNotEmpty()
+        return ConnectionsScreen(
+            title = title,
+            subtitle = subtitle,
+            cards = connections.map { card(it) },
+            selected = connSelected,
+            note = note,
+            earlier = if (!any) null else if (loadingEarlier) "Lade frühere Verbindungen …" else "Frühere Verbindungen",
+            later = if (!any) null else if (loadingLater) "Lade spätere Verbindungen …" else "Spätere Verbindungen",
         )
     }
 
-    /** Back from where the connections go to where they came from; offered on the connections only. */
+    private fun card(c: Connection): Card {
+        val rides = c.rides
+        val first = rides.firstOrNull()
+        return Card(
+            badges = rides.map { it.line!!.label },
+            direction = first?.line?.let { "Richtung ${it.direction}" } ?: "zu Fuß",
+            departure = Format.clock(c.from.departure!!, zone),
+            departureDelay = delay(c.from.delay),
+            arrival = Format.clock(c.to.arrival!!, zone),
+            arrivalDelay = delay(c.to.delay),
+            spans = spans(c),
+            platform = first?.let { platformText(it.departure, it.line!!) },
+            platformChanged = first?.departure?.let { it.newPlatform != null && it.platform != null } ?: false,
+            info = if (c.transfers == 0) Format.duration(c.minutes) else "${Format.transfers(c.transfers)} · ${Format.duration(c.minutes)}",
+        )
+    }
+
+    /** The parts of the journey bar, by time: the rides, and the walks dotted. */
+    private fun spans(c: Connection): List<Span> {
+        val start = c.from.departure!!
+        val total = (c.to.arrival!! - start).coerceAtLeast(1).toDouble()
+        return c.legs.map { leg ->
+            val a = leg.departure.departure ?: leg.departure.arrival ?: start
+            val b = leg.arrival.arrival ?: leg.arrival.departure ?: a
+            Span(((a - start) / total).coerceIn(0.0, 1.0), ((b - start) / total).coerceIn(0.0, 1.0), leg.line == null)
+        }
+    }
+
+    private fun resultsGesture(g: GestureKind) {
+        val n = connections.size
+        when (g) {
+            GestureKind.SCROLL_DOWN -> if (connSelected < n - 1) connSelected++ else return more(earlier = false)
+            GestureKind.SCROLL_UP -> if (connSelected > 0) connSelected-- else return more(earlier = true)
+            GestureKind.CLICK -> return connections.getOrNull(connSelected)?.let { openJourney(it) } ?: retry()
+            GestureKind.LONG_PRESS -> return refresh()
+            else -> return
+        }
+        paint(P_RESULTS)
+    }
+
+    /** With no connections shown, a tap tries again. */
+    private fun retry() {
+        val s = search ?: return
+        if (connLoading || waiting != null) return
+        run(s.copy(origin = if (s.from == null) null else s.origin))
+    }
+
     private fun returnTrip() {
         val s = search ?: return
-        val back = s.from ?: return
+        val back = s.from ?: return ui.toast("Eine Rückfahrt braucht eine Haltestelle als Start.", NOTE_MS)
         from = s.to
         to = back
         at = null
         arrival = false
         searchNow()
+    }
+
+    // --- Ihre Reise --------------------------------------------------------------------------------------------
+
+    private fun openJourney(c: Connection) {
+        chosen = c
+        openRides.clear()
+        journeySelected = journeyItems(c).indexOfFirst { it is JourneyItem.Ride }.coerceAtLeast(0)
+        scrolls[P_JOURNEY] = 0
+        go(P_JOURNEY)
+    }
+
+    /** The lines of a journey, and for each the index of its leg (rides open and close by it). */
+    private fun journeyLines(c: Connection): List<Pair<JourneyItem, Int>> {
+        val out = ArrayList<Pair<JourneyItem, Int>>()
+        var previous: Leg? = null
+        c.legs.forEachIndexed { i, leg ->
+            val line = leg.line
+            val isFirst = i == 0
+            val isLast = i == c.legs.lastIndex
+            if (line == null) {
+                if (isFirst) out += stopItem(leg.departure, leg.departure.departure, null, end = true) to i
+                out += JourneyItem.Walk(Format.walk(leg)) to i
+                if (isLast) out += stopItem(leg.arrival, leg.arrival.arrival, null, end = true) to i
+            } else {
+                val before = previous
+                if (before?.line != null) {
+                    val gap = ((leg.departure.departure ?: 0) - (before.arrival.arrival ?: 0)) / 60
+                    out += JourneyItem.Change("Umsteigen in ${leg.departure.name} · ${gap.coerceAtLeast(0)} Min.") to i
+                }
+                out += stopItem(leg.departure, leg.departure.departure, line, end = isFirst) to i
+                val between = leg.stops.drop(1).dropLast(1)
+                out += JourneyItem.Ride(line.label, "Richtung ${line.direction}", i in openRides, between.size) to i
+                if (i in openRides) {
+                    for (s in between) out += JourneyItem.Pass(Format.clock(s.arrival ?: s.departure ?: 0, zone), s.name, platformText(s, line), s.id) to i
+                }
+                out += stopItem(leg.arrival, leg.arrival.arrival, line, end = isLast) to i
+            }
+            previous = leg
+        }
+        return out
+    }
+
+    private fun journeyItems(c: Connection) = journeyLines(c).map { it.first }
+
+    private fun stopItem(s: Stop, time: Long?, line: Line?, end: Boolean) = JourneyItem.Stop(
+        time = time?.let { Format.clock(it, zone) } ?: "",
+        delay = delay(s.delay),
+        name = s.name,
+        platform = line?.let { platformText(s, it) },
+        changed = s.newPlatform != null && s.platform != null,
+        end = end,
+        id = s.id,
+    )
+
+    private fun journeyScreen(): Screen {
+        val c = chosen ?: return ListScreen("Ihre Reise", null, null, false, emptyList(), -1, "Keine Verbindung gewählt.")
+        return JourneyScreen(
+            departure = Format.clock(c.from.departure!!, zone) + (delay(c.from.delay)?.let { " $it" } ?: ""),
+            arrival = Format.clock(c.to.arrival!!, zone) + (delay(c.to.delay)?.let { " $it" } ?: ""),
+            spans = spans(c),
+            info = "${Format.capital(Format.day(c.from.departure, now().toLocalDate(), zone))} · ${Format.duration(c.minutes)} · ${Format.transfers(c.transfers)}",
+            badges = c.rides.map { it.line!!.label },
+            items = journeyItems(c),
+            selected = journeySelected,
+        )
+    }
+
+    private fun journeyGesture(g: GestureKind) {
+        val c = chosen ?: return
+        val lines = journeyLines(c)
+        when (g) {
+            GestureKind.SCROLL_DOWN -> journeySelected = (journeySelected + 1).coerceAtMost(lines.size - 1)
+            GestureKind.SCROLL_UP -> journeySelected = (journeySelected - 1).coerceAtLeast(0)
+            GestureKind.CLICK -> when (val item = lines.getOrNull(journeySelected)?.first) {
+                is JourneyItem.Ride -> {
+                    val leg = lines[journeySelected].second
+                    if (!openRides.remove(leg)) openRides += leg
+                }
+                is JourneyItem.Stop -> return item.id?.let { openBoard(Place(it, item.name)) } ?: Unit
+                is JourneyItem.Pass -> return item.id?.let { openBoard(Place(it, item.name)) } ?: Unit
+                else -> return
+            }
+            GestureKind.LONG_PRESS -> return refreshChosen()
+            else -> return
+        }
+        paint(P_JOURNEY)
     }
 
     /** The chosen connection again, for its delays: asked for from its own departure on, so it is found after it left. */
@@ -628,67 +859,157 @@ class FahrplanApp(
             if (no != chosenNo || chosen !== c) return@fetchConnections
             list?.firstOrNull { it.sameAs(c) }?.let {
                 chosen = it
+                connections = connections.map { old -> if (old.sameAs(it)) it else old }
                 render()
             }
         }
     }
 
-    // --- Departures ---------------------------------------------------------------------------------------
+    // --- Departures and trips ----------------------------------------------------------------------------------
 
-    private fun openBoard(place: Place) {
+    private fun openBoard(place: Place, replace: Boolean = false) {
         boardPlace = place
         boardAt = null
+        departures = emptyList()
+        boardSelected = 0
+        scrolls[P_BOARD] = 0
         loadBoard()
-        when (top()) {
-            P_BOARD -> Unit
-            P_PICK -> replace(P_BOARD)
-            else -> show(P_BOARD)
-        }
+        if (top() != P_BOARD) go(P_BOARD, replace)
     }
 
-    private fun loadBoard(silent: Boolean = false) {
+    /** The departures from [boardAt] (now when null); [append] adds later ones to those shown. */
+    private fun loadBoard(append: Boolean = false, silent: Boolean = false) {
         val place = boardPlace ?: return
-        if (!silent) {
+        if (!append && !silent) {
             departures = emptyList()
             boardError = null
         }
-        boardLoading = true
+        if (append) boardMore = true else boardLoading = true
         val no = ++boardNo
-        render()
-        val time = Instant.ofEpochMilli(boardAt ?: clock()).atZone(zone)
+        val time = Instant.ofEpochMilli(if (append) (departures.last().time + 60) * 1000 else boardAt ?: clock()).atZone(zone)
+        if (!silent) render()
         ui.fetch(HttpRequest(Timetable.boardUrl(place, time))) { r ->
             if (no != boardNo) return@fetch
             if (!r.ok) {
                 ui.log("Abfahrten: ${problem(r)}")
                 boardLoading = false
-                boardError = OFFLINE
+                boardMore = false
+                if (departures.isEmpty()) boardError = OFFLINE else if (append) ui.toast(OFFLINE, NOTE_MS)
                 render()
                 return@fetch
             }
             ui.work(W_BOARD, { Timetable.board(r.body) }) { result ->
                 if (no != boardNo) return@work
                 boardLoading = false
+                boardMore = false
                 result.onSuccess { b ->
-                    departures = b.departures
-                    boardError = if (b.departures.isEmpty()) "Keine Abfahrten gefunden." else null
+                    when {
+                        append -> {
+                            val fresh = b.departures.filter { d -> departures.none { same(it, d) } }
+                            if (fresh.isEmpty()) ui.toast("Keine späteren Abfahrten.", NOTE_MS)
+                            departures = (departures + fresh).takeLast(MAX_DEPARTURES)
+                            boardSelected = (boardSelected + 1).coerceAtMost(departures.size - 1)
+                        }
+                        silent -> departures = departures.map { old -> b.departures.firstOrNull { same(it, old) } ?: old }
+                        else -> {
+                            departures = b.departures
+                            boardError = if (b.departures.isEmpty()) "Keine Abfahrten gefunden." else null
+                        }
+                    }
                 }.onFailure {
                     ui.log("Abfahrten unlesbar: ${it.message}")
-                    boardError = UNREADABLE
+                    if (departures.isEmpty()) boardError = UNREADABLE
                 }
                 render()
             }
         }
     }
 
+    private fun same(a: Departure, b: Departure) = a.time == b.time && a.line.label == b.line.label && a.line.direction == b.line.direction
+
+    private fun boardScreen(): ListScreen {
+        val place = boardPlace
+        val first = departures.firstOrNull()
+        val title = when {
+            place == null -> "Abfahrten"
+            first == null -> place.name
+            else -> "${place.name} · ab ${Format.clock(first.time, zone)}"
+        }
+        val rows = departures.map { d ->
+            Row(
+                text = d.line.direction,
+                icon = d.line.icon,
+                time = Format.clock(d.time, zone),
+                delay = delay(d.delay),
+                badge = d.line.label,
+                right = platformText(d.platform, d.newPlatform, d.line),
+                changed = d.newPlatform != null && d.platform != null,
+            )
+        }
+        val note = when {
+            boardLoading && departures.isEmpty() -> "Lade die Abfahrten …"
+            departures.isEmpty() -> boardError
+            boardMore -> "Lade spätere Abfahrten …"
+            else -> null
+        }
+        return ListScreen(title, null, null, false, rows, boardSelected, note)
+    }
+
+    private fun boardGesture(g: GestureKind) {
+        val n = departures.size
+        when (g) {
+            GestureKind.SCROLL_DOWN -> if (boardSelected < n - 1) boardSelected++ else return if (n > 0 && !boardMore) loadBoard(append = true) else Unit
+            GestureKind.SCROLL_UP -> boardSelected = (boardSelected - 1).coerceAtLeast(0)
+            GestureKind.CLICK -> return departures.getOrNull(boardSelected)?.let { openTrip(it) } ?: if (n == 0 && !boardLoading) loadBoard() else Unit
+            GestureKind.LONG_PRESS -> return routeFromBoard()
+            else -> return
+        }
+        paint(P_BOARD)
+    }
+
     private fun routeFromBoard() {
         val place = boardPlace ?: return
         from = place
+        planFocus = 1
         save()
-        render()
-        show(P_START)
+        go(P_PLAN)
     }
 
-    // --- Where the watch is -------------------------------------------------------------------------------
+    private fun openTrip(d: Departure) {
+        if (d.stops.isEmpty()) return ui.toast("Zu dieser Fahrt kennt der Fahrplan keine Halte.", NOTE_MS)
+        trip = d
+        tripSelected = 0
+        scrolls[P_TRIP] = 0
+        go(P_TRIP)
+    }
+
+    private fun tripScreen(): ListScreen {
+        val d = trip ?: return ListScreen("Fahrt", null, null, false, emptyList(), -1, "Keine Fahrt gewählt.")
+        val rows = d.stops.mapIndexed { i, s ->
+            val time = if (i == 0) s.departure ?: s.arrival else s.arrival ?: s.departure
+            Row(
+                text = s.name,
+                time = time?.let { Format.clock(it, zone) },
+                delay = delay(s.delay),
+                right = platformText(s, d.line),
+                changed = s.newPlatform != null && s.platform != null,
+            )
+        }
+        return ListScreen("${d.line.label} nach ${d.line.direction}", null, null, false, rows, tripSelected, null)
+    }
+
+    private fun tripGesture(g: GestureKind) {
+        val d = trip ?: return
+        when (g) {
+            GestureKind.SCROLL_DOWN -> tripSelected = (tripSelected + 1).coerceAtMost(d.stops.size - 1)
+            GestureKind.SCROLL_UP -> tripSelected = (tripSelected - 1).coerceAtLeast(0)
+            GestureKind.CLICK -> return d.stops.getOrNull(tripSelected)?.let { s -> s.id?.let { openBoard(Place(it, s.name)) } } ?: Unit
+            else -> return
+        }
+        paint(P_TRIP)
+    }
+
+    // --- Where the watch is -------------------------------------------------------------------------------------
 
     /** The position for a connection, if the watch knows a recent one. */
     private fun here(): String? = fresh()?.let { Timetable.position(it.lat, it.lon) }
@@ -698,9 +1019,10 @@ class FahrplanApp(
     private fun openNearby() {
         nearby = emptyList()
         nearError = null
-        render()
-        show(P_NEAR)
+        nearSelected = 0
+        scrolls[P_NEAR] = 0
         locateNearby()
+        go(P_NEAR)
     }
 
     private fun locateNearby() {
@@ -709,8 +1031,7 @@ class FahrplanApp(
             nearLoading = false
             nearError = null
             waitFor(Wait.NEAR)
-            render()
-            return
+            return render()
         }
         nearLoading = true
         nearError = null
@@ -728,6 +1049,26 @@ class FahrplanApp(
             }
             render()
         }
+    }
+
+    private fun nearScreen(): ListScreen {
+        val note = when {
+            waiting == Wait.NEAR -> "Suche den Standort …"
+            nearLoading -> "Suche Haltestellen in der Nähe …"
+            else -> nearError
+        }
+        val rows = nearby.map { Row(it.name, it.icon, right = Format.distance(it.distance)) }
+        return ListScreen("Haltestellen in der Nähe", null, null, false, rows, nearSelected, note)
+    }
+
+    private fun nearGesture(g: GestureKind) {
+        when (g) {
+            GestureKind.SCROLL_DOWN -> nearSelected = (nearSelected + 1).coerceAtMost((nearby.size - 1).coerceAtLeast(0))
+            GestureKind.SCROLL_UP -> nearSelected = (nearSelected - 1).coerceAtLeast(0)
+            GestureKind.CLICK -> return nearby.getOrNull(nearSelected)?.let { openBoard(it) } ?: if (waiting == null && !nearLoading) locateNearby() else Unit
+            else -> return
+        }
+        paint(P_NEAR)
     }
 
     private fun waitFor(w: Wait) {
@@ -762,23 +1103,47 @@ class FahrplanApp(
     }
 
     /**
-     * The GPS runs only while a position is awaited, and on the start page with "Mein Standort" until one is there,
-     * so that it is ready for the search.
+     * The GPS runs only while a position is awaited, and on Planen with "Aktueller Standort" until one is there, so
+     * that it is ready for the search.
      */
     private fun updateLocating() {
-        val ahead = top() == P_START && from == null && fresh() == null
+        val ahead = top() == P_PLAN && from == null && fresh() == null
         val want = visible && (waiting != null || ahead)
         if (want == locating) return
         locating = want
         if (want) ui.subscribe(Sensor.LOCATION, FIX_RATE_S) else ui.unsubscribe(Sensor.LOCATION)
     }
 
-    // --- Every minute anew ----------------------------------------------------------------------------------
+    /** The keys of a keyboard come to the app while a stop is typed on the glasses, else the host makes them gestures. */
+    private fun updateKeys() {
+        val want = visible && top() == P_SEARCH && typing
+        if (want == listening) return
+        listening = want
+        if (want) ui.subscribe(Sensor.KEYS) else ui.unsubscribe(Sensor.KEYS)
+    }
+
+    // --- Gestures ---------------------------------------------------------------------------------------------
+
+    private fun gesture(gesture: GestureKind) {
+        // A double tap on the watch clicks, as it does with the pointer (the temples' double tap is the host's back).
+        val g = if (gesture == GestureKind.DOUBLE_CLICK) GestureKind.CLICK else gesture
+        when (top()) {
+            P_PLAN -> planGesture(g)
+            P_SEARCH -> searchGesture(g)
+            P_RESULTS -> resultsGesture(g)
+            P_JOURNEY -> journeyGesture(g)
+            P_BOARD -> boardGesture(g)
+            P_TRIP -> tripGesture(g)
+            P_NEAR -> nearGesture(g)
+        }
+    }
+
+    // --- Every minute anew ----------------------------------------------------------------------------------------
 
     private fun updateRefresh() {
         val want = visible && when (top()) {
             P_RESULTS -> search != null
-            P_DETAIL, P_STOPS -> chosen != null
+            P_JOURNEY -> chosen != null
             P_BOARD -> boardPlace != null
             else -> false
         }
@@ -789,25 +1154,46 @@ class FahrplanApp(
 
     private fun refresh() {
         when (top()) {
-            P_RESULTS -> search?.takeIf { !connLoading && waiting == null }?.let { run(it, silent = true) }
-            P_DETAIL, P_STOPS -> refreshChosen()
-            P_BOARD -> if (!boardLoading) loadBoard(silent = true)
+            P_RESULTS -> refreshList()
+            P_JOURNEY -> refreshChosen()
+            P_BOARD -> if (!boardLoading && !boardMore && departures.isNotEmpty()) loadBoard(silent = true)
         }
     }
 
-    // --- The app menu ---------------------------------------------------------------------------------------
+    /** The delays and platforms of the connections shown, asked for from the first one on; the list stays as it is. */
+    private fun refreshList() {
+        val s = search?.takeIf { it.origin != null && !connLoading && !loadingEarlier && !loadingLater } ?: return
+        val first = connections.firstOrNull() ?: return run(s)
+        val no = ++moreNo
+        fetchConnections(s.copy(at = (first.from.departure!! - 60) * 1000, arrival = false), W_REFRESH) { got, _ ->
+            if (no != moreNo || got == null) return@fetchConnections
+            connections = connections.map { old -> got.firstOrNull { it.sameAs(old) } ?: old }
+            chosen = chosen?.let { c -> connections.firstOrNull { it.sameAs(c) } ?: c }
+            render()
+        }
+    }
+
+    // --- The app menu -------------------------------------------------------------------------------------------
 
     private fun updateMenu() {
         val items = when (top()) {
-            P_RESULTS -> listOfNotNull(REFRESH, MenuItem(M_RETURN, "Rückfahrt").takeIf { search?.from != null })
-            P_DETAIL, P_STOPS -> listOf(REFRESH)
+            P_RESULTS -> listOfNotNull(
+                REFRESH,
+                MenuItem(M_RETURN, "Rückfahrt").takeIf { search?.from != null },
+                MenuItem(M_EARLIER, "Frühere Verbindungen"),
+                MenuItem(M_LATER, "Spätere Verbindungen"),
+            )
+            P_JOURNEY -> listOf(REFRESH, MenuItem(M_STOPS, if (openRides.isEmpty()) "Alle Zwischenhalte zeigen" else "Zwischenhalte ausblenden"))
             P_BOARD -> listOfNotNull(REFRESH, MenuItem(M_ROUTE, "Verbindung ab hier").takeIf { boardPlace != null })
             P_NEAR -> listOf(MenuItem(M_LOCATE, "Standort neu suchen"))
-            else -> listOfNotNull(
+            P_SEARCH -> listOf(MenuItem(M_WATCH, "Auf der Uhr eingeben"))
+            P_PLAN -> listOfNotNull(
                 MenuItem(M_SWAP, "Von und Nach tauschen").takeIf { from != null && to != null },
                 MenuItem(M_HERE, "Von: $HERE").takeIf { from != null },
+                MenuItem(M_KIND, if (arrival) "Zeit gilt für die Abfahrt" else "Zeit gilt für die Ankunft"),
                 MenuItem(M_CLEAR, "Verlauf löschen").takeIf { routes.isNotEmpty() || places.isNotEmpty() },
             )
+            else -> emptyList()
         }
         if (items == shownMenu) return
         shownMenu = items
@@ -818,35 +1204,41 @@ class FahrplanApp(
         when (item) {
             M_REFRESH -> refresh()
             M_RETURN -> returnTrip()
+            M_EARLIER -> more(earlier = true)
+            M_LATER -> more(earlier = false)
+            M_STOPS -> chosen?.let { c ->
+                if (openRides.isEmpty()) c.legs.indices.filter { c.legs[it].line != null }.forEach { openRides += it } else openRides.clear()
+                journeySelected = journeySelected.coerceAtMost(journeyLines(c).size - 1)
+                render()
+            }
             M_ROUTE -> routeFromBoard()
             M_LOCATE -> {
                 fix = null
                 locateNearby()
             }
-            M_SWAP -> {
-                val a = from ?: return
-                val b = to ?: return
-                from = b
-                to = a
-                save()
-                render()
-            }
+            M_WATCH -> field?.let { ask(it) }
+            M_SWAP -> swap()
             M_HERE -> {
                 from = null
                 save()
+                render()
+            }
+            M_KIND -> {
+                arrival = !arrival
                 render()
             }
             M_CLEAR -> {
                 routes = emptyList()
                 places = emptyList()
                 save()
+                planFocus = planFocus.coerceAtMost(PLAN_FIXED + planRows().size - 1)
                 render()
                 ui.toast("Verlauf gelöscht", NOTE_MS)
             }
         }
     }
 
-    // --- The store ------------------------------------------------------------------------------------------
+    // --- The store ------------------------------------------------------------------------------------------------
 
     private fun load() {
         val store = ui.storage
@@ -866,14 +1258,21 @@ class FahrplanApp(
 
     private fun problem(r: HttpResult) = r.error ?: "HTTP ${r.status}"
 
-    /** What a connection search is: [origin] is what goes to the timetable for [from], the position for "Mein Standort". */
+    private fun delay(minutes: Int?): String? = minutes?.takeIf { it > 0 }?.let { "+$it" }
+
+    private fun platformText(s: Stop, line: Line): String? = platformText(s.platform, s.newPlatform, line)
+
+    /** "Gl. 15", "Kante I": the platform as it is now (a changed one is framed on the picture). */
+    private fun platformText(planned: String?, changed: String?, line: Line): String? = (changed ?: planned)?.let { "${line.platformWord} $it" }
+
+    /** What a connection search is: [origin] is what goes to the timetable for [from], the position for "Aktueller Standort". */
     private data class Search(val from: Place?, val to: Place, val at: Long?, val arrival: Boolean, val origin: String? = null)
 
     private enum class Field { FROM, TO, BOARD }
 
     private enum class Wait { SEARCH, NEAR }
 
-    /** A search kept for the start page: from null is "Mein Standort". */
+    /** A search kept for Planen: from null is "Aktueller Standort". */
     data class Route(val from: Place?, val to: Place) {
         val key: String get() = "${from?.let { it.id ?: it.name } ?: "@"}|${to.id ?: to.name}"
 
@@ -893,79 +1292,47 @@ class FahrplanApp(
 
     companion object {
         const val ID = "ch.madtreasures.fahrplan"
-        const val VERSION = "1.0.0"
+        const val VERSION = "1.1.0"
 
-        /** What "from" says when it is the watch's position. */
-        const val HERE = "Mein Standort"
+        /** What "from" says when it is the watch's position, as in the SBB app. */
+        const val HERE = "Aktueller Standort"
 
-        const val P_START = "start"
-        const val P_PICK = "waehlen"
+        const val P_PLAN = "start"
+        const val P_SEARCH = "suche"
         const val P_RESULTS = "verbindungen"
-        const val P_DETAIL = "verbindung"
-        const val P_STOPS = "halte"
+        const val P_JOURNEY = "reise"
         const val P_BOARD = "abfahrten"
+        const val P_TRIP = "fahrt"
         const val P_NEAR = "naehe"
 
-        const val ST_FROM = "st_von"
-        const val ST_TO = "st_nach"
-        const val ST_WHEN = "st_wann"
-        const val ST_ARRIVAL = "st_ankunft"
-        const val ST_SEARCH = "st_suchen"
-        const val ST_LINE = "st_linie"
-        const val ST_RECENT = "st_zuletzt"
-        const val ST_ROUTE = "st_route_"
-        const val ST_LINE2 = "st_linie2"
-        const val ST_NEAR = "st_naehe"
-        const val ST_BOARD = "st_tafel"
+        /** The pages and the names the header shows beside "Fahrplan". */
+        val PAGES = listOf(
+            P_PLAN to "Planen",
+            P_SEARCH to "Haltestelle",
+            P_RESULTS to "Verbindungen",
+            P_JOURNEY to "Ihre Reise",
+            P_BOARD to "Abfahrten",
+            P_TRIP to "Fahrt",
+            P_NEAR to "In der Nähe",
+        )
 
-        const val PI_INFO = "pi_info"
-        const val PI_HERE = "pi_hier"
-        const val PI_PLACE = "pi_ort_"
-        const val PI_RETRY = "pi_nochmal"
-        const val PI_AGAIN = "pi_anders"
+        /** The image block of a page. */
+        fun image(page: String) = "${page}_bild"
 
-        const val VE_ROUTE = "ve_route"
-        const val VE_INFO = "ve_info"
-        const val VE_EARLIER = "ve_frueher"
-        const val VE_CONN = "ve_v_"
-        const val VE_LATER = "ve_spaeter"
-        const val VE_AGAIN = "ve_nochmal"
-        const val VE_RETURN = "ve_rueck"
-        const val VE_SOURCE = "ve_quelle"
-
-        const val DE_NONE = "de_keine"
-        const val DE_TIMES = "de_zeiten"
-        const val DE_INFO = "de_info"
-        const val DE_WALK = "de_fuss_"
-        const val DE_CHANGE = "de_umst_"
-        const val DE_DEP = "de_ab_"
-        const val DE_LEG = "de_fahrt_"
-        const val DE_ARR = "de_an_"
-        const val DE_SOURCE = "de_quelle"
-
-        const val HA_NONE = "ha_keine"
-        const val HA_TITLE = "ha_titel"
-        const val HA_STOP = "ha_halt_"
-
-        const val AB_STATION = "ab_halt"
-        const val AB_INFO = "ab_info"
-        const val AB_DEP = "ab_d_"
-        const val AB_LATER = "ab_spaeter"
-        const val AB_AGAIN = "ab_nochmal"
-        const val AB_ROUTE = "ab_route"
-        const val AB_SOURCE = "ab_quelle"
-
-        const val NA_INFO = "na_info"
-        const val NA_PLACE = "na_ort_"
-        const val NA_AGAIN = "na_nochmal"
-        const val NA_SOURCE = "na_quelle"
+        /** On Planen: from, to, swap, when, then the rows. */
+        const val PLAN_FIXED = 4
 
         const val M_REFRESH = "m_aktualisieren"
         const val M_RETURN = "m_rueckfahrt"
+        const val M_EARLIER = "m_frueher"
+        const val M_LATER = "m_spaeter"
+        const val M_STOPS = "m_halte"
         const val M_ROUTE = "m_ab_hier"
         const val M_LOCATE = "m_standort"
+        const val M_WATCH = "m_uhr"
         const val M_SWAP = "m_tauschen"
         const val M_HERE = "m_hier"
+        const val M_KIND = "m_ankunft"
         const val M_CLEAR = "m_verlauf"
 
         const val ASK_FROM = "von"
@@ -975,19 +1342,27 @@ class FahrplanApp(
 
         const val T_REFRESH = "aktualisieren"
         const val T_FIX = "standort"
+        const val T_TYPE = "tippen"
 
         const val REFRESH_MS = 60_000L
         const val FIX_TIMEOUT_MS = 30_000L
         const val FIX_FRESH_MS = 120_000L
         const val FIX_RATE_S = 2
 
+        /** After the last key, so that typing on is not slowed by a request per letter. */
+        const val TYPE_MS = 350L
+        const val MIN_TYPED = 2
+
         const val OFFLINE = "Der Fahrplan ist gerade nicht erreichbar. Ist die Uhr im Netz?"
         const val UNREADABLE = "Die Antwort des Fahrplans war unlesbar."
         const val NO_FIX = "Die Uhr findet ihren Standort nicht. Ist er für Fahrplan erlaubt? Sonst bei „Von“ eine Haltestelle wählen."
 
-        val WHEN_SUGGESTIONS = listOf("jetzt", "in 15 Min.", "in 1 h", "morgen 7:00", "morgen 17:00")
+        val WHEN_SUGGESTIONS = listOf("jetzt", "in 15 Min.", "an 18:00", "morgen 7:00", "morgen 17:00")
 
         private const val W_RESULTS = "verbindungen"
+        private const val W_EARLIER = "frueher"
+        private const val W_LATER = "spaeter"
+        private const val W_REFRESH = "aktualisieren"
         private const val W_CHOSEN = "verbindung"
         private const val W_BOARD = "abfahrten"
 
@@ -999,6 +1374,8 @@ class FahrplanApp(
         private const val SHOWN_ROUTES = 4
         private const val MAX_ROUTES = 8
         private const val MAX_PLACES = 12
+        private const val MAX_CONNECTIONS = 20
+        private const val MAX_DEPARTURES = 45
         private const val MAX_SUGGESTIONS = 5
         private const val MAX_SUGGESTION = 40
         private const val MAX_QUERY = 80
@@ -1006,6 +1383,8 @@ class FahrplanApp(
 
         private val REFRESH = MenuItem(M_REFRESH, "Aktualisieren")
         private val SPACES = Regex("\\s+")
+
+        private fun fontPath(name: String) = "apps/$ID/fonts/$name.font"
 
         /** Whether two names mean the same stop: case, accents and punctuation aside ("zuerich hb" is "Zürich HB"). */
         fun same(a: String, b: String): Boolean = key(a) == key(b)

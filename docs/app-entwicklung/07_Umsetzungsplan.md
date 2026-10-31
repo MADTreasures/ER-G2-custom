@@ -222,8 +222,10 @@ auch der Browser.
   Brille aus, Radio mit den Schweizer Sendern von DAB+ als Stream). Nicht auf Hardware erprobt.
 - **Paket Fahrplan** ([`packages/fahrplan`](../../packages/fahrplan/README.md), Schnittstelle 6, keine neue
   Uhr-App): Verbindungen und Abfahrten im Schweizer ÖV von transport.opendata.ch, eingegeben auf der Uhr oder mit
-  einer Tastatur auf der Brille, „Mein Standort“ vom GPS der Uhr. Ein Abo-QR-Code geht nicht (SwissPass Mobile
-  nur in den Apps der SBB). Nicht auf Hardware erprobt.
+  einer Tastatur auf der Brille, „Aktueller Standort“ vom GPS der Uhr. Ab 1.1.0 aufgebaut und bedient wie die
+  SBB-App: selbst gezeichnete Seiten im Modus `gestures` (Karten mit Reisebalken, Ihre Reise mit aufklappbaren
+  Zwischenhalten), weiterwischen lädt spätere Verbindungen, Treffer schon beim Tippen. Ein Abo-QR-Code geht nicht
+  (SwissPass Mobile nur in den Apps der SBB). Nicht auf Hardware erprobt.
 
 ## Danach (Ideen, nicht geplant)
 

@@ -76,7 +76,7 @@ object Timetable {
     fun board(body: String): Board {
         val root = parse(body) as? JsonObject ?: throw IllegalArgumentException("no board answer")
         val station = (root["station"] as? JsonObject)?.let { place(it) }
-        return Board(station, (root["stationboard"] as? JsonArray).orEmpty().mapNotNull { departure(it) })
+        return Board(station, (root["stationboard"] as? JsonArray).orEmpty().mapNotNull { departure(it, station) })
     }
 
     private fun parse(body: String): JsonElement? = try {
@@ -89,7 +89,7 @@ object Timetable {
         val o = e as? JsonObject ?: return null
         val id = o.text("id") ?: return null
         val name = o.text("name") ?: return null
-        return Place(id, name, (o["distance"] as? JsonPrimitive)?.doubleOrNull?.roundToInt())
+        return Place(id, name, (o["distance"] as? JsonPrimitive)?.doubleOrNull?.roundToInt(), o.text("icon"))
     }
 
     private fun connection(e: JsonElement): Connection? {
@@ -140,13 +140,19 @@ object Timetable {
         operator = o.text("operator"),
     )
 
-    private fun departure(e: JsonElement): Departure? {
+    private fun departure(e: JsonElement, station: Place?): Departure? {
         val o = e as? JsonObject ?: return null
         val s = o["stop"] as? JsonObject ?: return null
         val time = s.long("departureTimestamp") ?: return null
         val planned = s.text("platform")
-        val expected = (s["prognosis"] as? JsonObject)?.text("platform")
-        return Departure(time, s.int("delay"), planned, expected?.takeIf { it != planned }, line(o))
+        val changed = (s["prognosis"] as? JsonObject)?.text("platform")?.takeIf { it != planned }
+        // The service names the board's own stop first in the trip, but without its name (and with the id of the
+        // trip's end), so that it drops out above: it is put back as the stop the trip leaves from.
+        val stops = (o["passList"] as? JsonArray).orEmpty().mapNotNull { stop(it) }.let { list ->
+            if (station == null || list.isEmpty() || list.first().name == station.name) list
+            else listOf(Stop(station.name, station.id, null, time, s.int("delay"), planned, changed)) + list
+        }
+        return Departure(time, s.int("delay"), planned, changed, line(o), stops)
     }
 
     /** Minutes of a duration as the service writes it: "00d01:02:00". */
@@ -182,28 +188,45 @@ object Timetable {
             stopFields("connections/from", "departureTimestamp") +
             stopFields("connections/to", "arrivalTimestamp") +
             listOf("walk", "journey/category", "journey/number", "journey/to", "journey/operator").map { "connections/sections/$it" } +
-            listOf("station/name", "arrivalTimestamp", "departureTimestamp", "delay", "platform").map { "connections/sections/journey/passList/$it" } +
+            listOf("station/id", "station/name", "arrivalTimestamp", "departureTimestamp", "delay", "platform").map { "connections/sections/journey/passList/$it" } +
             stopFields("connections/sections/departure", "departureTimestamp") +
             stopFields("connections/sections/arrival", "arrivalTimestamp")
 
     val BOARD_FIELDS: List<String> =
         listOf("station/id", "station/name") +
             listOf("departureTimestamp", "delay", "platform", "prognosis/platform").map { "stationboard/stop/$it" } +
-            listOf("category", "number", "to", "operator").map { "stationboard/$it" }
+            listOf("category", "number", "to", "operator").map { "stationboard/$it" } +
+            listOf("station/id", "station/name", "arrivalTimestamp", "departureTimestamp", "delay", "platform").map { "stationboard/passList/$it" }
 }
 
-/** A stop, or an address of a connection; [id] is the timetable's (null for an address), [distance] in metres from a position. */
-data class Place(val id: String?, val name: String, val distance: Int? = null) {
+/**
+ * A stop, or an address of a connection; [id] is the timetable's (null for an address), [distance] in metres from a
+ * position, [kind] what mostly stops there as the timetable says ("train", "tram", "bus", "ship", "cableway").
+ */
+data class Place(val id: String?, val name: String, val distance: Int? = null, val kind: String? = null) {
+    /** The pictogram of its kind. */
+    val icon: Icon
+        get() = when (kind) {
+            "train" -> Icon.TRAIN
+            "tram" -> Icon.TRAM
+            "bus" -> Icon.BUS
+            "ship", "boat" -> Icon.SHIP
+            "cableway", "funicular", "gondola" -> Icon.CABLE
+            else -> Icon.PLACE
+        }
+
     fun toJson(): JsonObject = buildJsonObject {
         if (id != null) put("id", id)
         put("name", name)
+        if (kind != null) put("art", kind)
     }
 
     companion object {
         fun fromJson(e: JsonElement?): Place? {
             val o = e as? JsonObject ?: return null
-            val name = (o["name"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() } ?: return null
-            return Place((o["id"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }, name)
+            fun text(key: String) = (o[key] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
+            val name = text("name") ?: return null
+            return Place(text("id"), name, kind = text("art"))
         }
     }
 }
@@ -242,6 +265,18 @@ data class Line(val category: String, val number: String?, val direction: String
             return if (n != null) "$name $n" else name
         }
 
+    /** Its pictogram in the lists. */
+    val icon: Icon
+        get() = when (category.uppercase(Locale.ROOT)) {
+            "T", "TRAM", "NFT" -> Icon.TRAM
+            else -> when (kind) {
+                Kind.RAIL -> Icon.TRAIN
+                Kind.ROAD -> Icon.BUS
+                Kind.SHIP -> Icon.SHIP
+                Kind.CABLE -> Icon.CABLE
+            }
+        }
+
     /** What its platforms are called: Gleis for trains, Kante for buses and trams, Steg for ships. */
     val platformWord: String
         get() = when (kind) {
@@ -272,8 +307,15 @@ data class Connection(val from: Stop, val to: Stop, val minutes: Int, val transf
         from.departure == other.from.departure && to.arrival == other.to.arrival && rides.map { it.line?.label } == other.rides.map { it.line?.label }
 }
 
-/** A departure of a board at [time] (planned). */
-data class Departure(val time: Long, val delay: Int?, val platform: String?, val newPlatform: String?, val line: Line)
+/** A departure of a board at [time] (planned), with the [stops] of its trip from this stop on. */
+data class Departure(
+    val time: Long,
+    val delay: Int?,
+    val platform: String?,
+    val newPlatform: String?,
+    val line: Line,
+    val stops: List<Stop> = emptyList(),
+)
 
 /** The departures of [station]. */
 data class Board(val station: Place?, val departures: List<Departure>)

@@ -3,11 +3,11 @@ package ch.madtreasures.fahrplan
 import ch.madtreasures.g2watch.apps.AppEvent
 import ch.madtreasures.g2watch.apps.Block
 import ch.madtreasures.g2watch.apps.FakeAppContext
+import ch.madtreasures.g2watch.apps.GestureKind
 import ch.madtreasures.g2watch.apps.HttpResult
-import ch.madtreasures.g2watch.apps.Page
+import ch.madtreasures.g2watch.apps.InputSource
+import ch.madtreasures.g2watch.apps.Keys
 import ch.madtreasures.g2watch.apps.Sensor
-import ch.madtreasures.g2watch.apps.textOf
-import ch.madtreasures.g2watch.apps.valueOf
 import kotlinx.serialization.json.JsonArray
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -16,10 +16,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The app against [FakeAppContext], with the recorded answers of the timetable ([Fixtures]): typing stops and
- * times, choosing among similar names, the connections and one of them, earlier and later ones, the minute's
- * refresh, departures, the stops nearby and "Mein Standort", the store, and what happens when the timetable or
- * the GPS does not answer.
+ * The app against [FakeAppContext], with the recorded answers of the timetable ([Fixtures]): what each drawn page
+ * shows ([FahrplanApp.screen]), how swiping, tapping and holding work them as in the SBB app, typing stops on the
+ * watch and on the glasses, earlier and later connections, Ihre Reise with its stops, departures and trips, the
+ * position, the minute's refresh, the store, the app menu, and what happens when the timetable or the GPS does not
+ * answer.
  */
 class FahrplanAppTest {
     private var now = Fixtures.MONDAY
@@ -33,262 +34,424 @@ class FahrplanAppTest {
         send(AppEvent.Visible)
     }
 
-    private fun page(): Page = ui.current!!
+    private fun page(): String = ui.current!!.id
 
-    /** A click as the host does it: a button with a page shows that page and tells the app. */
-    private fun click(block: String) {
-        val p = page()
-        val b = p.block(block) as? Block.Button ?: throw AssertionError("no button $block on ${p.id}: ${p.blocks.map { it.id }}")
-        val target = b.target
-        if (target == null) {
-            send(AppEvent.Click(p.id, block))
-        } else {
-            ui.pages.show(target)
-            send(AppEvent.Navigate(p.id, target, block))
-        }
-    }
+    private fun plan() = app.screen(FahrplanApp.P_PLAN) as PlanScreen
+
+    private fun results() = app.screen(FahrplanApp.P_RESULTS) as ConnectionsScreen
+
+    private fun journey() = app.screen(FahrplanApp.P_JOURNEY) as JourneyScreen
+
+    private fun list(page: String) = app.screen(page) as ListScreen
+
+    private fun gesture(kind: GestureKind, times: Int = 1) = repeat(times) { send(AppEvent.Gesture(kind, InputSource.RIGHT)) }
+
+    private fun down(times: Int = 1) = gesture(GestureKind.SCROLL_DOWN, times)
+
+    private fun up(times: Int = 1) = gesture(GestureKind.SCROLL_UP, times)
+
+    private fun tap() = gesture(GestureKind.CLICK)
+
+    private fun hold() = gesture(GestureKind.LONG_PRESS)
 
     private fun back() {
-        val p = page().id
-        send(AppEvent.Back(p))
+        send(AppEvent.Back(page()))
         ui.pages.back()
     }
 
-    private fun buttons(): List<String> = page().blocks.filterIsInstance<Block.Button>().map { it.text }
-
-    private fun buttonFor(text: String): String =
-        page().blocks.filterIsInstance<Block.Button>().firstOrNull { it.text.startsWith(text) }?.id
-            ?: throw AssertionError("no button \"$text\" on ${page().id}: ${buttons()}")
-
-    /** The wearer answers the open question. */
+    /** The wearer answers the open question on the watch. */
     private fun type(text: String?) {
         val q = ui.question ?: throw AssertionError("no question open")
         ui.questionAnswered()
         send(AppEvent.TextInput(q.first, text))
     }
 
+    /** A key of a Bluetooth keyboard. */
+    private fun key(key: String, text: String = "") = send(AppEvent.Key(key, text))
+
     /** The timetable answers the oldest request with a recorded answer. */
     private fun answer(fixture: String) = ui.answer(HttpResult(200, Fixtures.text(fixture)))
 
     private fun url(): String = ui.requests.first().first.url
 
-    private fun fix(lat: Double = Fixtures.LAT, lon: Double = Fixtures.LON) = send(AppEvent.Location(lat, lon, 8f, now))
+    private fun fix() = send(AppEvent.Location(Fixtures.LAT, Fixtures.LON, 8f, now))
 
-    /** Zürich HB and Bern chosen as the wearer would: typed, Zürich picked from the list, Bern found at once. */
+    /** The picture of [page] as it was sent last. */
+    private fun picture(page: String): String? = (ui.page(page).block(FahrplanApp.image(page)) as Block.Image).src
+
+    /** From Zürich HB (picked among the stops called "Zürich") to Bern (the first hit), as typed on the watch. */
     private fun chooseZurichBern() {
-        click(FahrplanApp.ST_FROM)
+        up(3)
+        assertEquals(0, plan().focus)
+        tap()
+        assertEquals(FahrplanApp.ASK_FROM, ui.question!!.first)
         type("Zürich")
         answer(Fixtures.ZUERICH)
-        assertEquals(FahrplanApp.P_PICK, page().id)
-        click(buttonFor("Zürich HB"))
-        click(FahrplanApp.ST_TO)
+        assertEquals(FahrplanApp.P_SEARCH, page())
+        tap()
+        assertEquals(FahrplanApp.P_PLAN, page())
+        down()
+        tap()
         type("bern")
         answer(Fixtures.BERN)
     }
 
-    private fun search() {
-        click(FahrplanApp.ST_SEARCH)
-        answer(Fixtures.ZUERICH_BERN)
-    }
-
     @Test
-    fun `the start page asks for from, to and when`() {
+    fun `Planen shows from and to with the line between them, when, and the departures`() {
         start()
-        val p = page()
-        assertEquals(FahrplanApp.P_START, p.id)
-        assertEquals("Von: Mein Standort", p.textOf(FahrplanApp.ST_FROM))
-        assertEquals("Nach: bitte wählen", p.textOf(FahrplanApp.ST_TO))
-        assertEquals("Wann: jetzt", p.textOf(FahrplanApp.ST_WHEN))
-        assertNull(p.block(FahrplanApp.ST_RECENT))
-        // With "Mein Standort" the GPS starts at once, so that the position is there for the search.
+        assertEquals(FahrplanApp.P_PLAN, page())
+        val p = plan()
+        assertEquals("Aktueller Standort", p.from)
+        assertTrue(p.fromHere)
+        assertNull(p.to)
+        assertEquals("Jetzt · Abfahrt", p.time)
+        assertEquals(listOf("Abfahrten in der Nähe", "Abfahrten einer Haltestelle"), p.rows.map { it.text })
+        // Without a destination the frame starts on "Nach".
+        assertEquals(1, p.focus)
+        assertTrue(picture(FahrplanApp.P_PLAN)!!.startsWith("data:image/png;base64,"))
+        // With "Aktueller Standort" the GPS starts at once, so that the position is there for the search.
         assertEquals(setOf(Sensor.LOCATION), ui.subscriptions)
 
-        click(FahrplanApp.ST_FROM)
-        assertEquals(Triple(FahrplanApp.ASK_FROM, "Von wo?", listOf("Mein Standort")), ui.question)
+        down(10)
+        assertEquals(FahrplanApp.PLAN_FIXED + 1, plan().focus)
+        up(10)
+        assertEquals(0, plan().focus)
     }
 
     @Test
-    fun `a typed name becomes a stop, the one that fits or a choice among similar ones`() {
+    fun `a name typed on the watch becomes a stop, and with the destination the connections show`() {
         start()
-        click(FahrplanApp.ST_FROM)
+        up()
+        tap()
         type("Zürich")
         assertEquals("https://transport.opendata.ch/v1/locations?query=Z%C3%BCrich&type=station", url())
-        // While the timetable looks, the button says so.
-        assertEquals("Von: suche „Zürich“ …", page().textOf(FahrplanApp.ST_FROM))
         answer(Fixtures.ZUERICH)
-        assertEquals(FahrplanApp.P_PICK, page().id)
-        assertEquals("Von welcher Haltestelle?", page().textOf(FahrplanApp.PI_INFO))
-        assertEquals(listOf("Mein Standort", "Zürich HB", "Zürich, Hegibachplatz"), buttons().take(3))
-        assertEquals("Anders eingeben", buttons().last())
-        click(buttonFor("Zürich HB"))
-        assertEquals(FahrplanApp.P_START, page().id)
-        assertEquals("Von: Zürich HB", page().textOf(FahrplanApp.ST_FROM))
+        assertEquals(FahrplanApp.P_SEARCH, page())
+        val s = list(FahrplanApp.P_SEARCH)
+        assertEquals("Von", s.fieldLabel)
+        assertEquals("Zürich", s.field)
+        assertEquals(listOf("Zürich HB", "Zürich, Hegibachplatz"), s.rows.take(2).map { it.text })
+        assertEquals(listOf(Icon.TRAIN, Icon.TRAIN), s.rows.take(2).map { it.icon })
+        assertEquals("Anders eingeben", s.rows.last().text)
+        tap()
+        assertEquals(FahrplanApp.P_PLAN, page())
+        assertEquals("Zürich HB", plan().from)
         // A stop of its own: no GPS any more.
         assertTrue(ui.subscriptions.isEmpty())
 
-        click(FahrplanApp.ST_TO)
+        down()
+        tap()
         // The stop chosen for "Von" is no suggestion for "Nach".
         assertEquals(Triple(FahrplanApp.ASK_TO, "Wohin?", emptyList<String>()), ui.question)
         type("bern")
         answer(Fixtures.BERN)
-        // "bern" is the first hit's name: no choice needed.
-        assertEquals(FahrplanApp.P_START, page().id)
-        assertEquals("Nach: Bern", page().textOf(FahrplanApp.ST_TO))
-
-        // A stop used before is taken without asking the timetable.
-        click(FahrplanApp.ST_TO)
-        type("zuerich hb")
-        assertTrue(ui.requests.isEmpty())
-        assertEquals("Nach: Zürich HB", page().textOf(FahrplanApp.ST_TO))
+        // "bern" is the first hit's name: no choice needed, and the connections show at once.
+        assertEquals(FahrplanApp.P_RESULTS, page())
+        assertTrue(url(), url().startsWith("https://transport.opendata.ch/v1/connections?from=8503000&to=8507000&date=2026-11-02&time=07:40&limit=5"))
     }
 
     @Test
-    fun `connections with platforms and lines, one of them with its legs and its stops`() {
+    fun `the connections as cards, with the journey bar, the lines, the platform and the time`() {
         start()
         chooseZurichBern()
-        click(FahrplanApp.ST_SEARCH)
-        assertEquals(FahrplanApp.P_RESULTS, page().id)
-        assertTrue(url(), url().startsWith("https://transport.opendata.ch/v1/connections?from=8503000&to=8507000&date=2026-11-02&time=07:40&limit=5"))
-        assertEquals("Suche Verbindungen …", page().textOf(FahrplanApp.VE_INFO))
+        assertEquals("Suche Verbindungen …", results().note)
         answer(Fixtures.ZUERICH_BERN)
-        val p = page()
-        assertEquals("Zürich HB → Bern", p.textOf(FahrplanApp.VE_ROUTE))
-        assertEquals("Heute · Abfahrten 07:49 bis 08:32", p.textOf(FahrplanApp.VE_INFO))
+        val r = results()
+        assertEquals("Zürich HB → Bern", r.title)
+        assertEquals("Heute ab 07:40", r.subtitle)
+        assertEquals(5, r.cards.size)
+        assertEquals(0, r.selected)
+        val first = r.cards[0]
+        assertEquals(listOf("IC"), first.badges)
+        assertEquals("Richtung Bern", first.direction)
+        assertEquals("07:49", first.departure)
+        assertEquals("08:50", first.arrival)
+        assertEquals("Gl. 15", first.platform)
+        assertEquals("1 h 1 min", first.info)
+        assertEquals(listOf(Span(0.0, 1.0, false)), first.spans)
+        val change = r.cards[3]
+        assertEquals(listOf("IR 37", "IR 16"), change.badges)
+        assertEquals("1× umsteigen · 1 h 16 min", change.info)
+        assertEquals(2, change.spans.size)
+        assertEquals(27.0 / 76, change.spans[0].end, 0.001)
+        assertEquals("Frühere Verbindungen", r.earlier)
+        assertEquals("Spätere Verbindungen", r.later)
+        assertTrue(picture(FahrplanApp.P_RESULTS)!!.startsWith("data:image/png;base64,"))
+    }
+
+    @Test
+    fun `swiping past the last connection loads later ones, past the first earlier ones`() {
+        start()
+        chooseZurichBern()
+        answer(Fixtures.ZUERICH_BERN)
+        down(4)
+        assertEquals(4, results().selected)
+        down()
+        // From the last one's departure on.
+        assertTrue(url(), url().contains("date=2026-11-02&time=08:33&limit=5"))
+        assertEquals("Lade spätere Verbindungen …", results().later)
+        answer(Fixtures.ZUERICH_BERN_LATER)
+        val r = results()
+        assertEquals(10, r.cards.size)
+        assertEquals(5, r.selected)
+        assertEquals("08:38", r.cards[5].departure)
+        assertEquals(listOf("RE 37", "RE 12", "IC 61"), r.cards[5].badges)
+
+        up(5)
+        assertEquals(0, results().selected)
+        up()
+        // Arriving before the first one: those before it.
+        assertTrue(url(), url().contains("time=08:49&isArrivalTime=1"))
+        ui.answer(HttpResult(200, """{"connections":[]}"""))
+        assertEquals("Keine früheren Verbindungen.", ui.toasts.last())
+        assertEquals(10, results().cards.size)
+    }
+
+    @Test
+    fun `a tap opens Ihre Reise, a ride shows its stops, a stop its departures`() {
+        start()
+        chooseZurichBern()
+        answer(Fixtures.ZUERICH_BERN)
+        down(3)
+        tap()
+        assertEquals(FahrplanApp.P_JOURNEY, page())
+        val j = journey()
+        assertEquals("08:08", j.departure)
+        assertEquals("09:24", j.arrival)
+        assertEquals(listOf("IR 37", "IR 16"), j.badges)
+        assertEquals("Heute · 1 h 16 min · 1× umsteigen", j.info)
         assertEquals(
             listOf(
-                "Frühere",
-                "07:49 → 08:50 · Gl. 15 · IC",
-                "08:02 → 08:58 · Gl. 31 · IC 8",
-                "08:06 → 09:24 · Gl. 15 · IR 16",
-                "08:08 → 09:24 · Gl. 16 · IR 37, IR 16",
-                "08:32 → 09:28 · Gl. 32 · IC 1",
-                "Spätere",
-                "Rückfahrt",
+                JourneyItem.Stop("08:08", null, "Zürich HB", "Gl. 16", false, true, "8503000"),
+                JourneyItem.Ride("IR 37", "Richtung Basel SBB", false, 1),
+                JourneyItem.Stop("08:35", null, "Aarau", "Gl. 4", false, false, "8502113"),
+                JourneyItem.Change("Umsteigen in Aarau · 11 Min."),
+                JourneyItem.Stop("08:46", null, "Aarau", "Gl. 5", false, false, "8502113"),
+                JourneyItem.Ride("IR 16", "Richtung Bern", false, 1),
+                JourneyItem.Stop("09:24", null, "Bern", "Gl. 12", false, true, "8507000"),
             ),
-            buttons(),
+            j.items,
         )
-        assertEquals(Timetable.SOURCE, p.textOf(FahrplanApp.VE_SOURCE))
+        // The frame starts on the first ride; a tap shows its stops on the way.
+        assertEquals(1, j.selected)
+        tap()
+        val open = journey().items
+        assertEquals(JourneyItem.Ride("IR 37", "Richtung Basel SBB", true, 1), open[1])
+        assertEquals("Lenzburg", (open[2] as JourneyItem.Pass).name)
+        assertEquals("08:27", (open[2] as JourneyItem.Pass).time)
 
-        click("${FahrplanApp.VE_CONN}3")
-        val d = page()
-        assertEquals(FahrplanApp.P_DETAIL, d.id)
-        assertEquals("08:08 → 09:24", d.textOf(FahrplanApp.DE_TIMES))
-        assertEquals("1 h 16 min · 1× umsteigen", d.textOf(FahrplanApp.DE_INFO))
-        assertEquals("08:08 Zürich HB", d.textOf("${FahrplanApp.DE_DEP}0"))
-        assertEquals("Gl. 16", d.valueOf("${FahrplanApp.DE_DEP}0"))
-        assertEquals("IR 37 nach Basel SBB", d.textOf("${FahrplanApp.DE_LEG}0"))
-        assertEquals("08:35 Aarau", d.textOf("${FahrplanApp.DE_ARR}0"))
-        assertEquals("Gl. 4", d.valueOf("${FahrplanApp.DE_ARR}0"))
-        assertEquals("11 Min. zum Umsteigen", d.textOf("${FahrplanApp.DE_CHANGE}1"))
-        assertEquals("Gl. 5", d.valueOf("${FahrplanApp.DE_DEP}1"))
-        assertEquals("09:24 Bern", d.textOf("${FahrplanApp.DE_ARR}1"))
-
-        click("${FahrplanApp.DE_LEG}1")
-        val s = page()
-        assertEquals(FahrplanApp.P_STOPS, s.id)
-        assertEquals("IR 16 nach Bern", s.textOf(FahrplanApp.HA_TITLE))
-        assertEquals(listOf("08:46 Aarau", "08:55 Olten", "09:24 Bern"), s.blocks.filterIsInstance<Block.Value>().map { it.text })
+        // The first stop: a tap shows its departures.
+        up()
+        tap()
+        assertEquals(FahrplanApp.P_BOARD, page())
+        assertTrue(url(), url().startsWith("https://transport.opendata.ch/v1/stationboard?id=8503000"))
     }
 
     @Test
     fun `walks, buses and changes on the way to Zermatt`() {
+        val central = Place("8588078", "Zürich, Central")
+        val zermatt = Place("8501689", "Zermatt")
+        ui.storage.set("zuletzt", JsonArray(listOf(FahrplanApp.Route(central, zermatt).toJson())))
         start()
-        click(FahrplanApp.ST_FROM)
-        type("Zürich")
-        answer(Fixtures.ZUERICH)
-        click(buttonFor("Zürich, Central"))
-        click(FahrplanApp.ST_TO)
-        type("Zermatt")
-        // The search finds a stop of exactly that name.
-        ui.answer(HttpResult(200, """{"stations":[{"id":"8501689","name":"Zermatt"}]}"""))
-        click(FahrplanApp.ST_SEARCH)
+        assertEquals("Zürich, Central → Zermatt", plan().rows.first().text)
+        down(3)
+        assertEquals(FahrplanApp.PLAN_FIXED, plan().focus)
+        tap()
+        assertTrue(url(), url().contains("from=8588078&to=8501689"))
         answer(Fixtures.CENTRAL_ZERMATT)
-        click("${FahrplanApp.VE_CONN}0")
-        val texts = page().blocks.map {
-            when (it) {
-                is Block.Value -> "${it.text} | ${it.value}"
-                is Block.Text -> it.text
-                is Block.Button -> "[${it.text}]"
-                is Block.Heading -> "# ${it.text}"
-                else -> it.id
-            }
-        }
+        val card = results().cards.first()
+        assertEquals(listOf("IC 8", "EV 4", "R 40"), card.badges)
+        assertEquals(listOf(true, false, true, false, true, false), card.spans.map { it.walk })
+        tap()
+        val items = journey().items
         assertEquals(
             listOf(
-                "# 07:52 → 11:21",
-                "3 h 29 min · 2× umsteigen",
-                "10 Min. zu Fuß bis Zürich HB",
-                "08:02 Zürich HB | Gl. 31",
-                "[IC 8 nach Brig]",
-                "10:04 Visp | Gl. 7",
-                "4 Min. zu Fuß bis Visp, Bahnhof Süd",
-                "10:11 Visp, Bahnhof Süd | Kante M",
-                "[EV 4 nach Täsch, Bahnhof]",
-                "11:02 Täsch, Bahnhof | ",
-                "2 Min. zu Fuß bis Täsch",
-                "11:09 Täsch | Gl. 1",
-                "[R 40 nach Zermatt]",
-                "11:21 Zermatt | Gl. 2",
-                Timetable.SOURCE,
+                "Stop 07:52 Zürich, Central",
+                "Walk 10 Min. zu Fuß bis Zürich HB",
+                "Stop 08:02 Zürich HB Gl. 31",
+                "Ride IC 8 Richtung Brig",
+                "Stop 10:04 Visp Gl. 7",
+                "Walk 4 Min. zu Fuß bis Visp, Bahnhof Süd",
+                "Stop 10:11 Visp, Bahnhof Süd Kante M",
+                "Ride EV 4 Richtung Täsch, Bahnhof",
+                "Stop 11:02 Täsch, Bahnhof",
+                "Walk 2 Min. zu Fuß bis Täsch",
+                "Stop 11:09 Täsch Gl. 1",
+                "Ride R 40 Richtung Zermatt",
+                "Stop 11:21 Zermatt Gl. 2",
             ),
-            texts,
+            items.map {
+                when (it) {
+                    is JourneyItem.Stop -> listOfNotNull("Stop", it.time, it.name, it.platform).joinToString(" ")
+                    is JourneyItem.Ride -> "Ride ${it.badge} ${it.direction}"
+                    is JourneyItem.Walk -> "Walk ${it.text}"
+                    is JourneyItem.Change -> "Change ${it.text}"
+                    is JourneyItem.Pass -> "Pass ${it.name}"
+                }
+            },
         )
+        assertTrue((items.first() as JourneyItem.Stop).end && (items.last() as JourneyItem.Stop).end)
     }
 
     @Test
-    fun `earlier and later connections, and the way back`() {
+    fun `departures of a stop, later ones at the end, the trip of one, a connection from there`() {
         start()
+        down(10)
+        tap()
+        assertEquals(FahrplanApp.ASK_BOARD, ui.question!!.first)
+        type("Zürich HB")
+        answer(Fixtures.ZUERICH)
+        assertEquals(FahrplanApp.P_BOARD, page())
+        assertTrue(url(), url().startsWith("https://transport.opendata.ch/v1/stationboard?id=8503000&limit=15&datetime=2026-11-02+07%3A40"))
+        assertEquals("Lade die Abfahrten …", list(FahrplanApp.P_BOARD).note)
+        answer(Fixtures.BOARD)
+        val b = list(FahrplanApp.P_BOARD)
+        assertEquals("Zürich HB · ab 07:45", b.title)
+        assertEquals(15, b.rows.size)
+        assertEquals(Row("Herrliberg-Feldmeilen", Icon.TRAIN, "07:45", null, "S 16", right = "Gl. 43/44"), b.rows[0])
+        assertEquals(Row("Bern", Icon.TRAIN, "07:49", null, "IC", right = "Gl. 15"), b.rows[5])
+        assertEquals(Pair(FahrplanApp.REFRESH_MS, true), ui.timers[FahrplanApp.T_REFRESH])
+
+        down(14)
+        assertEquals(14, list(FahrplanApp.P_BOARD).selected)
+        down()
+        assertTrue(url(), url().contains("datetime=2026-11-02+07%3A57"))
+        answer(Fixtures.BOARD)
+        assertEquals("Keine späteren Abfahrten.", ui.toasts.last())
+
+        // A tap shows the trip of the departure in the frame.
+        up(9)
+        tap()
+        assertEquals(FahrplanApp.P_TRIP, page())
+        val t = list(FahrplanApp.P_TRIP)
+        assertEquals("IC nach Bern", t.title)
+        assertEquals("Zürich HB", t.rows.first().text)
+        assertEquals("07:49", t.rows.first().time)
+        assertEquals("Bern", t.rows.last().text)
+
+        back()
+        // Holding: a connection from here.
+        hold()
+        assertEquals(FahrplanApp.P_PLAN, page())
+        assertEquals("Zürich HB", plan().from)
+        assertEquals(1, plan().focus)
+    }
+
+    @Test
+    fun `with a keyboard the stop is typed on the glasses, the stops that fit coming while typing`() {
+        ui.keyboard = true
+        start()
+        tap()
+        assertEquals(FahrplanApp.P_SEARCH, page())
+        assertTrue(Sensor.KEYS in ui.subscriptions)
+        assertNull(ui.question)
+        var s = list(FahrplanApp.P_SEARCH)
+        assertEquals("Nach", s.fieldLabel)
+        assertTrue(s.typing)
+        assertEquals("Tippe den Namen der Haltestelle.", s.note)
+
+        key("b", "b")
+        assertTrue(ui.requests.isEmpty())
+        key("e", "e")
+        // A moment after the last key the timetable is asked.
+        assertEquals(FahrplanApp.TYPE_MS, ui.timers[FahrplanApp.T_TYPE]!!.first)
+        send(AppEvent.Timer(FahrplanApp.T_TYPE))
+        assertEquals("https://transport.opendata.ch/v1/locations?query=be&type=station", url())
+        answer(Fixtures.BERN)
+        s = list(FahrplanApp.P_SEARCH)
+        assertEquals("be", s.field)
+        assertEquals(listOf("Bern", "Bern, Bahnhof"), s.rows.take(2).map { it.text })
+        assertEquals(Icon.TRAM, s.rows[1].icon)
+        key(Keys.ARROW_DOWN)
+        assertEquals(1, list(FahrplanApp.P_SEARCH).selected)
+        key(Keys.ENTER)
+        // The destination is there: the connections, from the position of the watch.
+        assertEquals(FahrplanApp.P_RESULTS, page())
+        assertEquals("Aktueller Standort → Bern, Bahnhof", results().title)
+        assertFalse(Sensor.KEYS in ui.subscriptions)
+        assertEquals("Suche den Standort …", results().note)
+    }
+
+    @Test
+    fun `from Aktueller Standort the search waits for the position, and says what to do without one`() {
+        start()
+        tap()
+        type("bern")
+        answer(Fixtures.BERN)
+        assertEquals("Suche den Standort …", results().note)
+        assertTrue(ui.requests.isEmpty())
+        assertEquals(setOf(Sensor.LOCATION), ui.subscriptions)
+        assertEquals(FahrplanApp.FIX_TIMEOUT_MS, ui.timers[FahrplanApp.T_FIX]!!.first)
+        send(AppEvent.Timer(FahrplanApp.T_FIX))
+        assertEquals(FahrplanApp.NO_FIX, results().note)
+        assertTrue(ui.subscriptions.isEmpty())
+
+        // A tap tries again; the position comes.
+        tap()
+        fix()
+        assertTrue(url(), url().contains("from=47.371200%2C8.538900&to=8507000"))
+        assertTrue(ui.subscriptions.isEmpty())
+        answer(Fixtures.HERE_LUZERN)
+        assertEquals("Aktueller Standort → Bern", results().title)
+        assertEquals("07:57", results().cards.first().departure)
+        // No way back to a position.
+        assertTrue(ui.menu.none { it.text == "Rückfahrt" })
+    }
+
+    @Test
+    fun `the time is typed, with an for the arrival`() {
+        start()
+        down(2)
+        assertEquals(3, plan().focus)
+        tap()
+        assertEquals(FahrplanApp.ASK_WHEN, ui.question!!.first)
+        type("an 8:30")
+        assertEquals("Heute 08:30 · Ankunft", plan().time)
+        tap()
+        type("bald")
+        assertTrue(ui.toasts.last(), ui.toasts.last().startsWith("„bald“ verstehe ich nicht"))
+
         chooseZurichBern()
-        search()
-        click(FahrplanApp.VE_LATER)
-        // From the last one's departure on.
-        assertTrue(url(), url().contains("date=2026-11-02&time=08:33&limit=5"))
-        answer(Fixtures.ZUERICH_BERN_LATER)
-        assertEquals("08:38 → 09:56 · Gl. 16 · RE 37, RE 12, IC 61", buttons()[1])
-        click(FahrplanApp.VE_EARLIER)
-        // Arriving before the first one: those before it.
-        assertTrue(url(), url().contains("time=09:55&isArrivalTime=1"))
+        assertTrue(url(), url().contains("date=2026-11-02&time=08:30&isArrivalTime=1"))
         answer(Fixtures.ZUERICH_BERN)
-        assertEquals("07:49 → 08:50 · Gl. 15 · IC", buttons()[1])
-
-        click(FahrplanApp.VE_RETURN)
-        assertTrue(url(), url().contains("from=8507000&to=8503000"))
-        assertEquals("Bern → Zürich HB", page().textOf(FahrplanApp.VE_ROUTE))
-        assertEquals(FahrplanApp.P_RESULTS, page().id)
+        assertEquals("Heute an 08:30", results().subtitle)
+        // Arriving by then: the one closest to it is in the frame.
+        assertEquals(4, results().selected)
     }
 
     @Test
-    fun `every minute anew, and a chosen connection stays when it has left`() {
+    fun `every minute anew the delays follow, and a chosen journey is followed after it left`() {
         start()
         chooseZurichBern()
-        search()
-        val timer = ui.timers[FahrplanApp.T_REFRESH]
-        assertEquals(Pair(FahrplanApp.REFRESH_MS, true), timer)
+        answer(Fixtures.ZUERICH_BERN)
+        assertEquals(Pair(FahrplanApp.REFRESH_MS, true), ui.timers[FahrplanApp.T_REFRESH])
 
         // A minute later: the first train is late and leaves from another platform.
         now += 60_000
         send(AppEvent.Timer(FahrplanApp.T_REFRESH))
-        assertTrue(url(), url().contains("time=07:41"))
-        // The old ones show until the new ones are there.
-        assertEquals("07:49 → 08:50 · Gl. 15 · IC", buttons()[1])
+        assertTrue(url(), url().contains("time=07:48"))
         ui.answer(HttpResult(200, late(Fixtures.text(Fixtures.ZUERICH_BERN))))
-        assertEquals("07:49 +3 → 08:50 · Gl. 16 neu · IC", buttons()[1])
+        val first = results().cards.first()
+        assertEquals("+3", first.departureDelay)
+        assertEquals("Gl. 16", first.platform)
+        assertTrue(first.platformChanged)
+        assertEquals(5, results().cards.size)
 
-        click("${FahrplanApp.VE_CONN}0")
-        assertEquals("07:49 +3 → 08:50", page().textOf(FahrplanApp.DE_TIMES))
-        assertEquals("Gl. 16 neu", page().valueOf("${FahrplanApp.DE_DEP}0"))
+        tap()
+        assertEquals("07:49 +3", journey().departure)
+        val stop = journey().items.first() as JourneyItem.Stop
+        assertEquals("+3", stop.delay)
+        assertTrue(stop.changed)
         // On its page the connection is asked for from its own departure on, and found though it left.
         now += 15 * 60_000
         send(AppEvent.Timer(FahrplanApp.T_REFRESH))
         assertTrue(url(), url().contains("time=07:48"))
         ui.answer(HttpResult(200, Fixtures.text(Fixtures.ZUERICH_BERN)))
-        assertEquals("07:49 → 08:50", page().textOf(FahrplanApp.DE_TIMES))
-        // When it is no longer in the answer, it stays as it was.
+        assertEquals("07:49", journey().departure)
         send(AppEvent.Timer(FahrplanApp.T_REFRESH))
         ui.answer(HttpResult(200, Fixtures.text(Fixtures.ZUERICH_BERN_LATER)))
-        assertEquals("07:49 → 08:50", page().textOf(FahrplanApp.DE_TIMES))
+        assertEquals("07:49", journey().departure)
 
-        // Hidden, nothing is asked for.
         send(AppEvent.Hidden)
         assertNull(ui.timers[FahrplanApp.T_REFRESH])
     }
@@ -303,189 +466,130 @@ class FahrplanAppTest {
     )
 
     @Test
-    fun `from Mein Standort the search waits for the watch's position`() {
+    fun `the stops nearby, from the watch's position`() {
         start()
-        click(FahrplanApp.ST_TO)
-        type("bern")
-        answer(Fixtures.BERN)
-        click(FahrplanApp.ST_SEARCH)
-        assertEquals("Suche den Standort …", page().textOf(FahrplanApp.VE_INFO))
-        assertTrue(ui.requests.isEmpty())
-        assertEquals(setOf(Sensor.LOCATION), ui.subscriptions)
+        down(3)
+        tap()
+        assertEquals(FahrplanApp.P_NEAR, page())
+        assertEquals("Suche den Standort …", list(FahrplanApp.P_NEAR).note)
         fix()
-        assertTrue(url(), url().contains("from=47.371200%2C8.538900&to=8507000"))
-        // The position is there: the GPS rests.
-        assertTrue(ui.subscriptions.isEmpty())
-        assertEquals("Mein Standort → Bern", page().textOf(FahrplanApp.VE_ROUTE))
-        answer(Fixtures.HERE_LUZERN)
-        assertEquals("07:57 → 08:51 · Gl. 6 · IR 70", buttons()[1])
-        // No way back to a position.
-        assertFalse(buttons().contains("Rückfahrt"))
+        assertEquals("https://transport.opendata.ch/v1/locations?x=47.371200&y=8.538900&type=station", url())
+        answer(Fixtures.NEARBY)
+        val n = list(FahrplanApp.P_NEAR)
+        assertEquals(listOf(Row("Zürich, Paradeplatz", Icon.TRAM, right = "160 m"), Row("Zürich, Rennweg", Icon.TRAM, right = "210 m")), n.rows.take(2))
+        down()
+        // A double tap on the watch opens like a tap.
+        send(AppEvent.Gesture(GestureKind.DOUBLE_CLICK, InputSource.WATCH))
+        assertEquals(FahrplanApp.P_BOARD, page())
+        assertTrue(url(), url().contains("stationboard?id=8591316"))
     }
 
     @Test
-    fun `without a position the search says what to do`() {
+    fun `holding on Planen swaps from and to`() {
         start()
-        click(FahrplanApp.ST_TO)
-        type("bern")
-        answer(Fixtures.BERN)
-        click(FahrplanApp.ST_SEARCH)
-        assertEquals(FahrplanApp.FIX_TIMEOUT_MS, ui.timers[FahrplanApp.T_FIX]!!.first)
-        send(AppEvent.Timer(FahrplanApp.T_FIX))
-        assertEquals(FahrplanApp.NO_FIX, page().textOf(FahrplanApp.VE_INFO))
-        assertTrue(ui.subscriptions.isEmpty())
-        assertTrue(buttons().contains("Nochmals"))
+        hold()
+        assertTrue(ui.toasts.isEmpty())
+        chooseZurichBern()
+        back()
+        hold()
+        assertEquals("Bern", plan().from)
+        assertEquals("Zürich HB", plan().to)
+        // The position cannot be the destination.
+        send(AppEvent.Menu(FahrplanApp.M_HERE))
+        hold()
+        assertEquals("„Aktueller Standort“ kann nicht Ziel sein.", ui.toasts.last())
+    }
+
+    @Test
+    fun `the same stop for from and to is refused, and Planen shows again`() {
+        ui.storage.set("von", Place("8503000", "Zürich HB").toJson())
+        start()
+        tap()
+        type("Zürich")
+        answer(Fixtures.ZUERICH)
+        assertEquals(FahrplanApp.P_SEARCH, page())
+        tap()
+        assertEquals("Von und Nach sind dieselbe Haltestelle.", ui.toasts.last())
+        assertEquals(FahrplanApp.P_PLAN, page())
+        assertTrue(ui.requests.isEmpty())
     }
 
     @Test
     fun `when the timetable does not answer`() {
         start()
         chooseZurichBern()
-        click(FahrplanApp.ST_SEARCH)
         ui.answer(HttpResult(0, "", "timeout"))
-        assertEquals(FahrplanApp.OFFLINE, page().textOf(FahrplanApp.VE_INFO))
-        click(FahrplanApp.VE_AGAIN)
-        ui.answer(HttpResult(200, "<html>Wartung</html>"))
-        assertEquals(FahrplanApp.UNREADABLE, page().textOf(FahrplanApp.VE_INFO))
-        click(FahrplanApp.VE_AGAIN)
-        ui.answer(HttpResult(200, """{"connections":[]}"""))
-        assertEquals("Keine Verbindung gefunden.", page().textOf(FahrplanApp.VE_INFO))
+        assertEquals(FahrplanApp.OFFLINE, results().note)
         assertTrue(ui.logs.any { it.contains("timeout") })
+        tap()
+        ui.answer(HttpResult(200, "<html>Wartung</html>"))
+        assertEquals(FahrplanApp.UNREADABLE, results().note)
+        tap()
+        ui.answer(HttpResult(200, """{"connections":[]}"""))
+        assertEquals("Keine Verbindung gefunden.", results().note)
 
-        // Looking up a name offline: the pick page offers to try again.
+        // Looking up a name offline, then one that does not exist.
         back()
-        click(FahrplanApp.ST_TO)
+        up(3)
+        down()
+        tap()
         type("Basel")
         ui.answer(HttpResult(503, ""))
-        assertEquals(FahrplanApp.P_PICK, page().id)
-        assertEquals(FahrplanApp.OFFLINE, page().textOf(FahrplanApp.PI_INFO))
-        click(FahrplanApp.PI_RETRY)
+        assertEquals(FahrplanApp.P_SEARCH, page())
+        assertEquals(FahrplanApp.OFFLINE, list(FahrplanApp.P_SEARCH).note)
+        // "Anders eingeben" asks again.
+        tap()
+        assertEquals(FahrplanApp.ASK_TO, ui.question!!.first)
+        type("Xyzzy")
         ui.answer(HttpResult(200, """{"stations":[]}"""))
-        assertEquals("Keine Haltestelle „Basel“ gefunden.", page().textOf(FahrplanApp.PI_INFO))
-        click(FahrplanApp.PI_AGAIN)
-        assertEquals(FahrplanApp.ASK_TO, ui.question!!.first)
-    }
-
-    @Test
-    fun `departures of a stop, later ones, and a connection from there`() {
-        start()
-        click(FahrplanApp.ST_BOARD)
-        assertEquals(FahrplanApp.ASK_BOARD, ui.question!!.first)
-        type("Zürich")
-        answer(Fixtures.ZUERICH)
-        click(buttonFor("Zürich HB"))
-        assertEquals(FahrplanApp.P_BOARD, page().id)
-        assertTrue(url(), url().startsWith("https://transport.opendata.ch/v1/stationboard?id=8503000&limit=15&datetime=2026-11-02+07%3A40"))
-        answer(Fixtures.BOARD)
-        val p = page()
-        assertEquals("Zürich HB", p.textOf(FahrplanApp.AB_STATION))
-        assertEquals("Heute ab 07:45", p.textOf(FahrplanApp.AB_INFO))
-        assertEquals("07:45 S 16 Herrliberg-Feldmeilen", p.textOf("${FahrplanApp.AB_DEP}0"))
-        assertEquals("Gl. 43/44", p.valueOf("${FahrplanApp.AB_DEP}0"))
-        assertEquals("07:49 IC Bern", p.textOf("${FahrplanApp.AB_DEP}5"))
-        assertEquals(Pair(FahrplanApp.REFRESH_MS, true), ui.timers[FahrplanApp.T_REFRESH])
-
-        click(FahrplanApp.AB_LATER)
-        assertTrue(url(), url().contains("datetime=2026-11-02+07%3A57"))
-        answer(Fixtures.BOARD)
-
-        click(FahrplanApp.AB_ROUTE)
-        assertEquals(FahrplanApp.P_START, page().id)
-        assertEquals("Von: Zürich HB", page().textOf(FahrplanApp.ST_FROM))
-    }
-
-    @Test
-    fun `the stops nearby, from the watch's position`() {
-        start()
-        click(FahrplanApp.ST_NEAR)
-        assertEquals(FahrplanApp.P_NEAR, page().id)
-        assertEquals("Suche den Standort …", page().textOf(FahrplanApp.NA_INFO))
-        fix()
-        assertEquals("https://transport.opendata.ch/v1/locations?x=47.371200&y=8.538900&type=station", url())
-        answer(Fixtures.NEARBY)
-        assertEquals(
-            listOf("Zürich, Paradeplatz · 160 m", "Zürich, Rennweg · 210 m", "Zürich Storchen · 230 m"),
-            buttons().take(3),
-        )
-        click(buttonFor("Zürich, Rennweg"))
-        assertEquals(FahrplanApp.P_BOARD, page().id)
-        assertTrue(url(), url().contains("stationboard?id=8591316"))
-    }
-
-    @Test
-    fun `a time typed for the search`() {
-        start()
-        click(FahrplanApp.ST_WHEN)
-        assertEquals(FahrplanApp.ASK_WHEN, ui.question!!.first)
-        type("morgen 7:15")
-        assertEquals("Wann: morgen 07:15", page().textOf(FahrplanApp.ST_WHEN))
-        click(FahrplanApp.ST_WHEN)
-        type("bald")
-        assertTrue(ui.toasts.last(), ui.toasts.last().startsWith("„bald“ verstehe ich nicht"))
-        assertEquals("Wann: morgen 07:15", page().textOf(FahrplanApp.ST_WHEN))
-        send(AppEvent.Toggle(FahrplanApp.P_START, FahrplanApp.ST_ARRIVAL, true))
-
-        chooseZurichBern()
-        click(FahrplanApp.ST_SEARCH)
-        assertTrue(url(), url().contains("date=2026-11-03&time=07:15&isArrivalTime=1"))
-    }
-
-    @Test
-    fun `searching without a destination asks for it first`() {
-        start()
-        click(FahrplanApp.ST_SEARCH)
-        assertEquals(FahrplanApp.ASK_TO, ui.question!!.first)
-        type("bern")
-        answer(Fixtures.BERN)
-        assertEquals(FahrplanApp.P_RESULTS, page().id)
+        assertEquals("Keine Haltestelle „Xyzzy“ gefunden.", list(FahrplanApp.P_SEARCH).note)
     }
 
     @Test
     fun `the searches and stops used last are kept`() {
         start()
         chooseZurichBern()
-        search()
+        answer(Fixtures.ZUERICH_BERN)
         back()
-        val p = page()
-        assertEquals("Zuletzt gesucht", p.textOf(FahrplanApp.ST_RECENT))
-        assertEquals("Zürich HB → Bern", p.textOf("${FahrplanApp.ST_ROUTE}0"))
+        assertEquals("Zürich HB → Bern", plan().rows.first().text)
 
         // A new start of the app finds them in its store.
         val again = FahrplanApp(clock = { now }, zone = Fixtures.ZONE)
         val ui2 = FakeAppContext.forApp(again)
-        (ui.storage as FakeAppContext.MemoryStorage).values.forEach { (k, v) -> ui2.storage.set(k, v) }
+        ui.storage.values.forEach { (k, v) -> ui2.storage.set(k, v) }
         again.onEvent(AppEvent.Start, ui2)
-        val start = ui2.current!!
-        assertEquals("Von: Zürich HB", start.textOf(FahrplanApp.ST_FROM))
-        assertEquals("Nach: Bern", start.textOf(FahrplanApp.ST_TO))
-        assertEquals("Zürich HB → Bern", start.textOf("${FahrplanApp.ST_ROUTE}0"))
+        val p = again.screen(FahrplanApp.P_PLAN) as PlanScreen
+        assertEquals("Zürich HB", p.from)
+        assertEquals("Bern", p.to)
+        assertEquals("Zürich HB → Bern", p.rows.first().text)
+        // With a destination the frame starts on "Von".
+        assertEquals(0, p.focus)
         assertEquals(2, (ui.storage.get("orte") as JsonArray).size)
-
-        // A search used before starts with one click.
-        click("${FahrplanApp.ST_ROUTE}0")
-        assertEquals(FahrplanApp.P_RESULTS, page().id)
-        assertTrue(url().contains("from=8503000&to=8507000"))
     }
 
     @Test
     fun `the app menu fits the page`() {
         start()
-        assertEquals(emptyList<String>(), ui.menu.map { it.text })
+        assertEquals(listOf("Zeit gilt für die Ankunft"), ui.menu.map { it.text })
         chooseZurichBern()
-        assertEquals(listOf("Von und Nach tauschen", "Von: Mein Standort", "Verlauf löschen"), ui.menu.map { it.text })
-        send(AppEvent.Menu(FahrplanApp.M_SWAP))
-        assertEquals("Von: Bern", page().textOf(FahrplanApp.ST_FROM))
-        assertEquals("Nach: Zürich HB", page().textOf(FahrplanApp.ST_TO))
-        send(AppEvent.Menu(FahrplanApp.M_SWAP))
-        search()
-        assertEquals(listOf("Aktualisieren", "Rückfahrt"), ui.menu.map { it.text })
-        send(AppEvent.Menu(FahrplanApp.M_REFRESH))
-        assertTrue(url().contains("/connections?"))
+        assertEquals(listOf("Aktualisieren", "Rückfahrt", "Frühere Verbindungen", "Spätere Verbindungen"), ui.menu.map { it.text })
         answer(Fixtures.ZUERICH_BERN)
+        send(AppEvent.Menu(FahrplanApp.M_RETURN))
+        assertTrue(url(), url().contains("from=8507000&to=8503000"))
+        assertEquals("Bern → Zürich HB", results().title)
+        answer(Fixtures.ZUERICH_BERN)
+        tap()
+        assertEquals(listOf("Aktualisieren", "Alle Zwischenhalte zeigen"), ui.menu.map { it.text })
+        send(AppEvent.Menu(FahrplanApp.M_STOPS))
+        assertTrue(journey().items.filterIsInstance<JourneyItem.Ride>().all { it.open })
+        assertEquals("Zwischenhalte ausblenden", ui.menu.last().text)
         back()
+        back()
+        assertEquals(
+            listOf("Von und Nach tauschen", "Von: Aktueller Standort", "Zeit gilt für die Ankunft", "Verlauf löschen"),
+            ui.menu.map { it.text },
+        )
         send(AppEvent.Menu(FahrplanApp.M_CLEAR))
-        assertNull(page().block(FahrplanApp.ST_RECENT))
-        send(AppEvent.Menu(FahrplanApp.M_HERE))
-        assertEquals("Von: Mein Standort", page().textOf(FahrplanApp.ST_FROM))
+        assertEquals(listOf("Abfahrten in der Nähe", "Abfahrten einer Haltestelle"), plan().rows.map { it.text })
     }
 }
